@@ -6,7 +6,14 @@ parent: Reference
 
 # ROR State Schema
 
-The `.claude/ror-state.json` file is created by `/ror:start` and lives at the project root. It is the single source of truth for phase progress. It is gitignored in all projects (covered by the global Claude gitignore).
+State files live in `.claude/ror-states/` at the project root, named after the branch:
+
+```
+.claude/ror-states/app-payment-webhooks.json
+.claude/ror-states/user-profile-redesign.json
+```
+
+One file per active feature. Multiple features can run simultaneously with no conflicts. The directory and all its contents are gitignored (covered by the global Claude gitignore on `.claude/`). Created by `/ror:start`, deleted by `/ror:cleanup`.
 
 ---
 

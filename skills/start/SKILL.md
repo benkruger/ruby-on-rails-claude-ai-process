@@ -1,6 +1,6 @@
 ---
 name: start
-description: "Phase 1: Start — begin a new feature. Creates a worktree, upgrades gems, opens a PR, creates .claude/ror-state.json, and configures the workspace. Usage: /ror:start <feature name words>"
+description: "Phase 1: Start — begin a new feature. Creates a worktree, upgrades gems, opens a PR, creates .claude/ror-states/<branch>.json, and configures the workspace. Usage: /ror:start <feature name words>"
 ---
 
 # ROR Start — Phase 1: Start
@@ -17,12 +17,13 @@ Arguments become the feature name. Words are joined with hyphens:
 - PR title: `App Payment Webhooks`
 
 <HARD-GATE>
-Do NOT proceed past Step 1 if the feature name is missing. Ask the user: "What is the feature name? e.g. /ror:start app payment webhooks"
+Do NOT proceed if the feature name is missing. Ask the user:
+"What is the feature name? e.g. /ror:start app payment webhooks"
 </HARD-GATE>
 
 ## Announce
 
-At the very start, before doing anything, print:
+Print:
 
 ```
 ============================================
@@ -32,33 +33,55 @@ At the very start, before doing anything, print:
 
 ## Steps
 
-### Step 1 — Pull main
+### Step 1 — Check for existing feature
+
+Run this check first:
+
+```bash
+python3 << 'PYCHECK'
+import json, sys
+from pathlib import Path
+
+state_dir = Path(".claude/ror-states")
+if state_dir.exists():
+    files = list(state_dir.glob("*.json"))
+    if files:
+        names = [f.stem for f in files]
+        print(f"WARNING: Active ROR feature(s) found: {', '.join(names)}")
+        sys.exit(1)
+sys.exit(0)
+PYCHECK
+```
+
+If this exits non-zero, use AskUserQuestion:
+
+> "An active ROR feature already exists. What would you like to do?"
+> - **Start a new feature anyway** — proceed
+> - **Cancel** — stop here
+
+### Step 2 — Pull main
 
 ```bash
 git pull origin main
 ```
 
-Ensure the starting point is current. If this fails, stop and report why.
+If this fails, stop and report why.
 
-### Step 2 — Create the worktree
+### Step 3 — Create the worktree
 
 ```bash
 git worktree add .worktrees/<feature-name> -b <feature-name>
 ```
 
-Example: `git worktree add .worktrees/app-payment-webhooks -b app-payment-webhooks`
+All subsequent commands that touch application code run inside the worktree.
 
-All subsequent steps run inside the worktree directory.
-
-### Step 3 — Push branch to remote immediately
+### Step 4 — Push branch to remote immediately
 
 ```bash
 git push -u origin <feature-name>
 ```
 
-Establishes the branch remotely before any code changes.
-
-### Step 4 — Open the PR
+### Step 5 — Open the PR
 
 ```bash
 gh pr create \
@@ -67,11 +90,12 @@ gh pr create \
   --base main
 ```
 
-Capture the PR URL from the output. Extract the PR number from the URL (the trailing integer).
+Capture the PR URL from the output. Extract the PR number from the URL.
 
-### Step 5 — Create the ROR state file
+### Step 6 — Create the ROR state file
 
-Create `.claude/ror-state.json` at the project root (not inside the worktree). Use the current UTC timestamp for `started_at` and `session_started_at` on Phase 1.
+Create `.claude/ror-states/` directory if it does not exist. Write the state
+file at `.claude/ror-states/<branch-name>.json` with the current UTC timestamp:
 
 ```json
 {
@@ -83,7 +107,7 @@ Create `.claude/ror-state.json` at the project root (not inside the worktree). U
   "started_at": "<current_utc_timestamp>",
   "current_phase": 1,
   "phases": {
-    "1":  { "name": "Start",     "status": "in_progress", "started_at": "<current_utc_timestamp>", "completed_at": null, "session_started_at": "<current_utc_timestamp>", "cumulative_seconds": 0, "visit_count": 1 },
+    "1":  { "name": "Start",     "status": "in_progress", "started_at": "<now>", "completed_at": null, "session_started_at": "<now>", "cumulative_seconds": 0, "visit_count": 1 },
     "2":  { "name": "Research",  "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
     "3":  { "name": "Design",    "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
     "4":  { "name": "Plan",      "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
@@ -98,10 +122,10 @@ Create `.claude/ror-state.json` at the project root (not inside the worktree). U
 ```
 
 Then create a task for each phase using TaskCreate:
-- Phase 1 (Start): status `in_progress`
-- Phases 2–10: status `pending`
+- Phase 1 (Start): `in_progress`
+- Phases 2–10: `pending`
 
-### Step 6 — Configure workspace permissions
+### Step 7 — Configure workspace permissions
 
 Check if `.claude/settings.json` exists in the project root.
 
@@ -124,69 +148,66 @@ Check if `.claude/settings.json` exists in the project root.
 }
 ```
 
-**If it exists**, read it and merge in any missing entries. Do not remove or overwrite existing entries. Do not add duplicates.
+**If it exists**, read it and merge in any missing entries. Do not remove existing entries. No duplicates.
 
-### Step 7 — Baseline `bin/ci`
-
-Run `bin/ci` inside the worktree. This captures the health of the codebase before any changes.
-
-- If it **passes** — note it as the baseline and continue.
-- If it **fails** — report the failures clearly. These are pre-existing issues, not caused by your changes. Ask the user whether to proceed anyway or stop.
-
-### Step 8 — Upgrade gems
+### Step 8 — Baseline `bin/ci`
 
 ```bash
-bundle update
+cd .worktrees/<feature-name> && bin/ci
 ```
 
-Upgrades all gems to their latest compatible versions inside the worktree.
+- **Passes** — note as baseline and continue
+- **Fails** — report failures clearly (pre-existing issues). Ask user whether to proceed or stop.
 
-### Step 9 — Post-update `bin/ci`
+### Step 9 — Upgrade gems
 
-Run `bin/ci` again after the gem upgrade.
-
-- If it **passes** — continue to Step 11.
-- If it **fails** — continue to Step 10.
-
-### Step 10 — Fix breakage from gem upgrade
-
-**RuboCop violations** — run the auto-fixer first:
 ```bash
-rubocop -A
+cd .worktrees/<feature-name> && bundle update
 ```
-Then run `bin/ci` again. If violations remain that cannot be auto-fixed, read the output and fix them manually one by one.
 
-**Test failures** — read the failure output carefully. These are typically caused by:
-- Changed gem APIs (update the call sites)
-- New validation behaviour (update test fixtures or assertions)
-- Deprecation warnings promoted to errors (follow the deprecation message)
+### Step 10 — Post-update `bin/ci`
 
-Fix each failure, then run `bin/ci` again. Repeat until green.
+```bash
+cd .worktrees/<feature-name> && bin/ci
+```
+
+- **Passes** — continue to Step 12
+- **Fails** — continue to Step 11
+
+### Step 11 — Fix breakage from gem upgrade
+
+**RuboCop violations:**
+```bash
+cd .worktrees/<feature-name> && rubocop -A && bin/ci
+```
+
+**Test failures** — read output carefully, fix call sites or fixtures, repeat until green.
 
 <HARD-GATE>
-Do NOT proceed to Step 11 until bin/ci is green. If you cannot fix the failures after three attempts, stop and report exactly what is failing and what you tried.
+Do NOT proceed to Step 12 until bin/ci is green. If not fixed after
+three attempts, stop and report exactly what is failing and what was tried.
 </HARD-GATE>
 
-### Step 11 — Commit and push
+### Step 12 — Commit and push
 
-Use `/ror:commit` to review and commit the changes (`Gemfile.lock` and any gem-related fixes).
+Use `/ror:commit` to review and commit the changes (`Gemfile.lock` + any gem fixes).
 
 ### Done — Update state and complete phase
 
-Update `.claude/ror-state.json`:
-1. Calculate `cumulative_seconds` for Phase 1: `current_time - session_started_at`
-2. Set Phase 1 `status` to `complete`
-3. Set Phase 1 `completed_at` to current UTC timestamp
-4. Set Phase 1 `session_started_at` to `null`
-5. Set `current_phase` to `2`
+Update `.claude/ror-states/<branch>.json`:
+1. `cumulative_seconds` for Phase 1: `current_time - session_started_at`
+2. Phase 1 `status` → `complete`
+3. Phase 1 `completed_at` → current UTC timestamp
+4. Phase 1 `session_started_at` → `null`
+5. `current_phase` → `2`
 
-Update the Phase 1 task to `completed`.
+Update Phase 1 task to `completed`.
 
 Ask the user:
 
 > "Phase 1: Start is complete. Ready to proceed to Phase 2: Research?"
-> - **Yes, proceed** — print the completion banner
-> - **No, stay here** — ask what still needs to be done
+> - **Yes, proceed**
+> - **No, stay here**
 
 On approval, print:
 
@@ -197,9 +218,9 @@ On approval, print:
 ============================================
 ```
 
-Then report a summary:
-- Branch and worktree location
+Report:
+- Worktree location
 - PR link
-- Whether baseline `bin/ci` was clean or had pre-existing issues
-- Which gems were upgraded (run `git diff Gemfile.lock` to summarise)
-- Confirmation that `bin/ci` is green
+- Whether baseline `bin/ci` was clean
+- Which gems were upgraded (`git diff Gemfile.lock` summary)
+- Confirmation `bin/ci` is green

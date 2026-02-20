@@ -5,6 +5,40 @@ description: "Phase 2: Research — explore the codebase before any design or im
 
 # ROR Research — Phase 2: Research
 
+<HARD-GATE>
+Run this phase entry check as your very first action. If it exits
+non-zero, stop immediately and show the error to the user.
+
+```bash
+python3 << 'PYCHECK'
+import json, subprocess, sys
+from pathlib import Path
+
+def project_root():
+    r = subprocess.run(['git', 'worktree', 'list', '--porcelain'],
+                       capture_output=True, text=True)
+    for line in r.stdout.split('\n'):
+        if line.startswith('worktree '):
+            return Path(line.split(' ', 1)[1].strip())
+    return Path('.')
+
+branch = subprocess.run(['git', 'branch', '--show-current'],
+                        capture_output=True, text=True).stdout.strip()
+state_file = project_root() / '.claude' / 'ror-states' / f'{branch}.json'
+
+if not state_file.exists():
+    print('BLOCKED: No ROR feature in progress. Run /ror:start first.')
+    sys.exit(1)
+
+state = json.loads(state_file.read_text())
+prev = state.get('phases', {}).get('1', {})
+if prev.get('status') != 'complete':
+    print('BLOCKED: Phase 1: Start must be complete. Run /ror:start first.')
+    sys.exit(1)
+PYCHECK
+```
+</HARD-GATE>
+
 ## Announce
 
 Print:
@@ -17,7 +51,10 @@ Print:
 
 ## Update State
 
-Read `.claude/ror-state.json`. Update Phase 2:
+Read the state file. Get the worktree path from `state["worktree"]`.
+Run `cd <worktree>` immediately so all subsequent commands run there.
+
+Update `.claude/ror-states/<branch>.json` for Phase 2:
 - `status` → `in_progress`
 - `started_at` → current UTC timestamp (only if currently null — never overwrite)
 - `session_started_at` → current UTC timestamp
@@ -30,7 +67,7 @@ Update the Phase 2 task to `in_progress`.
 
 ## Step 1 — Read the feature context
 
-Read `.claude/ror-state.json` to understand:
+Read `.claude/ror-states/<branch>.json` to understand:
 - The feature name and description
 - Whether this is a return visit (check `visit_count` and any existing `research` data)
 
@@ -190,7 +227,7 @@ If "No, keep researching" — ask what area still needs investigation and loop b
 
 ## Done — Update state and complete phase
 
-Update `.claude/ror-state.json`:
+Update `.claude/ror-states/<branch>.json`:
 1. Calculate `cumulative_seconds`: `current_time - session_started_at` + existing `cumulative_seconds`
 2. Set Phase 2 `status` to `complete`
 3. Set Phase 2 `completed_at` to current UTC timestamp

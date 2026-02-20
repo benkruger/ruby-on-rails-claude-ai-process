@@ -63,5 +63,5 @@ By the end of Phase 4:
 
 ## What Comes Next
 
-Phase 5: Implement (`/flow:implement`) — execute tasks one by one,
+Phase 5: Code (`/flow:code`) — execute tasks one by one,
 TDD enforced at each step.

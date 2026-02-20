@@ -132,7 +132,7 @@ Added to the state file progressively as Plan sections are approved.
 ```
 
 Section statuses: `pending`, `approved`, `skipped`
-Task statuses: `pending`, `in_progress`, `complete` (updated by Implement)
+Task statuses: `pending`, `in_progress`, `complete` (updated by Code)
 
 ---
 

@@ -22,7 +22,7 @@ An opinionated Ruby on Rails development lifecycle for Claude Code. Every featur
 | 2 | [Research](phases/phase-2-research.md) | `/flow:research` | Explore codebase, ask clarifying questions, document findings |
 | 3 | [Design](phases/phase-3-design.md) | `/flow:design` | Propose 2-3 alternatives, get approval before any code |
 | 4 | [Plan](phases/phase-4-plan.md) | `/flow:plan` | Break design into ordered TDD tasks, section by section |
-| 5 | Implement | `/flow:implement` | *(coming soon)* |
+| 5 | Code | `/flow:code` | *(coming soon)* |
 | 6 | Review | `/flow:review` | *(coming soon)* |
 | 7 | Reflect | `/flow:reflect` | *(coming soon)* |
 | 8 | [Cleanup](phases/phase-8-cleanup.md) | `/flow:cleanup` | Remove worktree and delete state file |

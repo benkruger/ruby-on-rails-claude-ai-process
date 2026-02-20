@@ -30,7 +30,7 @@ The Skill to invoke maps directly to the current phase:
 | 2 — Research | `flow:research` |
 | 3 — Design | `flow:design` |
 | 4 — Plan | `flow:plan` |
-| 5 — Implement | `flow:implement` |
+| 5 — Code | `flow:code` |
 | 6 — Review | `flow:review` |
 | 7 — Reflect | `flow:reflect` |
 | 8 — Cleanup | `flow:cleanup` |

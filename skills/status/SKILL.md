@@ -48,7 +48,7 @@ Then stop.
   [>] Phase 2:  Research   <-- YOU ARE HERE
   [ ] Phase 3:  Design
   [ ] Phase 4:  Plan
-  [ ] Phase 5:  Implement
+  [ ] Phase 5:  Code
   [ ] Phase 7:  Review
   [ ] Phase 7:  Reflect
   [ ] Phase 8:  Cleanup

@@ -51,7 +51,7 @@ Show findings summary. Require user approval before proceeding to Design.
 
 - Propose solutions — that is Phase 3: Design
 - Write tasks — that is Phase 4: Plan
-- Write or modify any code — that is Phase 5: Implement
+- Write or modify any code — that is Phase 5: Code
 
 ---
 

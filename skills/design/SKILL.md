@@ -274,7 +274,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 ## Hard Rules
 
-- Never write or suggest any implementation code during Design
+- Never write or suggest any code during Design
 - Always present at least 2 alternatives before allowing approval
 - Always read Research findings before proposing anything
 - If returning to Research, update state for both phases before invoking

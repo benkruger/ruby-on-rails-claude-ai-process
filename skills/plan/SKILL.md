@@ -302,7 +302,7 @@ Once all sections are approved, show the complete ordered task list:
 Then use AskUserQuestion:
 
 > "Does the full plan look right?"
-> - **Approve — ready to implement**
+> - **Approve — ready to code**
 > - **Needs changes** — describe which tasks to revise
 > - **Go back to a plan section** — show section picker
 > - **Go back to Design** — approach needs rethinking
@@ -358,8 +358,8 @@ Update Phase 4 in state:
 
 Invoke `flow:status`, then use AskUserQuestion:
 
-> "Phase 4: Plan is complete. Ready to begin Phase 5: Implement?"
-> - **Yes, start Phase 5 now** — invoke `flow:implement`
+> "Phase 4: Plan is complete. Ready to begin Phase 5: Code?"
+> - **Yes, start Phase 5 now** — invoke `flow:code`
 > - **Not yet** — print paused banner
 
 **If Yes**, print:

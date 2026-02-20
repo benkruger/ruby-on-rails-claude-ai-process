@@ -1,0 +1,58 @@
+---
+title: "Phase 6: Review"
+nav_order: 7
+---
+
+# Phase 6: Review
+
+**Command:** `/flow:review`
+
+Systematic code review against the approved design, research risks,
+and Rails anti-patterns. bin/ci was already green from Code — Review
+adds what automated tools cannot catch.
+
+---
+
+## What Review Checks
+
+**1. Design alignment**
+Does the implementation match `state["design"]`? Schema, models,
+controllers, workers, routes — all verified against the approved design.
+
+**2. Research risk coverage**
+Every risk in `state["research"]["risks"]` confirmed as handled.
+A risk found and not addressed is a bug waiting to happen.
+
+**3. Rails anti-patterns**
+Things bin/ci cannot catch:
+- N+1 queries
+- Missing `inverse_of:` and `dependent:` on associations
+- Queries in views
+- `.first` or `.last` for arbitrary record selection
+- Callbacks silently overwriting values passed to `update!`
+- Soft delete misuse
+
+**4. Fresh read-through**
+Every changed file read as if seeing it for the first time.
+Clarity, naming, no over-engineering.
+
+---
+
+## Findings
+
+- **Minor** — fixed directly in Review, committed, bin/ci re-run
+- **Significant** — AskUserQuestion: fix here, go back to Code, Plan, or Design
+
+---
+
+## bin/ci Rule
+
+bin/ci runs after every fix made during Review.
+Review does not transition to Reflect until bin/ci is green.
+
+---
+
+## What Comes Next
+
+Phase 7: Reflect (`/flow:reflect`) — extract learnings and update
+CLAUDE.md before the PR is merged.

@@ -116,3 +116,4 @@ PYCHECK
 - Always use AskUserQuestion for the transition — never print "type /flow:next"
 - Yes → invoke next skill via Skill tool
 - Not yet → paused banner only
+- **Always run `bin/ci` before any state transition that touches code**

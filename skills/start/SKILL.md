@@ -63,7 +63,7 @@ Establishes the branch remotely before any code changes.
 ```bash
 gh pr create \
   --title "<Feature Name Title Cased>" \
-  --body "## What\n\n<Feature name as a sentence.>\n\n## Status\n\n- [ ] Phase 0: Prepare\n- [ ] Phase 1: Research\n- [ ] Phase 2: Design\n- [ ] Phase 3: Plan\n- [ ] Phase 4: Implement\n- [ ] Phase 5: Test\n- [ ] Phase 6: Review\n- [ ] Phase 7: Ship" \
+  --body "## What\n\n<Feature name as a sentence.>\n\n## Status\n\n- [ ] Phase 0: Start\n- [ ] Phase 1: Research\n- [ ] Phase 2: Design\n- [ ] Phase 3: Plan\n- [ ] Phase 4: Implement\n- [ ] Phase 5: Test\n- [ ] Phase 6: Review\n- [ ] Phase 7: Ship\n- [ ] Phase 8: Reflect\n- [ ] Phase 9: Cleanup" \
   --base main
 ```
 
@@ -147,7 +147,7 @@ Update the PR body to check off Phase 0:
 gh pr edit --body "..."
 ```
 
-Replace `- [ ] Phase 0: Prepare` with `- [x] Phase 0: Prepare` in the PR body. All other checkboxes remain unchanged.
+Replace `- [ ] Phase 0: Start` with `- [x] Phase 0: Start` in the PR body. All other checkboxes remain unchanged.
 
 ### Done
 

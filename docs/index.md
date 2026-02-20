@@ -26,6 +26,8 @@ An opinionated Ruby on Rails development lifecycle for Claude Code. Every featur
 | 5 | Test | `/ror:test` | *(coming soon)* |
 | 6 | Review | `/ror:review` | *(coming soon)* |
 | 7 | Ship | `/ror:ship` | *(coming soon)* |
+| 8 | Reflect | `/ror:reflect` | *(coming soon)* |
+| 9 | Cleanup | `/ror:cleanup` | *(coming soon)* |
 
 ## Installation
 

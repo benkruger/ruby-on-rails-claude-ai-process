@@ -49,7 +49,7 @@ Print a clear status report:
 
   Phases
   ------
-  [x] Phase 0: Prepare
+  [x] Phase 0: Start
   [ ] Phase 1: Research   <-- YOU ARE HERE
   [ ] Phase 2: Design
   [ ] Phase 3: Plan
@@ -57,6 +57,8 @@ Print a clear status report:
   [ ] Phase 5: Test
   [ ] Phase 6: Review
   [ ] Phase 7: Ship
+  [ ] Phase 8: Reflect
+  [ ] Phase 9: Cleanup
 
   Next: /ror:research
 

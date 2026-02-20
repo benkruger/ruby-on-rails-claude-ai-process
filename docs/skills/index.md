@@ -25,6 +25,8 @@ These skills correspond directly to a workflow phase. Each one starts and ends w
 | `/ror:test` | 5 — Test | *(coming soon)* |
 | `/ror:review` | 6 — Review | *(coming soon)* |
 | `/ror:ship` | 7 — Ship | *(coming soon)* |
+| `/ror:reflect` | 8 — Reflect | *(coming soon)* |
+| `/ror:cleanup` | 9 — Cleanup | *(coming soon)* |
 
 ---
 

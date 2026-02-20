@@ -214,7 +214,7 @@ Show the user a clean summary:
 
 ## Step 7 — Phase gate
 
-Use AskUserQuestion:
+Invoke the `sdlc:status` skill to show the current state, then use AskUserQuestion:
 
 > "Phase 2: Research is complete. Ready to begin Phase 3: Design?"
 > - **Yes, start Phase 3 now**

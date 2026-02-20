@@ -199,7 +199,7 @@ Update `.claude/sdlc-states/<branch>.json`:
 
 Update Phase 1 task to `completed`.
 
-Use AskUserQuestion:
+Invoke the `sdlc:status` skill to show the current state, then use AskUserQuestion:
 
 > "Phase 1: Start is complete. Ready to begin Phase 2: Research?"
 > - **Yes, start Phase 2 now**

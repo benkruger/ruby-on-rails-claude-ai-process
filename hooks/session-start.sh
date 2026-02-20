@@ -64,6 +64,10 @@ FLOW feature in progress: "{feature}" — Phase {cp}: {phase_name}
 
 Your FIRST action before responding to anything else:
 Invoke the flow:resume skill.
+
+Throughout this session: whenever the user corrects you, disagrees
+with your response, or says something was wrong, invoke flow:note
+immediately before replying to capture the correction.
 </flow-session-resume>""")
 
 else:

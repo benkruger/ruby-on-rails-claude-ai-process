@@ -102,6 +102,25 @@ Each phase entry has identical fields regardless of status.
 
 ---
 
+## Notes Array
+
+Populated throughout the session by `/flow:note`. Survives compaction
+and session restarts. Read by Reflect as a primary source.
+
+```json
+"notes": [
+  {
+    "phase": 5,
+    "phase_name": "Code",
+    "timestamp": "2026-02-20T14:23:00Z",
+    "type": "correction",
+    "note": "Never assume branch-behind is unlikely — multiple active sessions means branches regularly fall behind main"
+  }
+]
+```
+
+---
+
 ## Plan Object
 
 Added to the state file progressively as Plan sections are approved.

@@ -22,6 +22,8 @@ when building new phase skills.
 6. Update state file — set phase to complete, calculate cumulative_seconds
 7. Invoke flow:status  ← always, right before the transition question
 8. AskUserQuestion — "Ready to begin Phase X+1?"
+   Also ask: "Any corrections or learnings from this phase to capture?"
+   If yes → invoke flow:note with their message before transitioning
    - Yes → invoke next phase skill via Skill tool
    - Not yet → print paused banner
 ```

@@ -106,6 +106,7 @@ file at `.claude/flow-states/<branch-name>.json` with the current UTC timestamp:
   "pr_url": "<pr_url>",
   "started_at": "<current_utc_timestamp>",
   "current_phase": 1,
+  "notes": [],
   "phases": {
     "1":  { "name": "Start",     "status": "in_progress", "started_at": "<now>", "completed_at": null, "session_started_at": "<now>", "cumulative_seconds": 0, "visit_count": 1 },
     "2":  { "name": "Research",  "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },

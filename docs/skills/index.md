@@ -23,7 +23,7 @@ These skills correspond directly to a workflow phase. Each one starts and ends w
 | [`/flow:plan`](flow-plan.md) | 4 — Plan | Break design into ordered TDD tasks, section by section |
 | [`/flow:code`](flow-code.md) | 5 — Code | TDD task by task, diff review, bin/ci gate before each commit |
 | [`/flow:review`](flow-review.md) | 6 — Review | Design alignment, research risk coverage, Rails anti-pattern check |
-| `/flow:reflect` | 7 — Reflect | *(coming soon)* |
+| [`/flow:reflect`](flow-reflect.md) | 7 — Reflect | Extract learnings, update CLAUDE.md, note plugin gaps |
 | [`/flow:cleanup`](flow-cleanup.md) | 8 — Cleanup | Remove worktree and delete state file — final phase |
 
 ---
@@ -36,3 +36,4 @@ These skills are available at any point in the workflow, regardless of phase.
 |-------|-------------|
 | [`/flow:commit`](flow-commit.md) | Review the full diff, approve or deny, then git add + commit + push |
 | [`/flow:status`](flow-status.md) | Show current phase, PR link, phase checklist, and what comes next |
+| [`/flow:note`](flow-note.md) | Capture a correction or learning — invoked automatically on corrections |

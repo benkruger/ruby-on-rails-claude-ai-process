@@ -1,9 +1,9 @@
 ---
-title: "Phase 0: Prepare"
+title: "Phase 0: Start"
 nav_order: 2
 ---
 
-# Phase 0: Prepare
+# Phase 0: Start
 
 **Command:** `/ror:start <feature name words>`
 
@@ -149,4 +149,4 @@ By the end of Phase 0:
 
 ## What Comes Next
 
-Phase 1: Research — read all affected code before writing any.
+Phase 1: Research (`/ror:research`) — read all affected code before writing any.

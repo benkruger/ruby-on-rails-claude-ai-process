@@ -18,7 +18,7 @@ An opinionated Ruby on Rails development lifecycle for Claude Code. Every featur
 
 | Phase | Name | Command | Purpose |
 |-------|------|---------|---------|
-| 0 | [Prepare](phases/phase-0-prepare.md) | `/ror:start` | Set up the worktree, update gems, establish the PR |
+| 0 | [Start](phases/phase-0-start.md) | `/ror:start` | Set up the worktree, update gems, establish the PR |
 | 1 | Research | `/ror:research` | *(coming soon)* |
 | 2 | Design | `/ror:design` | *(coming soon)* |
 | 3 | Plan | `/ror:plan` | *(coming soon)* |
@@ -36,7 +36,7 @@ git submodule add git@github.com:benkruger/ruby-on-rails-claude-ai-process.git .
 
 ## Commands
 
-All commands are namespaced under `ror:`.
+All commands are namespaced under `ror:`. See the [Skills reference](skills/) for full documentation on each.
 
 | Command | Phase | Description |
 |---------|-------|-------------|

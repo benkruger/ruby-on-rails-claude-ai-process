@@ -1,9 +1,9 @@
 ---
 name: start
-description: "Phase 0: Prepare — begin a new feature. Creates a worktree, upgrades gems, opens a PR, and configures the workspace. Usage: /ror:start <feature name words>"
+description: "Phase 0: Start — begin a new feature. Creates a worktree, upgrades gems, opens a PR, and configures the workspace. Usage: /ror:start <feature name words>"
 ---
 
-# ROR Start — Phase 0: Prepare
+# ROR Start — Phase 0: Start
 
 ## Usage
 
@@ -26,7 +26,7 @@ At the very start, before doing anything, print:
 
 ```
 ============================================
-  ROR — Phase 0: Prepare — STARTING
+  ROR — Phase 0: Start — STARTING
 ============================================
 ```
 
@@ -155,7 +155,7 @@ Print the completion banner:
 
 ```
 ============================================
-  ROR — Phase 0: Prepare — COMPLETE
+  ROR — Phase 0: Start — COMPLETE
   Next: Phase 1: Research  (/ror:research)
 ============================================
 ```

@@ -1,3 +1,6 @@
-# Un-ignore plugin settings — committed as part of the plugin
+# Un-ignore shared plugin settings — committed as part of the plugin
 !.claude/
 !.claude/settings.json
+
+# Keep local/personal Claude settings out of the repo
+.claude/settings.local.json

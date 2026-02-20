@@ -1,0 +1,23 @@
+{
+  "name": "ror-marketplace",
+  "description": "Opinionated Ruby on Rails development lifecycle for Claude Code",
+  "owner": {
+    "name": "Ben Kruger"
+  },
+  "metadata": {
+    "description": "Opinionated Ruby on Rails development lifecycle for Claude Code",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "ror",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/benkruger/ruby-on-rails-claude-ai-process.git"
+      },
+      "description": "Opinionated Ruby on Rails development lifecycle — worktree-first, TDD, phase-gated workflow for Claude Code",
+      "version": "0.1.0",
+      "strict": true
+    }
+  ]
+}

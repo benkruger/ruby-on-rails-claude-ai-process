@@ -29,9 +29,9 @@ An opinionated Ruby on Rails development lifecycle for Claude Code. Every featur
 
 ## Installation
 
-```bash
-# Add as a Claude Code plugin via git submodule
-git submodule add git@github.com:benkruger/ruby-on-rails-claude-ai-process.git .claude/plugins/ror-process
+```
+/plugin marketplace add benkruger/ruby-on-rails-claude-ai-process
+/plugin install ror@ruby-on-rails-claude-ai-process
 ```
 
 ## Commands

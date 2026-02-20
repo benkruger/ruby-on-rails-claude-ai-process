@@ -7,6 +7,24 @@ description: "Review the full diff, approve or deny, then git add + commit + pus
 
 Review all pending changes as a diff before committing. You must get explicit approval before touching git.
 
+## Announce
+
+At the very start, print:
+
+```
+============================================
+  ROR — ror:commit — STARTING
+============================================
+```
+
+On completion (whether approved or denied), print:
+
+```
+============================================
+  ROR — ror:commit — COMPLETE
+============================================
+```
+
 ## Process
 
 ### Step 1 — Show the diff

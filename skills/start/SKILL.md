@@ -20,6 +20,16 @@ Arguments become the feature name. Words are joined with hyphens:
 Do NOT proceed past Step 1 if the feature name is missing. Ask the user: "What is the feature name? e.g. /ror:start app payment webhooks"
 </HARD-GATE>
 
+## Announce
+
+At the very start, before doing anything, print:
+
+```
+============================================
+  ROR — Phase 0: Prepare — STARTING
+============================================
+```
+
 ## Steps
 
 ### Step 1 — Pull main
@@ -129,10 +139,29 @@ Use `/ror:commit` to review and commit the changes (Gemfile.lock + any gem-relat
 
 The commit message should be: `chore: bundle update`
 
+### Step 11 — Mark Phase 0 complete on the PR
+
+Update the PR body to check off Phase 0:
+
+```bash
+gh pr edit --body "..."
+```
+
+Replace `- [ ] Phase 0: Prepare` with `- [x] Phase 0: Prepare` in the PR body. All other checkboxes remain unchanged.
+
 ### Done
 
-Report a summary:
-- Branch and worktree created
+Print the completion banner:
+
+```
+============================================
+  ROR — Phase 0: Prepare — COMPLETE
+  Next: Phase 1: Research  (/ror:research)
+============================================
+```
+
+Then report a summary:
+- Branch and worktree location
 - PR link
 - Whether baseline `bin/ci` was clean or had pre-existing issues
 - Which gems were upgraded (run `git diff Gemfile.lock` to summarise)

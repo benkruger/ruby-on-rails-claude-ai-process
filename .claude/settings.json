@@ -6,6 +6,7 @@
       "Bash(git push)",
       "Bash(git push -u *)",
       "Bash(git pull *)",
+      "Bash(git log *)",
       "Bash(git worktree *)",
       "Bash(gh pr create *)",
       "Bash(gh pr edit *)",

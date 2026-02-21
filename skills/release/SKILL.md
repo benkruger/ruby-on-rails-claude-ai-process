@@ -35,10 +35,22 @@ If this produces changes, warn the user that new commits were pulled.
 
 ## Step 3 — Show what changed since last release
 
-Run:
+Run these two commands separately:
 
 ```bash
-git log --oneline $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~20)..HEAD
+git describe --tags --abbrev=0
+```
+
+If that succeeds, use the tag it returns as `<last_tag>` and run:
+
+```bash
+git log --oneline <last_tag>..HEAD
+```
+
+If `git describe` fails (no tags exist), run:
+
+```bash
+git log --oneline HEAD~20..HEAD
 ```
 
 Display the commit list. This is what goes into the release.

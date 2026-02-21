@@ -156,7 +156,7 @@ Print:
 ============================================
   FLOW — flow:release — COMPLETE
   Released v<new_version>
-  https://github.com/benkruger/ruby-on-rails-claude-ai-process/releases/tag/v<new_version>
+  https://github.com/benkruger/flow/releases/tag/v<new_version>
 ============================================
 ```
 

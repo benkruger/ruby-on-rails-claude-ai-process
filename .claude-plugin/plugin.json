@@ -5,8 +5,8 @@
   "author": {
     "name": "Ben Kruger"
   },
-  "homepage": "https://benkruger.github.io/ruby-on-rails-claude-ai-process",
-  "repository": "https://github.com/benkruger/ruby-on-rails-claude-ai-process",
+  "homepage": "https://benkruger.github.io/flow",
+  "repository": "https://github.com/benkruger/flow",
   "license": "MIT",
   "keywords": ["ruby", "rails", "postgresql", "redis", "tdd", "workflow"]
 }

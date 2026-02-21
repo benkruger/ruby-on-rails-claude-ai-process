@@ -4,7 +4,7 @@ An opinionated 8-phase development plugin for [Claude Code](https://docs.anthrop
 
 **Every feature. Same 8 phases. Same order. No shortcuts.**
 
-**Documentation:** [benkruger.github.io/ruby-on-rails-claude-ai-process](https://benkruger.github.io/ruby-on-rails-claude-ai-process)
+**Documentation:** [benkruger.github.io/flow](https://benkruger.github.io/flow)
 
 ---
 
@@ -41,7 +41,7 @@ Start → Research → Design → Plan → Code → Review → Reflect → Clean
 In any Claude Code session:
 
 ```
-/plugin marketplace add benkruger/ruby-on-rails-claude-ai-process
+/plugin marketplace add benkruger/flow
 /plugin install flow@flow-marketplace
 ```
 

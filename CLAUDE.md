@@ -9,7 +9,7 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated Rails devel
 ## Installation (in a Rails project)
 
 ```
-/plugin marketplace add benkruger/ruby-on-rails-claude-ai-process
+/plugin marketplace add benkruger/flow
 /plugin install flow@flow-marketplace
 ```
 

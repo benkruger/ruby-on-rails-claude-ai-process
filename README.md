@@ -178,6 +178,16 @@ Every completed feature produces:
 
 ---
 
+## Part of the Ecosystem
+
+FLOW is part of a growing community of disciplined Claude Code plugins. Two projects worth knowing:
+
+- **[metaswarm](https://github.com/dsifry/metaswarm)** by Dave Sifry — a multi-agent orchestration framework with 18 specialized agents, cross-model adversarial review, and full pipeline orchestration from GitHub issue to merged PR. If FLOW is disciplined Rails development, metaswarm is disciplined development at scale.
+
+- **[Superpowers](https://github.com/obra/superpowers)** by Jesse Vincent — foundational agentic skills for Claude Code including TDD, systematic debugging, and plan writing. Proved that disciplined agent workflows are not overhead — they're what make autonomous development reliable.
+
+---
+
 ## Updating
 
 ```

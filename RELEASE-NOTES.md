@@ -1,5 +1,36 @@
 # Release Notes
 
+## v0.2.3 — Marketing site overhaul and commit skill fixes
+
+### Improvements
+
+- **Marketing site restructured** — Reorganized into What / Why / How / Get
+  Started sections with a clearer narrative. "8-phase orchestration" is now
+  visually emphasized as the central concept.
+- **Zero Footprint section** — Added to both README and the marketing site,
+  explaining that FLOW leaves nothing in your Rails project.
+- **"Cool Stuff" section** — New 3D flip-card grid on the marketing site
+  showcasing six standout implementation details: state persistence across
+  sessions and compaction, hard phase gates that actually execute, state
+  machine back-navigation, auto-generated release notes from commit history,
+  self-capturing corrections, and parallel feature support via branch-named
+  state files.
+
+### Fixes
+
+- **Commit skill message structure enforced** — Subject line, `tl;dr`, and
+  per-file breakdown are now validated before display; permission prompt
+  patterns corrected.
+- **Commit banner rendering fixed** — Start/complete banners now render as
+  plain monospace text in all markdown environments.
+
+### Docs
+
+- **CLAUDE.md updated** — Maintainer guidelines updated with learnings from
+  recent development sessions.
+
+---
+
 ## v0.2.2 — Repo housekeeping and maintainer tooling
 
 ### Improvements

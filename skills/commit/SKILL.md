@@ -69,7 +69,17 @@ what behaviour changes, or what was wrong before.
 - path/to/another.rb: What changed and why
 ```
 
-Note: `tl;dr` is on its own line with a blank line before the paragraph.
+**Before displaying your draft, verify it contains all of these in order:**
+
+1. Subject line — imperative verb, ≤72 chars, no period
+2. Blank line
+3. The literal word `tl;dr` on its own line — no colon, no elaboration, just `tl;dr`
+4. Blank line
+5. Explanation paragraph — the WHY, not the what
+6. Blank line
+7. File list — one bullet per changed file with reason
+
+If any element is missing or out of order, rewrite before displaying.
 
 **Subject line rules:**
 - Start with an imperative verb: Add, Fix, Update, Remove, Refactor, Extract
@@ -97,7 +107,13 @@ Question: "Approve this commit?"
 ### Step 4 — Commit and push (on approval)
 
 1. `git add -A`
-2. `git commit -m "<message from Step 2>"`
+2. Write the commit message to `/tmp/flow_commit_msg.txt` using a single-line `python3` command (encoding newlines as `\n`), then run `git commit -F /tmp/flow_commit_msg.txt`:
+   ```
+   python3 -c "open('/tmp/flow_commit_msg.txt','w').write('subject\n\ntl;dr\n\nbody\n\n- file: reason')"
+   git commit -F /tmp/flow_commit_msg.txt
+   ```
+   - Both stay single-line, matching the existing allow-list patterns `Bash(python3 *)` and `Bash(git commit *)`
+   - Never use `git commit -m` with heredoc — the multi-line command fails permission pattern matching
 3. `git pull origin <current-branch>` — pull before pushing to pick up any changes merged while you were working
 4. If the pull produced merge conflicts:
    - Run `git status` to identify every conflicting file

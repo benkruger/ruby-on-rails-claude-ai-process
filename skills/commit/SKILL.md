@@ -9,21 +9,25 @@ Review all pending changes as a diff before committing. You must get explicit ap
 
 ## Announce
 
-At the very start, print:
+At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
+````
 ```
 ============================================
   FLOW — flow:commit — STARTING
 ============================================
 ```
+````
 
-On completion (whether approved or denied), print:
+On completion (whether approved or denied), print the same way:
 
+````
 ```
 ============================================
   FLOW — flow:commit — COMPLETE
 ============================================
 ```
+````
 
 ## Process
 

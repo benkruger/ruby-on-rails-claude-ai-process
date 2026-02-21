@@ -366,37 +366,89 @@
     }
 
     .cool-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      position: relative;
-      overflow: hidden;
+      perspective: 800px;
+      cursor: pointer;
     }
 
-    .cool-card::before {
+    .cool-card-inner {
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .cool-card:hover .cool-card-inner,
+    .cool-card.flipped .cool-card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .cool-card-front {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 220px;
+    }
+
+    .cool-card-front::before {
       content: '';
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 12px 12px 0 0;
+    }
+
+    .cool-card-back {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      position: absolute;
+      inset: 0;
+      transform: rotateY(180deg);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--accent-subtle);
+      border: 1px solid var(--accent);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+
+    .cool-card-back .cool-icon {
+      font-size: 24px;
+      margin-bottom: 0;
+    }
+
+    .cool-card-back::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
       height: 3px;
       background: var(--accent);
       border-radius: 12px 12px 0 0;
     }
 
     .cool-icon {
-      font-size: 28px;
+      font-size: 36px;
       line-height: 1;
       margin-bottom: 14px;
       display: block;
     }
 
     .cool-headline {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: var(--text);
-      margin-bottom: 8px;
       line-height: 1.3;
     }
 
@@ -404,7 +456,8 @@
       font-size: 14px;
       color: var(--text-muted);
       margin: 0;
-      line-height: 1.5;
+      line-height: 1.55;
+      position: relative;
     }
   </style>
 </head>
@@ -569,39 +622,87 @@
     <div class="cool-grid">
 
       <div class="cool-card">
-        <span class="cool-icon">💾</span>
-        <div class="cool-headline">Close your laptop mid-feature</div>
-        <p class="cool-desc">State file plus session hook means full context is rebuilt on next open. <code>/compact</code>, a week away, new terminal &mdash; doesn&rsquo;t matter. Claude opens knowing exactly where it is.</p>
+        <div class="cool-card-inner">
+          <div class="cool-card-front">
+            <span class="cool-icon">💾</span>
+            <div class="cool-headline">Close your laptop mid-feature</div>
+          </div>
+          <div class="cool-card-back">
+            <span class="cool-icon">💾</span>
+            <div class="cool-headline">Close your laptop mid-feature</div>
+            <p class="cool-desc">State file plus session hook means full context is rebuilt on next open. <code>/compact</code>, a week away, new terminal &mdash; doesn&rsquo;t matter. Claude opens knowing exactly where it is.</p>
+          </div>
+        </div>
       </div>
 
       <div class="cool-card">
-        <span class="cool-icon">⛔</span>
-        <div class="cool-headline">&ldquo;BLOCKED&rdquo; means blocked</div>
-        <p class="cool-desc">Phase gates are Python scripts that execute before the skill loads. Not instructions. Not suggestions. The phase didn&rsquo;t start &mdash; there&rsquo;s nothing for Claude to interpret or override.</p>
+        <div class="cool-card-inner">
+          <div class="cool-card-front">
+            <span class="cool-icon">⛔</span>
+            <div class="cool-headline">&ldquo;BLOCKED&rdquo; means blocked</div>
+          </div>
+          <div class="cool-card-back">
+            <span class="cool-icon">⛔</span>
+            <div class="cool-headline">&ldquo;BLOCKED&rdquo; means blocked</div>
+            <p class="cool-desc">Phase gates are Python scripts that execute before the skill loads. Not instructions. Not suggestions. The phase didn&rsquo;t start &mdash; there&rsquo;s nothing for Claude to interpret or override.</p>
+          </div>
+        </div>
       </div>
 
       <div class="cool-card">
-        <span class="cool-icon">🔀</span>
-        <div class="cool-headline">Go back when you need to</div>
-        <p class="cool-desc">A real state machine with valid back-transitions. Research &rarr; Design &rarr; back to Research if needed. Prior findings are preserved and extended, never discarded.</p>
+        <div class="cool-card-inner">
+          <div class="cool-card-front">
+            <span class="cool-icon">🔀</span>
+            <div class="cool-headline">Go back when you need to</div>
+          </div>
+          <div class="cool-card-back">
+            <span class="cool-icon">🔀</span>
+            <div class="cool-headline">Go back when you need to</div>
+            <p class="cool-desc">A real state machine with valid back-transitions. Research &rarr; Design &rarr; back to Research if needed. Prior findings are preserved and extended, never discarded.</p>
+          </div>
+        </div>
       </div>
 
       <div class="cool-card">
-        <span class="cool-icon">📋</span>
-        <div class="cool-headline">Release notes write themselves</div>
-        <p class="cool-desc">The release skill reads your structured commit log &mdash; imperative verb, summary, per-file breakdown &mdash; and assembles release notes automatically. Commit well, get release notes free.</p>
+        <div class="cool-card-inner">
+          <div class="cool-card-front">
+            <span class="cool-icon">📋</span>
+            <div class="cool-headline">Release notes write themselves</div>
+          </div>
+          <div class="cool-card-back">
+            <span class="cool-icon">📋</span>
+            <div class="cool-headline">Release notes write themselves</div>
+            <p class="cool-desc">The release skill reads your structured commit log and assembles release notes automatically. Commit well, get release notes free.</p>
+          </div>
+        </div>
       </div>
 
       <div class="cool-card">
-        <span class="cool-icon">🎯</span>
-        <div class="cool-headline">Corrections capture themselves</div>
-        <p class="cool-desc">Say Claude is wrong and <code>/flow:note</code> fires automatically &mdash; no command to remember. The correction lives in the state file, survives compaction, and becomes a <code>CLAUDE.md</code> pattern at Reflect.</p>
+        <div class="cool-card-inner">
+          <div class="cool-card-front">
+            <span class="cool-icon">🎯</span>
+            <div class="cool-headline">Corrections capture themselves</div>
+          </div>
+          <div class="cool-card-back">
+            <span class="cool-icon">🎯</span>
+            <div class="cool-headline">Corrections capture themselves</div>
+            <p class="cool-desc">Correct Claude and <code>/flow:note</code> captures it automatically. Survives compaction and becomes a <code>CLAUDE.md</code> pattern at Reflect.</p>
+          </div>
+        </div>
       </div>
 
       <div class="cool-card">
-        <span class="cool-icon">🌿</span>
-        <div class="cool-headline">Three features, three tabs</div>
-        <p class="cool-desc">State files are branch-named. Open three terminal tabs, run three features in parallel &mdash; FLOW sessions never interfere with each other.</p>
+        <div class="cool-card-inner">
+          <div class="cool-card-front">
+            <span class="cool-icon">🌿</span>
+            <div class="cool-headline">Three features, three tabs</div>
+          </div>
+          <div class="cool-card-back">
+            <span class="cool-icon">🌿</span>
+            <div class="cool-headline">Three features, three tabs</div>
+            <p class="cool-desc">State files are branch-named. Open three terminal tabs, run three features in parallel &mdash; FLOW sessions never interfere with each other.</p>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -694,6 +795,16 @@
   (function() {
     var saved = localStorage.getItem('theme');
     if (saved) { document.documentElement.setAttribute('data-theme', saved); setIcon(saved); }
+  })();
+
+  (function() {
+    if (window.matchMedia('(hover: none)').matches) {
+      document.querySelectorAll('.cool-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+          card.classList.toggle('flipped');
+        });
+      });
+    }
   })();
 </script>
 

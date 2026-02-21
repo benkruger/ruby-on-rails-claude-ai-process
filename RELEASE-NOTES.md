@@ -1,5 +1,33 @@
 # Release Notes
 
+## v0.2.0 — Release Skill and Sub-Agent Architecture
+
+### New Features
+
+- `/flow:release` — New skill for versioned plugin releases. Bumps version in
+  `plugin.json` and `marketplace.json`, writes release notes, commits, tags,
+  pushes, and creates a GitHub Release. Shows commits since last tag and
+  recommends patch/minor/major based on commit analysis before asking for
+  confirmation.
+
+### Improvements
+
+- **Mandatory sub-agents** — Research, Design, Plan, and Review phases now
+  require Explore-type sub-agents to read the codebase. The main conversation
+  stays clean for decisions; sub-agents do the reading and reporting.
+- **Note capture at phase transitions** — Every phase transition (1–7) now
+  offers a third option to capture a correction or learning before moving on.
+- **Release skill step ordering** — Safety checks and commit list are shown
+  before asking for the release type, so you see what changed before deciding.
+- **`git log` always allowed** — Added `Bash(git log *)` to project permissions
+  so read-only git introspection never prompts for approval.
+
+### Fixes
+
+- Removed Metaswarm and Superpowers phase comparison reference doc (outdated).
+
+---
+
 ## v0.1.0 — Initial Release
 
 The first public release of FLOW Process — an opinionated Ruby on Rails

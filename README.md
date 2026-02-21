@@ -55,6 +55,16 @@ This creates branch `app-payment-webhooks`, a worktree at `.worktrees/app-paymen
 
 ---
 
+## Zero Footprint
+
+The plugin itself installs into Claude Code's managed plugin directory — one place, fully managed by Claude Code. That's it.
+
+Nothing gets added to your Rails project. No dotfiles. No config directories. No scripts scattered through your codebase. The only thing FLOW writes into your project is a single gitignored JSON state file per active feature at `.claude/flow-states/<branch>.json`. When the feature is done and Cleanup runs, that file is deleted too.
+
+**Two commands to install. One file while you work. Zero when you're done.**
+
+---
+
 ## Utility Commands
 
 Available at any point in the workflow:

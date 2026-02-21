@@ -386,6 +386,16 @@
     <p><strong>FLOW imposes structure. Not bureaucracy &mdash; discipline.</strong></p>
   </section>
 
+  <!-- ZERO FOOTPRINT -->
+  <section>
+    <h2>Zero Footprint</h2>
+    <p>The plugin itself installs into Claude Code&rsquo;s managed plugin directory &mdash; one place, fully managed by Claude Code. That&rsquo;s it.</p>
+    <p>Nothing gets added to your Rails project. No dotfiles. No config directories. No scripts scattered through your codebase. The only thing FLOW writes into your project is a single gitignored JSON state file per active feature at <code>.claude/flow-states/&lt;branch&gt;.json</code>. When the feature is done and Cleanup runs, that file is deleted too.</p>
+    <div class="callout">
+      <p><strong>Two commands to install. One file while you work. Zero when you&rsquo;re done.</strong></p>
+    </div>
+  </section>
+
   <!-- THE PIPELINE -->
   <section>
     <h2>The Pipeline</h2>
@@ -469,6 +479,10 @@
       <div class="feature">
         <h4>100% Coverage Enforced</h4>
         <p>Code cannot transition to Review until <code>coverage/uncovered.txt</code> is empty. <code>bin/ci</code> must be green before every commit and every phase transition. Technical debt is blocked at the source.</p>
+      </div>
+      <div class="feature">
+        <h4>Zero Project Footprint</h4>
+        <p>Installing FLOW adds nothing to your Rails project. The only file it creates is a gitignored <code>.claude/flow-states/&lt;branch&gt;.json</code> per active feature. Cleanup deletes even that. No dotfiles, no config directories, no scripts left behind.</p>
       </div>
     </div>
   </section>

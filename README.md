@@ -1,20 +1,40 @@
-# FLOW Process
+# FLOW — Rails Development Lifecycle for Claude Code
 
-An opinionated Ruby on Rails development lifecycle plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+An opinionated 8-phase development plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that enforces research-first, design-first, TDD discipline on every feature in a Ruby on Rails codebase.
 
-Every feature — simple or complex — follows the same 8 phases in the same order. No shortcuts.
+**Every feature. Same 8 phases. Same order. No shortcuts.**
 
 **Documentation:** [benkruger.github.io/ruby-on-rails-claude-ai-process](https://benkruger.github.io/ruby-on-rails-claude-ai-process)
 
-## Why
+---
 
-Claude Code is powerful but undisciplined. Without structure, it skips research, writes code before understanding the codebase, and misses Rails-specific gotchas like callbacks overwriting your values or soft deletes hiding records.
+## The Problem
 
-FLOW forces a consistent process:
-- **Research before design.** Read the full class hierarchy. Find the callbacks. Check `test/support/` for existing helpers.
-- **Design before code.** Propose 2-3 alternatives. Get approval. Never start coding without a plan.
-- **TDD always.** Test fails first. Then implementation. Then bin/ci. Every task.
-- **Learnings survive.** Corrections are captured to the state file automatically. Reflect writes them back to CLAUDE.md as reusable patterns.
+Claude Code is powerful, but undisciplined by default.
+
+FLOW imposes structure. Not bureaucracy — discipline.
+
+---
+
+## The Workflow
+
+```
+Start → Research → Design → Plan → Code → Review → Reflect → Cleanup
+  1         2         3       4      5        6        7          8
+```
+
+| Phase | Command | What happens |
+|-------|---------|-------------|
+| **1: Start** | `/flow:start <name>` | New worktree, push branch, open PR, upgrade gems, `bin/ci` green baseline |
+| **2: Research** | `/flow:research` | Sub-agent reads full class hierarchy, finds callbacks, checks `test/support/`, documents risks |
+| **3: Design** | `/flow:design` | Sub-agent validates 2-3 alternatives, user picks one, design is approved before any code |
+| **4: Plan** | `/flow:plan` | Sub-agent verifies tasks are executable, section-by-section approval, TDD ordering |
+| **5: Code** | `/flow:code` | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
+| **6: Review** | `/flow:review` | Sub-agent checks design alignment, research risk coverage, Rails anti-patterns |
+| **7: Reflect** | `/flow:reflect` | Corrections become reusable patterns, CLAUDE.md updated, plugin gaps noted |
+| **8: Cleanup** | `/flow:cleanup` | Worktree removed, state file deleted, feature done |
+
+---
 
 ## Installation
 
@@ -31,22 +51,9 @@ Then start a feature:
 /flow:start app payment webhooks
 ```
 
-## The 8 Phases
+This creates branch `app-payment-webhooks`, a worktree at `.worktrees/app-payment-webhooks`, opens a GitHub PR, upgrades gems, and runs `bin/ci` to establish a green baseline. You land in Phase 2: Research.
 
-```
-Start → Research → Design → Plan → Code → Review → Reflect → Cleanup
-```
-
-| Phase | Command | What it does |
-|-------|---------|-------------|
-| 1: Start | `/flow:start <name>` | Worktree, bundle update, PR, permissions, baseline bin/ci |
-| 2: Research | `/flow:research` | Read affected code, ask clarifying questions, document findings |
-| 3: Design | `/flow:design` | Propose 2-3 alternatives, get approval before any code |
-| 4: Plan | `/flow:plan` | Break design into ordered TDD tasks, approve section by section |
-| 5: Code | `/flow:code` | TDD per task, diff review, bin/ci gate, commit per task |
-| 6: Review | `/flow:review` | Design alignment, risk coverage, Rails anti-pattern check |
-| 7: Reflect | `/flow:reflect` | Extract learnings, update CLAUDE.md, note plugin improvements |
-| 8: Cleanup | `/flow:cleanup` | Remove worktree, delete state file |
+---
 
 ## Utility Commands
 
@@ -54,34 +61,130 @@ Available at any point in the workflow:
 
 | Command | What it does |
 |---------|-------------|
-| `/flow:commit` | Review diff, approve/deny, pull before push, commit |
-| `/flow:status` | Show current phase, PR link, timing, next step |
-| `/flow:resume` | Resume mid-session or rebuild from state on new session |
-| `/flow:note` | Capture corrections — auto-invoked when Claude is wrong |
+| `/flow:commit` | Full diff review, approved commit message, pull before push |
+| `/flow:status` | Current phase, PR link, cumulative time per phase, next step |
+| `/flow:resume` | Re-asks last transition question; rebuilds context on new session |
+| `/flow:note` | Captures corrections to state file — auto-invoked when Claude is wrong |
+| `/flow:release` | Bump version, create GitHub Release (maintainer use) |
 
-## How It Works
+---
 
-- **State file** per feature at `.claude/flow-states/<branch>.json` — tracks phase status, timing, research findings, design decisions, plan tasks, and captured notes
-- **SessionStart hook** detects in-progress features and resumes automatically
-- **Phase guards** prevent skipping ahead — each phase checks the previous one is complete
-- **Back navigation** lets you return to earlier phases when something is wrong
-- **Multiple features** can run simultaneously in separate worktrees
+## Architecture
+
+### Sub-Agent Architecture
+
+Phases that read the codebase (Research, Design, Plan, Review) launch mandatory Explore-type sub-agents. The main conversation stays focused on decisions. The sub-agent handles all file reads and returns structured findings.
+
+```
+Main conversation          Sub-agent (Explore)
+      |                          |
+      |─── Task: explore ───────>|
+      |    (what to look for)    |─── Read models
+      |                          |─── Find callbacks
+      |                          |─── Check test/support/
+      |                          |─── Scan routes, schema...
+      |<── Structured findings ──|
+      |
+      |─── Makes decisions
+      |─── Asks user questions
+      |─── Updates state file
+```
+
+By the time Code begins, every affected file has been read, every callback has been found, every risk has been documented. Code doesn't re-explore — it trusts the state file. This keeps the main context clean for decision-making throughout a long session.
+
+### State File Persistence
+
+Every feature has a state file at `.claude/flow-states/<branch>.json`. It stores:
+
+- **Research findings** — affected files, callbacks, risks, clarifications
+- **Design decisions** — chosen approach, schema/model/controller/worker changes, rationale
+- **Plan tasks** — ordered, section-by-section, with TDD flags and status
+- **Notes** — corrections captured automatically throughout the session
+- **Timing** — per-phase cumulative seconds and visit counts
+
+State survives session breaks and compaction. Multiple features can run simultaneously in separate worktrees with separate state files.
+
+### Session Hook — Auto-Resume
+
+Every Claude Code session start — new terminal, `/clear`, `/compact` — triggers a hook that scans `.claude/flow-states/` for in-progress features.
+
+If a feature is found, Claude's **first action** is to invoke `/flow:resume`. No prompt needed. No "what were we working on?" You close your laptop, open Claude Code the next morning, and the session opens with your feature's current phase, PR link, and time spent — then asks one question: "Ready to continue Phase 4: Plan?" Say yes and you're back exactly where you left off.
+
+If two features are in progress across two worktrees, the hook asks which one to resume before proceeding.
+
+The same hook also injects the correction-capture instruction for the full session:
+
+> "Throughout this session: whenever the user corrects you, invoke `/flow:note` immediately before replying."
+
+Both behaviors — auto-resume and correction capture — are wired in at session start, without any user action.
+
+### The Learning Pipeline
+
+Every correction Claude makes has a path to becoming a permanent, reusable pattern:
+
+```
+User corrects Claude
+       ↓
+/flow:note captures it as a reusable pattern in state["notes"]
+       ↓
+Reflect phase synthesizes all notes from the full feature
+       ↓
+Each approved pattern is added to CLAUDE.md
+       ↓
+Every future feature in this Rails project benefits
+```
+
+The learnings don't evaporate at session end. They compound.
+
+### Phase Back-Navigation
+
+Every phase that allows it offers back-navigation when something was missed:
+
+| Phase | Can return to |
+|-------|--------------|
+| Research | Start |
+| Design | Research |
+| Plan | Design, Research |
+| Code | Plan, Design, Research |
+| Review | Code |
+
+When returning, state is reset appropriately. Later phases are invalidated. Prior findings are preserved and extended — never discarded.
+
+---
 
 ## What It Enforces
 
-- Worktree isolation — main is never touched directly
-- bin/ci green before every commit and every phase transition
-- TDD — test must fail before implementation code is written
-- No `git rebase` — merge only
-- No disabling RuboCop — fix the code, not the cop
+- **Worktree isolation** — main is never touched directly; multiple features run in parallel
+- **Research before design** — full class hierarchy read, callbacks found, risks documented
+- **Design alternatives required** — 2-3 distinct approaches validated before user picks one
+- **TDD always** — test must fail before implementation is written; test must pass before commit
+- **`bin/ci` gate** — must be green before every commit and every phase transition
+- **100% test coverage** — Code phase cannot transition to Review without it
+- **No disabling RuboCop** — fix the code, not the cop; no `# rubocop:disable` comments
+- **Commit discipline** — imperative verb + tl;dr + per-file breakdown, every commit
+
+---
+
+## What Gets Built Per Feature
+
+Every completed feature produces:
+
+- A merged PR with clean, TDD-tested, reviewed code
+- Individual commits per plan task with detailed messages
 - 100% test coverage maintained
-- Commit messages follow imperative verb + tl;dr + file breakdown format
+- All research risks addressed (verified by Review phase)
+- New CLAUDE.md patterns from corrections and learnings
+- A clean state file (deleted at Cleanup)
+
+---
 
 ## Updating
 
 ```
 /plugin update flow@flow-marketplace
 ```
+
+---
 
 ## License
 

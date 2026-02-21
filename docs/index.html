@@ -340,6 +340,15 @@
     }
 
     li strong { color: var(--text); }
+
+    .highlight-phrase {
+      color: var(--accent);
+      font-weight: 700;
+      background: var(--accent-subtle);
+      padding: 1px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -370,7 +379,7 @@
   <!-- HOW -->
   <section>
     <h2>How</h2>
-    <p>Every feature goes through 8 phases. Each phase has mandatory entry guards, structured outputs written to a persistent state file, and back-navigation when something was missed. No phase can be skipped.</p>
+    <p>Every feature goes through an <span class="highlight-phrase">8-phase orchestration</span>. Each phase has mandatory entry guards, structured outputs written to a persistent state file, and back-navigation when something was missed. No phase can be skipped.</p>
 
     <div class="pipeline">
       <div class="pipeline-step">

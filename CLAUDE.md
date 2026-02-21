@@ -38,6 +38,7 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated Rails devel
 | `/flow:status` | Show current phase, timing, PR link |
 | `/flow:resume` | Resume mid-session or new session |
 | `/flow:note` | Capture correction/learning — auto-invoked on corrections |
+| `/flow:release` | Bump version, tag, push, create GitHub Release (maintainer-only) |
 
 ## Key Files
 

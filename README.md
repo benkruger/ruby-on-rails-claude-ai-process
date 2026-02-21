@@ -178,9 +178,23 @@ Every completed feature produces:
 
 ---
 
+## Instructions Are Advisory. Gates Aren't.
+
+Most agent workflows put enforcement in instructions: "always run bin/ci", "never skip Research". Instructions work until they don't. FLOW's phase enforcement is layered and deterministic. There is no instruction path from an incomplete phase to the next one running.
+
+Three independent mechanisms enforce this:
+
+- **Inline phase guard** — every phase skill opens with a Python gate that reads the state file and exits immediately with `BLOCKED` if the previous phase isn't complete. The skill doesn't run — there's nothing for Claude to interpret or override.
+
+- **`check-phase.py`** — a standalone verification script callable from anywhere in the workflow. One source of truth for phase state, used by skills, hooks, and utility commands alike.
+
+- **SessionStart hook** — fires on every session start (`startup`, `/clear`, `/compact`). Reads the state file and injects the current phase directly into Claude's context. After a week away, Claude opens knowing exactly where it is and cannot proceed as if it doesn't.
+
+---
+
 ## Part of the Ecosystem
 
-FLOW is part of a growing community of disciplined Claude Code plugins. Two projects worth knowing:
+FLOW is part of a growing community of disciplined Claude Code plugins. Two projects worth knowing that inspired and motivated me:
 
 - **[metaswarm](https://github.com/dsifry/metaswarm)** by Dave Sifry — a multi-agent orchestration framework with 18 specialized agents, cross-model adversarial review, and full pipeline orchestration from GitHub issue to merged PR. If FLOW is disciplined Rails development, metaswarm is disciplined development at scale.
 

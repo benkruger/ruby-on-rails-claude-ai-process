@@ -214,8 +214,10 @@ FLOW is part of a growing community of disciplined Claude Code plugins. Two proj
 
 ## Updating
 
+From the command line:
+
 ```
-/plugin update flow@flow-marketplace
+claude plugin marketplace update flow-marketplace
 ```
 
 ---

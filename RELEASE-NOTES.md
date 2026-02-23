@@ -1,5 +1,26 @@
 # Release Notes
 
+## v0.3.1 — Version display, commit staging fix, update command
+
+### Improvements
+
+- **Version shown in banners** — `/flow:start` and `/flow:status` now display
+  the installed FLOW version. Hardcoded in skill files, bumped automatically by
+  the release skill.
+- **Commit diff uses staging** — `/flow:commit` now stages with `git add -A`
+  then diffs with `git diff --cached` so new files appear in one unified diff.
+  `git reset HEAD` unstages on denial (safe — just the opposite of `git add`).
+- **Release skill bumps 4 files** — Version is now updated in plugin.json,
+  marketplace.json, start banner, and status banner as part of every release.
+
+### Fixes
+
+- **Update command corrected** — README now shows the working CLI command
+  (`claude plugin marketplace update flow-marketplace`) instead of the buggy
+  slash command.
+
+---
+
 ## v0.3.0 — First real-world test: bug fixes and /flow:abort
 
 ### New Features

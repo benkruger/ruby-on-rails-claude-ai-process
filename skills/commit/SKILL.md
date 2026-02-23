@@ -33,7 +33,18 @@ On completion (whether approved or denied), print the same way:
 
 ### Step 1 — Show the diff
 
-Run `git status` and `git diff HEAD` as two separate commands. Once both complete, render the output directly in your response — do not ask the user to expand tool output:
+First run `git status` to see what changed. If nothing to commit, tell the user and stop.
+
+Then show all changes — tracked and untracked:
+
+```bash
+git diff HEAD
+```
+
+For any **new/untracked files** shown by `git status`, use the **Read tool** to
+show their contents. Never use `cat` via Bash to read files.
+
+Render the output directly in your response — do not ask the user to expand tool output.
 
 **Format the status as:**
 ```
@@ -53,7 +64,7 @@ deleted:    path/to/removed.rb
 
 The `diff` code block renders red/green in most markdown environments.
 
-If `git status` shows nothing to commit, tell the user and stop. Do not run `git diff`.
+For new files, show the full contents under a **New file** heading with the path.
 
 ### Step 2 — Commit Message
 

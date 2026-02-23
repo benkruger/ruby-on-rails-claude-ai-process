@@ -75,6 +75,7 @@ Available at any point in the workflow:
 | `/flow:status` | Current phase, PR link, cumulative time per phase, next step |
 | `/flow:resume` | Re-asks last transition question; rebuilds context on new session |
 | `/flow:note` | Captures corrections to state file — auto-invoked when Claude is wrong |
+| `/flow:abort` | Abandon feature — close PR, delete remote branch, remove worktree, delete state |
 
 ---
 

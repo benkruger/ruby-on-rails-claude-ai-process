@@ -73,18 +73,23 @@ If this fails, stop and report why.
 git worktree add .worktrees/<feature-name> -b <feature-name>
 ```
 
-All subsequent commands that touch application code run inside the worktree.
+All subsequent commands run from inside the worktree unless noted otherwise.
 
-### Step 4 — Push branch to remote immediately
+### Step 4 — Initial commit, push, and open PR
+
+GitHub requires at least one commit between base and head to create a PR.
+Run all three commands from inside the worktree:
 
 ```bash
-git push -u origin <feature-name>
+cd .worktrees/<feature-name> && git commit --allow-empty -m "Start <feature-name> branch"
 ```
 
-### Step 5 — Open the PR
+```bash
+cd .worktrees/<feature-name> && git push -u origin <feature-name>
+```
 
 ```bash
-gh pr create \
+cd .worktrees/<feature-name> && gh pr create \
   --title "<Feature Name Title Cased>" \
   --body "## What\n\n<Feature name as a sentence.>" \
   --base main
@@ -92,7 +97,7 @@ gh pr create \
 
 Capture the PR URL from the output. Extract the PR number from the URL.
 
-### Step 6 — Create the FLOW state file
+### Step 5 — Create the FLOW state file
 
 Create `.claude/flow-states/` directory if it does not exist. Write the state
 file at `.claude/flow-states/<branch-name>.json` with the current UTC timestamp:
@@ -120,7 +125,7 @@ file at `.claude/flow-states/<branch-name>.json` with the current UTC timestamp:
 }
 ```
 
-### Step 7 — Configure workspace permissions
+### Step 6 — Configure workspace permissions
 
 Check if `.claude/settings.json` exists in the project root.
 
@@ -137,6 +142,8 @@ Check if `.claude/settings.json` exists in the project root.
       "Bash(git worktree *)",
       "Bash(gh pr create *)",
       "Bash(gh pr edit *)",
+      "Bash(gh pr close *)",
+      "Bash(git push origin --delete *)",
       "Bash(python3 *)"
     ]
   }
@@ -145,7 +152,7 @@ Check if `.claude/settings.json` exists in the project root.
 
 **If it exists**, read it and merge in any missing entries. Do not remove existing entries. No duplicates.
 
-### Step 8 — Baseline `bin/ci`
+### Step 7 — Baseline `bin/ci`
 
 ```bash
 cd .worktrees/<feature-name> && bin/ci
@@ -154,22 +161,22 @@ cd .worktrees/<feature-name> && bin/ci
 - **Passes** — note as baseline and continue
 - **Fails** — report failures clearly (pre-existing issues). Ask user whether to proceed or stop.
 
-### Step 9 — Upgrade gems
+### Step 8 — Upgrade gems
 
 ```bash
 cd .worktrees/<feature-name> && bundle update
 ```
 
-### Step 10 — Post-update `bin/ci`
+### Step 9 — Post-update `bin/ci`
 
 ```bash
 cd .worktrees/<feature-name> && bin/ci
 ```
 
-- **Passes** — continue to Step 12
-- **Fails** — continue to Step 11
+- **Passes** — continue to Step 11
+- **Fails** — continue to Step 10
 
-### Step 11 — Fix breakage from gem upgrade
+### Step 10 — Fix breakage from gem upgrade
 
 **RuboCop violations:**
 ```bash
@@ -179,11 +186,11 @@ cd .worktrees/<feature-name> && rubocop -A && bin/ci
 **Test failures** — read output carefully, fix call sites or fixtures, repeat until green.
 
 <HARD-GATE>
-Do NOT proceed to Step 12 until bin/ci is green. If not fixed after
+Do NOT proceed to Step 11 until bin/ci is green. If not fixed after
 three attempts, stop and report exactly what is failing and what was tried.
 </HARD-GATE>
 
-### Step 12 — Commit and push
+### Step 11 — Commit and push
 
 Use `/flow:commit` to review and commit the changes (`Gemfile.lock` + any gem fixes).
 

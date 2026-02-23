@@ -167,16 +167,18 @@ Provide these instructions to the sub-agent (fill in the details):
 > Tasks to verify:
 > <paste the draft tasks for this section>
 >
+> **Tool rules:** Use Glob and Read tools for all file and directory checks.
+> Never use Bash for file existence checks (`test -f`, `ls`, `stat`, etc.).
+>
 > For each task, check the codebase:
 >
-> 1. **File paths** — Do the files referenced exist? Are the paths correct?
->    For new files, does the parent directory exist?
-> 2. **Test helpers** — For test tasks, do the create_*! helpers exist in
->    test/support/? If not, flag that a helper creation task is needed.
-> 3. **Route context** — For route/controller tasks, what routes already
+> 1. **File paths** — Use Glob to verify files exist. For new files,
+>    use Glob on the parent directory to confirm it exists.
+> 2. **Test helpers** — Use Grep to search test/support/ for create_*!
+>    helpers. If not found, flag that a helper creation task is needed.
+> 3. **Route context** — Use Read to check route files. What routes already
 >    exist in the target file? What patterns are used?
-> 4. **Schema context** — For schema tasks, what does the current
->    data/release.sql look like for related tables?
+> 4. **Schema context** — Use Read to check data/release.sql for related tables.
 >
 > Return per-task:
 > - File paths: verified / corrected

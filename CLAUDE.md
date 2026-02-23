@@ -14,7 +14,6 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 8-phase Rai
 
 ## What Still Needs Work
 
-- Test the plugin installation in a real Rails project
 - The `flow-phases.json` `can_return_to` values may need tuning after real use
 
 ## Maintainer Skills (private to this repo)

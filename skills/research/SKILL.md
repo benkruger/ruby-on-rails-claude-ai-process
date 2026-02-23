@@ -113,6 +113,10 @@ Provide these instructions to the sub-agent (fill in the feature and scope):
 > Feature: <feature name from state>
 > Research scope: <scope from Step 1>
 >
+> **Tool rules:** Use Glob and Read tools for all file and directory checks.
+> Use Grep for searching code. Never use Bash for file existence checks,
+> directory listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
+>
 > Systematically read all code relevant to this feature:
 >
 > **Models** — Find all related models. For each, read the full class

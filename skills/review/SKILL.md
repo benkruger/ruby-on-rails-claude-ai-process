@@ -80,6 +80,11 @@ Provide these instructions to the sub-agent (fill in the details):
 > You are analyzing a feature diff for the FLOW review phase.
 > Feature: <feature name from state>
 >
+> **Tool rules:** Use Glob and Read tools for all file and directory checks.
+> Use Grep for searching code. Only use Bash for git commands (git diff,
+> git log, git blame). Never use Bash for file existence checks, directory
+> listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
+>
 > Approved design:
 > <paste state["design"] — chosen_approach, schema_changes, model_changes,
 > controller_changes, worker_changes, route_changes>

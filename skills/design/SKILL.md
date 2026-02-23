@@ -129,6 +129,10 @@ Provide these instructions to the sub-agent (fill in the details):
 > You are validating design alternatives for the FLOW design phase.
 > Feature: <feature name from state>
 >
+> **Tool rules:** Use Glob and Read tools for all file and directory checks.
+> Use Grep for searching code. Never use Bash for file existence checks,
+> directory listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
+>
 > Research findings: <paste state["research"] summary, affected_files, risks>
 >
 > Alternatives to validate:

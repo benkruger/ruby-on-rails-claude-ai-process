@@ -66,34 +66,37 @@ Update `.claude/flow-states/<branch>.json` for Phase 2:
 
 ## Step 1 — What are we researching?
 
-Before reading any code, ask the user what to focus on.
+Before reading any code, ask the user what to focus on. The feature name
+from `/flow:start` is just a branch label — it does NOT define the
+research scope. The user must describe what to research in their own words.
 
 Use AskUserQuestion with two questions:
 
-**Question 1:** "What are we researching?"
+**Question 1:** "What type of work is this?"
 - New feature
 - Change to existing feature
 - Bug investigation
 - Refactor / restructure
 
-**Question 2:** "Describe what you're researching. What should we focus on?"
-- The full feature area — read broadly
-- Specific models or controllers — I'll describe which
-- A specific behaviour or bug — I'll describe it
-- Background workers or async flows
+**Question 2:** "Describe what we should research. What area of the codebase should we explore, and what are we trying to understand?"
+- I'll describe it (select Other and type your description)
+- I'm not sure yet — help me figure out where to start
 
-The user's answers direct the entire exploration. Store the description
-in `state["research"]["scope"]` in the state file.
+The user's answer to Question 2 directs the entire exploration. If they
+select "I'm not sure yet", ask follow-up questions to narrow the scope
+before proceeding. Do not assume scope from the feature branch name.
+
+Store the user's description in `state["research"]["scope"]` in the
+state file.
 
 If this is a return visit (`visit_count` > 1), show what was previously
 found and ask: "What gaps should we fill this time?"
 
 ---
 
-## Step 2 — Read the feature context
+## Step 2 — Check for prior findings
 
-Read `.claude/flow-states/<branch>.json` to understand:
-- The feature name and description
+Read `.claude/flow-states/<branch>.json` to check:
 - Whether this is a return visit (check `visit_count` and any existing `research` data)
 
 If returning to Research, read the previous findings in `flow-state.json["research"]` and note what was already discovered. Do not discard prior findings — extend them.
@@ -107,11 +110,10 @@ Launch a mandatory sub-agent to explore the codebase. Use the Task tool:
 - `subagent_type`: `"Explore"`
 - `description`: `"Research codebase exploration"`
 
-Provide these instructions to the sub-agent (fill in the feature and scope):
+Provide these instructions to the sub-agent (fill in the scope from Step 1):
 
 > You are exploring a Rails codebase for the FLOW research phase.
-> Feature: <feature name from state>
-> Research scope: <scope from Step 1>
+> Research scope: <user's description from Step 1 — paste verbatim>
 >
 > **Tool rules:** Use Glob and Read tools for all file and directory checks.
 > Use Grep for searching code. Never use Bash for file existence checks,

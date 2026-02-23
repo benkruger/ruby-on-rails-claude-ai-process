@@ -61,6 +61,17 @@ Update `.claude/flow-states/<branch>.json` for Phase 2:
 - `visit_count` → increment by 1
 - `current_phase` → `2`
 
+## Logging
+
+Wrap every Bash command (except the HARD-GATE) with timestamps in the
+**same Bash call** — no separate calls for logging:
+
+```bash
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [Phase 2] Step X — desc — START" >> /tmp/flow-<branch>.log; COMMAND; EC=$?; echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [Phase 2] Step X — desc — DONE (exit $EC)" >> /tmp/flow-<branch>.log; exit $EC
+```
+
+Get `<branch>` from the state file. The gap between DONE and the next
+START = Claude's processing time.
 
 ---
 

@@ -402,38 +402,48 @@ def test_cd_prefixed_commands_have_full_permission_coverage():
     )
 
 
-def test_permissions_step_precedes_worktree_commands():
-    """The permissions step in start/SKILL.md must come before any step
-    that runs cd .worktrees/ commands. Otherwise the cd-prefixed commands
-    execute before their permission patterns exist in .claude/settings.json."""
+def test_worktree_cd_persists_no_repeated_cd():
+    """Start skill must cd into the worktree once (bare cd) and never repeat
+    cd .worktrees/ in compound commands. The Bash tool persists working
+    directory, so repeated cd .worktrees/ breaks — the second cd looks for
+    a nested .worktrees/ inside the worktree that doesn't exist."""
     content = _read_skill("start")
 
-    perm_match = re.search(
-        r'### Step (\d+) — .*[Pp]ermission',
-        content
-    )
-    assert perm_match, "Could not find permissions step in start/SKILL.md"
-    perm_step = int(perm_match.group(1))
+    # Find all bash blocks across all steps
+    bare_cd_count = 0
+    compound_cd_blocks = []
 
-    steps_with_cd = set()
     for match in re.finditer(
         r'### Step (\d+) — .*?\n(.*?)(?=### Step \d+|### Done|\Z)',
         content, re.DOTALL
     ):
         step_num = int(match.group(1))
         step_content = match.group(2)
-        # Only check bash blocks — ignore cd .worktrees/ in JSON permission strings
         bash_blocks = re.findall(r"```bash\s*\n(.*?)```", step_content, re.DOTALL)
-        if any('cd .worktrees/' in block for block in bash_blocks):
-            steps_with_cd.add(step_num)
+        for block in bash_blocks:
+            stripped = block.strip()
+            if 'cd .worktrees/' not in stripped:
+                continue
+            # Bare cd (just changes directory, no compound command)
+            if stripped.startswith('cd .worktrees/') and '&&' not in stripped:
+                bare_cd_count += 1
+            else:
+                compound_cd_blocks.append(
+                    f"Step {step_num}: '{stripped.split(chr(10))[0]}'"
+                )
 
-    assert steps_with_cd, "No steps with cd .worktrees/ found in start/SKILL.md"
+    assert bare_cd_count == 1, (
+        f"Expected exactly 1 bare 'cd .worktrees/' block (to set persistent "
+        f"working directory), found {bare_cd_count}"
+    )
 
-    earliest_cd_step = min(steps_with_cd)
-    assert perm_step < earliest_cd_step, (
-        f"Permissions step (Step {perm_step}) must come before the first "
-        f"worktree command step (Step {earliest_cd_step}). Otherwise "
-        f"cd-prefixed commands won't match any permission pattern."
+    assert not compound_cd_blocks, (
+        f"Found {len(compound_cd_blocks)} compound 'cd .worktrees/ && ...' "
+        f"block(s). The Bash tool persists working directory, so after the "
+        f"initial cd, all commands run inside the worktree automatically. "
+        f"Repeating cd .worktrees/ breaks because it looks for a nested "
+        f".worktrees/ inside the worktree.\n"
+        + "\n".join(f"  - {b}" for b in compound_cd_blocks)
     )
 
 

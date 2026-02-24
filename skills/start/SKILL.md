@@ -84,17 +84,25 @@ git pull origin main
 
 If this fails, stop and report why.
 
-### Step 3 — Create the worktree
+### Step 3 — Create the worktree and cd into it
 
 ```bash
 git worktree add .worktrees/<feature-name> -b <feature-name>
 ```
 
-All subsequent commands run from inside the worktree unless noted otherwise.
+Then change into the worktree:
+
+```bash
+cd .worktrees/<feature-name>
+```
+
+The Bash tool persists working directory between calls, so all subsequent
+commands run inside the worktree automatically. Do NOT repeat `cd .worktrees/`
+in later steps — it would look for a nested `.worktrees/` that doesn't exist.
 
 ### Step 4 — Configure workspace permissions
 
-Check if `.claude/settings.json` exists in the project root.
+Check if `.claude/settings.json` exists in the **project root** (one level up from the worktree).
 
 **If it does not exist**, create it:
 
@@ -135,18 +143,18 @@ Check if `.claude/settings.json` exists in the project root.
 ### Step 5 — Initial commit, push, and open PR
 
 GitHub requires at least one commit between base and head to create a PR.
-Run all three commands from inside the worktree:
+Already inside the worktree from Step 3:
 
 ```bash
-cd .worktrees/<feature-name> && git commit --allow-empty -m "Start <feature-name> branch"
+git commit --allow-empty -m "Start <feature-name> branch"
 ```
 
 ```bash
-cd .worktrees/<feature-name> && git push -u origin <feature-name>
+git push -u origin <feature-name>
 ```
 
 ```bash
-cd .worktrees/<feature-name> && gh pr create \
+gh pr create \
   --title "<Feature Name Title Cased>" \
   --body "## What\n\n<Feature name as a sentence.>" \
   --base main
@@ -185,7 +193,7 @@ with the current UTC timestamp. The Write tool creates parent directories automa
 ### Step 7 — Baseline `bin/ci`
 
 ```bash
-cd .worktrees/<feature-name> && bin/ci
+bin/ci
 ```
 
 - **Passes** — note as baseline and continue
@@ -197,13 +205,13 @@ cd .worktrees/<feature-name> && bin/ci
 ### Step 8 — Upgrade gems
 
 ```bash
-cd .worktrees/<feature-name> && bundle update
+bundle update
 ```
 
 ### Step 9 — Post-update `bin/ci`
 
 ```bash
-cd .worktrees/<feature-name> && bin/ci
+bin/ci
 ```
 
 - **Passes** — continue to Step 11

@@ -13,14 +13,17 @@ parent: Skills
 The escape hatch. Abandons the current feature completely — closes the PR,
 deletes the remote branch, removes the worktree, and deletes the state file.
 
-Available from any phase, no prerequisites.
+Available from any phase, no prerequisites. Best-effort — warns if the state
+file is missing, but proceeds after user confirmation.
 
 ---
 
 ## What It Does
 
 1. Reads `.claude/flow-states/<branch>.json` for feature details
-2. Confirms with the user before any destructive action
+   (or infers from git state if the file is missing)
+2. Confirms with the user before any destructive action, including any
+   warnings from the entry check
 3. Navigates to the project root
 4. Closes the PR with `gh pr close` and a comment
 5. Removes the worktree with `git worktree remove --force`
@@ -28,8 +31,10 @@ Available from any phase, no prerequisites.
 7. Deletes the local branch with `git branch -D`
 8. Deletes `.claude/flow-states/<branch>.json`
 
-Every step after confirmation is best-effort — if one fails (e.g., PR already
-closed), it continues to the next.
+Steps 3–8 follow a mix of abort-specific actions and the shared cleanup
+process (`docs/cleanup-process.md`). Every step after confirmation is
+best-effort — if one fails (e.g., PR already closed, worktree already
+removed), it continues to the next.
 
 ---
 
@@ -50,6 +55,7 @@ closed), it continues to the next.
 | **Remote branch** | Left intact | Deleted |
 | **Worktree** | Removed | Removed |
 | **State file** | Deleted | Deleted |
+| **Missing state** | Warns, proceeds | Warns, proceeds |
 
 Use `/flow:cleanup` for the happy path after a completed feature.
 Use `/flow:abort` to walk away from a feature entirely.
@@ -58,7 +64,8 @@ Use `/flow:abort` to walk away from a feature entirely.
 
 ## Gates
 
-- Requires a FLOW feature to be in progress (state file must exist)
+- No phase gate — available from any phase
+- State file not required — warns if missing, infers from git state
 - Requires explicit user confirmation before any destructive action
 - Must run from the project root — never from inside the worktree
 - All operations are irreversible

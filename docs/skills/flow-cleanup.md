@@ -11,18 +11,19 @@ parent: Skills
 **Usage:** `/flow:cleanup`
 
 The final phase. Removes the git worktree and deletes the state file.
-Requires Phase 7: Reflect to be complete before it will run.
+Best-effort — warns if the state file is missing or Phase 7 is incomplete,
+but proceeds after user confirmation.
 
 ---
 
 ## What It Does
 
 1. Reads `.claude/flow-states/<branch>.json` for worktree and feature name
-2. Confirms with the user before any destructive action
-3. Navigates to the project root
-4. Runs `git worktree remove .worktrees/<feature-name> --force`
-5. Deletes `.claude/flow-states/<branch>.json`
-6. Marks all phases complete
+   (or infers from git state if the file is missing)
+2. Confirms with the user before any destructive action, including any
+   warnings from the entry check
+3. Follows the shared cleanup process (`docs/cleanup-process.md`):
+   navigate to root, remove worktree, delete state file, report results
 
 ---
 
@@ -35,9 +36,26 @@ from the FLOW workflow.
 
 ---
 
+## Best-Effort Behavior
+
+Cleanup handles three scenarios gracefully:
+
+| Scenario | Behavior |
+|---|---|
+| State file exists, Phase 7 complete | Normal cleanup — no warnings |
+| State file exists, Phase 7 incomplete | Warns, proceeds after confirmation |
+| State file missing | Warns, infers from git state, proceeds after confirmation |
+
+Every step after user confirmation is best-effort. If worktree removal
+fails (already removed), it continues to state file deletion. If the
+state file doesn't exist, it notes that and finishes.
+
+---
+
 ## Gates
 
-- Requires Phase 7: Reflect to be complete
+- Phase 7 complete is a warning, not a hard block
+- Missing state file is a warning, not a hard block
 - Requires explicit user confirmation before removing the worktree
 - Must run from the project root — never from inside the worktree
 - Worktree removal is irreversible

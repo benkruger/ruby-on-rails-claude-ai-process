@@ -28,8 +28,9 @@ branch = subprocess.run(['git', 'branch', '--show-current'],
 state_file = project_root() / '.claude' / 'flow-states' / f'{branch}.json'
 
 if not state_file.exists():
-    print('No FLOW feature in progress. Nothing to abort.')
-    sys.exit(1)
+    print(f'WARNING: No state file found for branch "{branch}".')
+    print('Will attempt best-effort cleanup using git state.')
+    sys.exit(0)
 
 state = json.loads(state_file.read_text())
 print(f"Feature: {state.get('feature', 'unknown')}")
@@ -55,45 +56,48 @@ Print:
 
 ### Step 1 — Read state
 
-Read `.claude/flow-states/<branch>.json` from the project root.
-Note `feature`, `branch`, `worktree`, `pr_number`, and `pr_url`.
+If the state file exists, read `.claude/flow-states/<branch>.json` from
+the project root. Note `feature`, `branch`, `worktree`, `pr_number`,
+and `pr_url`.
+
+If the state file is missing, infer what you can:
+- `branch` from `git branch --show-current`
+- Detect worktree path from `git worktree list`
+- Use the branch name as the feature name
+- `pr_number` unknown — skip PR close step
+
+Tell the user what was inferred.
 
 ### Step 2 — Confirm with user
 
-This is destructive and irreversible. Use AskUserQuestion:
+This is destructive and irreversible. Use AskUserQuestion.
+
+If the entry check printed warnings, include them in the confirmation:
 
 > "Abort feature '<feature>'?
+> ⚠ <any warnings from the entry check>
 > This will close the PR, delete the remote branch, remove the worktree, and delete the state file. All uncommitted work in the worktree will be lost."
 > - **Yes, abort everything** — proceed
 > - **No, keep going** — stop here
 
 ### Step 3 — Navigate to project root
 
-```bash
-cd <project_root>
-```
-
-Use `git worktree list --porcelain` to find the project root if needed.
-All abort commands must run from the project root, not from inside
-the worktree.
+Follow `docs/cleanup-process.md` Step 1.
 
 ### Step 4 — Close the PR
 
-If `pr_number` exists in the state:
+If `pr_number` exists (from state or inferred):
 
 ```bash
 gh pr close <pr_number> --comment "Aborted via /flow:abort"
 ```
 
-If this fails (PR already closed/merged), note it and continue — do not stop.
+If this fails (PR already closed/merged) or `pr_number` is unknown,
+note it and continue — do not stop.
 
 ### Step 5 — Remove the worktree
 
-```bash
-git worktree remove .worktrees/<feature-name> --force
-```
-
-If this fails (worktree already removed), note it and continue.
+Follow `docs/cleanup-process.md` Step 2.
 
 ### Step 6 — Delete the remote branch
 
@@ -115,11 +119,11 @@ If this fails (branch already deleted), note it and continue.
 
 ### Step 8 — Delete the state file
 
-Delete `.claude/flow-states/<branch>.json`.
+Follow `docs/cleanup-process.md` Step 3.
 
 ### Done
 
-Print:
+Follow `docs/cleanup-process.md` Step 4 (report results), then print:
 
 ```
 ============================================

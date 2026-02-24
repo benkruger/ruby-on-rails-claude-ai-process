@@ -45,7 +45,7 @@ COMMAND; EC=$?; date -u +"%Y-%m-%dT%H:%M:%SZ [Phase 1] Step X — desc (exit $EC
 Use the feature name as `<branch>` — it matches the branch name.
 The gap between consecutive entries is Claude's processing + command time.
 
-Begin logging at Step 7. Steps 2–5 are not logged (state directory not yet created).
+Begin logging at Step 7. Steps 2–6 are not logged (state directory not yet created).
 
 ---
 
@@ -79,57 +79,7 @@ git worktree add .worktrees/<feature-name> -b <feature-name>
 
 All subsequent commands run from inside the worktree unless noted otherwise.
 
-### Step 4 — Initial commit, push, and open PR
-
-GitHub requires at least one commit between base and head to create a PR.
-Run all three commands from inside the worktree:
-
-```bash
-cd .worktrees/<feature-name> && git commit --allow-empty -m "Start <feature-name> branch"
-```
-
-```bash
-cd .worktrees/<feature-name> && git push -u origin <feature-name>
-```
-
-```bash
-cd .worktrees/<feature-name> && gh pr create \
-  --title "<Feature Name Title Cased>" \
-  --body "## What\n\n<Feature name as a sentence.>" \
-  --base main
-```
-
-Capture the PR URL from the output. Extract the PR number from the URL.
-
-### Step 5 — Create the FLOW state file
-
-Create `.claude/flow-states/` directory if it does not exist. Write the state
-file at `.claude/flow-states/<branch-name>.json` with the current UTC timestamp:
-
-```json
-{
-  "feature": "<Feature Name Title Cased>",
-  "branch": "<feature-name>",
-  "worktree": ".worktrees/<feature-name>",
-  "pr_number": <pr_number>,
-  "pr_url": "<pr_url>",
-  "started_at": "<current_utc_timestamp>",
-  "current_phase": 1,
-  "notes": [],
-  "phases": {
-    "1":  { "name": "Start",     "status": "in_progress", "started_at": "<now>", "completed_at": null, "session_started_at": "<now>", "cumulative_seconds": 0, "visit_count": 1 },
-    "2":  { "name": "Research",  "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
-    "3":  { "name": "Design",    "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
-    "4":  { "name": "Plan",      "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
-    "5":  { "name": "Code", "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
-    "6":  { "name": "Review",   "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
-    "7":  { "name": "Reflect",   "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
-    "8":  { "name": "Cleanup",   "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 }
-  }
-}
-```
-
-### Step 6 — Configure workspace permissions
+### Step 4 — Configure workspace permissions
 
 Check if `.claude/settings.json` exists in the project root.
 
@@ -139,6 +89,7 @@ Check if `.claude/settings.json` exists in the project root.
 {
   "permissions": {
     "allow": [
+      "Bash(cd .worktrees/* && *)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push)",
@@ -166,6 +117,56 @@ Check if `.claude/settings.json` exists in the project root.
 ```
 
 **If it exists**, read it and merge in any missing entries. Do not remove existing entries. No duplicates.
+
+### Step 5 — Initial commit, push, and open PR
+
+GitHub requires at least one commit between base and head to create a PR.
+Run all three commands from inside the worktree:
+
+```bash
+cd .worktrees/<feature-name> && git commit --allow-empty -m "Start <feature-name> branch"
+```
+
+```bash
+cd .worktrees/<feature-name> && git push -u origin <feature-name>
+```
+
+```bash
+cd .worktrees/<feature-name> && gh pr create \
+  --title "<Feature Name Title Cased>" \
+  --body "## What\n\n<Feature name as a sentence.>" \
+  --base main
+```
+
+Capture the PR URL from the output. Extract the PR number from the URL.
+
+### Step 6 — Create the FLOW state file
+
+Use the Write tool to write the state file at `.claude/flow-states/<branch-name>.json`
+with the current UTC timestamp. The Write tool creates parent directories automatically.
+
+```json
+{
+  "feature": "<Feature Name Title Cased>",
+  "branch": "<feature-name>",
+  "worktree": ".worktrees/<feature-name>",
+  "pr_number": <pr_number>,
+  "pr_url": "<pr_url>",
+  "started_at": "<current_utc_timestamp>",
+  "current_phase": 1,
+  "notes": [],
+  "phases": {
+    "1":  { "name": "Start",     "status": "in_progress", "started_at": "<now>", "completed_at": null, "session_started_at": "<now>", "cumulative_seconds": 0, "visit_count": 1 },
+    "2":  { "name": "Research",  "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
+    "3":  { "name": "Design",    "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
+    "4":  { "name": "Plan",      "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
+    "5":  { "name": "Code", "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
+    "6":  { "name": "Review",   "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
+    "7":  { "name": "Reflect",   "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 },
+    "8":  { "name": "Cleanup",   "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0 }
+  }
+}
+```
 
 ### Step 7 — Baseline `bin/ci`
 

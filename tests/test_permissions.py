@@ -27,9 +27,9 @@ def _logging_skills():
 
 
 def _extract_step6_permissions():
-    """Extract permissions from Start Step 6 JSON block."""
+    """Extract permissions from Start Step 4 JSON block."""
     content = _read_skill("start")
-    # Find the JSON block inside Step 6 that has "permissions"
+    # Find the JSON block inside Step 4 that has "permissions"
     blocks = re.findall(r"```json\s*\n(.*?)```", content, re.DOTALL)
     for block in blocks:
         if '"permissions"' in block and '"allow"' in block:
@@ -41,7 +41,7 @@ def _extract_step6_permissions():
                 return parsed["permissions"]["allow"]
             except (json.JSONDecodeError, KeyError):
                 continue
-    raise AssertionError("Could not find permissions JSON in start/SKILL.md Step 6")
+    raise AssertionError("Could not find permissions JSON in start/SKILL.md Step 4")
 
 
 def _permission_to_regex(perm):
@@ -104,6 +104,34 @@ def _extract_primary_command(bash_block):
     return line if line else None
 
 
+def _extract_full_command(bash_block):
+    """Extract the full command from a bash code block, preserving cd prefix.
+
+    Like _extract_primary_command but does NOT strip the cd prefix.
+    Used to verify that cd-prefixed commands match a permission pattern as-is.
+    """
+    line = bash_block.strip()
+
+    lines = line.split("\n")
+    lines = [re.sub(r'^>\s*', '', l) for l in lines]
+    line = "\n".join(lines).strip()
+
+    if "COMMAND" in line:
+        return None
+
+    # NOTE: cd prefix is NOT stripped — preserves the full command
+
+    if "; EC=$?" in line:
+        line = line.split("; EC=$?")[0]
+    elif ";" in line and "&&" not in line:
+        line = line.split(";")[0]
+
+    line = line.strip()
+    line = re.sub(r'\s*\\\n\s*', ' ', line)
+
+    return line if line else None
+
+
 # --- Tests ---
 
 
@@ -152,7 +180,7 @@ def test_logging_template_is_command_first():
 
 
 def test_exact_permissions_have_logged_variants():
-    """Every exact-match permission Bash(foo) (no trailing *) in Start Step 6
+    """Every exact-match permission Bash(foo) (no trailing *) in Start Step 4
     must have a corresponding Bash(foo;*) entry — unless a wildcard sibling
     already covers the logged form (e.g. Bash(rubocop *) covers rubocop -A;...)."""
     permissions = _extract_step6_permissions()
@@ -179,7 +207,7 @@ def test_exact_permissions_have_logged_variants():
         test_logged = f"{cmd}; EC=$?"
         covered = any(r.match(test_logged) for r in regexes)
         assert covered, (
-            f"Exact-match permission '{perm}' in Start Step 6 has no "
+            f"Exact-match permission '{perm}' in Start Step 4 has no "
             f"logged variant '{variant}' and no wildcard permission "
             f"covers '{test_logged}'. Add a variant to support the "
             f"command-first logging pattern."
@@ -188,7 +216,7 @@ def test_exact_permissions_have_logged_variants():
 
 def test_all_bash_commands_have_permission_coverage():
     """Every ```bash``` block in all SKILL.md and docs/*.md files must match
-    at least one permission from Start Step 6 or be in the auto-allowed set."""
+    at least one permission from Start Step 4 or be in the auto-allowed set."""
     permissions = _extract_step6_permissions()
     regexes = [_permission_to_regex(p) for p in permissions]
     regexes = [r for r in regexes if r is not None]
@@ -234,11 +262,92 @@ def test_all_bash_commands_have_permission_coverage():
             if not matched:
                 errors.append(
                     f"{filepath}: command '{cmd}' has no matching permission "
-                    f"in Start Step 6. Add a Bash({cmd} *) or Bash({cmd}) "
+                    f"in Start Step 4. Add a Bash({cmd} *) or Bash({cmd}) "
                     f"entry to the permissions block."
                 )
 
     assert not errors, (
         f"Found {len(errors)} Bash command(s) without permission coverage:\n"
         + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
+def test_cd_prefixed_commands_have_full_permission_coverage():
+    """Bash blocks with a cd prefix must match a permission pattern as-is,
+    without stripping the cd. This prevents Claude from dropping the cd
+    to match a simpler pattern and running from the wrong directory."""
+    permissions = _extract_step6_permissions()
+    regexes = [_permission_to_regex(p) for p in permissions]
+    regexes = [r for r in regexes if r is not None]
+
+    cd_pattern = re.compile(r'^cd\s+\S+\s*&&\s*')
+    errors = []
+
+    files_to_check = []
+    for name in _all_skill_names():
+        files_to_check.append(
+            (f"skills/{name}/SKILL.md", _read_skill(name))
+        )
+    for doc in sorted((REPO_ROOT / "docs").iterdir()):
+        if doc.suffix == ".md":
+            files_to_check.append(
+                (f"docs/{doc.name}", doc.read_text())
+            )
+
+    for filepath, content in files_to_check:
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in bash_blocks:
+            full_cmd = _extract_full_command(block)
+            if full_cmd is None:
+                continue
+
+            if not cd_pattern.match(full_cmd):
+                continue
+
+            matched = any(r.match(full_cmd) for r in regexes)
+            if not matched:
+                errors.append(
+                    f"{filepath}: cd-prefixed command '{full_cmd}' has no "
+                    f"matching permission. Add a pattern like "
+                    f"'Bash(cd .worktrees/* && *)' to cover worktree commands."
+                )
+
+    assert not errors, (
+        f"Found {len(errors)} cd-prefixed command(s) without permission coverage:\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
+def test_permissions_step_precedes_worktree_commands():
+    """The permissions step in start/SKILL.md must come before any step
+    that runs cd .worktrees/ commands. Otherwise the cd-prefixed commands
+    execute before their permission patterns exist in .claude/settings.json."""
+    content = _read_skill("start")
+
+    perm_match = re.search(
+        r'### Step (\d+) — .*[Pp]ermission',
+        content
+    )
+    assert perm_match, "Could not find permissions step in start/SKILL.md"
+    perm_step = int(perm_match.group(1))
+
+    steps_with_cd = set()
+    for match in re.finditer(
+        r'### Step (\d+) — .*?\n(.*?)(?=### Step \d+|### Done|\Z)',
+        content, re.DOTALL
+    ):
+        step_num = int(match.group(1))
+        step_content = match.group(2)
+        # Only check bash blocks — ignore cd .worktrees/ in JSON permission strings
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", step_content, re.DOTALL)
+        if any('cd .worktrees/' in block for block in bash_blocks):
+            steps_with_cd.add(step_num)
+
+    assert steps_with_cd, "No steps with cd .worktrees/ found in start/SKILL.md"
+
+    earliest_cd_step = min(steps_with_cd)
+    assert perm_step < earliest_cd_step, (
+        f"Permissions step (Step {perm_step}) must come before the first "
+        f"worktree command step (Step {earliest_cd_step}). Otherwise "
+        f"cd-prefixed commands won't match any permission pattern."
     )

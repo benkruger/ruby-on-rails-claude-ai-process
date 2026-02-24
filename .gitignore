@@ -1,17 +1,3 @@
-# Un-ignore shared plugin settings — committed as part of the plugin
-!.claude/
-!.claude/settings.json
-
-# Un-ignore CLAUDE.md — it's part of the plugin
-!CLAUDE.md
-
-# Keep local/personal Claude settings out of the repo
-.claude/settings.local.json
-.claude/flow-states/
-
-# Commit message temp file (cleaned up by rm, gitignored as safety net)
-.flow-commit-msg
-
 # Python / test artifacts
 __pycache__/
 .venv/

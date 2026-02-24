@@ -103,10 +103,12 @@ Question: "Approve this commit?"
 
 Files are already staged from Step 1. No need to `git add -A` again.
 
-1. Use the Write tool to write the commit message to `/tmp/flow_commit_msg.txt`, then commit:
+1. Use the Write tool to write the commit message to `/tmp/flow-commit-<repo>-<branch>.txt` (where `<repo>` is the repository directory name and `<branch>` is from `git branch --show-current`), then commit and delete the temp file:
    ```
-   git commit -F /tmp/flow_commit_msg.txt
+   git commit -F /tmp/flow-commit-<repo>-<branch>.txt && rm /tmp/flow-commit-<repo>-<branch>.txt
    ```
+   - Repo+branch scoped filename prevents collisions between concurrent sessions across different repos
+   - The `rm` prevents the Write tool from showing a confusing diff of old→new message on the next commit
    - The Write tool handles newlines and special characters safely — no shell escaping needed
    - Never use `python3 -c` to write the message — literal `$(...)` in the body triggers command substitution warnings
    - Never use `git commit -m` with heredoc — the multi-line command fails permission pattern matching

@@ -35,7 +35,7 @@ Then stop.
 
 ```
 ============================================
-  FLOW v0.3.1 — Current Status
+  FLOW v0.4.0 — Current Status
 ============================================
 
   Feature : <feature>

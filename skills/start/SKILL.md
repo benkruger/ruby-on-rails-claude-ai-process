@@ -27,7 +27,7 @@ Print:
 
 ```
 ============================================
-  FLOW v0.3.1 — Phase 1: Start — STARTING
+  FLOW v0.4.0 — Phase 1: Start — STARTING
   Recommended model: Haiku
 ============================================
 ```

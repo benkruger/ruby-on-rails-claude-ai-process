@@ -1,5 +1,40 @@
 # Release Notes
 
+## v0.4.0 — Smart model selection, CI fix sub-agent, performance logging
+
+### New Features
+
+- **CI fix sub-agent in Phase 1** — When `bin/ci` fails (dirty main, RuboCop
+  changes from gem upgrades, flaky tests), Phase 1 now launches a general-purpose
+  Sonnet sub-agent to diagnose and fix automatically. The main Haiku agent handles
+  mechanical setup at speed; Sonnet handles the reasoning when needed.
+- **Model recommendations per phase** — Each phase banner now shows the recommended
+  model: Opus for Design and Code (where reasoning matters most), Sonnet for
+  structured phases, Haiku for mechanical steps. Commit skill recommends Sonnet.
+- **Timestamp logging** — All 9 skills (8 phases + commit) now log start/done
+  timestamps to `/tmp/flow-<branch>.log`. The gap between DONE and the next START
+  reveals Claude's thinking time vs actual command execution.
+
+### Improvements
+
+- **Research scope decoupled from branch name** — Phase 2 no longer assumes what
+  to research based on the feature name. The user describes what to research in
+  their own words.
+- **Coverage file path in CI fix instructions** — Sub-agent now reads
+  `test/coverage/uncovered.txt` to know exactly which lines need coverage.
+- **Expanded workspace permissions** — `bin/ci`, `rubocop`, `bundle update`,
+  `bin/rails test` added to the default allow list for CI fix sub-agent.
+
+### Docs
+
+- README and marketing site reconciled — consistent feature example
+  (`invoice pdf export`), correct Phase 1 step order, matching enforcement lists.
+- Model Recommendations section added to README with rationale table.
+- Sub-Agent Architecture updated to reflect Phase 1's CI fix sub-agent.
+- Smart Model Selection feature card added to marketing site.
+
+---
+
 ## v0.3.1 — Version display, commit staging fix, update command
 
 ### Improvements

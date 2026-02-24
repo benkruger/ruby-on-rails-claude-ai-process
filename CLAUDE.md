@@ -19,6 +19,7 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 8-phase Rai
 ## Maintainer Skills (private to this repo)
 
 - `/commit` — `.claude/skills/commit` — review diff, approve, commit, push
+- `/reflect` — `.claude/skills/reflect/SKILL.md` — review session mistakes, propose CLAUDE.md improvements
 - `/release` — `.claude/skills/release/SKILL.md` — bump version, tag, push, create GitHub Release
 
 ## Conventions

@@ -111,105 +111,17 @@ Sources A and B are the guaranteed record.
 
 ---
 
-## Step 2 — Synthesise findings
+## Step 2 — Follow the reflection process
 
-Before asking the user anything, synthesise all three sources into a
-findings list. Organise by category:
+With the evidence gathered in Step 1, follow the shared reflection
+process in `docs/reflection-process.md` (Steps A through E).
 
-**Process friction** — phases revisited, plans revised, approaches changed
-**Claude mistakes** — things Claude got wrong that the user had to correct
-**Missing patterns** — things not in CLAUDE.md that caused problems
-**Plugin gaps** — places where the FLOW process itself should be improved
-
-Be specific and honest. If Claude made a mistake, name it clearly.
+When Step E says to commit, use `/flow:commit`. The commit goes onto the
+feature branch so CLAUDE.md improvements merge to main with the feature.
 
 ---
 
-## Step 3 — Present findings and ask for confirmation
-
-Present the synthesis to the user:
-
-```
-============================================
-  FLOW — Reflect — Findings
-============================================
-
-  Process friction
-  ----------------
-  - Research was visited 2 times — likely missed the Sidekiq queue
-    check on the first pass
-  - Plan's models section needed 3 revisions
-
-  Claude mistakes
-  ---------------
-  - Dismissed branch-behind as unlikely in a multi-session workflow
-    (it is common and was corrected)
-  - Suggested git rebase (forbidden — corrected immediately)
-
-  Missing CLAUDE.md patterns
-  --------------------------
-  - No pattern about multi-session branch management
-  - No pattern about Sidekiq queue naming in Research
-
-  Plugin gaps
-  -----------
-  - Research skill should explicitly ask about Sidekiq queue names
-  - Plan skill should prompt for git workflow in multi-session setups
-
-============================================
-```
-
-Then use AskUserQuestion:
-
-> "Does this capture what went wrong? Anything I missed or got wrong about the analysis itself?"
-> - **Yes, this is accurate** — proceed to CLAUDE.md proposals
-> - **Needs corrections** — describe what to change, revise and re-present
-
----
-
-## Step 4 — Propose CLAUDE.md additions
-
-For each item in "Missing CLAUDE.md patterns", propose a specific
-addition to CLAUDE.md. Each proposal should be:
-
-- Written as a generic, reusable pattern — not feature-specific
-- Placed in the correct section of CLAUDE.md
-- Concise — one to three sentences
-
-Present each proposal individually using AskUserQuestion:
-
-> "Proposed CLAUDE.md addition:
-> '[proposed text]'
-> Does this belong in CLAUDE.md?"
-> - **Yes, add it**
-> - **Yes, but rephrase** — describe how
-> - **No, skip this one**
-
-For "Yes, but rephrase" — revise and confirm before adding.
-
-Collect all approved additions. Apply them all to CLAUDE.md at once
-after all proposals have been reviewed.
-
----
-
-## Step 5 — Apply CLAUDE.md changes and commit
-
-Apply all approved additions to the project's `CLAUDE.md`.
-
-Read the current `CLAUDE.md` first. Add each entry to the most
-appropriate section. Do not duplicate existing content.
-
-Then use `/flow:commit` to commit the changes.
-
-The commit goes onto the feature branch so CLAUDE.md improvements
-are included in the PR and merge to main with the feature.
-
-Only `CLAUDE.md` and any `.claude/` files are committed in Reflect —
-never application code.
-
----
-
-## Step 6 — Plugin improvement notes
+## Step 3 — Plugin improvement notes
 
 Present the plugin gaps as a separate list — these are not committed:
 
@@ -283,7 +195,5 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 - Never commit application code in Reflect — only CLAUDE.md and .claude/
 - Always read all three sources before presenting findings
-- Always be honest about Claude's own mistakes — name them clearly
-- Every CLAUDE.md addition must be approved individually
-- CLAUDE.md additions must be generic patterns, not feature-specific notes
+- Follow `docs/reflection-process.md` exactly — do not skip or reorder steps
 - Plugin improvement notes are presented only — never committed

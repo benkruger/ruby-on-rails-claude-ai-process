@@ -1,5 +1,41 @@
 # Release Notes
 
+## v0.6.4 — Security hardening and bug fixes
+
+### Fixes
+
+- **State file path** — Moved state files from `.claude/flow-states/` to
+  `.flow-states/` to avoid Claude Code's built-in `.claude/` directory
+  protections that triggered permission prompts.
+- **Start phase worktree cd** — Fixed repeated `cd .worktrees/` breaking
+  push and PR creation by using a single bare `cd` and relying on the
+  Bash tool's persistent working directory.
+- **State file cleanup** — Fixed `rm` permission for state files inside
+  `.claude/flow-states/` (now `.flow-states/`).
+
+### Security
+
+- **Permission wildcards tightened** — Replaced `python3 *` with two
+  specific script paths, removed unused `chmod *`, `env *`, `open *`
+  wildcards, tightened `git rm *` to `.flow-commit-*` only, tightened
+  `git pull *` to `git pull origin *` (blocks `--rebase`).
+- **Force push denied** — Added explicit deny rules for `git push --force`
+  and `git push -f`.
+- **JSON escaping** — Replaced hand-rolled bash `escape_for_json()` in
+  the session hook with Python's `json.dumps()` for proper escaping of
+  all character classes.
+- **Version validation** — Added semver format validation to
+  `extract-release-notes.py` before using the version in file paths.
+- **Abort permission** — Added `git branch -D *` to target project
+  permissions so `/flow:abort` doesn't prompt.
+
+### Improvements
+
+- **Plan mode default** — Set `defaultMode: plan` in settings.json for
+  maintainer sessions.
+
+---
+
 ## v0.6.3 — CLAUDE.md architecture documentation
 
 ### Improvements

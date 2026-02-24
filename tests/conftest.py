@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 HOOKS_DIR = REPO_ROOT / "hooks"
 SKILLS_DIR = REPO_ROOT / "skills"
 DOCS_DIR = REPO_ROOT / "docs"
+BIN_DIR = REPO_ROOT / "bin"
 
 
 @pytest.fixture(autouse=True, scope="session")

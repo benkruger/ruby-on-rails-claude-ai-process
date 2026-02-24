@@ -1,9 +1,10 @@
 """Structural invariant tests for FLOW plugin configuration files."""
 
 import json
+import os
 import re
 
-from conftest import HOOKS_DIR, REPO_ROOT, SKILLS_DIR, make_state
+from conftest import BIN_DIR, HOOKS_DIR, REPO_ROOT, SKILLS_DIR, make_state
 
 
 def _load_phases():
@@ -132,3 +133,21 @@ def test_conftest_phase_names_match_flow_phases():
             f"Phase {num_str}: conftest.make_state() uses '{fixture_name}' "
             f"but flow-phases.json uses '{canonical_name}'"
         )
+
+
+def test_every_script_has_a_test_file():
+    """Every shell script in hooks/ and executable in bin/ must have a test file."""
+    scripts = {}
+    for sh in sorted(HOOKS_DIR.glob("*.sh")):
+        stem = sh.stem.replace("-", "_")
+        scripts[sh.relative_to(REPO_ROOT)] = REPO_ROOT / "tests" / f"test_{stem}.py"
+    for f in sorted(BIN_DIR.iterdir()):
+        if f.is_file() and os.access(f, os.X_OK):
+            stem = f.stem.replace("-", "_")
+            scripts[f.relative_to(REPO_ROOT)] = REPO_ROOT / "tests" / f"test_bin_{stem}.py"
+    missing = [
+        str(script) for script, test in scripts.items() if not test.exists()
+    ]
+    assert not missing, (
+        f"Scripts without test files: {', '.join(missing)}"
+    )

@@ -1,5 +1,35 @@
 # Release Notes
 
+## v0.5.0 — Shared processes, best-effort cleanup, /reflect skill
+
+### New Features
+
+- **`/reflect` maintainer skill** — Reviews session mistakes against CLAUDE.md
+  rules and proposes targeted improvements. Uses the shared reflection process
+  (`docs/reflection-process.md`) so both `/reflect` (maintainer) and
+  `/flow:reflect` (Phase 7) follow the same steps.
+
+### Improvements
+
+- **Best-effort cleanup** — `/flow:cleanup` no longer hard-blocks when the
+  state file is missing or Phase 7 is incomplete. Warns and proceeds after
+  user confirmation. Infers branch and worktree from git state when the
+  state file is gone.
+- **Shared cleanup process** — Overlapping steps between `/flow:cleanup` and
+  `/flow:abort` extracted into `docs/cleanup-process.md`. Both skills
+  reference it. `/flow:abort` also softened to warn instead of block when
+  the state file is missing.
+- **Shared commit process** — `/commit` (maintainer) and `/flow:commit`
+  now both reference `docs/commit-process.md` instead of duplicating
+  commit/push/conflict-resolution logic.
+- **Upgrade command in release banner** — Release completion banner now
+  shows the `claude plugin marketplace update` command.
+- **Session lessons captured** — CLAUDE.md updated with learnings from
+  recent development mistakes (bypass /commit, safe git reset variant,
+  consistency audits, verify edits against source of truth).
+
+---
+
 ## v0.4.0 — Smart model selection, CI fix sub-agent, performance logging
 
 ### New Features

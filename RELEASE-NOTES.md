@@ -1,5 +1,29 @@
 # Release Notes
 
+## v0.6.1 — Documentation sync enforcement
+
+### New Features
+
+- **Documentation sync tests** — 13 new tests in `test_docs_sync.py` catch
+  structural drift across 6 documentation layers: SKILL.md ↔ docs/skills pages
+  (bidirectional), phase docs ↔ flow-phases.json (filename, command, title),
+  skills index completeness, README completeness, landing page completeness,
+  and state schema field coverage.
+- **Commit-time docs reminder** — When SKILL.md, flow-phases.json, or the
+  schema doc appear in a diff, the commit process flags `docs/` files for
+  review before writing the commit message.
+
+### Fixes
+
+- **Logging pattern** — Fixed permission pattern matching broken by logging
+  format change.
+- **Release skill step numbering** — Renumbered from letter suffixes (2a, 2b)
+  to clean sequential integers (1-10).
+- **Permissions consolidation** — Merged settings.local.json into settings.json
+  to eliminate split-file confusion.
+
+---
+
 ## v0.6.0 — Test suite and CI pipeline
 
 ### New Features

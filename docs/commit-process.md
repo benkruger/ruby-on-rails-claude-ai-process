@@ -51,6 +51,15 @@ deleted:    path/to/removed.rb
 
 The `diff` code block renders red/green in most markdown environments.
 
+### Docs sync check
+
+If the diff includes changes to any of these files:
+- `skills/*/SKILL.md` — check `docs/skills/` and `docs/phases/` for matching updates
+- `flow-phases.json` — check `docs/phases/`, `docs/skills/index.md`, `README.md`, `docs/index.html`
+- `docs/reference/flow-state-schema.md` — check against `conftest.make_state()` fields
+
+Flag any docs that may need updates before writing the commit message. If docs are already current, proceed.
+
 ## Step 2 — Commit Message
 
 Write a commit message that a developer reading `git log` six months from now would find genuinely useful.

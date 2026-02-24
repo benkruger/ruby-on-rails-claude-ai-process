@@ -24,6 +24,7 @@
       "Bash(env *)",
       "Bash(open *)",
       "Bash(rm .flow-commit-*)",
+      "Bash(rm -f *.claude/flow-states/*)",
       "Bash(bin/ci)"
     ],
     "deny": [

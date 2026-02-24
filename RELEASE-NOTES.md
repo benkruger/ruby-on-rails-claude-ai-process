@@ -1,5 +1,32 @@
 # Release Notes
 
+## v0.6.0 — Test suite and CI pipeline
+
+### New Features
+
+- **48-test pytest suite** — Five test files covering the phase entry guard
+  (`check-phase.py`), release notes extraction (`extract-release-notes.py`),
+  session start hook (`session-start.sh`), structural invariants (phase config,
+  version sync, file existence), and SKILL.md content contracts (phase gates,
+  state schema, cross-references, sub-agent types, model recommendations).
+- **`bin/ci` runner** — Single command to run the full test suite, with
+  automatic `.venv` detection.
+- **GitHub Actions CI** — Runs pytest on every push and PR to main.
+- **Self-enforcing coverage** — `test_skill_contracts.py` discovers all
+  `skills/*/SKILL.md` files via glob. Adding a new skill without conforming
+  to conventions fails CI automatically.
+
+### Improvements
+
+- **CI-gated commits** — `docs/commit-process.md` now has Step 0: run `bin/ci`
+  before showing the diff. Every commit in this repo is tested.
+- **CI-gated releases** — `/release` now checks GitHub Actions status (Step 2b)
+  before proceeding. Polls up to 3 times (90 seconds) for in-progress runs.
+- **Permissions expanded** — `gh run list` and `bin/ci` added to the project
+  allow list.
+
+---
+
 ## v0.5.1 — Permission prompt fixes and reflection hardening
 
 ### Fixes

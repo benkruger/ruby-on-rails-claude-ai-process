@@ -135,6 +135,42 @@ def _extract_full_command(bash_block):
 # --- Tests ---
 
 
+def test_no_bash_commands_reference_tmp():
+    """No ```bash``` block in any SKILL.md or docs/*.md should reference /tmp/.
+
+    Paths outside the project directory trigger permission prompts that
+    project-level settings.json cannot suppress. All file operations must
+    stay inside the project root."""
+    errors = []
+
+    files_to_check = []
+    for name in _all_skill_names():
+        files_to_check.append(
+            (f"skills/{name}/SKILL.md", _read_skill(name))
+        )
+    for doc in sorted((REPO_ROOT / "docs").iterdir()):
+        if doc.suffix == ".md":
+            files_to_check.append(
+                (f"docs/{doc.name}", doc.read_text())
+            )
+
+    for filepath, content in files_to_check:
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in bash_blocks:
+            if "/tmp/" in block:
+                cmd = block.strip().split("\n")[0]
+                errors.append(
+                    f"{filepath}: bash block references /tmp/: '{cmd}'"
+                )
+
+    assert not errors, (
+        f"Found {len(errors)} bash block(s) referencing /tmp/. Paths outside "
+        f"the project trigger permission prompts that settings.json cannot "
+        f"suppress. Use project-local paths instead.\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
 def test_logging_uses_project_local_path():
     """Every skill's ## Logging section must reference .claude/flow-states/,
     not /tmp/."""

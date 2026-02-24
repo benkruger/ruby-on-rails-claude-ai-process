@@ -11,6 +11,14 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 8-phase Rai
 - `hooks/check-phase.py` — reusable phase entry guard
 - `.claude/settings.json` — project permissions (git rebase denied)
 - `docs/` — GitHub Pages site (main /docs, static HTML)
+- `hooks/extract-release-notes.py` — extracts version sections from RELEASE-NOTES.md for GitHub Releases
+- `docs/commit-process.md` — shared commit process (used by `/commit` and `/flow:commit`)
+- `docs/reflection-process.md` — shared reflection process (used by `/reflect` and `/flow:reflect`)
+- `docs/cleanup-process.md` — shared cleanup process (used by `/flow:cleanup` and `/flow:abort`)
+- `docs/reference/flow-state-schema.md` — state file schema reference
+- `docs/reference/skill-pattern.md` — template pattern for building new phase skills
+- `marketplace.json` — marketplace registry (version must match plugin.json)
+- `.github/workflows/ci.yml` — GitHub Actions CI (Python 3.12, pytest)
 
 ## Development Environment
 
@@ -18,9 +26,55 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 8-phase Rai
 - Run tests with `bin/ci` only — never invoke pytest directly
 - Dependencies managed in the venv, not system Python
 
-## What Still Needs Work
+## Architecture
 
-- The `flow-phases.json` `can_return_to` values may need tuning after real use
+### Plugin vs Target Project
+
+This repo is the plugin source. When installed, skills and hooks run in the target Rails project's working directory. State files live in the target project's `.claude/flow-states/`. Worktrees are created in the target project. Hooks must be tested in the context of a target project directory structure, not this repo.
+
+### Skills Are Markdown, Not Code
+
+Skills are pure Markdown instructions (`skills/<name>/SKILL.md`). The only executable code is `hooks/check-phase.py`, `hooks/extract-release-notes.py`, `hooks/session-start.sh` (with embedded Python), and `bin/ci`. Everything else is instructions that Claude reads and follows.
+
+### Shared Process Docs
+
+Reusable processes are factored into `docs/` and referenced by multiple skills:
+- `docs/commit-process.md` — used by `/commit` and `/flow:commit`
+- `docs/reflection-process.md` — used by `/reflect` and `/flow:reflect`
+- `docs/cleanup-process.md` — used by `/flow:cleanup` and `/flow:abort`
+
+When adding shared behavior, create a doc in `docs/` and reference it from each skill.
+
+### State File
+
+The state file (`.claude/flow-states/<branch>.json`) is the backbone. Schema reference: `docs/reference/flow-state-schema.md`. Test fixture: `tests/conftest.py:make_state()`.
+
+### Sub-Agents
+
+Four phase skills launch mandatory Explore-type sub-agents: Research, Design, Plan, Review. Start uses a general-purpose Sonnet sub-agent for CI failures. Code has no sub-agent. Sub-agent prompts must include a tool restriction rule and must not use Bash for file checks.
+
+### Logging
+
+Phase skills log completion events to `.claude/flow-states/<branch>.log` using a command-first pattern (no START timestamps). Logging goes to `.claude/flow-states/`, never `/tmp/`.
+
+### Version Locations
+
+The version lives in 4 places, all must match: `plugin.json`, `marketplace.json` (top-level metadata), `marketplace.json` (plugins array entry). `test_structural.py` enforces consistency.
+
+## Test Architecture
+
+Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_dir` (flow-states dir inside git repo), `make_state()` (build state dicts), `write_state()` (write state JSON files).
+
+| Test File | What It Enforces |
+|-----------|------------------|
+| `test_structural.py` | Config invariants: phases 1-8 exist, versions match across 4 files, commands unique, hooks reference existing files |
+| `test_skill_contracts.py` | SKILL.md content: HARD-GATE presence, announce banners, state updates, sub-agent types, model recommendations, logging sections, note-capture options. Uses glob-based discovery — new skills are automatically covered |
+| `test_check_phase.py` | Phase guard: blocks on incomplete prerequisites, allows on complete, handles worktrees, re-entry notes |
+| `test_session_start.py` | Session hook: feature detection, timing reset, resume injection, multi-feature handling |
+| `test_docs_sync.py` | Docs completeness: every skill has a docs page, every phase has a docs page, index and README mention all commands |
+| `test_permissions.py` | Permission coverage: every Bash command in every SKILL.md and docs/*.md has coverage in settings.json. Adding a new Bash command to a skill without updating settings.json will fail this test |
+| `test_bin_ci.py` | CI runner: venv detection, pass/fail behavior |
+| `test_extract_release.py` | Release notes extraction from RELEASE-NOTES.md |
 
 ## Maintainer Skills (private to this repo)
 

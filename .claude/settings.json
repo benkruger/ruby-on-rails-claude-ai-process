@@ -22,7 +22,8 @@
       "Bash(git check-ignore *)",
       "Bash(git rm .flow-commit-*)",
       "Bash(rm .flow-commit-*)",
-      "Bash(bin/ci)"
+      "Bash(bin/ci)",
+      "Bash(claude plugin marketplace update *)"
     ],
     "deny": [
       "Bash(git rebase *)",

@@ -496,6 +496,7 @@
         <div class="step-num">1</div>
         <span class="step-label">Start</span>
         <span class="step-detail">Worktree &middot; bundle update &middot; bin/ci baseline &middot; PR created</span>
+        <span class="sub-agent-badge">sub-agent</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">2</div>
@@ -538,13 +539,17 @@
       </div>
     </div>
 
-    <p>Phases 2, 3, 4, and 6 use mandatory Explore-type sub-agents to read the codebase. The main conversation stays focused on decisions. Sub-agents handle all file reads and return structured findings &mdash; keeping the main context clean for decision-making throughout a long session.</p>
+    <p>Phases 2, 3, 4, and 6 use mandatory Explore-type sub-agents to read the codebase. Phase 1 uses a general-purpose Sonnet sub-agent to fix CI failures automatically &mdash; whether from a dirty main branch, gem upgrade breakage, or flaky tests. The main conversation stays focused on decisions while sub-agents handle the heavy lifting.</p>
 
     <h3>Architecture</h3>
     <div class="features">
       <div class="feature">
         <h4>Sub-Agent Architecture</h4>
-        <p>Research, Design, Plan, and Review phases launch Explore-type sub-agents. By the time Code begins, every callback has been found, every risk documented. Code trusts the state file &mdash; it doesn&rsquo;t re-explore.</p>
+        <p>Research, Design, Plan, and Review launch Explore sub-agents. Start launches a Sonnet sub-agent to fix CI failures. By the time Code begins, every callback has been found, every risk documented. Code trusts the state file.</p>
+      </div>
+      <div class="feature">
+        <h4>Smart Model Selection</h4>
+        <p>Each phase recommends the right model. Opus for Design and Code where reasoning matters most. Sonnet for structured phases. Haiku for mechanical steps. CI failures in Start are delegated to a Sonnet sub-agent automatically.</p>
       </div>
       <div class="feature">
         <h4>State File Persistence</h4>

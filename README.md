@@ -23,16 +23,16 @@ Start → Research → Design → Plan → Code → Review → Reflect → Clean
   1         2         3       4      5        6        7          8
 ```
 
-| Phase | Command | What happens |
-|-------|---------|-------------|
-| **1: Start** | `/flow:start <name>` | New worktree, push branch, open PR, upgrade gems, `bin/ci` green baseline |
-| **2: Research** | `/flow:research` | Sub-agent reads full class hierarchy, finds callbacks, checks `test/support/`, documents risks |
-| **3: Design** | `/flow:design` | Sub-agent validates 2-3 alternatives, user picks one, design is approved before any code |
-| **4: Plan** | `/flow:plan` | Sub-agent verifies tasks are executable, section-by-section approval, TDD ordering |
-| **5: Code** | `/flow:code` | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
-| **6: Review** | `/flow:review` | Sub-agent checks design alignment, research risk coverage, Rails anti-patterns |
-| **7: Reflect** | `/flow:reflect` | Corrections become reusable patterns, CLAUDE.md updated, plugin gaps noted |
-| **8: Cleanup** | `/flow:cleanup` | Worktree removed, state file deleted, feature done |
+| Phase | Command | Model | What happens |
+|-------|---------|-------|-------------|
+| **1: Start** | `/flow:start <name>` | Haiku | New worktree, push branch, open PR, upgrade gems, `bin/ci` baseline — Sonnet sub-agent fixes CI failures |
+| **2: Research** | `/flow:research` | Sonnet | Sub-agent reads full class hierarchy, finds callbacks, checks `test/support/`, documents risks |
+| **3: Design** | `/flow:design` | **Opus** | Sub-agent validates 2-3 alternatives, user picks one, design is approved before any code |
+| **4: Plan** | `/flow:plan` | Sonnet | Sub-agent verifies tasks are executable, section-by-section approval, TDD ordering |
+| **5: Code** | `/flow:code` | **Opus** | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
+| **6: Review** | `/flow:review` | Sonnet | Sub-agent checks design alignment, research risk coverage, Rails anti-patterns |
+| **7: Reflect** | `/flow:reflect` | Sonnet | Corrections become reusable patterns, CLAUDE.md updated, plugin gaps noted |
+| **8: Cleanup** | `/flow:cleanup` | Haiku | Worktree removed, state file deleted, feature done |
 
 ---
 
@@ -83,7 +83,7 @@ Available at any point in the workflow:
 
 ### Sub-Agent Architecture
 
-Phases that read the codebase (Research, Design, Plan, Review) launch mandatory Explore-type sub-agents. The main conversation stays focused on decisions. The sub-agent handles all file reads and returns structured findings.
+Five phases use sub-agents. Research, Design, Plan, and Review launch Explore-type sub-agents to read the codebase. Start launches a general-purpose Sonnet sub-agent when `bin/ci` fails. The main conversation stays focused on decisions while sub-agents handle the heavy lifting.
 
 ```
 Main conversation          Sub-agent (Explore)
@@ -100,7 +100,25 @@ Main conversation          Sub-agent (Explore)
       |─── Updates state file
 ```
 
+Phase 1 also uses a **general-purpose Sonnet sub-agent** when `bin/ci` fails — whether from a dirty main branch, RuboCop changes after gem upgrades, or flaky tests. The sub-agent runs `rubocop -A`, fixes test failures, iterates up to 3 times, then reports back. The main Haiku agent handles the mechanical setup at speed.
+
 By the time Code begins, every affected file has been read, every callback has been found, every risk has been documented. Code doesn't re-explore — it trusts the state file. This keeps the main context clean for decision-making throughout a long session.
+
+### Model Recommendations
+
+FLOW uses the right model for each phase — Opus for hard thinking, Sonnet for structured work, Haiku for mechanical steps. Each phase banner shows the recommended model.
+
+| Phase | Model | Why |
+|-------|-------|-----|
+| 1: Start | Haiku | Mechanical setup; CI failures delegated to Sonnet sub-agent |
+| 2: Research | Sonnet | Sub-agent does the heavy codebase reading |
+| 3: Design | **Opus** | Architectural judgment — bad design cascades through all later phases |
+| 4: Plan | Sonnet | Structured task generation, constrained by locked design |
+| 5: Code | **Opus** | Writing correct code against complex Rails codebase |
+| 6: Review | Sonnet | Sub-agent analyzes diff, fixes are targeted and small |
+| 7: Reflect | Sonnet | Synthesizing learnings into reusable patterns |
+| 8: Cleanup | Haiku | Delete worktree and state file |
+| Commit | Sonnet | Writing clear, well-structured commit messages |
 
 ### State File Persistence
 

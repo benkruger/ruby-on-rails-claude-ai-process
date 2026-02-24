@@ -46,6 +46,7 @@ Print:
 ```
 ============================================
   FLOW — Phase 2: Research — STARTING
+  Recommended model: Sonnet
 ============================================
 ```
 

@@ -15,6 +15,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ```
 ============================================
   FLOW — flow:commit — STARTING
+  Recommended model: Sonnet
 ============================================
 ```
 ````

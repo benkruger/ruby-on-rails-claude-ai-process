@@ -47,6 +47,7 @@ Print:
 ```
 ============================================
   FLOW — Phase 8: Cleanup — STARTING
+  Recommended model: Haiku
 ============================================
 ```
 

@@ -47,6 +47,7 @@ Print:
 ```
 ============================================
   FLOW — Phase 7: Reflect — STARTING
+  Recommended model: Sonnet
 ============================================
 ```
 

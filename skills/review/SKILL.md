@@ -47,6 +47,7 @@ Print:
 ```
 ============================================
   FLOW — Phase 6: Review — STARTING
+  Recommended model: Sonnet
 ============================================
 ```
 

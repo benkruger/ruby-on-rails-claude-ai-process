@@ -28,6 +28,7 @@ Print:
 ```
 ============================================
   FLOW v0.3.1 — Phase 1: Start — STARTING
+  Recommended model: Haiku
 ============================================
 ```
 
@@ -159,7 +160,13 @@ Check if `.claude/settings.json` exists in the project root.
       "Bash(gh pr edit *)",
       "Bash(gh pr close *)",
       "Bash(git push origin --delete *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(bin/ci)",
+      "Bash(bin/rails test *)",
+      "Bash(rubocop *)",
+      "Bash(rubocop -A)",
+      "Bash(bundle update)",
+      "Bash(bundle exec *)"
     ]
   }
 }
@@ -174,7 +181,10 @@ cd .worktrees/<feature-name> && bin/ci
 ```
 
 - **Passes** — note as baseline and continue
-- **Fails** — report failures clearly (pre-existing issues). Ask user whether to proceed or stop.
+- **Fails** — launch the CI fix sub-agent (see Step 10). Pass the full
+  `bin/ci` output. After the sub-agent returns:
+  - **Fixed** — use `/flow:commit` to commit the fix, then continue
+  - **Not fixed** — stop and report to the user what is failing
 
 ### Step 8 — Upgrade gems
 
@@ -189,20 +199,51 @@ cd .worktrees/<feature-name> && bin/ci
 ```
 
 - **Passes** — continue to Step 11
-- **Fails** — continue to Step 10
+- **Fails** — launch the CI fix sub-agent (see Step 10). Pass the full
+  `bin/ci` output. After the sub-agent returns:
+  - **Fixed** — continue to Step 11 (Gemfile.lock + fixes committed together)
+  - **Not fixed** — stop and report to the user what is failing
 
-### Step 10 — Fix breakage from gem upgrade
+### Step 10 — CI fix sub-agent
 
-**RuboCop violations:**
-```bash
-cd .worktrees/<feature-name> && rubocop -A && bin/ci
-```
+When `bin/ci` fails in Step 7 or Step 9, launch a sub-agent to diagnose
+and fix the failures. Use the Task tool:
 
-**Test failures** — read output carefully, fix call sites or fixtures, repeat until green.
+- `subagent_type`: `"general-purpose"`
+- `model`: `"sonnet"`
+- `description`: `"Fix bin/ci failures"`
+
+Provide these instructions (fill in the worktree path and bin/ci output):
+
+> You are fixing CI failures in a Rails worktree.
+> Worktree: `<worktree path>`
+> cd into the worktree before running any commands.
+>
+> The `bin/ci` output:
+> <paste the full bin/ci output>
+>
+> Fix the failures in this order:
+>
+> 1. **RuboCop violations** — run `rubocop -A` to auto-fix, then `bin/ci`
+> 2. **Test failures** — read the failing test and the code it tests.
+>    Understand the root cause. Fix the code, not the test (unless the
+>    test itself is wrong). Run `bin/rails test <file>` to verify,
+>    then `bin/ci` for a full check.
+> 3. **Coverage gaps** — write the missing test, then `bin/ci`
+>
+> Max 3 attempts. After each fix, run `bin/ci`. If green, report what
+> was fixed and stop. If still failing after 3 attempts, report exactly
+> what is failing and what was tried.
+>
+> Return:
+> - Status: fixed / not_fixed
+> - What was wrong
+> - What was changed (files modified)
+
+Wait for the sub-agent to return.
 
 <HARD-GATE>
-Do NOT proceed to Step 11 until bin/ci is green. If not fixed after
-three attempts, stop and report exactly what is failing and what was tried.
+Do NOT proceed past Step 7 or Step 9 until bin/ci is green.
 </HARD-GATE>
 
 ### Step 11 — Commit and push

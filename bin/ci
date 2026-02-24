@@ -10,4 +10,4 @@ else
   PYTHON="python3"
 fi
 
-"$PYTHON" -m pytest tests/ -v
+"$PYTHON" -m pytest tests/

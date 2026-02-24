@@ -38,14 +38,25 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Logging
 
-Append a completion timestamp to every Bash command in the **same Bash call**:
+After every Bash command completes, log it to `.claude/flow-states/<branch>.log`.
+
+Run the command with exit code capture:
 
 ```bash
-COMMAND; EC=$?; date -u +"%Y-%m-%dT%H:%M:%SZ [Phase 1] Step X — desc (exit $EC)" >> .claude/flow-states/<branch>.log; exit $EC
+COMMAND; EC=$?; exit $EC
 ```
 
+Then Read `.claude/flow-states/<branch>.log` (empty string if it does not
+exist yet) and Write it back with this line appended:
+
+```
+YYYY-MM-DDTHH:MM:SSZ [Phase 1] Step X — desc (exit EC)
+```
+
+Do NOT use Bash `>>` to write to `.claude/` paths — it triggers Claude
+Code's built-in directory protection that settings.json cannot suppress.
+
 Use the feature name as `<branch>` — it matches the branch name.
-The gap between consecutive entries is Claude's processing + command time.
 
 Begin logging at Step 7. Steps 2–6 are not logged (state directory not yet created).
 

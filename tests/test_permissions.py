@@ -190,6 +190,41 @@ def test_no_bash_commands_reference_tmp():
     )
 
 
+def test_no_bash_redirects_to_dot_claude():
+    """No ```bash``` block should use >> to redirect into .claude/ paths.
+
+    Claude Code applies built-in protection for .claude/ paths that
+    settings.json cannot suppress. The mkdir fix (commit 6aaa8e4) switched
+    to the Write tool; logging must do the same. Use Read + Write instead
+    of Bash >> for any .claude/ path."""
+    errors = []
+
+    files_to_check = []
+    for name in _all_skill_names():
+        files_to_check.append(
+            (f"skills/{name}/SKILL.md", _read_skill(name))
+        )
+    for rel, content in _all_docs_files():
+        files_to_check.append((rel, content))
+
+    for filepath, content in files_to_check:
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in bash_blocks:
+            if ">>" in block and ".claude/" in block:
+                cmd = block.strip().split("\n")[0]
+                errors.append(
+                    f"{filepath}: bash block redirects to .claude/: '{cmd}'"
+                )
+
+    assert not errors, (
+        f"Found {len(errors)} bash block(s) using >> to redirect into .claude/ "
+        f"paths. Claude Code's built-in .claude/ directory protection triggers "
+        f"permission prompts that settings.json cannot suppress. Use Read + "
+        f"Write tools instead of Bash >>.\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
 def test_logging_uses_project_local_path():
     """Every skill's ## Logging section must reference .claude/flow-states/,
     not /tmp/."""

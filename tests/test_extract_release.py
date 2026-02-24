@@ -124,3 +124,16 @@ def test_cli_missing_version_exits_1():
     )
     assert result.returncode == 1
     assert "no section found" in result.stdout
+
+
+# --- In-process test for exception path not reachable via subprocess ---
+
+
+def test_main_file_not_found_exits_1(monkeypatch, tmp_path, capsys):
+    """main() exits 1 when RELEASE-NOTES.md doesn't exist."""
+    monkeypatch.setattr(sys, "argv", ["extract-release-notes.py", "v1.0.0"])
+    monkeypatch.setattr(_mod, "__file__", str(tmp_path / "hooks" / "script.py"))
+    with pytest.raises(SystemExit) as exc_info:
+        _mod.main()
+    assert exc_info.value.code == 1
+    assert "not found" in capsys.readouterr().out

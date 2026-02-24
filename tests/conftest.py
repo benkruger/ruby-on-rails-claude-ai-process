@@ -1,7 +1,9 @@
 """Shared fixtures for FLOW plugin tests."""
 
 import json
+import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -10,6 +12,33 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 HOOKS_DIR = REPO_ROOT / "hooks"
 SKILLS_DIR = REPO_ROOT / "skills"
 DOCS_DIR = REPO_ROOT / "docs"
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _subprocess_coverage():
+    """Route subprocess coverage data to the project root.
+
+    Tests run Python scripts via subprocess with cwd set to temp dirs.
+    Without this, coverage data files land in the temp dir and are never
+    combined. This fixture writes a config with an absolute data_file
+    path and sets COVERAGE_PROCESS_START so the coverage .pth hook
+    activates in every subprocess.
+    """
+    config = (
+        "[run]\n"
+        f"data_file = {REPO_ROOT / '.coverage'}\n"
+        "parallel = true\n"
+        f"source =\n"
+        f"    {HOOKS_DIR}\n"
+    )
+    fd, config_path = tempfile.mkstemp(suffix=".ini", prefix="cov_subprocess_")
+    os.write(fd, config.encode())
+    os.close(fd)
+
+    os.environ["COVERAGE_PROCESS_START"] = config_path
+    yield
+    os.environ.pop("COVERAGE_PROCESS_START", None)
+    os.unlink(config_path)
 
 
 @pytest.fixture

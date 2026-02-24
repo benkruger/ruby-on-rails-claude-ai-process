@@ -1,14 +1,23 @@
 """Tests for hooks/check-phase.py — the phase entry guard."""
 
+import importlib.util
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 from conftest import HOOKS_DIR, make_state, write_state
 
 SCRIPT = str(HOOKS_DIR / "check-phase.py")
+
+# Import check-phase.py for in-process unit tests of exception paths
+_spec = importlib.util.spec_from_file_location(
+    "check_phase", HOOKS_DIR / "check-phase.py"
+)
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
 
 
 def _run(git_repo, phase, state_dir=None):
@@ -236,3 +245,22 @@ def test_worktree_finds_state_in_main_repo(git_repo, state_dir):
 
     result = _run(wt_path, 2)
     assert result.returncode == 0
+
+
+# --- In-process tests for exception paths not reachable via subprocess ---
+
+
+def _raise_oserror(*args, **kwargs):
+    raise OSError("git not found")
+
+
+def test_project_root_falls_back_on_git_failure(monkeypatch):
+    """project_root() returns Path('.') when git fails."""
+    monkeypatch.setattr(subprocess, "run", _raise_oserror)
+    assert _mod.project_root() == Path(".")
+
+
+def test_current_branch_returns_none_on_git_failure(monkeypatch):
+    """current_branch() returns None when git fails."""
+    monkeypatch.setattr(subprocess, "run", _raise_oserror)
+    assert _mod.current_branch() is None

@@ -12,9 +12,6 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 8-phase Rai
 - `.claude/settings.json` — project permissions (git rebase denied)
 - `docs/` — GitHub Pages site (main /docs, static HTML)
 - `hooks/extract-release-notes.py` — extracts version sections from RELEASE-NOTES.md for GitHub Releases
-- `docs/commit-process.md` — shared commit process (used by `/commit` and `/flow:commit`)
-- `docs/reflection-process.md` — shared reflection process (used by `/reflect` and `/flow:reflect`)
-- `docs/cleanup-process.md` — shared cleanup process (used by `/flow:cleanup` and `/flow:abort`)
 - `docs/reference/flow-state-schema.md` — state file schema reference
 - `docs/reference/skill-pattern.md` — template pattern for building new phase skills
 - `marketplace.json` — marketplace registry (version must match plugin.json)
@@ -35,15 +32,6 @@ This repo is the plugin source. When installed, skills and hooks run in the targ
 ### Skills Are Markdown, Not Code
 
 Skills are pure Markdown instructions (`skills/<name>/SKILL.md`). The only executable code is `hooks/check-phase.py`, `hooks/extract-release-notes.py`, `hooks/session-start.sh` (with embedded Python), and `bin/ci`. Everything else is instructions that Claude reads and follows.
-
-### Shared Process Docs
-
-Reusable processes are factored into `docs/` and referenced by multiple skills:
-- `docs/commit-process.md` — used by `/commit` and `/flow:commit`
-- `docs/reflection-process.md` — used by `/reflect` and `/flow:reflect`
-- `docs/cleanup-process.md` — used by `/flow:cleanup` and `/flow:abort`
-
-When adding shared behavior, create a doc in `docs/` and reference it from each skill.
 
 ### State File
 
@@ -72,7 +60,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 | `test_check_phase.py` | Phase guard: blocks on incomplete prerequisites, allows on complete, handles worktrees, re-entry notes |
 | `test_session_start.py` | Session hook: feature detection, timing reset, resume injection, multi-feature handling |
 | `test_docs_sync.py` | Docs completeness: every skill has a docs page, every phase has a docs page, index and README mention all commands |
-| `test_permissions.py` | Permission coverage: every Bash command in every SKILL.md and docs/*.md has coverage in settings.json. Adding a new Bash command to a skill without updating settings.json will fail this test |
+| `test_permissions.py` | Permission coverage: every Bash command in every SKILL.md has coverage in settings.json. Adding a new Bash command to a skill without updating settings.json will fail this test |
 | `test_bin_ci.py` | CI runner: venv detection, pass/fail behavior |
 | `test_extract_release.py` | Release notes extraction from RELEASE-NOTES.md |
 

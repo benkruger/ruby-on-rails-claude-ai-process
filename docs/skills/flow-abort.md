@@ -31,10 +31,9 @@ file is missing, but proceeds after user confirmation.
 7. Deletes the local branch with `git branch -D`
 8. Deletes `.flow-states/<branch>.json`
 
-Steps 3–8 follow a mix of abort-specific actions and the shared cleanup
-process (`docs/cleanup-process.md`). Every step after confirmation is
-best-effort — if one fails (e.g., PR already closed, worktree already
-removed), it continues to the next.
+Steps 3–8 follow a mix of abort-specific actions and cleanup operations.
+Every step after confirmation is best-effort — if one fails (e.g., PR
+already closed, worktree already removed), it continues to the next.
 
 ---
 

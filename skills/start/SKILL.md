@@ -124,10 +124,10 @@ Check if `.claude/settings.json` exists in the **project root** (one level up fr
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push)",
-      "Bash(git push;*)",
+      "Bash(git push; *)",
       "Bash(git push -u *)",
       "Bash(git reset HEAD)",
-      "Bash(git reset HEAD;*)",
+      "Bash(git reset HEAD; *)",
       "Bash(git worktree *)",
       "Bash(gh pr create *)",
       "Bash(gh pr edit *)",
@@ -136,14 +136,16 @@ Check if `.claude/settings.json` exists in the **project root** (one level up fr
       "Bash(git branch -D *)",
       "Bash(python3 *)",
       "Bash(bin/ci)",
-      "Bash(bin/ci;*)",
+      "Bash(bin/ci; *)",
       "Bash(bin/rails test *)",
       "Bash(rubocop *)",
       "Bash(rubocop -A)",
       "Bash(bundle update)",
-      "Bash(bundle update;*)",
+      "Bash(bundle update; *)",
       "Bash(rm .flow-commit-*)",
-      "Bash(bundle exec *)"
+      "Bash(bundle exec *)",
+      "Write(.flow-states/*)",
+      "Edit(.flow-states/*)"
     ]
   }
 }

@@ -22,8 +22,8 @@ but proceeds after user confirmation.
    (or infers from git state if the file is missing)
 2. Confirms with the user before any destructive action, including any
    warnings from the entry check
-3. Follows the shared cleanup process (`docs/cleanup-process.md`):
-   navigate to root, remove worktree, delete state file, report results
+3. Runs the cleanup process:
+   navigate to root, remove worktree, delete state file and log, report results
 
 ---
 

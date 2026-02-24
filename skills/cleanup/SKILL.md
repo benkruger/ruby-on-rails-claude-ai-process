@@ -94,7 +94,34 @@ If there were no warnings:
 
 ### Steps 3–6 — Cleanup
 
-Follow the cleanup process in `docs/cleanup-process.md` (Steps 1 through 4).
+#### Navigate to project root
+
+Use `git worktree list --porcelain` to find the project root. All cleanup commands
+run from the project root, not from inside the worktree.
+
+```bash
+cd <project_root>
+```
+
+If navigation fails, tell the user and stop.
+
+#### Remove the worktree
+
+```bash
+git worktree remove .worktrees/<feature-name> --force
+```
+
+If this fails (already removed, doesn't exist, path mismatch), note it and continue.
+
+#### Delete the state file and log
+
+Delete `.flow-states/<branch>.json` and `.flow-states/<branch>.log`.
+
+If either doesn't exist, note it and continue.
+
+#### Report results
+
+Tell the user what was cleaned, what was already gone, and what failed.
 
 ### Done — Print banner
 

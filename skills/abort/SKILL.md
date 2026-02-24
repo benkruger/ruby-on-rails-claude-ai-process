@@ -66,7 +66,14 @@ If the entry check printed warnings, include them in the confirmation:
 
 ### Step 3 — Navigate to project root
 
-Follow `docs/cleanup-process.md` Step 1.
+Use `git worktree list --porcelain` to find the project root. All cleanup commands
+run from the project root, not from inside the worktree.
+
+```bash
+cd <project_root>
+```
+
+If navigation fails, tell the user and stop.
 
 ### Step 4 — Close the PR
 
@@ -81,7 +88,11 @@ note it and continue — do not stop.
 
 ### Step 5 — Remove the worktree
 
-Follow `docs/cleanup-process.md` Step 2.
+```bash
+git worktree remove .worktrees/<feature-name> --force
+```
+
+If this fails (already removed, doesn't exist, path mismatch), note it and continue.
 
 ### Step 6 — Delete the remote branch
 
@@ -101,13 +112,17 @@ git branch -D <branch-name>
 
 If this fails (branch already deleted), note it and continue.
 
-### Step 8 — Delete the state file
+### Step 8 — Delete the state file and log
 
-Follow `docs/cleanup-process.md` Step 3.
+Delete `.flow-states/<branch>.json` and `.flow-states/<branch>.log`.
+
+If either doesn't exist, note it and continue.
 
 ### Done
 
-Follow `docs/cleanup-process.md` Step 4 (report results), then print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
+Tell the user what was cleaned, what was already gone, and what failed.
+
+Then print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
 ````
 ```

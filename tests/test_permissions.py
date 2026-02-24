@@ -455,7 +455,7 @@ def _load_settings_permissions():
 
 
 def _maintainer_files():
-    """Collect maintainer skill files and shared process docs.
+    """Collect maintainer skill files.
 
     These run in this repo (not the target Rails project), so their bash
     commands must be covered by .claude/settings.json, not Start Step 5.
@@ -466,17 +466,12 @@ def _maintainer_files():
             skill_md = d / "SKILL.md"
             if skill_md.exists():
                 files.append((f".claude/skills/{d.name}/SKILL.md", skill_md.read_text()))
-    # Shared process docs referenced by maintainer skills
-    for name in ("commit-process.md", "reflection-process.md"):
-        path = REPO_ROOT / "docs" / name
-        if path.exists():
-            files.append((f"docs/{name}", path.read_text()))
     return files
 
 
 def test_maintainer_bash_commands_have_settings_coverage():
-    """Every ```bash``` block in maintainer skills and shared process docs
-    must match a permission in .claude/settings.json or be auto-allowed.
+    """Every ```bash``` block in maintainer skills must match a permission
+    in .claude/settings.json or be auto-allowed.
 
     Maintainer skills (.claude/skills/) run in this repo, not the target
     Rails project, so they need coverage in settings.json — not Start Step 5."""

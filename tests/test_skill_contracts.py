@@ -370,15 +370,14 @@ def test_model_recommendations_match_documented_table():
 # --- Cross-file consistency ---
 
 
-def test_cleanup_and_abort_mention_log_when_docs_delete_log():
-    """If cleanup-process.md deletes .log files, abort and cleanup user-facing
+def test_cleanup_and_abort_mention_log_in_user_facing_text():
+    """If cleanup/abort skills delete .log files, their user-facing
     text must mention 'state file and log' (not just 'state file')."""
-    cleanup_doc = (DOCS_DIR / "cleanup-process.md").read_text()
-    if ".log" not in cleanup_doc:
-        return  # Conditional contract — docs don't mention .log yet
-
     for skill_name in ("abort", "cleanup"):
         content = _read_skill(skill_name)
+        if ".log" not in content:
+            continue  # Conditional contract — skill doesn't mention .log yet
+
         # Extract user-facing text: blockquote lines and fenced code blocks
         user_facing = []
         for line in content.splitlines():
@@ -390,7 +389,7 @@ def test_cleanup_and_abort_mention_log_when_docs_delete_log():
 
         assert "state file and log" in combined, (
             f"skills/{skill_name}/SKILL.md user-facing text mentions 'state file' "
-            f"but not 'state file and log' — cleanup-process.md deletes both "
+            f"but not 'state file and log' — skill deletes both "
             f".json and .log files"
         )
 

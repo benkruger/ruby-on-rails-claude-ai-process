@@ -73,14 +73,14 @@ the user knows what's off before confirming:
 
 > "Ready to clean up feature '<feature>'?
 > ⚠ <any warnings from the gate>
-> This will remove the worktree and delete the state file permanently."
+> This will remove the worktree and delete the state file and log permanently."
 > - **Yes, clean up** — proceed
 > - **No, not yet** — stop here
 
 If there were no warnings:
 
 > "Ready to clean up feature '<feature>'?
-> This will remove the worktree and delete the state file permanently."
+> This will remove the worktree and delete the state file and log permanently."
 > - **Yes, clean up** — proceed
 > - **No, not yet** — stop here
 
@@ -97,6 +97,7 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 ============================================
   FLOW — Phase 8: Cleanup — COMPLETE
   Feature '<feature>' is fully done.
+  Worktree removed, state file and log deleted.
 ============================================
 ```
 ````

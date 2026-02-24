@@ -60,7 +60,7 @@ If the entry check printed warnings, include them in the confirmation:
 
 > "Abort feature '<feature>'?
 > ⚠ <any warnings from the entry check>
-> This will close the PR, delete the remote branch, remove the worktree, and delete the state file. All uncommitted work in the worktree will be lost."
+> This will close the PR, delete the remote branch, remove the worktree, and delete the state file and log. All uncommitted work in the worktree will be lost."
 > - **Yes, abort everything** — proceed
 > - **No, keep going** — stop here
 
@@ -115,7 +115,7 @@ Follow `docs/cleanup-process.md` Step 4 (report results), then print inside a fe
   FLOW — Abort — COMPLETE
   Feature '<feature>' has been abandoned.
   PR closed, remote branch deleted,
-  worktree removed, state file deleted.
+  worktree removed, state file and log deleted.
 ============================================
 ```
 ````

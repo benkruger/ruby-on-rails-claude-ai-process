@@ -1,5 +1,36 @@
 # Release Notes
 
+## v0.8.3 — Extract testable Python from five skills
+
+### New
+
+- **`hooks/flow_utils.py`** — Shared utility module with `format_time()`,
+  `project_root()`, and `current_branch()`. Used by `check-phase.py` and
+  `format-status.py`.
+- **`hooks/format-status.py`** — Deterministic ASCII status panel formatter,
+  replacing inline template in `/flow:status`.
+- **`hooks/append-note.py`** — Structured note appender for state files,
+  replacing inline JSON manipulation in `/flow:note`.
+- **`hooks/cleanup.py`** — Best-effort cleanup orchestrator shared by
+  `/flow:cleanup` and `/flow:abort`, replacing duplicated inline sequences.
+- **`hooks/init-setup.py`** — Settings merge, version marker, and git exclude
+  setup for `/flow:init`.
+
+### Improvements
+
+- **`check-phase.py` refactored** — Imports `project_root()` and
+  `current_branch()` from `flow_utils.py` instead of defining its own copies.
+- **68 new tests** — Full test coverage for all five new scripts
+  (219 total, 100% coverage).
+
+### Fixes
+
+- **Script paths use `${CLAUDE_PLUGIN_ROOT}`** — All five new scripts use
+  the plugin root variable so they resolve correctly when users run skills
+  from their project directory.
+
+---
+
 ## v0.8.2 — Automate version bumps with make bump
 
 ### New

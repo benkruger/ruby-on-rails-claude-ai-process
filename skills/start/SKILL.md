@@ -83,38 +83,9 @@ git pull origin main
 
 If this fails, stop and report why.
 
-### Step 3 — Create the worktree and cd into it
+### Step 3 — Configure workspace permissions
 
-```bash
-git worktree add .worktrees/<feature-name> -b <feature-name>
-```
-
-Then change into the worktree:
-
-```bash
-cd .worktrees/<feature-name>
-```
-
-The Bash tool persists working directory between calls, so all subsequent
-commands run inside the worktree automatically. Do NOT repeat `cd .worktrees/`
-in later steps — it would look for a nested `.worktrees/` that doesn't exist.
-
-### Step 4 — Configure git exclude
-
-Ensure `.flow-states/` and `.worktrees/` are excluded from version control
-using the per-repo local exclude (not committed, not in `.gitignore`).
-
-```bash
-git rev-parse --git-common-dir
-```
-
-Read `<git-common-dir>/info/exclude`. If `.flow-states/` or `.worktrees/`
-are missing from the file, append them. Use the Edit tool (or Write if the
-file does not exist) — one entry per line.
-
-### Step 5 — Configure workspace permissions
-
-Check if `.claude/settings.json` exists in the **project root** (one level up from the worktree).
+Check if `.claude/settings.json` exists in the **project root**.
 
 **If it does not exist**, create it:
 
@@ -163,10 +134,39 @@ Check if `.claude/settings.json` exists in the **project root** (one level up fr
 
 **If it exists**, read it and merge in any missing entries. Do not remove existing entries. No duplicates.
 
+### Step 4 — Create the worktree and cd into it
+
+```bash
+git worktree add .worktrees/<feature-name> -b <feature-name>
+```
+
+Then change into the worktree:
+
+```bash
+cd .worktrees/<feature-name>
+```
+
+The Bash tool persists working directory between calls, so all subsequent
+commands run inside the worktree automatically. Do NOT repeat `cd .worktrees/`
+in later steps — it would look for a nested `.worktrees/` that doesn't exist.
+
+### Step 5 — Configure git exclude
+
+Ensure `.flow-states/` and `.worktrees/` are excluded from version control
+using the per-repo local exclude (not committed, not in `.gitignore`).
+
+```bash
+git rev-parse --git-common-dir
+```
+
+Read `<git-common-dir>/info/exclude`. If `.flow-states/` or `.worktrees/`
+are missing from the file, append them. Use the Edit tool (or Write if the
+file does not exist) — one entry per line.
+
 ### Step 6 — Initial commit, push, and open PR
 
 GitHub requires at least one commit between base and head to create a PR.
-Already inside the worktree from Step 3:
+Already inside the worktree from Step 4:
 
 ```bash
 git commit --allow-empty -m "Start <feature-name> branch"

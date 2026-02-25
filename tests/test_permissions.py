@@ -40,7 +40,7 @@ def _logging_skills():
 
 
 def _extract_step6_permissions_block():
-    """Extract the full permissions dict from Start Step 5 JSON block."""
+    """Extract the full permissions dict from Start Step 3 JSON block."""
     content = _read_skill("start")
     blocks = re.findall(r"```json\s*\n(.*?)```", content, re.DOTALL)
     for block in blocks:
@@ -51,11 +51,11 @@ def _extract_step6_permissions_block():
                 return parsed["permissions"]
             except (json.JSONDecodeError, KeyError):
                 continue
-    raise AssertionError("Could not find permissions JSON in start/SKILL.md Step 5")
+    raise AssertionError("Could not find permissions JSON in start/SKILL.md Step 3")
 
 
 def _extract_step6_permissions():
-    """Extract the allow list from Start Step 5 JSON block."""
+    """Extract the allow list from Start Step 3 JSON block."""
     return _extract_step6_permissions_block()["allow"]
 
 
@@ -273,7 +273,7 @@ def test_logging_template_is_command_first():
 
 
 def test_exact_permissions_have_logged_variants():
-    """Every exact-match permission Bash(foo) (no trailing *) in Start Step 5
+    """Every exact-match permission Bash(foo) (no trailing *) in Start Step 3
     must have a corresponding Bash(foo;*) entry — unless a wildcard sibling
     already covers the logged form (e.g. Bash(rubocop *) covers rubocop -A;...)."""
     permissions = _extract_step6_permissions()
@@ -300,7 +300,7 @@ def test_exact_permissions_have_logged_variants():
         test_logged = f"{cmd}; EC=$?"
         covered = any(r.match(test_logged) for r in regexes)
         assert covered, (
-            f"Exact-match permission '{perm}' in Start Step 5 has no "
+            f"Exact-match permission '{perm}' in Start Step 3 has no "
             f"logged variant '{variant}' and no wildcard permission "
             f"covers '{test_logged}'. Add a variant to support the "
             f"command-first logging pattern."
@@ -309,7 +309,7 @@ def test_exact_permissions_have_logged_variants():
 
 def test_all_bash_commands_have_permission_coverage():
     """Every ```bash``` block in all SKILL.md and docs/*.md files must match
-    at least one permission from Start Step 5 or be in the auto-allowed set."""
+    at least one permission from Start Step 3 or be in the auto-allowed set."""
     permissions = _extract_step6_permissions()
     regexes = [_permission_to_regex(p) for p in permissions]
     regexes = [r for r in regexes if r is not None]
@@ -352,7 +352,7 @@ def test_all_bash_commands_have_permission_coverage():
             if not matched:
                 errors.append(
                     f"{filepath}: command '{cmd}' has no matching permission "
-                    f"in Start Step 5. Add a Bash({cmd} *) or Bash({cmd}) "
+                    f"in Start Step 3. Add a Bash({cmd} *) or Bash({cmd}) "
                     f"entry to the permissions block."
                 )
 
@@ -460,7 +460,7 @@ def _maintainer_files():
     """Collect maintainer skill files.
 
     These run in this repo (not the target Rails project), so their bash
-    commands must be covered by .claude/settings.json, not Start Step 5.
+    commands must be covered by .claude/settings.json, not Start Step 3.
     """
     files = []
     for d in sorted(MAINTAINER_SKILLS_DIR.iterdir()):
@@ -476,7 +476,7 @@ def test_maintainer_bash_commands_have_settings_coverage():
     in .claude/settings.json or be auto-allowed.
 
     Maintainer skills (.claude/skills/) run in this repo, not the target
-    Rails project, so they need coverage in settings.json — not Start Step 5."""
+    Rails project, so they need coverage in settings.json — not Start Step 3."""
     permissions = _load_settings_permissions()
     regexes = [_permission_to_regex(p) for p in permissions]
     regexes = [r for r in regexes if r is not None]
@@ -527,13 +527,13 @@ REQUIRED_DENY_ENTRIES = [
 
 
 def test_plugin_permissions_deny_destructive_git():
-    """Plugin permissions in Start Step 5 must deny destructive git operations.
+    """Plugin permissions in Start Step 3 must deny destructive git operations.
 
     The maintainer settings.json denies these, and the plugin permissions
     written to the target project must do the same."""
     permissions = _extract_step6_permissions_block()
     assert "deny" in permissions, (
-        "Start Step 5 permissions JSON has no 'deny' list. "
+        "Start Step 3 permissions JSON has no 'deny' list. "
         "Add deny entries for destructive git operations."
     )
     deny = permissions["deny"]

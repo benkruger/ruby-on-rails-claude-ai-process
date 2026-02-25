@@ -39,22 +39,24 @@ def _logging_skills():
     ]
 
 
-def _extract_step6_permissions():
-    """Extract permissions from Start Step 5 JSON block."""
+def _extract_step6_permissions_block():
+    """Extract the full permissions dict from Start Step 5 JSON block."""
     content = _read_skill("start")
-    # Find the JSON block inside Step 4 that has "permissions"
     blocks = re.findall(r"```json\s*\n(.*?)```", content, re.DOTALL)
     for block in blocks:
         if '"permissions"' in block and '"allow"' in block:
-            # Clean placeholders for parsing
             cleaned = re.sub(r'<[^>]+>', 'placeholder', block)
-            import json
             try:
                 parsed = json.loads(cleaned)
-                return parsed["permissions"]["allow"]
+                return parsed["permissions"]
             except (json.JSONDecodeError, KeyError):
                 continue
-    raise AssertionError("Could not find permissions JSON in start/SKILL.md Step 4")
+    raise AssertionError("Could not find permissions JSON in start/SKILL.md Step 5")
+
+
+def _extract_step6_permissions():
+    """Extract the allow list from Start Step 5 JSON block."""
+    return _extract_step6_permissions_block()["allow"]
 
 
 def _permission_to_regex(perm):
@@ -511,3 +513,19 @@ def test_maintainer_bash_commands_have_settings_coverage():
         f".claude/settings.json coverage:\n"
         + "\n".join(f"  - {e}" for e in errors)
     )
+
+
+def test_plugin_permissions_deny_destructive_git():
+    """Plugin permissions in Start Step 5 must deny rebase and force-push.
+
+    The maintainer settings.json denies these, and the plugin permissions
+    written to the target project must do the same."""
+    permissions = _extract_step6_permissions_block()
+    assert "deny" in permissions, (
+        "Start Step 5 permissions JSON has no 'deny' list. "
+        "Add deny entries for git rebase and force-push."
+    )
+    deny = permissions["deny"]
+    assert "Bash(git rebase *)" in deny
+    assert "Bash(git push --force *)" in deny
+    assert "Bash(git push -f *)" in deny

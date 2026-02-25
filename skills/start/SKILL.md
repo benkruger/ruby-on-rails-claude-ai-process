@@ -136,7 +136,6 @@ Check if `.claude/settings.json` exists in the **project root** (one level up fr
       "Bash(gh pr close *)",
       "Bash(git push origin --delete *)",
       "Bash(git branch -D *)",
-      "Bash(python3 *)",
       "Bash(bin/ci)",
       "Bash(bin/ci; *)",
       "Bash(bin/rails test *)",
@@ -148,6 +147,11 @@ Check if `.claude/settings.json` exists in the **project root** (one level up fr
       "Bash(bundle exec *)",
       "Write(.flow-states/*)",
       "Edit(.flow-states/*)"
+    ],
+    "deny": [
+      "Bash(git rebase *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)"
     ]
   }
 }

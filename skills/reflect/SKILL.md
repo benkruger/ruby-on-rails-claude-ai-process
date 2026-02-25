@@ -284,7 +284,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 7: Reflect — COMPLETE
+  FLOW — Phase 7: Reflect — COMPLETE (<cumulative_seconds>)
   Merge the PR, then run /flow:cleanup.
 ============================================
 ```

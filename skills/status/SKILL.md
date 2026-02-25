@@ -53,8 +53,8 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 
   Phases
   ------
-  [x] Phase 1:  Start
-  [>] Phase 2:  Research   <-- YOU ARE HERE
+  [x] Phase 1:  Start        (5m)
+  [>] Phase 2:  Research     <-- YOU ARE HERE
   [ ] Phase 3:  Design
   [ ] Phase 4:  Plan
   [ ] Phase 5:  Code
@@ -72,6 +72,8 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 ````
 
 Use `[x]` for complete, `[>]` for in_progress, `[ ]` for pending.
+
+For each completed phase (`[x]`), show the phase's `cumulative_seconds` in parentheses after the name. Format: `Xh Ym` if >= 1 hour, `Ym` if >= 1 minute, `<1m` if under 60 seconds.
 
 If all phases are complete, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 

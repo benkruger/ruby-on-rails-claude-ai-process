@@ -331,7 +331,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 ````text
 ```
 ============================================
-  FLOW — Phase 5: Code — COMPLETE
+  FLOW — Phase 5: Code — COMPLETE (<cumulative_seconds>)
 ============================================
 ```
 ````

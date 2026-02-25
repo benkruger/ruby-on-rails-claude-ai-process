@@ -132,7 +132,7 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 8: Cleanup — COMPLETE
+  FLOW — Phase 8: Cleanup — COMPLETE (<cumulative_seconds>)
   Feature '<feature>' is fully done.
   Worktree removed, state file and log deleted.
 ============================================

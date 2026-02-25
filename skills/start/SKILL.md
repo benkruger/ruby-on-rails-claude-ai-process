@@ -320,7 +320,7 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 ````text
 ```
 ============================================
-  FLOW — Phase 1: Start — COMPLETE
+  FLOW — Phase 1: Start — COMPLETE (<cumulative_seconds>)
 ============================================
 ```
 ````

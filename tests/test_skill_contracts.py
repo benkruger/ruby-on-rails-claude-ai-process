@@ -551,3 +551,31 @@ def test_status_skill_phase_names_match_flow_phases():
             f"'Phase {num_str}: {phase['name']}' — "
             f"phase name may be out of sync with flow-phases.json"
         )
+
+
+def test_phase_skills_complete_banner_includes_timing():
+    """Every phase skill (1-8) COMPLETE banner must include timing in
+    parentheses after COMPLETE."""
+    phase_skills = _phase_skills()
+    data = _load_phases()
+
+    for phase_num, skill_name in phase_skills.items():
+        content = _read_skill(skill_name)
+        name = data["phases"][str(phase_num)]["name"]
+
+        pattern = rf"Phase {phase_num}:\s*{re.escape(name)}\s*—\s*COMPLETE\s*\("
+        assert re.search(pattern, content), (
+            f"Phase {phase_num} ({skill_name}) COMPLETE banner missing "
+            f"timing — expected 'COMPLETE (' with cumulative_seconds"
+        )
+
+
+def test_status_panel_shows_timing_for_completed_phases():
+    """Status skill template must show timing for completed phases
+    ([x] lines)."""
+    content = _read_skill("status")
+    match = re.search(r"\[x\].*Phase.*\(", content)
+    assert match, (
+        "skills/status/SKILL.md template missing timing on completed "
+        "phase lines — [x] lines should include (Xh Ym)"
+    )

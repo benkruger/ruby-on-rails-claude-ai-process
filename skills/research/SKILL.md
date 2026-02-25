@@ -285,7 +285,7 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 2: Research — COMPLETE
+  FLOW — Phase 2: Research — COMPLETE (<cumulative_seconds>)
 ============================================
 ```
 ````
@@ -317,7 +317,7 @@ Print inside a fenced code block:
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 2: Research — COMPLETE
+  FLOW — Phase 2: Research — COMPLETE (<cumulative_seconds>)
   Next: Phase 3: Design  (/flow:design)
 ============================================
 ```

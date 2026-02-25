@@ -255,7 +255,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 6: Review — COMPLETE
+  FLOW — Phase 6: Review — COMPLETE (<cumulative_seconds>)
 ============================================
 ```
 ````

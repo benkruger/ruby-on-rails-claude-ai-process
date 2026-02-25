@@ -758,7 +758,7 @@
     <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px; margin-bottom: 28px;">FLOW creates a git worktree, opens a GitHub PR, runs <code>bin/ci</code> to establish a baseline, upgrades gems, runs <code>bin/ci</code> again to confirm green, and lands you in Phase 2: Research.</p>
 
     <div class="callout" style="margin-bottom: 32px;">
-      <p>The plugin installs into Claude Code&rsquo;s managed plugin directory. <code>/flow:init</code> commits workspace permissions in <code>.claude/settings.json</code> and a version marker in <code>.claude/flow.json</code> (once per project). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature tracks state. Cleanup deletes even that. <strong>Three commands to set up. One file while you work. Zero when you&rsquo;re done.</strong></p>
+      <p>The plugin installs into Claude Code&rsquo;s managed plugin directory. <code>/flow:init</code> commits workspace permissions in <code>.claude/settings.json</code> and a version marker in <code>.flow.json</code> (once per project). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature tracks state. Cleanup deletes even that. <strong>Three commands to set up. One file while you work. Zero when you&rsquo;re done.</strong></p>
     </div>
 
     <a href="https://github.com/benkruger/flow" class="cta">View on GitHub</a>

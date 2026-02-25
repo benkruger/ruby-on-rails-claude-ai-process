@@ -14,7 +14,7 @@ parent: Skills
 
 Begins a new feature. This is always the first command run for any piece of work. It sets up an isolated environment, ensures dependencies are current, and establishes the PR before any feature code is written.
 
-**Prerequisite:** `/flow:init` must be run once per project (and again after each FLOW upgrade) before `/flow:start` will work. The setup script checks for a matching version marker at `.claude/flow.json`.
+**Prerequisite:** `/flow:init` must be run once per project (and again after each FLOW upgrade) before `/flow:start` will work. The setup script checks for a matching version marker at `.flow.json`.
 
 ---
 

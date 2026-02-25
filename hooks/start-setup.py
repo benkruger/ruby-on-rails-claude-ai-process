@@ -186,7 +186,7 @@ def main():
 
     try:
         # Version gate — ensure /flow:init has been run
-        flow_json = project_root / ".claude" / "flow.json"
+        flow_json = project_root / ".flow.json"
         if not flow_json.exists():
             raise SetupError(
                 "init_check",

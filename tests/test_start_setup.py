@@ -77,10 +77,8 @@ def _current_plugin_version():
 
 
 def _write_flow_json(repo, version):
-    """Write .claude/flow.json with a version marker."""
-    claude_dir = repo / ".claude"
-    claude_dir.mkdir(exist_ok=True)
-    (claude_dir / "flow.json").write_text(
+    """Write .flow.json with a version marker."""
+    (repo / ".flow.json").write_text(
         json.dumps({"flow_version": version})
     )
 

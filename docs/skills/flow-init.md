@@ -19,9 +19,9 @@ One-time project setup. Configures workspace permissions in `.claude/settings.js
 1. Reads `.claude/settings.json` (or starts with `{}`)
 2. Merges FLOW allow/deny permission entries, preserving existing entries
 3. Writes the merged `.claude/settings.json`
-4. Writes `.claude/flow.json` with the current FLOW version
+4. Writes `.flow.json` with the current FLOW version
 5. Adds `.flow-states/` and `.worktrees/` to `.git/info/exclude`
-6. Commits `.claude/settings.json` and `.claude/flow.json`
+6. Commits `.claude/settings.json` and `.flow.json`
 
 ---
 

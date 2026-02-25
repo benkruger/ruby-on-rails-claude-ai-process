@@ -85,7 +85,7 @@ Create the `.claude/` directory if it does not exist. Write the merged settings 
 
 ### Step 4 — Write version marker
 
-Write `.claude/flow.json` using the Write tool:
+Write `.flow.json` in the project root using the Write tool:
 
 ```json
 {"flow_version": "0.7.3"}
@@ -110,7 +110,7 @@ If `.flow-states/` is not already in the file, add it. If `.worktrees/` is not a
 Stage and commit the settings and version marker:
 
 ```bash
-git add .claude/settings.json .claude/flow.json
+git add .claude/settings.json .flow.json
 ```
 
 ```bash
@@ -132,7 +132,7 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 Report:
 
 - Settings written to `.claude/settings.json`
-- Version marker written to `.claude/flow.json`
+- Version marker written to `.flow.json`
 - Git excludes configured for `.flow-states/` and `.worktrees/`
 - Changes committed
 

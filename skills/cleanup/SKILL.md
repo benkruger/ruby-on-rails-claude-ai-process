@@ -94,36 +94,17 @@ If there were no warnings:
 - **Yes, clean up** — proceed
 - **No, not yet** — stop here
 
-### Steps 3–6 — Cleanup
+### Steps 3–6 — Run cleanup script
 
-#### Navigate to project root
-
-Use `git worktree list --porcelain` to find the project root. All cleanup commands
-run from the project root, not from inside the worktree.
+Run the cleanup script from the project root:
 
 ```bash
-cd <project_root>
+python3 hooks/cleanup.py <project_root> --branch <branch> --worktree <worktree_path>
 ```
 
-If navigation fails, tell the user and stop.
+The script outputs JSON with a `steps` dict showing what happened to each resource (worktree, state\_file, log\_file). Each step reports "removed"/"deleted", "skipped", or "failed: reason".
 
-#### Remove the worktree
-
-```bash
-git worktree remove .worktrees/<feature-name> --force
-```
-
-If this fails (already removed, doesn't exist, path mismatch), note it and continue.
-
-#### Delete the state file and log
-
-Delete `.flow-states/<branch>.json` and `.flow-states/<branch>.log`.
-
-If either doesn't exist, note it and continue.
-
-#### Report results
-
-Tell the user what was cleaned, what was already gone, and what failed.
+Report the results to the user: what was cleaned, what was already gone, and what failed.
 
 ### Done — Print banner
 

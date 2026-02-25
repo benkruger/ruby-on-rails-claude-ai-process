@@ -22,11 +22,25 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Steps
 
-### Step 1 — Read the state file
+### Step 1 — Get state file path
 
-Find the project root and read `.flow-states/<branch>.json`.
+Find the project root and current branch:
 
-If no state file exists for the current branch, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
+1. Run `git worktree list --porcelain` and note the path on the first `worktree` line.
+2. Run `git branch --show-current`.
+3. Build the state file path: `<project_root>/.flow-states/<branch>.json`.
+
+### Step 2 — Run the status formatter
+
+Read `plugin.json` from the plugin installation directory to get the version.
+
+```bash
+python3 hooks/format-status.py <state_file_path> <version>
+```
+
+The script outputs JSON:
+
+- `{"status": "no_state"}` — no state file exists. Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
 ````markdown
 ```text
@@ -37,55 +51,9 @@ Start one with /flow:start <feature name>.
 
 Then stop.
 
-### Step 2 — Print status panel
+- `{"status": "ok", "panel": "..."}` — print the `panel` value inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading.
 
-Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
-
-````markdown
-```text
-============================================
-  FLOW v0.8.2 — Current Status
-============================================
-
-  Feature : <feature>
-  Branch  : <branch>
-  PR      : <pr_url>
-
-  Phases
-  ------
-  [x] Phase 1:  Start        (5m)
-  [>] Phase 2:  Research     <-- YOU ARE HERE
-  [ ] Phase 3:  Design
-  [ ] Phase 4:  Plan
-  [ ] Phase 5:  Code
-  [ ] Phase 6:  Review
-  [ ] Phase 7:  Reflect
-  [ ] Phase 8:  Cleanup
-
-  Time in current phase : <cumulative_seconds formatted as Xh Ym>
-  Times visited         : <visit_count>
-
-  Next: /flow:research
-
-============================================
-```
-````
-
-Use `[x]` for complete, `[>]` for in_progress, `[ ]` for pending.
-
-For each completed phase (`[x]`), show the phase's `cumulative_seconds` in parentheses after the name. Format: `Xh Ym` if >= 1 hour, `Ym` if >= 1 minute, `<1m` if under 60 seconds.
-
-If all phases are complete, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
-
-````markdown
-```text
-============================================
-  FLOW — All phases complete!
-  Feature: <feature>
-  This feature is fully done.
-============================================
-```
-````
+- `{"status": "error", "message": "..."}` — show the error message and stop.
 
 ## Rules
 

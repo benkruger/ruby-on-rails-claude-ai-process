@@ -65,59 +65,17 @@ If the entry check printed warnings, include them in the confirmation:
 - **Yes, abort everything** — proceed
 - **No, keep going** — stop here
 
-### Step 3 — Navigate to project root
+### Steps 3–8 — Run cleanup script
 
-Use `git worktree list --porcelain` to find the project root. All cleanup commands
-run from the project root, not from inside the worktree.
-
-```bash
-cd <project_root>
-```
-
-If navigation fails, tell the user and stop.
-
-### Step 4 — Close the PR
-
-If `pr_number` exists (from state or inferred):
+Run the cleanup script from the project root with abort flags:
 
 ```bash
-gh pr close <pr_number> --comment "Aborted via /flow:abort"
+python3 hooks/cleanup.py <project_root> --branch <branch> --worktree <worktree_path> --pr <pr_number> --delete-remote
 ```
 
-If this fails (PR already closed/merged) or `pr_number` is unknown,
-note it and continue — do not stop.
+If `pr_number` is unknown, omit `--pr`. The `--delete-remote` flag tells the script to also delete the remote branch and local branch.
 
-### Step 5 — Remove the worktree
-
-```bash
-git worktree remove .worktrees/<feature-name> --force
-```
-
-If this fails (already removed, doesn't exist, path mismatch), note it and continue.
-
-### Step 6 — Delete the remote branch
-
-```bash
-git push origin --delete <branch-name>
-```
-
-If this fails (branch already deleted), note it and continue.
-
-### Step 7 — Delete the local branch
-
-From the project root (which is on main):
-
-```bash
-git branch -D <branch-name>
-```
-
-If this fails (branch already deleted), note it and continue.
-
-### Step 8 — Delete the state file and log
-
-Delete `.flow-states/<branch>.json` and `.flow-states/<branch>.log`.
-
-If either doesn't exist, note it and continue.
+The script outputs JSON with a `steps` dict showing what happened to each resource (pr\_close, worktree, remote\_branch, local\_branch, state\_file, log\_file). Each step reports "closed"/"removed"/"deleted", "skipped", or "failed: reason".
 
 ### Done
 

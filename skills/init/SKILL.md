@@ -27,15 +27,25 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Steps
 
-### Step 1 — Read current settings
+### Step 1 — Run init setup script
 
-Read `.claude/settings.json` using the Read tool. If the file does not exist, start with an empty object `{}`.
+```bash
+python3 hooks/init-setup.py <project_root>
+```
 
-### Step 2 — Merge FLOW permissions
+The script handles:
 
-Merge the FLOW permission entries into the settings object from Step 1. Preserve all existing entries. Only add entries that do not already exist. Set `defaultMode` to `acceptEdits` if `defaultMode` is not already set.
+- Reading or creating `.claude/settings.json`
+- Merging FLOW permissions (additive only — preserves existing entries)
+- Setting `defaultMode` to `acceptEdits` if not already set
+- Writing `.flow.json` version marker
+- Adding `.flow-states/` and `.worktrees/` to `.git/info/exclude`
 
-The FLOW permissions to merge:
+Output JSON: `{"status": "ok", "settings_merged": true, "exclude_updated": true, "version_marker": true}`
+
+If the script returns an error, show the message and stop.
+
+The FLOW permissions merged by the script:
 
 ```json
 {
@@ -79,33 +89,7 @@ The FLOW permissions to merge:
 }
 ```
 
-### Step 3 — Write merged settings
-
-Create the `.claude/` directory if it does not exist. Write the merged settings to `.claude/settings.json` using the Write tool.
-
-### Step 4 — Write version marker
-
-Write `.flow.json` in the project root using the Write tool:
-
-```json
-{"flow_version": "0.7.3"}
-```
-
-This file tells `/flow:start` that the project has been initialized for this FLOW version.
-
-### Step 5 — Configure git exclude
-
-Run:
-
-```bash
-git rev-parse --git-common-dir
-```
-
-Read the `info/exclude` file at that path using the Read tool (empty string if it does not exist).
-
-If `.flow-states/` is not already in the file, add it. If `.worktrees/` is not already in the file, add it. Write the updated file using the Edit tool (or Write if the file is new).
-
-### Step 6 — Commit
+### Step 2 — Commit
 
 Stage and commit the settings and version marker:
 

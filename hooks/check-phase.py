@@ -16,9 +16,12 @@ Exit 1 — entry blocked (error printed to stdout for Claude to read)
 
 import argparse
 import json
-import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from flow_utils import current_branch, project_root
 
 PHASES = {
     "1": "Start",     "2": "Research",  "3": "Design",
@@ -31,31 +34,6 @@ COMMANDS = {
     "4": "/flow:plan",      "5": "/flow:code",  "6": "/flow:review",
     "7": "/flow:reflect",   "8": "/flow:cleanup"
 }
-
-
-def project_root():
-    try:
-        result = subprocess.run(
-            ["git", "worktree", "list", "--porcelain"],
-            capture_output=True, text=True, check=True
-        )
-        for line in result.stdout.strip().split("\n"):
-            if line.startswith("worktree "):
-                return Path(line.split(" ", 1)[1].strip())
-    except Exception:
-        pass
-    return Path(".")
-
-
-def current_branch():
-    try:
-        result = subprocess.run(
-            ["git", "branch", "--show-current"],
-            capture_output=True, text=True, check=True
-        )
-        return result.stdout.strip()
-    except Exception:
-        return None
 
 
 def main():

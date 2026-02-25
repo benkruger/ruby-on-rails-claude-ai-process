@@ -34,19 +34,7 @@ If no state file is found, skip silently — do not interrupt the session.
 
 ### Step 2 — Write the note
 
-Read the state file. Append to `state["notes"]`:
-
-```json
-{
-  "phase": <current_phase_number>,
-  "phase_name": "<current_phase_name>",
-  "timestamp": "<current_utc_timestamp>",
-  "type": "correction",
-  "note": "<what was wrong and what is correct — written as a generic pattern, not a specific complaint>"
-}
-```
-
-**Write the note as a reusable pattern, not a specific complaint:**
+Compose the note text as a reusable pattern, not a specific complaint:
 
 - Bad: *"User said I was wrong about branches"*
 - Good: *"Never assume branch-behind is unlikely in a multi-session workflow — multiple active sessions means branches regularly fall behind main"*
@@ -55,6 +43,14 @@ Read the state file. Append to `state["notes"]`:
 - Good: *"Always merge, never rebase — rebasing is forbidden in this workflow"*
 
 The note should read as something useful to a future session, not a log of what happened.
+
+Run the append-note script with the state file path, current phase, type, and note text:
+
+```bash
+python3 hooks/append-note.py <state_file_path> --phase <N> --type correction --note "<note text>"
+```
+
+The script appends a structured note with phase, phase\_name, timestamp, type, and note fields to the state file's `notes` array.
 
 ### Step 3 — Confirm quietly
 

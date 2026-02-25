@@ -546,16 +546,25 @@ def test_can_return_to_targets_are_reachable():
             )
 
 
-def test_status_skill_phase_names_match_flow_phases():
-    """Status skill template must list all 8 phases with correct names from
+def test_status_formatter_phase_names_match_flow_phases():
+    """format-status.py panel must include all 8 phases with correct names from
     flow-phases.json."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "format_status", HOOKS_DIR / "format-status.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    from conftest import make_state
     data = _load_phases()
-    content = _read_skill("status")
+    state = make_state(current_phase=1, phase_statuses={1: "in_progress"})
+    panel = mod.format_panel(state, _plugin_version())
 
     for num_str, phase in data["phases"].items():
         pattern = rf"Phase\s+{num_str}:\s+{re.escape(phase['name'])}"
-        assert re.search(pattern, content), (
-            f"skills/status/SKILL.md does not contain "
+        assert re.search(pattern, panel), (
+            f"format-status.py panel does not contain "
             f"'Phase {num_str}: {phase['name']}' — "
             f"phase name may be out of sync with flow-phases.json"
         )
@@ -585,13 +594,26 @@ def test_phase_skills_complete_banner_includes_timing():
         )
 
 
-def test_status_panel_shows_timing_for_completed_phases():
-    """Status skill template must show timing for completed phases
+def test_status_formatter_shows_timing_for_completed_phases():
+    """format-status.py panel must show timing for completed phases
     ([x] lines)."""
-    content = _read_skill("status")
-    match = re.search(r"\[x\].*Phase.*\(", content)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "format_status", HOOKS_DIR / "format-status.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    from conftest import make_state
+    state = make_state(
+        current_phase=2,
+        phase_statuses={1: "complete", 2: "in_progress"},
+    )
+    state["phases"]["1"]["cumulative_seconds"] = 300
+    panel = mod.format_panel(state, _plugin_version())
+    match = re.search(r"\[x\].*Phase.*\(", panel)
     assert match, (
-        "skills/status/SKILL.md template missing timing on completed "
+        "format-status.py panel missing timing on completed "
         "phase lines — [x] lines should include (Xh Ym)"
     )
 

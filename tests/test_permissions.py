@@ -515,17 +515,38 @@ def test_maintainer_bash_commands_have_settings_coverage():
     )
 
 
+REQUIRED_DENY_ENTRIES = [
+    "Bash(git rebase *)",
+    "Bash(git push --force *)",
+    "Bash(git push -f *)",
+    "Bash(git reset --hard *)",
+    "Bash(git stash *)",
+    "Bash(git checkout *)",
+    "Bash(git clean *)",
+]
+
+
 def test_plugin_permissions_deny_destructive_git():
-    """Plugin permissions in Start Step 5 must deny rebase and force-push.
+    """Plugin permissions in Start Step 5 must deny destructive git operations.
 
     The maintainer settings.json denies these, and the plugin permissions
     written to the target project must do the same."""
     permissions = _extract_step6_permissions_block()
     assert "deny" in permissions, (
         "Start Step 5 permissions JSON has no 'deny' list. "
-        "Add deny entries for git rebase and force-push."
+        "Add deny entries for destructive git operations."
     )
     deny = permissions["deny"]
-    assert "Bash(git rebase *)" in deny
-    assert "Bash(git push --force *)" in deny
-    assert "Bash(git push -f *)" in deny
+    for entry in REQUIRED_DENY_ENTRIES:
+        assert entry in deny, f"Missing deny entry: {entry}"
+
+
+def test_maintainer_permissions_deny_destructive_git():
+    """Maintainer settings.json must deny destructive git operations."""
+    data = json.loads(SETTINGS_JSON.read_text())
+    assert "deny" in data["permissions"], (
+        ".claude/settings.json has no 'deny' list."
+    )
+    deny = data["permissions"]["deny"]
+    for entry in REQUIRED_DENY_ENTRIES:
+        assert entry in deny, f"Missing deny entry in settings.json: {entry}"

@@ -151,7 +151,11 @@ Check if `.claude/settings.json` exists in the **project root** (one level up fr
     "deny": [
       "Bash(git rebase *)",
       "Bash(git push --force *)",
-      "Bash(git push -f *)"
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git clean *)"
     ]
   }
 }

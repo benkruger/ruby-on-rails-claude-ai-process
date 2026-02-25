@@ -1,5 +1,27 @@
 # Release Notes
 
+## v0.7.1 — Fix Start phase permission prompt regression
+
+### Fixes
+
+- **Start logging pattern** — The Start phase consolidation (v0.7.0)
+  reintroduced `$(date -u ...)` command substitution in the logging bash
+  block. Claude Code flags `$()` with a security prompt that settings.json
+  cannot suppress, blocking Start at Step 3. Restored the Read+Write
+  pattern every other skill uses.
+
+### Improvements
+
+- **Command substitution regression test** — New test in test_permissions.py
+  bans `$(` in any bash block across all SKILL.md and docs files. Would have
+  caught this regression at CI time.
+- **Release skill marketplace update test** — Enforces that the release skill
+  includes the `claude plugin marketplace update` step.
+- **CLAUDE.md lessons** — Added lesson on reporting unexpected conflicting
+  tests when bin/ci reveals scope expansion beyond the plan.
+
+---
+
 ## v0.7.0 — Start phase consolidation
 
 ### New Features

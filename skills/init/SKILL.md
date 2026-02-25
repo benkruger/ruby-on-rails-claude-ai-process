@@ -30,7 +30,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ### Step 1 — Run init setup script
 
 ```bash
-python3 hooks/init-setup.py <project_root>
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/init-setup.py <project_root>
 ```
 
 The script handles:

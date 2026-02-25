@@ -47,7 +47,7 @@ The note should read as something useful to a future session, not a log of what 
 Run the append-note script with the state file path, current phase, type, and note text:
 
 ```bash
-python3 hooks/append-note.py <state_file_path> --phase <N> --type correction --note "<note text>"
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/append-note.py <state_file_path> --phase <N> --type correction --note "<note text>"
 ```
 
 The script appends a structured note with phase, phase\_name, timestamp, type, and note fields to the state file's `notes` array.

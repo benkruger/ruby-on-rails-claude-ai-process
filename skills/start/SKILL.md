@@ -39,12 +39,19 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Logging
 
-After every Bash command in Steps 3–7, log it to `.flow-states/<branch>.log` using Bash append. Step 2 handles its own logging internally.
+After every Bash command in Steps 3–7, log it to `.flow-states/<branch>.log`. Step 2 handles its own logging internally.
 
-Run the command with exit code capture and inline log append:
+Run the command with exit code capture:
 
 ```bash
-COMMAND; EC=$?; echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [Phase 1] Step X — desc (exit $EC)" >> .flow-states/<branch>.log; exit $EC
+COMMAND; EC=$?; exit $EC
+```
+
+Then Read `.flow-states/<branch>.log` (empty string if it does not
+exist yet) and Write it back with this line appended:
+
+```text
+YYYY-MM-DDTHH:MM:SSZ [Phase 1] Step X — desc (exit EC)
 ```
 
 Use the feature name as `<branch>` — it matches the branch name.

@@ -193,6 +193,41 @@ def test_no_bash_commands_reference_tmp():
     )
 
 
+def test_no_command_substitution_in_bash_blocks():
+    """No ```bash``` block in any SKILL.md or docs/*.md should contain $().
+
+    Command substitution like $(date ...) triggers Claude Code's security
+    prompt, which settings.json cannot suppress. Use the Read+Write pattern
+    instead: run the command, capture the exit code, then use Claude's
+    Read/Write tools to append the log line with the timestamp."""
+    errors = []
+
+    files_to_check = []
+    for name in _all_skill_names():
+        files_to_check.append(
+            (f"skills/{name}/SKILL.md", _read_skill(name))
+        )
+    for rel, content in _all_docs_files():
+        files_to_check.append((rel, content))
+
+    for filepath, content in files_to_check:
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in bash_blocks:
+            if "$(" in block:
+                cmd = block.strip().split("\n")[0]
+                errors.append(
+                    f"{filepath}: bash block contains $(): '{cmd}'"
+                )
+
+    assert not errors, (
+        f"Found {len(errors)} bash block(s) containing $(). Command "
+        f"substitution triggers Claude Code's security prompt, which "
+        f"settings.json cannot suppress. Use the Read+Write logging "
+        f"pattern instead.\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
 def test_no_bash_redirects_to_dot_claude():
     """No ```bash``` block should use >> to redirect into .claude/ paths.
 

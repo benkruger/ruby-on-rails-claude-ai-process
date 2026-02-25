@@ -580,9 +580,13 @@ def test_status_panel_shows_timing_for_completed_phases():
 # --- Start phase setup script ---
 
 
-def test_start_logging_uses_bash_append():
-    """Start SKILL.md logging section must use >> (Bash append) and must NOT
-    instruct Claude to use Read + Write for logging."""
+def test_start_logging_uses_read_write():
+    """Start SKILL.md logging section must use Read+Write like every other skill.
+
+    The >> (Bash append) pattern requires $(date ...) for timestamps, which
+    triggers Claude Code's security prompt. settings.json cannot suppress $()
+    prompts. The Read+Write pattern avoids this by generating the timestamp
+    in Claude's tool layer."""
     content = _read_skill("start")
     logging_match = re.search(
         r"## Logging\n(.*?)(?=\n## |\n---|\Z)", content, re.DOTALL
@@ -590,13 +594,13 @@ def test_start_logging_uses_bash_append():
     assert logging_match, "start/SKILL.md has no ## Logging section"
     logging_section = logging_match.group(1)
 
-    assert ">>" in logging_section, (
-        "start/SKILL.md ## Logging section must use >> (Bash append) "
-        "instead of Read + Write round-trips"
+    assert "Read" in logging_section and "Write" in logging_section, (
+        "start/SKILL.md ## Logging section must use Read+Write pattern — "
+        "Bash >> with $(date) triggers permission prompts"
     )
-    assert "Read" not in logging_section and "Write" not in logging_section, (
-        "start/SKILL.md ## Logging section must NOT use Read/Write tools — "
-        "use >> (Bash append) to avoid LLM round-trips"
+    assert ">>" not in logging_section, (
+        "start/SKILL.md ## Logging section must NOT use >> (Bash append) — "
+        "it requires $(date) which triggers Claude Code's security prompt"
     )
 
 

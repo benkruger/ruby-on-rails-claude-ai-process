@@ -1,5 +1,26 @@
 # Release Notes
 
+## v0.8.2 — Automate version bumps with make bump
+
+### New
+
+- **`make bump` target** — `make bump NEW=0.9.0` updates the version string
+  in `plugin.json`, `marketplace.json`, and all 14 skill file banners in one
+  command. Replaces the 14 manual `replace_all` edits the release skill
+  previously required.
+- **`hooks/bump-version.py`** — Standalone script with semver validation,
+  same-version protection, and a summary of changed files. Full test coverage
+  in `tests/test_bump_version.py`.
+
+### Improvements
+
+- **Release skill Step 6 simplified** — Now runs `make bump NEW=<version>`
+  instead of listing 4 file groups to edit manually.
+- **`Bash(make *)` permission added** — `make` commands are auto-allowed in
+  `.claude/settings.json`.
+
+---
+
 ## v0.8.1 — Fix /flow:init UX issues
 
 ### Fixes

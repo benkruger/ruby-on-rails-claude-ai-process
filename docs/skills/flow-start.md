@@ -14,12 +14,14 @@ parent: Skills
 
 Begins a new feature. This is always the first command run for any piece of work. It sets up an isolated environment, ensures dependencies are current, and establishes the PR before any feature code is written.
 
+**Prerequisite:** `/flow:init` must be run once per project (and again after each FLOW upgrade) before `/flow:start` will work. The setup script checks for a matching version marker at `.claude/flow.json`.
+
 ---
 
 ## What It Does
 
 1. Checks for existing active FLOW features
-2. Runs `hooks/start-setup.py` — a single script that handles git pull, worktree creation, settings merge, git exclude, empty commit + push + PR, and state file creation
+2. Runs `hooks/start-setup.py` — verifies `/flow:init` version gate, git pull, worktree creation, empty commit + push + PR, and state file creation
 3. Runs `bin/ci` as a baseline health check
 4. Runs `bundle update --all` to upgrade all gems
 5. Runs `bin/ci` again and auto-fixes any breakage (via a Sonnet sub-agent)

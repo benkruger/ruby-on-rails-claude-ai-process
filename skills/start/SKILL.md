@@ -83,12 +83,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/hooks/start-setup.py "<feature-name>"
 
 The script performs these operations in a single process:
 
-1. `git pull origin main`
-2. Create/merge `.claude/settings.json` with workspace permissions
+1. Verify `/flow:init` has been run (version gate)
+2. `git pull origin main`
 3. `git worktree add .worktrees/<branch> -b <branch>`
-4. Configure `info/exclude` with `.flow-states/` and `.worktrees/`
-5. `git commit --allow-empty` + `git push -u origin` + `gh pr create`
-6. Create `.flow-states/<branch>.json` (initial state, all 8 phases)
+4. `git commit --allow-empty` + `git push -u origin` + `gh pr create`
+5. Create `.flow-states/<branch>.json` (initial state, all 8 phases)
 
 The script logs each operation to `.flow-states/<branch>.log` internally.
 
@@ -108,17 +107,15 @@ The Bash tool persists working directory between calls, so all subsequent
 commands run inside the worktree automatically. Do NOT repeat `cd .worktrees/`
 in later steps — it would look for a nested `.worktrees/` that doesn't exist.
 
-Then reload workspace permissions: Read `.claude/settings.json` and Write it
-back with identical content. This triggers Claude Code to detect and apply the
-FLOW permission entries that `start-setup.py` configured.
-
 **On failure** — stdout is error JSON, details on stderr:
 
 ```json
 {"status": "error", "step": "git_pull", "message": "..."}
 ```
 
-Read the stderr output for details. Report the failure to the user and stop.
+If the error step is `init_check`, tell the user to run `/flow:init` first
+and stop. For all other errors, read the stderr output for details, report
+the failure to the user, and stop.
 
 ### Step 3 — Baseline `bin/ci`
 
@@ -253,53 +250,3 @@ Then report:
 - Whether baseline `bin/ci` was clean
 - Which gems were upgraded (`git diff Gemfile.lock` summary)
 - Confirmation `bin/ci` is green
-
----
-
-## Reference: Workspace Permissions
-
-The `start-setup.py` script configures these permissions in `.claude/settings.json`
-and copies the merged file into the worktree's `.claude/` directory so permissions
-are available immediately after `cd .worktrees/<branch>`:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(cd .worktrees/* && *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git push)",
-      "Bash(git push; *)",
-      "Bash(git push -u *)",
-      "Bash(git reset HEAD)",
-      "Bash(git reset HEAD; *)",
-      "Bash(git worktree *)",
-      "Bash(gh pr create *)",
-      "Bash(gh pr edit *)",
-      "Bash(gh pr close *)",
-      "Bash(git push origin --delete *)",
-      "Bash(git branch -D *)",
-      "Bash(bin/ci)",
-      "Bash(bin/ci; *)",
-      "Bash(bin/rails test *)",
-      "Bash(rubocop *)",
-      "Bash(rubocop -A)",
-      "Bash(bundle update --all)",
-      "Bash(bundle update --all; *)",
-      "Bash(rm .flow-commit-*)",
-      "Bash(bundle exec *)"
-    ],
-    "deny": [
-      "Bash(git rebase *)",
-      "Bash(git push --force *)",
-      "Bash(git push -f *)",
-      "Bash(git reset --hard *)",
-      "Bash(git stash *)",
-      "Bash(git checkout *)",
-      "Bash(git clean *)"
-    ]
-  },
-  "defaultMode": "acceptEdits"
-}
-```

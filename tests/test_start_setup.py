@@ -70,8 +70,26 @@ def _run(cwd, feature_name, env_extra=None):
     return result
 
 
+def _current_plugin_version():
+    """Read the current version from plugin.json."""
+    plugin_path = Path(__file__).resolve().parent.parent / ".claude-plugin" / "plugin.json"
+    return json.loads(plugin_path.read_text())["version"]
+
+
+def _write_flow_json(repo, version):
+    """Write .claude/flow.json with a version marker."""
+    claude_dir = repo / ".claude"
+    claude_dir.mkdir(exist_ok=True)
+    (claude_dir / "flow.json").write_text(
+        json.dumps({"flow_version": version})
+    )
+
+
 def _run_no_gh(cwd, feature_name):
-    """Run start-setup.py with gh stubbed out (no GitHub API)."""
+    """Run start-setup.py with gh stubbed out and flow.json initialized."""
+    # Ensure flow.json exists with correct version for the version gate
+    _write_flow_json(cwd, _current_plugin_version())
+
     env = os.environ.copy()
     # Create a stub gh that returns a fake PR URL
     stub_dir = cwd / ".stub-bin"
@@ -166,6 +184,7 @@ def test_git_pull_failure_returns_error(tmp_path):
         ["git", "commit", "--allow-empty", "-m", "init"],
         cwd=tmp_path, capture_output=True, check=True,
     )
+    _write_flow_json(tmp_path, _current_plugin_version())
     result = _run(tmp_path, "test feature")
     assert result.returncode == 1
     data = json.loads(result.stdout)
@@ -173,96 +192,36 @@ def test_git_pull_failure_returns_error(tmp_path):
     assert data["step"] == "git_pull"
 
 
-# --- Settings merge ---
+# --- Version gate (/flow:init check) ---
 
 
-def test_settings_created_when_missing(git_repo_with_remote):
-    """Creates .claude/settings.json if it does not exist."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    settings_path = git_repo_with_remote / ".claude" / "settings.json"
-    assert settings_path.exists()
-    data = json.loads(settings_path.read_text())
-    assert "permissions" in data
-    assert "allow" in data["permissions"]
-    assert "deny" in data["permissions"]
+def test_fails_when_flow_json_missing(tmp_path):
+    """start-setup.py returns error JSON with step init_check when flow.json missing."""
+    result = _run(tmp_path, "test feature")
+    assert result.returncode == 1
+    data = json.loads(result.stdout)
+    assert data["status"] == "error"
+    assert data["step"] == "init_check"
+    assert "/flow:init" in data["message"]
 
 
-def test_settings_merge_preserves_existing(git_repo_with_remote):
-    """Merging into existing settings preserves original entries."""
-    claude_dir = git_repo_with_remote / ".claude"
-    claude_dir.mkdir()
-    existing = {
-        "permissions": {
-            "allow": ["Bash(my-custom-command)"],
-            "deny": ["Bash(rm -rf *)"],
-        },
-        "defaultMode": "plan",
-    }
-    (claude_dir / "settings.json").write_text(json.dumps(existing, indent=2))
-
-    _run_no_gh(git_repo_with_remote, "test feature")
-
-    data = json.loads((claude_dir / "settings.json").read_text())
-    assert "Bash(my-custom-command)" in data["permissions"]["allow"]
-    assert "Bash(rm -rf *)" in data["permissions"]["deny"]
-    assert "Bash(bin/ci)" in data["permissions"]["allow"]
-    assert data["defaultMode"] == "plan"
+def test_fails_when_flow_version_mismatch(tmp_path):
+    """start-setup.py returns error when flow.json has wrong version."""
+    _write_flow_json(tmp_path, "0.0.0")
+    result = _run(tmp_path, "test feature")
+    assert result.returncode == 1
+    data = json.loads(result.stdout)
+    assert data["status"] == "error"
+    assert data["step"] == "init_check"
+    assert "mismatch" in data["message"]
 
 
-def test_settings_no_duplicates_on_rerun(git_repo_with_remote):
-    """Running twice does not duplicate permission entries."""
-    _run_no_gh(git_repo_with_remote, "feature one")
-    _run_no_gh(git_repo_with_remote, "feature two")
-
-    data = json.loads((git_repo_with_remote / ".claude" / "settings.json").read_text())
-    allow = data["permissions"]["allow"]
-    assert len(allow) == len(set(allow))
-
-
-def test_settings_does_not_override_existing_default_mode(git_repo_with_remote):
-    """Does not override an existing defaultMode."""
-    claude_dir = git_repo_with_remote / ".claude"
-    claude_dir.mkdir()
-    existing = {
-        "permissions": {"allow": []},
-        "defaultMode": "bypassPermissions",
-    }
-    (claude_dir / "settings.json").write_text(json.dumps(existing, indent=2))
-
-    _run_no_gh(git_repo_with_remote, "test feature")
-
-    data = json.loads((claude_dir / "settings.json").read_text())
-    assert data["defaultMode"] == "bypassPermissions"
-
-
-# --- Git exclude ---
-
-
-def test_git_exclude_adds_entries(git_repo_with_remote):
-    """Appends .flow-states/ and .worktrees/ to info/exclude."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-
-    git_dir = git_repo_with_remote / ".git"
-    exclude_path = git_dir / "info" / "exclude"
-    content = exclude_path.read_text()
-    assert ".flow-states/" in content
-    assert ".worktrees/" in content
-
-
-def test_git_exclude_no_duplicates(git_repo_with_remote):
-    """Running twice does not duplicate exclude entries."""
-    _run_no_gh(git_repo_with_remote, "feature one")
-
-    git_dir = git_repo_with_remote / ".git"
-    exclude_path = git_dir / "info" / "exclude"
-    content_before = exclude_path.read_text()
-    count_before = content_before.count(".flow-states/")
-
-    _run_no_gh(git_repo_with_remote, "feature two")
-    content_after = exclude_path.read_text()
-    count_after = content_after.count(".flow-states/")
-
-    assert count_after == count_before
+def test_succeeds_when_flow_version_matches(git_repo_with_remote):
+    """start-setup.py succeeds when flow.json has the current version."""
+    result = _run_no_gh(git_repo_with_remote, "test feature")
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["status"] == "ok"
 
 
 # --- Worktree creation ---
@@ -407,30 +366,6 @@ def test_branch_name_single_long_word():
     result = _mod._branch_name("a" * 40)
     assert len(result) == 32
     assert result == "a" * 32
-
-
-def test_settings_copied_to_worktree(git_repo_with_remote):
-    """Settings file is copied into the worktree .claude/ directory."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    wt_settings = (git_repo_with_remote / ".worktrees" / "test-feature"
-                   / ".claude" / "settings.json")
-    assert wt_settings.exists()
-    data = json.loads(wt_settings.read_text())
-    assert "Bash(bin/ci)" in data["permissions"]["allow"]
-    assert "Bash(bin/ci; *)" in data["permissions"]["allow"]
-
-
-def test_worktree_settings_match_project_root(git_repo_with_remote):
-    """Worktree settings must be identical to project root settings."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    root_settings = json.loads(
-        (git_repo_with_remote / ".claude" / "settings.json").read_text()
-    )
-    wt_settings = json.loads(
-        (git_repo_with_remote / ".worktrees" / "test-feature"
-         / ".claude" / "settings.json").read_text()
-    )
-    assert root_settings == wt_settings
 
 
 def test_extract_pr_number_malformed_url():

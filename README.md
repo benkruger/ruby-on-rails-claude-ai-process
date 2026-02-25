@@ -45,7 +45,13 @@ In any Claude Code session:
 /plugin install flow@flow-marketplace
 ```
 
-Then start a feature:
+Then initialize in your Rails project (once per project, and again after each FLOW upgrade):
+
+```bash
+/flow:init
+```
+
+Start a new Claude Code session so permissions take effect, then start a feature:
 
 ```bash
 /flow:start invoice pdf export
@@ -55,13 +61,13 @@ This creates branch `invoice-pdf-export`, a worktree at `.worktrees/invoice-pdf-
 
 ---
 
-## Zero Footprint
+## Minimal Footprint
 
-The plugin itself installs into Claude Code's managed plugin directory — one place, fully managed by Claude Code. That's it.
+The plugin itself installs into Claude Code's managed plugin directory — one place, fully managed by Claude Code.
 
-Nothing gets added to your Rails project. No dotfiles. No config directories. No scripts scattered through your codebase. The only thing FLOW writes into your project is a single gitignored JSON state file per active feature at `.flow-states/<branch>.json`. When the feature is done and Cleanup runs, that file is deleted too.
+FLOW configures workspace permissions in `.claude/settings.json` and a version marker in `.claude/flow.json` (via `/flow:init`, committed once). During active development, a single gitignored JSON state file per feature exists at `.flow-states/<branch>.json`. When the feature is done and Cleanup runs, that file is deleted too.
 
-**Two commands to install. One file while you work. Zero when you're done.**
+**Three commands to set up. One file while you work. Zero when you're done.**
 
 ---
 
@@ -71,6 +77,7 @@ Available at any point in the workflow:
 
 | Command | What it does |
 |---------|-------------|
+| `/flow:init` | One-time project setup — configure permissions and git excludes |
 | `/flow:commit` | Full diff review, approved commit message, pull before push |
 | `/flow:status` | Current phase, PR link, cumulative time per phase, next step |
 | `/flow:resume` | Re-asks last transition question; rebuilds full context on new session |

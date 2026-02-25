@@ -1,6 +1,6 @@
-"""Consolidated setup for FLOW Start phase (Steps 2-7).
+"""Consolidated setup for FLOW Start phase.
 
-Runs git pull, configures settings, creates worktree, configures git exclude,
+Checks /flow:init version gate, runs git pull, creates worktree,
 makes initial commit + push + PR, creates state file, and logs all operations.
 
 Usage: python3 hooks/start-setup.py "<feature name>"
@@ -11,7 +11,6 @@ Output (JSON to stdout):
 """
 
 import json
-import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -65,76 +64,6 @@ def _git_pull(cwd):
     _run_cmd(["git", "pull", "origin", "main"], cwd, "git_pull")
 
 
-def _configure_settings(project_root):
-    """Create or merge .claude/settings.json."""
-    allow_entries = [
-        "Bash(cd .worktrees/* && *)",
-        "Bash(git add *)",
-        "Bash(git commit *)",
-        "Bash(git push)",
-        "Bash(git push; *)",
-        "Bash(git push -u *)",
-        "Bash(git reset HEAD)",
-        "Bash(git reset HEAD; *)",
-        "Bash(git worktree *)",
-        "Bash(gh pr create *)",
-        "Bash(gh pr edit *)",
-        "Bash(gh pr close *)",
-        "Bash(git push origin --delete *)",
-        "Bash(git branch -D *)",
-        "Bash(bin/ci)",
-        "Bash(bin/ci; *)",
-        "Bash(bin/rails test *)",
-        "Bash(rubocop *)",
-        "Bash(rubocop -A)",
-        "Bash(bundle update --all)",
-        "Bash(bundle update --all; *)",
-        "Bash(rm .flow-commit-*)",
-        "Bash(bundle exec *)",
-    ]
-    deny_entries = [
-        "Bash(git rebase *)",
-        "Bash(git push --force *)",
-        "Bash(git push -f *)",
-        "Bash(git reset --hard *)",
-        "Bash(git stash *)",
-        "Bash(git checkout *)",
-        "Bash(git clean *)",
-    ]
-
-    settings_dir = project_root / ".claude"
-    settings_path = settings_dir / "settings.json"
-
-    if settings_path.exists():
-        data = json.loads(settings_path.read_text())
-    else:
-        data = {}
-
-    if "permissions" not in data:
-        data["permissions"] = {}
-    perms = data["permissions"]
-
-    if "allow" not in perms:
-        perms["allow"] = []
-    existing_allow = set(perms["allow"])
-    for entry in allow_entries:
-        if entry not in existing_allow:
-            perms["allow"].append(entry)
-
-    if "deny" not in perms:
-        perms["deny"] = []
-    existing_deny = set(perms["deny"])
-    for entry in deny_entries:
-        if entry not in existing_deny:
-            perms["deny"].append(entry)
-
-    if "defaultMode" not in data:
-        data["defaultMode"] = "acceptEdits"
-
-    settings_dir.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(json.dumps(data, indent=2))
-
-
 def _create_worktree(project_root, branch):
     """Create a git worktree at .worktrees/<branch>."""
     wt_path = project_root / ".worktrees" / branch
@@ -143,35 +72,6 @@ def _create_worktree(project_root, branch):
         project_root, "worktree",
     )
     return wt_path
-
-
-def _configure_exclude(project_root):
-    """Add .flow-states/ and .worktrees/ to git info/exclude."""
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        capture_output=True, text=True, cwd=str(project_root),
-    )
-    git_common = Path(result.stdout.strip())
-    if not git_common.is_absolute():
-        git_common = project_root / git_common
-
-    exclude_path = git_common / "info" / "exclude"
-    exclude_path.parent.mkdir(parents=True, exist_ok=True)
-
-    content = ""
-    if exclude_path.exists():
-        content = exclude_path.read_text()
-
-    additions = []
-    if ".flow-states/" not in content:
-        additions.append(".flow-states/")
-    if ".worktrees/" not in content:
-        additions.append(".worktrees/")
-
-    if additions:
-        with open(exclude_path, "a") as f:
-            for entry in additions:
-                f.write(f"\n{entry}")
 
 
 def _initial_commit_push_pr(wt_path, branch, feature_title):
@@ -285,31 +185,33 @@ def main():
     project_root = Path.cwd()
 
     try:
+        # Version gate — ensure /flow:init has been run
+        flow_json = project_root / ".claude" / "flow.json"
+        if not flow_json.exists():
+            raise SetupError(
+                "init_check",
+                "FLOW not initialized. Run /flow:init first.",
+            )
+        init_data = json.loads(flow_json.read_text())
+        plugin_version = json.loads(
+            (Path(__file__).resolve().parent.parent
+             / ".claude-plugin" / "plugin.json").read_text()
+        )["version"]
+        if init_data.get("flow_version") != plugin_version:
+            raise SetupError(
+                "init_check",
+                f"FLOW version mismatch: initialized for "
+                f"v{init_data.get('flow_version')}, plugin is "
+                f"v{plugin_version}. Run /flow:init to upgrade.",
+            )
+
         # Step 2a — Git pull
         _git_pull(project_root)
         _log(project_root, branch, "git pull origin main (exit 0)")
 
-        # Step 2b — Configure settings
-        _configure_settings(project_root)
-        _log(project_root, branch, "configure .claude/settings.json (exit 0)")
-
-        # Step 2c — Create worktree
+        # Step 2b — Create worktree
         wt_path = _create_worktree(project_root, branch)
         _log(project_root, branch, f"git worktree add .worktrees/{branch} (exit 0)")
-
-        # Step 2c+ — Copy settings into worktree
-        wt_settings_dir = wt_path / ".claude"
-        wt_settings_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(
-            project_root / ".claude" / "settings.json",
-            wt_settings_dir / "settings.json",
-        )
-        _log(project_root, branch,
-             "copy .claude/settings.json to worktree (exit 0)")
-
-        # Step 2d — Configure git exclude
-        _configure_exclude(project_root)
-        _log(project_root, branch, "configure git info/exclude (exit 0)")
 
         # Step 2e — Commit, push, PR
         pr_url, pr_number = _initial_commit_push_pr(wt_path, branch, feature_title)

@@ -174,14 +174,6 @@ This writes `/tmp/release-notes-v<new_version>.md`. Then create the release:
 gh release create v<new_version> --title "v<new_version>" --notes-file /tmp/release-notes-v<new_version>.md
 ```
 
-## Step 11 — Update local marketplace
-
-```bash
-claude plugin marketplace update flow-marketplace
-```
-
-If this fails, print the command for the user to run manually.
-
 ## Done
 
 Print:
@@ -192,7 +184,8 @@ Print:
   Released v<new_version>
   https://github.com/benkruger/flow/releases/tag/v<new_version>
 
-  Upgrade: claude plugin marketplace update flow-marketplace
+  Run manually to upgrade your local install:
+  claude plugin marketplace update flow-marketplace
 ============================================
 ```
 

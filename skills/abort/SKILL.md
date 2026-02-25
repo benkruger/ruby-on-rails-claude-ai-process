@@ -28,8 +28,8 @@ If the Read tool fails for any other reason, stop and show the error.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Abort — STARTING
 ============================================
@@ -61,8 +61,9 @@ If the entry check printed warnings, include them in the confirmation:
 > "Abort feature '<feature>'?
 > ⚠ <any warnings from the entry check>
 > This will close the PR, delete the remote branch, remove the worktree, and delete the state file and log. All uncommitted work in the worktree will be lost."
-> - **Yes, abort everything** — proceed
-> - **No, keep going** — stop here
+
+- **Yes, abort everything** — proceed
+- **No, keep going** — stop here
 
 ### Step 3 — Navigate to project root
 
@@ -124,8 +125,8 @@ Tell the user what was cleaned, what was already gone, and what failed.
 
 Then print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Abort — COMPLETE
   Feature '<feature>' has been abandoned.

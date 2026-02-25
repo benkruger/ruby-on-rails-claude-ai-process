@@ -18,7 +18,7 @@ FLOW imposes structure. Not bureaucracy — discipline.
 
 ## The Workflow
 
-```
+```text
 Start → Research → Design → Plan → Code → Review → Reflect → Cleanup
   1         2         3       4      5        6        7          8
 ```
@@ -40,14 +40,14 @@ Start → Research → Design → Plan → Code → Review → Reflect → Clean
 
 In any Claude Code session:
 
-```
+```bash
 /plugin marketplace add benkruger/flow
 /plugin install flow@flow-marketplace
 ```
 
 Then start a feature:
 
-```
+```bash
 /flow:start invoice pdf export
 ```
 
@@ -85,7 +85,7 @@ Available at any point in the workflow:
 
 Five phases use sub-agents. Research, Design, Plan, and Review launch Explore-type sub-agents to read the codebase. Start launches a general-purpose Sonnet sub-agent when `bin/ci` fails. The main conversation stays focused on decisions while sub-agents handle the heavy lifting.
 
-```
+```text
 Main conversation          Sub-agent (Explore)
       |                          |
       |─── Task: explore ───────>|
@@ -150,7 +150,7 @@ Both behaviors — auto-resume and correction capture — are wired in at sessio
 
 Every correction Claude makes has a path to becoming a permanent, reusable pattern:
 
-```
+```text
 User corrects Claude
        ↓
 /flow:note captures it as a reusable pattern in state["notes"]
@@ -206,7 +206,7 @@ Every completed feature produces:
 
 ---
 
-## Instructions Are Advisory. Gates Aren't.
+## Instructions Are Advisory. Gates Aren't
 
 Most agent workflows put enforcement in instructions: "always run bin/ci", "never skip Research". Instructions work until they don't. FLOW's phase enforcement is layered and deterministic. There is no instruction path from an incomplete phase to the next one running.
 
@@ -234,7 +234,7 @@ FLOW is part of a growing community of disciplined Claude Code plugins. Two proj
 
 From the command line:
 
-```
+```bash
 claude plugin marketplace update flow-marketplace
 ```
 

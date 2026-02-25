@@ -24,7 +24,7 @@ stop immediately and show the error to the user.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
+````text
 ```
 ============================================
   FLOW — Phase 5: Code — STARTING
@@ -57,7 +57,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Phase 5] Step X — desc (exit EC)
 ```
 
@@ -70,7 +70,7 @@ Get `<branch>` from the state file.
 If any tasks in `state["plan"]["tasks"]` have `status: "in_progress"`,
 this is a resume. Print inside a fenced code block:
 
-````
+````text
 ```
 ============================================
   FLOW — Resuming Code
@@ -95,7 +95,7 @@ Update the task in state: `status → in_progress`, `started_at → now`.
 
 Print inside a fenced code block:
 
-````
+````text
 ```
 ============================================
   Task <id> of <total> — <type>
@@ -183,12 +183,14 @@ Run `git status` and `git diff HEAD` as two separate commands, then
 render the output inline:
 
 **Status**
-```
+
+```text
 modified:   app/models/payment/base.rb
 new file:   test/models/payment/base_test.rb
 ```
 
 **Diff**
+
 ```diff
 + added lines
 - removed lines
@@ -197,6 +199,7 @@ new file:   test/models/payment/base_test.rb
 Then use AskUserQuestion:
 
 > "Task <id>: <description> — does this look right?"
+>
 > - **Yes, run bin/ci and commit**
 > - **Needs changes** — describe what to fix
 
@@ -230,7 +233,8 @@ Do NOT commit and do NOT move to the next task until bin/ci is green.
 Use `/flow:commit` to review and commit this task's changes.
 
 The commit message subject should reference the task:
-```
+
+```text
 Add <what was built> — Task <id> of <total>
 ```
 
@@ -244,7 +248,7 @@ Update the task in state:
 
 Print inside a fenced code block:
 
-````
+````text
 ```
 Task <id> complete. <n> of <total> done.
 ```
@@ -312,6 +316,7 @@ Update Phase 5 in state:
 Invoke `flow:status`, then use AskUserQuestion:
 
 > "Phase 5: Code is complete. Ready to begin Phase 6: Review?"
+>
 > - **Yes, start Phase 6 now** — invoke `flow:review`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
@@ -323,7 +328,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Yes**, print inside a fenced code block:
 
-````
+````text
 ```
 ============================================
   FLOW — Phase 5: Code — COMPLETE
@@ -333,7 +338,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Not yet**, print inside a fenced code block:
 
-````
+````text
 ```
 ============================================
   FLOW — Paused

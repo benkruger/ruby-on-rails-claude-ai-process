@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from conftest import BIN_DIR
+from conftest import BIN_DIR, REPO_ROOT
 
 
 @pytest.fixture
@@ -27,6 +27,8 @@ def ci_project(tmp_path):
     bin_dir.mkdir()
     (bin_dir / "ci").write_text((BIN_DIR / "ci").read_text())
     (bin_dir / "ci").chmod(0o755)
+    (tmp_path / "README.md").write_text("# Test\n")
+    shutil.copy(REPO_ROOT / ".pymarkdown.yml", tmp_path / ".pymarkdown.yml")
     (tmp_path / "tests").mkdir()
     venv_bin = tmp_path / ".venv" / "bin"
     venv_bin.mkdir(parents=True)

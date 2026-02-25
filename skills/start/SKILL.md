@@ -7,11 +7,12 @@ description: "Phase 1: Start — begin a new feature. Creates a worktree, upgrad
 
 ## Usage
 
-```
+```text
 /flow:start invoice pdf export
 ```
 
 Arguments become the feature name. Words are joined with hyphens:
+
 - Branch: `invoice-pdf-export`
 - Worktree: `.worktrees/invoice-pdf-export`
 - PR title: `Invoice Pdf Export`
@@ -27,7 +28,7 @@ Do NOT proceed if the feature name is missing. Ask the user:
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
+````text
 ```
 ============================================
   FLOW v0.6.4 — Phase 1: Start — STARTING
@@ -49,7 +50,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Phase 1] Step X — desc (exit EC)
 ```
 
@@ -70,6 +71,7 @@ If any files are found, list their names (the branch names from the filenames).
 If any files are found, use AskUserQuestion:
 
 > "An active FLOW feature already exists. What would you like to do?"
+>
 > - **Start a new feature anyway** — proceed
 > - **Cancel** — stop here
 
@@ -266,9 +268,10 @@ Provide these instructions (fill in the worktree path and bin/ci output):
 > what is failing and what was tried.
 >
 > Return:
-> - Status: fixed / not_fixed
-> - What was wrong
-> - What was changed (files modified)
+>
+> 1. Status: fixed / not_fixed
+> 2. What was wrong
+> 3. What was changed (files modified)
 
 Wait for the sub-agent to return.
 
@@ -294,6 +297,7 @@ Update Phase 1 task to `completed`.
 Invoke the `flow:status` skill to show the current state, then use AskUserQuestion:
 
 > "Phase 1: Start is complete. Ready to begin Phase 2: Research?"
+>
 > - **Yes, start Phase 2 now**
 > - **Not yet**
 > - **I have a correction or learning to capture**
@@ -305,7 +309,7 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 
 **If Yes** — invoke the `flow:research` skill using the Skill tool. Also print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
+````text
 ```
 ============================================
   FLOW — Phase 1: Start — COMPLETE
@@ -315,7 +319,7 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 
 **If Not yet** — print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
+````text
 ```
 ============================================
   FLOW — Paused

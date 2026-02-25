@@ -1,0 +1,24 @@
+plugins:
+  md013:
+    # Line length — disabled. README, SKILL.md, docs have long prose, tables, URLs.
+    enabled: false
+  md024:
+    # Duplicate headings — allowed under different parents (changelog format).
+    allow_different_nesting: true
+  md025:
+    # Multiple top-level headings — disabled. Docs use Jekyll frontmatter title: which
+    # pymarkdown counts as a first H1, making the actual # heading a false duplicate.
+    enabled: false
+  md033:
+    # Inline HTML — disabled. Skills use <HARD-GATE>, <system-reminder>, etc.
+    enabled: false
+  md036:
+    # Emphasis as heading — disabled. Skills intentionally use **bold** as sub-headings.
+    enabled: false
+  md041:
+    # First line heading — disabled. SKILL.md files start with YAML frontmatter.
+    enabled: false
+
+extensions:
+  front-matter:
+    enabled: true

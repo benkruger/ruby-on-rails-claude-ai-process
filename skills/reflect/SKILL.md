@@ -24,8 +24,8 @@ stop immediately and show the error to the user.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 7: Reflect — STARTING
   Recommended model: Sonnet
@@ -57,7 +57,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Phase 7] Step X — desc (exit EC)
 ```
 
@@ -136,8 +136,8 @@ they are process changes.
 
 Present the synthesis to the user in a banner:
 
-````
-```
+````markdown
+```text
 ============================================
   Reflect — Findings
 ============================================
@@ -171,6 +171,7 @@ Present the synthesis to the user in a banner:
 Then use AskUserQuestion:
 
 > "Does this capture what went wrong? Anything I missed or got wrong?"
+>
 > - **Yes, this is accurate** — proceed to proposals
 > - **Needs corrections** — describe what to change
 
@@ -193,6 +194,7 @@ Present each proposal individually using AskUserQuestion:
 > "Proposed CLAUDE.md addition:
 > '[proposed text]'
 > Section: [target section]"
+>
 > - **Yes, add it**
 > - **Yes, but rephrase** — describe how
 > - **No, skip this one**
@@ -227,8 +229,8 @@ Only CLAUDE.md and `.claude/` files are committed — never application code.
 
 Present the plugin gaps inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Plugin Improvements to Consider
 ============================================
@@ -249,6 +251,7 @@ Use AskUserQuestion:
 
 > "Would you like to add anything to the plugin improvement notes
 > before we close out Reflect?"
+>
 > - **No, that's everything**
 > - **Yes, add this** — describe in Other
 
@@ -266,6 +269,7 @@ Update Phase 7 in state:
 Invoke `flow:status`, then use AskUserQuestion:
 
 > "Phase 7: Reflect is complete. The PR now includes CLAUDE.md improvements. Ready to begin Phase 8: Cleanup?"
+>
 > - **Yes, start Phase 8 now** — invoke `flow:cleanup`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
@@ -277,8 +281,8 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Yes**, print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 7: Reflect — COMPLETE
   Merge the PR, then run /flow:cleanup.
@@ -288,8 +292,8 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Not yet**, print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:resume when ready to continue.

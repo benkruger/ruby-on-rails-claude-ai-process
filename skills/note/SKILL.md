@@ -11,6 +11,7 @@ This skill must be fast — capture and continue, no interruption.
 ## When to invoke automatically
 
 Invoke this skill BEFORE replying whenever the user:
+
 - Corrects a mistake Claude made
 - Says Claude was wrong about something
 - Disagrees with a Claude response
@@ -59,7 +60,7 @@ The note should read as something useful to a future session, not a log of what 
 
 Print one line only:
 
-```
+```text
 [note captured]
 ```
 

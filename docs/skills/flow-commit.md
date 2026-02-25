@@ -26,7 +26,7 @@ Reviews all pending changes before committing. You see the full diff and propose
 
 ## Commit Message Format
 
-```
+```text
 Short subject line (imperative verb, under 72 characters)
 
 tl;dr

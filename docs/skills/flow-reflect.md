@@ -28,10 +28,12 @@ improvements, and notes plugin gaps. Runs before the PR merges.
 ## Outputs
 
 **CLAUDE.md** — committed to feature branch, merged with the feature:
+
 - Generic reusable Rails patterns
 - Each entry approved individually
 
 **Plugin improvement notes** — presented only, never committed:
+
 - Places where the FLOW process itself should improve
 
 ---

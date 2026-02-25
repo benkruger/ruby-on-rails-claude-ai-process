@@ -24,8 +24,8 @@ stop immediately and show the error to the user.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 6: Review — STARTING
   Recommended model: Sonnet
@@ -57,7 +57,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Phase 6] Step X — desc (exit EC)
 ```
 
@@ -98,6 +98,7 @@ Provide these instructions to the sub-agent (fill in the details):
 > <paste state["plan"]["tasks"] summaries>
 >
 > First, get the full diff:
+>
 > ```bash
 > git diff origin/main...HEAD
 > ```
@@ -105,6 +106,7 @@ Provide these instructions to the sub-agent (fill in the details):
 > Read every changed file completely. Then check:
 >
 > **Design alignment:**
+>
 > - Do schema changes match design["schema_changes"]?
 > - Do model decisions match design["model_changes"]?
 > - Do controller/route changes match design?
@@ -112,10 +114,12 @@ Provide these instructions to the sub-agent (fill in the details):
 > - Flag any deviation — minor drift or major mismatch.
 >
 > **Research risk coverage:**
+>
 > - For each risk in the list, confirm it was handled in the diff.
 > - Flag any risk not addressed.
 >
 > **Rails anti-pattern check:**
+>
 > - Associations: every belongs_to/has_many has inverse_of:, dependent:,
 >   class_name: explicit
 > - Queries: no N+1, no DB queries in views, no .first/.last for defaults
@@ -128,9 +132,11 @@ Provide these instructions to the sub-agent (fill in the details):
 > - Code clarity: descriptive names, no inline comments, no over-engineering
 >
 > Return structured findings in three categories:
+>
 > 1. Design alignment issues (with file:line references)
 > 2. Uncovered research risks (with which risk and why)
 > 3. Anti-pattern violations (with file:line and what to fix)
+>
 > If a category has no findings, say so explicitly.
 
 Wait for the sub-agent to return before proceeding.
@@ -165,6 +171,7 @@ For each finding:
 **Significant finding** (logic error, missing risk coverage, design mismatch):
 - Use AskUserQuestion:
   > "Found a significant issue: <description>. How would you like to proceed?"
+  >
   > - **Fix it here in Review**
   > - **Go back to Code**
   > - **Go back to Plan**
@@ -184,8 +191,8 @@ Any fix made during Review requires bin/ci to run again.
 
 Show a summary of what was found and fixed inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 6: Review — SUMMARY
 ============================================
@@ -233,6 +240,7 @@ Update Phase 6 in state:
 Invoke `flow:status`, then use AskUserQuestion:
 
 > "Phase 6: Review is complete. Ready to begin Phase 7: Reflect?"
+>
 > - **Yes, start Phase 7 now** — invoke `flow:reflect`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
@@ -244,8 +252,8 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Yes**, print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 6: Review — COMPLETE
 ============================================
@@ -254,8 +262,8 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Not yet**, print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:resume when ready to continue.

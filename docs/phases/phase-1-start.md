@@ -50,7 +50,7 @@ gh pr create \
 
 A real PR, not a draft. The PR body is auto-generated from the feature name:
 
-```
+```text
 ## What
 
 App payment webhooks.

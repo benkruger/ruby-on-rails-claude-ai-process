@@ -25,6 +25,7 @@ A risk found and not addressed is a bug waiting to happen.
 
 **3. Rails anti-patterns**
 Things bin/ci cannot catch:
+
 - N+1 queries
 - Missing `inverse_of:` and `dependent:` on associations
 - Queries in views

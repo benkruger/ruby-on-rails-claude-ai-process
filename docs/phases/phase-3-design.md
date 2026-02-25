@@ -17,24 +17,30 @@ design is approved.
 ## Steps
 
 ### 1. What are we building?
+
 User describes the feature in detail before Claude proposes anything.
 
 ### 2. Read research findings
+
 Design is informed by what Research discovered — affected files, risks,
 callbacks, schema.
 
 ### 3. Propose 2-3 alternatives
+
 Each covers schema approach, model/controller/worker structure, and
 trade-offs. Presented with markdown previews via the tabbed UI.
 
 ### 4. Refine chosen approach
+
 Targeted follow-up questions on the selected alternative only.
 
 ### 5. Present full design for approval
+
 Schema changes, model decisions, worker decisions, route decisions,
 risks. Explicit approval required before proceeding.
 
 ### 6. Save to state file
+
 All design decisions stored in `state["design"]` — no external files.
 
 ---
@@ -42,6 +48,7 @@ All design decisions stored in `state["design"]` — no external files.
 ## Going Back to Research
 
 At two points in Design you can return to Research:
+
 - When viewing alternatives: "Need more research first"
 - At the approval gate: "Go back to Research"
 

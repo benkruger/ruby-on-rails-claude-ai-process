@@ -8,7 +8,7 @@ parent: Reference
 
 State files live in `.flow-states/` at the project root, named after the branch:
 
-```
+```text
 .flow-states/app-payment-webhooks.json
 .flow-states/user-profile-redesign.json
 ```

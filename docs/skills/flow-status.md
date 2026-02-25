@@ -23,7 +23,7 @@ Shows where you are in the FLOW workflow at any moment. Reads `.flow-states/<bra
 
 ## Example Output
 
-```
+```text
 ============================================
   FLOW — Current Status
 ============================================

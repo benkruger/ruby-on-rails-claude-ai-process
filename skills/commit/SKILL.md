@@ -11,7 +11,7 @@ Review all pending changes as a diff before committing. You must get explicit ap
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
+````text
 ```
 ============================================
   FLOW — flow:commit — STARTING
@@ -22,7 +22,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 On completion (whether approved or denied), print the same way:
 
-````
+````text
 ```
 ============================================
   FLOW — flow:commit — COMPLETE
@@ -43,7 +43,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Commit] Step X — desc (exit EC)
 ```
 
@@ -84,7 +84,8 @@ and read the persisted output file with the Read tool. Never redirect
 output to `/tmp/` — shell redirects trigger permission prompts.
 
 **Format the status as:**
-```
+
+```text
 **Status**
 modified:   path/to/file.rb
 new file:   path/to/other.rb
@@ -92,7 +93,8 @@ deleted:    path/to/removed.rb
 ```
 
 **Format the diff as a fenced diff code block:**
-````
+
+````text
 ```diff
 - removed line
 + added line
@@ -104,6 +106,7 @@ The `diff` code block renders red/green in most markdown environments.
 #### Docs sync check
 
 If the diff includes changes to any of these files:
+
 - `skills/*/SKILL.md` — check `docs/skills/` and `docs/phases/` for matching updates
 - `flow-phases.json` — check `docs/phases/`, `docs/skills/index.md`, `README.md`, `docs/index.html`
 - `docs/reference/flow-state-schema.md` — check against `conftest.make_state()` fields
@@ -115,7 +118,8 @@ Flag any docs that may need updates before writing the commit message. If docs a
 Write a commit message that a developer reading `git log` six months from now would find genuinely useful.
 
 **Structure:**
-```
+
+```text
 Short subject line (imperative verb, under 72 characters)
 
 tl;dr
@@ -175,13 +179,17 @@ Files are already staged from Step 1. No need to `git add -A` again.
    - Never use `python3 -c` to write the message — literal `$(...)` in the body triggers command substitution warnings
    - Never use `git commit -m` with heredoc — the multi-line command fails permission pattern matching
 2. Commit from the temp file:
+
    ```bash
    git commit -F .flow-commit-msg
    ```
+
 3. Delete the temp file:
+
    ```bash
    rm .flow-commit-msg
    ```
+
    The `rm` prevents the Write tool from showing a confusing diff of old→new message on the next commit.
 4. `git pull origin <current-branch>` — pull before pushing to pick up any changes merged while you were working
 5. If the pull produced merge conflicts:

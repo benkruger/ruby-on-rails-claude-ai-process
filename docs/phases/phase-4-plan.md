@@ -37,6 +37,7 @@ Going back invalidates all sections after it — they'll need
 re-approval since earlier decisions affect later ones.
 
 **From the final review:**
+
 - Go back to a plan section
 - Go back to Design
 - Go back to Research

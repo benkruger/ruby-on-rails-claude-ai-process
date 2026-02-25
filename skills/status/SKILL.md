@@ -12,8 +12,8 @@ prints a status panel. Read-only — never modifies anything.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — flow:status — STARTING
 ============================================
@@ -28,8 +28,8 @@ Find the project root and read `.flow-states/<branch>.json`.
 
 If no state file exists for the current branch, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 No FLOW feature in progress on this branch.
 Start one with /flow:start <feature name>.
 ```
@@ -41,8 +41,8 @@ Then stop.
 
 Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW v0.6.4 — Current Status
 ============================================
@@ -75,8 +75,8 @@ Use `[x]` for complete, `[>]` for in_progress, `[ ]` for pending.
 
 If all phases are complete, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — All phases complete!
   Feature: <feature>

@@ -24,8 +24,8 @@ stop immediately and show the error to the user.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 3: Design — STARTING
   Recommended model: Opus
@@ -57,7 +57,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Phase 3] Step X — desc (exit EC)
 ```
 
@@ -152,6 +152,7 @@ Provide these instructions to the sub-agent (fill in the details):
 >    to create or modify.
 >
 > Return per-alternative:
+>
 > - Feasibility: confirmed / blocked (with reason)
 > - Conflicts found (if any)
 > - Reuse opportunities (if any)
@@ -171,7 +172,7 @@ Use AskUserQuestion with markdown previews — one option per alternative
 plus a return-to-research option. Use the `markdown` field to show each
 alternative's details in the preview panel.
 
-```
+```text
 Question: "Which approach should we take?"
 
 Option A: [Short title]
@@ -223,8 +224,8 @@ have obvious answers from the research findings.
 
 Show the complete design based on the chosen approach and refinements. Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 3: Design — PROPOSAL
 ============================================
@@ -259,6 +260,7 @@ Show the complete design based on the chosen approach and refinements. Print ins
 Then use AskUserQuestion:
 
 > "Does this design look right?"
+>
 > - **Approve** — save and proceed to Plan
 > - **Needs changes** — describe what to change, revise and re-present
 > - **Go back to Research** — something fundamental is unclear
@@ -301,6 +303,7 @@ Update Phase 3 in state:
 Invoke `flow:status`, then use AskUserQuestion:
 
 > "Phase 3: Design is complete. Ready to begin Phase 4: Plan?"
+>
 > - **Yes, start Phase 4 now** — invoke `flow:plan`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
@@ -312,8 +315,8 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Yes**, print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 3: Design — COMPLETE
 ============================================
@@ -322,8 +325,8 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Not yet**, print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:resume when ready to continue.

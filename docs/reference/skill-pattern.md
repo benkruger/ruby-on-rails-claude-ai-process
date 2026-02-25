@@ -13,7 +13,7 @@ when building new phase skills.
 
 ## Standard Structure
 
-```
+```text
 1. HARD-GATE entry check (tool-based — checks previous phase complete)
 2. Announce banner
 3. Update state file — set phase to in_progress, record session_started_at
@@ -32,7 +32,7 @@ when building new phase skills.
 
 ## Announce Banner
 
-````
+````text
 ```
 ============================================
   FLOW — Phase N: Name — STARTING
@@ -42,7 +42,7 @@ when building new phase skills.
 
 ## Paused Banner
 
-````
+````text
 ```
 ============================================
   FLOW — Paused
@@ -53,7 +53,7 @@ when building new phase skills.
 
 ## Completion Banner (shown after Yes is selected)
 
-````
+````text
 ```
 ============================================
   FLOW — Phase N: Name — COMPLETE
@@ -66,6 +66,7 @@ when building new phase skills.
 ## State File Updates
 
 **On phase entry:**
+
 - `status` → `in_progress`
 - `started_at` → current UTC timestamp (only if null — never overwrite)
 - `session_started_at` → current UTC timestamp
@@ -73,6 +74,7 @@ when building new phase skills.
 - `current_phase` → this phase number
 
 **On phase exit:**
+
 - `cumulative_seconds` → `+= (now - session_started_at)`
 - `status` → `complete`
 - `completed_at` → current UTC timestamp
@@ -106,7 +108,7 @@ Phases without: Start, Code, Reflect, Cleanup.
 
 The pattern is the same in every phase:
 
-```
+```text
 1. Main conversation determines WHAT to look for (from state file + user input)
 2. Launch sub-agent via Task tool with subagent_type: "Explore"
 3. Sub-agent reads files, returns structured findings
@@ -128,7 +130,7 @@ phases. It reads the state file and the specific file it's modifying — nothing
 
 Every phase transition (Phases 1-7) includes a third option:
 
-```
+```text
 "Phase X: Name is complete. Ready to begin Phase X+1?"
 - Yes, start Phase X+1 now
 - Not yet

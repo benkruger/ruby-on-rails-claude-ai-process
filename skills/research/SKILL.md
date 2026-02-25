@@ -24,8 +24,8 @@ stop immediately and show the error to the user.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 2: Research — STARTING
   Recommended model: Sonnet
@@ -58,7 +58,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Phase 2] Step X — desc (exit EC)
 ```
 
@@ -148,6 +148,7 @@ Provide these instructions to the sub-agent (fill in the scope from Step 1):
 > on anything non-obvious.
 >
 > Return your findings as a structured summary:
+>
 > - Affected files (full paths)
 > - Per-model: class hierarchy, callbacks, associations, soft deletes
 > - Per-controller: subdomain, BaseController, params pattern
@@ -188,6 +189,7 @@ For each batch, use a single `AskUserQuestion` call with up to 4 questions. Each
 If answers from the first batch reveal new questions, present a second batch.
 
 Record every question and answer in `flow-state.json["research"]["clarifications"]`:
+
 ```json
 [
   { "question": "What happens to existing webhooks when...", "answer": "They should be..." }
@@ -232,8 +234,8 @@ Write the full research findings into `flow-state.json["research"]`:
 
 Show the user a clean summary. Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 2: Research — FINDINGS
 ============================================
@@ -268,6 +270,7 @@ Show the user a clean summary. Print inside a fenced code block (triple backtick
 Invoke the `flow:status` skill to show the current state, then use AskUserQuestion:
 
 > "Phase 2: Research is complete. Ready to begin Phase 3: Design?"
+>
 > - **Yes, start Phase 3 now**
 > - **Not yet**
 > - **I have a correction or learning to capture**
@@ -279,8 +282,8 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 
 **If Yes** — invoke the `flow:design` skill using the Skill tool. Also print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 2: Research — COMPLETE
 ============================================
@@ -289,8 +292,8 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 
 **If Not yet** — print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:resume when ready to continue.
@@ -309,11 +312,10 @@ Update `.flow-states/<branch>.json`:
 4. Set Phase 2 `session_started_at` to `null`
 5. Set `current_phase` to `3`
 
-
 Print inside a fenced code block:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 2: Research — COMPLETE
   Next: Phase 3: Design  (/flow:design)

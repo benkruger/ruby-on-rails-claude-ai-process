@@ -26,8 +26,8 @@ Carry any warnings forward to the confirmation step in Step 2.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 8: Cleanup — STARTING
   Recommended model: Haiku
@@ -48,7 +48,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Phase 8] Step X — desc (exit EC)
 ```
 
@@ -82,15 +82,17 @@ the user knows what's off before confirming:
 > "Ready to clean up feature '<feature>'?
 > ⚠ <any warnings from the gate>
 > This will remove the worktree and delete the state file and log permanently."
-> - **Yes, clean up** — proceed
-> - **No, not yet** — stop here
+
+- **Yes, clean up** — proceed
+- **No, not yet** — stop here
 
 If there were no warnings:
 
 > "Ready to clean up feature '<feature>'?
 > This will remove the worktree and delete the state file and log permanently."
-> - **Yes, clean up** — proceed
-> - **No, not yet** — stop here
+
+- **Yes, clean up** — proceed
+- **No, not yet** — stop here
 
 ### Steps 3–6 — Cleanup
 
@@ -127,8 +129,8 @@ Tell the user what was cleaned, what was already gone, and what failed.
 
 Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Phase 8: Cleanup — COMPLETE
   Feature '<feature>' is fully done.

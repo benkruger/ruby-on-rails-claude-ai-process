@@ -28,21 +28,27 @@ Your `CLAUDE.md` knows these patterns at a project level. Research applies them 
 ## Steps
 
 ### 1. Read feature context
+
 Read `.claude/flow-state.json` for feature name, description, and any prior research findings.
 
 ### 2. Explore the codebase
+
 Read all affected models (full class hierarchy), controllers, workers, routes, and schema. Check git history for anything non-obvious.
 
 ### 3. Formulate questions
+
 Based on exploration, identify everything genuinely ambiguous about the feature. Do not ask about things inferrable from the code.
 
 ### 4. Ask clarifying questions
+
 Present questions in batches of up to 4 using the tabbed Q&A UI. Navigate between questions with ← → arrows. Record every answer.
 
 ### 5. Document findings
+
 Write all findings into `flow-state.json["research"]` — affected files, risks, clarifications, open questions, and a plain English summary.
 
 ### 6. Present and gate
+
 Show findings summary. Require user approval before proceeding to Design.
 
 ---

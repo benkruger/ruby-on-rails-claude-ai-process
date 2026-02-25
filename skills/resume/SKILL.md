@@ -19,6 +19,7 @@ recently declined:
 Use AskUserQuestion:
 
 > "Ready to continue Phase X: Name?"
+>
 > - **Yes, continue** — invoke the phase skill using the Skill tool
 > - **Not yet** — print the paused banner and stop
 
@@ -66,6 +67,7 @@ Invoke the `flow:status` skill to display current state.
 Use AskUserQuestion:
 
 > "Ready to continue Phase X: Name?"
+>
 > - **Yes, continue** — invoke the phase skill using the Skill tool
 > - **Not yet** — print the paused banner and stop
 
@@ -75,8 +77,8 @@ Use AskUserQuestion:
 
 When the user selects "Not yet", always print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:resume when ready to continue.

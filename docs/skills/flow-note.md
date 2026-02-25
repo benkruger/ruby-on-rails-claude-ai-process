@@ -18,6 +18,7 @@ Fast — one line of output, no interruption to flow.
 ## Automatic Invocation
 
 Claude invokes this automatically whenever the user:
+
 - Corrects a mistake Claude made
 - Disagrees with a response
 - Says something was wrong or misunderstood
@@ -28,7 +29,7 @@ The note is captured before Claude replies.
 
 ## Explicit Invocation
 
-```
+```text
 /flow:note Never assume branch-behind is unlikely in a multi-session workflow
 ```
 

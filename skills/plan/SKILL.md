@@ -24,7 +24,7 @@ stop immediately and show the error to the user.
 
 At the very start, print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
+````text
 ```
 ============================================
   FLOW — Phase 4: Plan — STARTING
@@ -74,7 +74,7 @@ COMMAND; EC=$?; exit $EC
 Then Read `.flow-states/<branch>.log` (empty string if it does not
 exist yet) and Write it back with this line appended:
 
-```
+```text
 YYYY-MM-DDTHH:MM:SSZ [Phase 4] Step X — desc (exit EC)
 ```
 
@@ -88,7 +88,7 @@ If `state["plan"]["current_section"]` is already set, this is a resume.
 
 Show what is already approved. Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
+````text
 ```
 ============================================
   FLOW — Plan in progress
@@ -107,6 +107,7 @@ Show what is already approved. Print inside a fenced code block (triple backtick
 Then use AskUserQuestion:
 
 > "Ready to continue from the Workers section?"
+>
 > - **Yes, continue** — jump to that section
 > - **Go back to an approved section** — show picker of approved sections
 
@@ -117,6 +118,7 @@ Then use AskUserQuestion:
 Use AskUserQuestion:
 
 > "Ready to plan? Anything to add before we start?"
+>
 > - **Ready — generate tasks from the design**
 > - **I want to add something first** — describe it in Other
 
@@ -185,6 +187,7 @@ Provide these instructions to the sub-agent (fill in the details):
 > 4. **Schema context** — Use Read to check data/release.sql for related tables.
 >
 > Return per-task:
+>
 > - File paths: verified / corrected
 > - Available helpers (if test task)
 > - Route context (if route/controller task)
@@ -199,6 +202,7 @@ section to the user.
 At the end of every section, use AskUserQuestion:
 
 > "Does the [Section Name] plan look right?"
+>
 > - **Yes, looks good** — mark section approved, move to next
 > - **Needs changes** — describe in Other, revise and re-present
 > - **Go back to [previous section]** — only shown if one section back
@@ -219,7 +223,7 @@ why (because earlier decisions affect later ones).
 
 Generate tasks for all `data/release.sql` changes:
 
-```
+```text
 Task 1 — Schema
   Add <table_name> table to data/release.sql
   Files: data/release.sql
@@ -237,7 +241,7 @@ column names, types, and any constraints.
 
 Generate tasks following strict TDD order — test before implementation:
 
-```
+```text
 Task N — Test (failing)
   Write failing test for <Model>::Base — <what it tests>
   Files: test/models/<model>/base_test.rb
@@ -270,7 +274,7 @@ to create it before the test task that needs it.
 
 Generate tasks following TDD order:
 
-```
+```text
 Task N — Test (failing)
   Write failing test for <Worker>
   Files: test/workers/<worker>_test.rb
@@ -289,7 +293,7 @@ Task N+1 — Implementation
 
 Generate tasks following TDD order:
 
-```
+```text
 Task N — Route
   Add route to config/routes/<file>.rb
   Files: config/routes/<file>.rb
@@ -312,7 +316,7 @@ Task N+2 — Implementation
 
 Generate tasks for any cross-cutting test coverage:
 
-```
+```text
 Task N — Integration test
   Write integration test for <end-to-end flow>
   Files: test/integration/<name>_test.rb
@@ -325,7 +329,7 @@ Task N — Integration test
 
 Once all sections are approved, show the complete ordered task list. Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
-````
+````text
 ```
 ============================================
   FLOW — Phase 4: Plan — FULL PLAN
@@ -353,6 +357,7 @@ Once all sections are approved, show the complete ordered task list. Print insid
 Then use AskUserQuestion:
 
 > "Does the full plan look right?"
+>
 > - **Approve — ready to code**
 > - **Needs changes** — describe which tasks to revise
 > - **Go back to a plan section** — show section picker
@@ -410,6 +415,7 @@ Update Phase 4 in state:
 Invoke `flow:status`, then use AskUserQuestion:
 
 > "Phase 4: Plan is complete. Ready to begin Phase 5: Code?"
+>
 > - **Yes, start Phase 5 now** — invoke `flow:code`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
@@ -421,7 +427,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Yes**, print inside a fenced code block:
 
-````
+````text
 ```
 ============================================
   FLOW — Phase 4: Plan — COMPLETE
@@ -431,7 +437,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 **If Not yet**, print inside a fenced code block:
 
-````
+````text
 ```
 ============================================
   FLOW — Paused

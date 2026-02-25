@@ -106,16 +106,14 @@ the user can override.
 
 ## Step 6 — Bump version in all files
 
-Update the version string in all files to the new version:
+Run:
 
-1. `.claude-plugin/plugin.json` — the `version` field
-2. `.claude-plugin/marketplace.json` — the `version` field inside the plugin entry
-3. Every `skills/*/SKILL.md` — all `FLOW v<old_version>` occurrences in banners
-4. `.claude/skills/release/SKILL.md` — all `FLOW v<old_version>` occurrences in banners
+```bash
+make bump NEW=<new_version>
+```
 
-All version references must match exactly. Use `replace_all` to find and
-replace `FLOW v<old_version>` with `FLOW v<new_version>` in each skill file.
-No other fields or content are changed.
+This updates `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`,
+and all skill banners in one step.
 
 ## Step 7 — Update RELEASE-NOTES.md
 

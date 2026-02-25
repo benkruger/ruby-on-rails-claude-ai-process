@@ -34,7 +34,8 @@
       "Bash(sort *)",
       "Bash(cat *)",
       "Bash(diff *)",
-      "Bash(bin/test *)"
+      "Bash(bin/test *)",
+      "Bash(make *)"
     ],
     "deny": [
       "Bash(git rebase *)",

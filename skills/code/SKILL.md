@@ -27,7 +27,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ````text
 ```
 ============================================
-  FLOW — Phase 5: Code — STARTING
+  FLOW v0.7.1 — Phase 5: Code — STARTING
   Recommended model: Opus
 ============================================
 ```
@@ -307,18 +307,20 @@ is empty. 100% coverage is mandatory.
 ## Done — Update state and complete phase
 
 Update Phase 5 in state:
-1. `cumulative_seconds` += `current_time - session_started_at`
+1. `cumulative_seconds` += `current_time - session_started_at`. Do not print the calculation.
 2. `status` → `complete`
 3. `completed_at` → current UTC timestamp
 4. `session_started_at` → `null`
 5. `current_phase` → `6`
+
+Format `cumulative_seconds` as `<formatted_time>`: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60.
 
 Print inside a fenced code block:
 
 ````text
 ```
 ============================================
-  FLOW — Phase 5: Code — COMPLETE (<cumulative_seconds>)
+  FLOW v0.7.1 — Phase 5: Code — COMPLETE (<formatted_time>)
 ============================================
 ```
 ````

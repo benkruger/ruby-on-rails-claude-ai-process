@@ -15,6 +15,14 @@ def _load_phases():
     return json.loads((REPO_ROOT / "flow-phases.json").read_text())
 
 
+def _plugin_version():
+    """Return the version string from plugin.json (e.g. '0.7.1')."""
+    plugin = json.loads(
+        (REPO_ROOT / ".claude-plugin" / "plugin.json").read_text()
+    )
+    return plugin["version"]
+
+
 def _phase_skills():
     """Return {phase_number: skill_name} for phases 1-8."""
     data = _load_phases()
@@ -283,18 +291,22 @@ def test_subagent_types_match_requirements():
 
 def test_phase_skills_have_announce_banner():
     """Every phase skill (1-8) must have an announce banner with correct
-    phase number and name."""
+    phase number, name, and version."""
     phase_skills = _phase_skills()
     data = _load_phases()
+    version = _plugin_version()
 
     for phase_num, skill_name in phase_skills.items():
         content = _read_skill(skill_name)
         name = data["phases"][str(phase_num)]["name"]
 
-        pattern = rf"Phase {phase_num}:\s*{re.escape(name)}\s*—\s*STARTING"
+        pattern = (
+            rf"FLOW v{re.escape(version)}\s*—\s*"
+            rf"Phase {phase_num}:\s*{re.escape(name)}\s*—\s*STARTING"
+        )
         assert re.search(pattern, content), (
             f"Phase {phase_num} ({skill_name}) missing announce banner "
-            f"'Phase {phase_num}: {name} — STARTING'"
+            f"'FLOW v{version} — Phase {phase_num}: {name} — STARTING'"
         )
 
 
@@ -550,19 +562,26 @@ def test_status_skill_phase_names_match_flow_phases():
 
 
 def test_phase_skills_complete_banner_includes_timing():
-    """Every phase skill (1-8) COMPLETE banner must include timing in
-    parentheses after COMPLETE."""
+    """Every phase skill (1-8) COMPLETE banner must include version and
+    formatted_time in parentheses after COMPLETE."""
     phase_skills = _phase_skills()
     data = _load_phases()
+    version = _plugin_version()
 
     for phase_num, skill_name in phase_skills.items():
         content = _read_skill(skill_name)
         name = data["phases"][str(phase_num)]["name"]
 
-        pattern = rf"Phase {phase_num}:\s*{re.escape(name)}\s*—\s*COMPLETE\s*\("
+        pattern = (
+            rf"FLOW v{re.escape(version)}\s*—\s*"
+            rf"Phase {phase_num}:\s*{re.escape(name)}\s*—\s*"
+            rf"COMPLETE\s*\(<formatted_time>\)"
+        )
         assert re.search(pattern, content), (
             f"Phase {phase_num} ({skill_name}) COMPLETE banner missing "
-            f"timing — expected 'COMPLETE (' with cumulative_seconds"
+            f"version or formatted_time — expected "
+            f"'FLOW v{version} — Phase {phase_num}: {name} — "
+            f"COMPLETE (<formatted_time>)'"
         )
 
 
@@ -624,3 +643,67 @@ def test_release_complete_banner_confirms_marketplace_update():
         "Release COMPLETE banner must confirm the marketplace update ran — "
         "use 'Local plugin upgraded:' not 'Run manually'"
     )
+
+
+# --- Banner consistency ---
+
+
+def test_utility_skill_banners_include_version():
+    """Utility skill STARTING and COMPLETE banners must include the version."""
+    version = _plugin_version()
+    utility_with_banners = ["commit", "abort", "status"]
+
+    for name in utility_with_banners:
+        content = _read_skill(name)
+        starting_pattern = rf"FLOW v{re.escape(version)}\s*—\s*flow:{name}|FLOW v{re.escape(version)}\s*—\s*{name.capitalize()}"
+        assert re.search(starting_pattern, content, re.IGNORECASE), (
+            f"skills/{name}/SKILL.md STARTING banner missing version — "
+            f"expected 'FLOW v{version}'"
+        )
+
+
+def test_phase_state_updates_suppress_output():
+    """Phases 1-7 state update sections must tell Claude not to print the
+    timing calculation. Without this, Claude shows work like
+    'Phase 1 started at X, now Y = Z seconds.' before the banner."""
+    phase_skills = _phase_skills()
+
+    for phase_num in range(1, 8):
+        skill_name = phase_skills[phase_num]
+        content = _read_skill(skill_name)
+
+        assert re.search(r"[Dd]o not print", content), (
+            f"Phase {phase_num} ({skill_name}) state update section missing "
+            f"'Do not print' instruction — Claude will show timing "
+            f"calculation as visible output"
+        )
+
+
+def test_phase_complete_banners_use_formatted_time():
+    """Phase COMPLETE banners must use <formatted_time>, not raw
+    <cumulative_seconds>."""
+    phase_skills = _phase_skills()
+
+    for phase_num, skill_name in phase_skills.items():
+        content = _read_skill(skill_name)
+        assert "<cumulative_seconds>" not in content or "<formatted_time>" in content, (
+            f"Phase {phase_num} ({skill_name}) uses <cumulative_seconds> "
+            f"in banner — use <formatted_time> instead"
+        )
+
+
+def test_phase_skills_have_time_format_instruction():
+    """Phases 1-8 must include time formatting instructions near the
+    completion banner so Claude formats the time correctly."""
+    phase_skills = _phase_skills()
+
+    for phase_num, skill_name in phase_skills.items():
+        content = _read_skill(skill_name)
+        has_format = (
+            "Xh Ym" in content
+            or "formatted_time" in content
+        )
+        assert has_format, (
+            f"Phase {phase_num} ({skill_name}) missing time format "
+            f"instruction — must specify format (Xh Ym / Xm / <1m)"
+        )

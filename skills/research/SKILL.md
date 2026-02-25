@@ -27,7 +27,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 2: Research — STARTING
+  FLOW v0.7.1 — Phase 2: Research — STARTING
   Recommended model: Sonnet
 ============================================
 ```
@@ -268,18 +268,20 @@ Show the user a clean summary. Print inside a fenced code block (triple backtick
 ## Done — Update state and complete phase
 
 Update `.flow-states/<branch>.json`:
-1. Calculate `cumulative_seconds`: `current_time - session_started_at` + existing `cumulative_seconds`
+1. Calculate `cumulative_seconds`: `current_time - session_started_at` + existing `cumulative_seconds`. Do not print the calculation.
 2. Set Phase 2 `status` to `complete`
 3. Set Phase 2 `completed_at` to current UTC timestamp
 4. Set Phase 2 `session_started_at` to `null`
 5. Set `current_phase` to `3`
+
+Format `cumulative_seconds` as `<formatted_time>`: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60.
 
 Print inside a fenced code block:
 
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 2: Research — COMPLETE (<cumulative_seconds>)
+  FLOW v0.7.1 — Phase 2: Research — COMPLETE (<formatted_time>)
   Next: Phase 3: Design  (/flow:design)
 ============================================
 ```

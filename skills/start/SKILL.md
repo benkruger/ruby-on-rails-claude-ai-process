@@ -197,7 +197,7 @@ Use `/flow:commit` to review and commit the changes (`Gemfile.lock` + any gem fi
 ### Done — Update state and complete phase
 
 Update `.flow-states/<branch>.json`:
-1. `cumulative_seconds` for Phase 1: `current_time - session_started_at`
+1. `cumulative_seconds` for Phase 1: `current_time - session_started_at`. Do not print the calculation.
 2. Phase 1 `status` → `complete`
 3. Phase 1 `completed_at` → current UTC timestamp
 4. Phase 1 `session_started_at` → `null`
@@ -205,12 +205,14 @@ Update `.flow-states/<branch>.json`:
 
 Update Phase 1 task to `completed`.
 
+Format `cumulative_seconds` as `<formatted_time>`: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60.
+
 Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
 ````text
 ```
 ============================================
-  FLOW — Phase 1: Start — COMPLETE (<cumulative_seconds>)
+  FLOW v0.7.1 — Phase 1: Start — COMPLETE (<formatted_time>)
 ============================================
 ```
 ````

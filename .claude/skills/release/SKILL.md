@@ -13,7 +13,7 @@ Print:
 
 ```
 ============================================
-  FLOW — release — STARTING
+  FLOW v0.7.1 — release — STARTING
 ============================================
 ```
 
@@ -106,16 +106,16 @@ the user can override.
 
 ## Step 6 — Bump version in all files
 
-Update the version string in all four files to the new version:
+Update the version string in all files to the new version:
 
 1. `.claude-plugin/plugin.json` — the `version` field
 2. `.claude-plugin/marketplace.json` — the `version` field inside the plugin entry
-3. `skills/start/SKILL.md` — the version in the announce banner (`FLOW v<version>`)
-4. `skills/status/SKILL.md` — the version in the status panel header (`FLOW v<version>`)
+3. Every `skills/*/SKILL.md` — all `FLOW v<old_version>` occurrences in banners
+4. `.claude/skills/release/SKILL.md` — all `FLOW v<old_version>` occurrences in banners
 
-All four must match exactly. Use `replace_all` to find and replace the old
-version string `FLOW v<old_version>` with `FLOW v<new_version>` in the skill
-files. No other fields or content are changed.
+All version references must match exactly. Use `replace_all` to find and
+replace `FLOW v<old_version>` with `FLOW v<new_version>` in each skill file.
+No other fields or content are changed.
 
 ## Step 7 — Update RELEASE-NOTES.md
 
@@ -140,8 +140,8 @@ Commit exactly these files:
 
 - `.claude-plugin/plugin.json`
 - `.claude-plugin/marketplace.json`
-- `skills/start/SKILL.md`
-- `skills/status/SKILL.md`
+- `skills/*/SKILL.md` (all skill files with version in banners)
+- `.claude/skills/release/SKILL.md`
 - `RELEASE-NOTES.md`
 
 Commit message:
@@ -188,7 +188,7 @@ Print:
 
 ```
 ============================================
-  FLOW — release — COMPLETE
+  FLOW v0.7.1 — release — COMPLETE
   Released v<new_version>
   https://github.com/benkruger/flow/releases/tag/v<new_version>
 

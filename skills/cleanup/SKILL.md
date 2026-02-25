@@ -29,7 +29,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 8: Cleanup — STARTING
+  FLOW v0.7.1 — Phase 8: Cleanup — STARTING
   Recommended model: Haiku
 ============================================
 ```
@@ -127,12 +127,14 @@ Tell the user what was cleaned, what was already gone, and what failed.
 
 ### Done — Print banner
 
+Format the total `cumulative_seconds` (from the state file read in Step 1) as `<formatted_time>`: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60.
+
 Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
 ````markdown
 ```text
 ============================================
-  FLOW — Phase 8: Cleanup — COMPLETE (<cumulative_seconds>)
+  FLOW v0.7.1 — Phase 8: Cleanup — COMPLETE (<formatted_time>)
   Feature '<feature>' is fully done.
   Worktree removed, state file and log deleted.
 ============================================

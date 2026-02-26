@@ -761,3 +761,15 @@ def test_no_skill_invokes_commit_with_auto():
             f"skills/{d.name}/SKILL.md references '/flow:commit --auto' — "
             f"--auto is user-invoked only, skills must not invoke it programmatically"
         )
+
+
+# --- Release flags ---
+
+
+def test_release_default_skips_approval():
+    """Release SKILL.md default (no flags) must proceed without approval."""
+    content = (REPO_ROOT / ".claude" / "skills" / "release" / "SKILL.md").read_text()
+    assert "proceed directly to Step 6" in content, (
+        "Release SKILL.md must indicate that the default proceeds directly "
+        "to Step 6 without approval"
+    )

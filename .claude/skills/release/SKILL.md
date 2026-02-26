@@ -17,6 +17,12 @@ Print:
 ============================================
 ```
 
+## Flags
+
+**Default (no flags):** Auto-detect version, display version and release notes, then proceed directly to Step 6 without approval.
+
+**`--manual`:** Pause at Step 5 for approval. Allows overriding the version or editing release notes. Also serves as a dry-run — deny at the prompt to stop.
+
 ## Step 1 — Check for uncommitted changes
 
 Run `git status`. If there are uncommitted changes, stop:
@@ -99,14 +105,17 @@ Then draft the release notes section:
 Group by: new features, fixes, improvements. Be concise.>
 ```
 
-Present the recommendation and the draft release notes in your response,
-then use one AskUserQuestion:
+Present the recommendation and the draft release notes in your response.
+
+**If `--manual` was passed:** use one AskUserQuestion:
 
 > "I recommend **<type>** (v<new_version>) — <one sentence reason>.
 >  Release notes are above. Approve this release?"
 > - **Approve** (Recommended)
 > - **Different version** — specify in Other
 > - **Notes need changes** — describe in Other
+
+**Default (no flags):** proceed directly to Step 6.
 
 ## Step 6 — Bump version in all files
 
@@ -149,7 +158,7 @@ git push origin main
 ```
 
 No diff review. No `bin/ci`. No approval prompt — CI was verified in
-Step 3, changes were shown in Step 4, and the user approved in Step 5.
+Step 3, changes were shown in Step 4, and version was confirmed in Step 5.
 
 ## Step 9 — Tag and push
 
@@ -204,3 +213,4 @@ Print:
 - Always tag before pushing — the tag is what humans see on GitHub
 - Always create a GitHub Release — it's the public changelog
 - Never add Co-Authored-By trailers or attribution lines
+- `--manual` is user-invoked only. Claude must never pass this flag programmatically.

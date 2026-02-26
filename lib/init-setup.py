@@ -41,6 +41,7 @@ FLOW_ALLOW = [
     "Bash(rm .flow-commit-*)",
     "Bash(bundle exec *)",
     "Bash(*bin/flow *)",
+    "Bash(psql *)",
 ]
 
 FLOW_DENY = [

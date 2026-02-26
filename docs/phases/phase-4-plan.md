@@ -47,7 +47,7 @@ re-approval since earlier decisions affect later ones.
 ## Resuming Mid-Plan
 
 If you close Claude mid-plan, the approved sections are saved in the
-state file. On resume, `/flow:resume` picks up at the current section.
+state file. On resume, `/flow:continue` picks up at the current section.
 
 ---
 

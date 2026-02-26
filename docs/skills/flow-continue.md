@@ -1,14 +1,14 @@
 ---
-title: /flow:resume
+title: /flow:continue
 nav_order: 4
 parent: Skills
 ---
 
-# /flow:resume
+# /flow:continue
 
 **Phase:** Any
 
-**Usage:** `/flow:resume`
+**Usage:** `/flow:continue`
 
 Resumes the current FLOW feature. Behaves differently depending on context:
 

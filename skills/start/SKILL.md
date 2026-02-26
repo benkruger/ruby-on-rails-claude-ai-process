@@ -239,7 +239,7 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 ```
 ============================================
   FLOW — Paused
-  Run /flow:resume when ready to continue.
+  Run /flow:continue when ready to continue.
 ============================================
 ```
 ````

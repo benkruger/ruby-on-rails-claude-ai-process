@@ -675,7 +675,7 @@ Available at any point in the workflow:
 
 - `/flow:commit` — Review diff, approve/deny, pull before push, commit
 - `/flow:status` — Show current phase, PR link, timing, next step
-- `/flow:resume` — Resume mid-session or rebuild from state on new session
+- `/flow:continue` — Resume mid-session or rebuild from state on new session
 - `/flow:note` — Capture corrections automatically when Claude is wrong
 
 **Infrastructure**

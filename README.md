@@ -80,7 +80,7 @@ Available at any point in the workflow:
 | `/flow:init` | One-time project setup — configure permissions and git excludes |
 | `/flow:commit` | Full diff review, approved commit message, pull before push |
 | `/flow:status` | Current phase, PR link, cumulative time per phase, next step |
-| `/flow:resume` | Re-asks last transition question; rebuilds full context on new session |
+| `/flow:continue` | Re-asks last transition question; rebuilds full context on new session |
 | `/flow:note` | Captures corrections to state file — auto-invoked when Claude is wrong |
 | `/flow:abort` | Abandon feature — close PR, delete remote branch, remove worktree, delete state |
 
@@ -143,7 +143,7 @@ State survives session breaks and compaction. Multiple features can run simultan
 
 Every Claude Code session start — new terminal, `/clear`, `/compact` — triggers a hook that scans `.flow-states/` for in-progress features.
 
-If a feature is found, Claude's **first action** is to invoke `/flow:resume`. No prompt needed. No "what were we working on?" You close your laptop, open Claude Code the next morning, and the session opens with your feature's current phase, PR link, and time spent — then asks one question: "Ready to continue Phase 4: Plan?" Say yes and you're back exactly where you left off.
+If a feature is found, Claude's **first action** is to invoke `/flow:continue`. No prompt needed. No "what were we working on?" You close your laptop, open Claude Code the next morning, and the session opens with your feature's current phase, PR link, and time spent — then asks one question: "Ready to continue Phase 4: Plan?" Say yes and you're back exactly where you left off.
 
 If two features are in progress across two worktrees, the hook asks which one to resume before proceeding.
 

@@ -1,9 +1,9 @@
 ---
-name: resume
+name: continue
 description: "Resume the current FLOW feature. Mid-session: re-asks the last phase transition question. New session: reads state file, shows status, then asks."
 ---
 
-# FLOW Resume
+# FLOW Continue
 
 This skill behaves differently depending on whether you are mid-session
 or starting fresh. Choose the right path below.
@@ -81,7 +81,7 @@ When the user selects "Not yet", always print inside a fenced code block (triple
 ```text
 ============================================
   FLOW — Paused
-  Run /flow:resume when ready to continue.
+  Run /flow:continue when ready to continue.
 ============================================
 ```
 ````

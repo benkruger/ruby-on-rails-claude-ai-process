@@ -41,7 +41,7 @@ def test_empty_state_directory_exits_0_silent(git_repo):
 
 
 def test_single_feature_returns_valid_json(git_repo):
-    """Single feature → valid JSON with flow-session-resume and feature name."""
+    """Single feature → valid JSON with flow-session-continue and feature name."""
     state_dir = git_repo / ".flow-states"
     state_dir.mkdir(parents=True)
     state = make_state(current_phase=2, phase_statuses={1: "complete", 2: "in_progress"})
@@ -53,9 +53,9 @@ def test_single_feature_returns_valid_json(git_repo):
 
     output = json.loads(result.stdout)
     ctx = output["additional_context"]
-    assert "flow-session-resume" in ctx
+    assert "flow-session-continue" in ctx
     assert "Invoice Pdf Export" in ctx
-    assert "flow:resume" in ctx
+    assert "flow:continue" in ctx
 
 
 def test_single_feature_resets_session_started_at(git_repo):
@@ -172,7 +172,7 @@ def test_missing_current_phase_defaults_to_phase_1(git_repo):
     result = _run(git_repo)
     assert result.returncode == 0
     output = json.loads(result.stdout)
-    assert "flow-session-resume" in output["additional_context"]
+    assert "flow-session-continue" in output["additional_context"]
 
 
 def test_single_feature_includes_note_instruction(git_repo):

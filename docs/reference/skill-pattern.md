@@ -46,7 +46,7 @@ when building new phase skills.
 ```
 ============================================
   FLOW — Paused
-  Run /flow:resume when ready to continue.
+  Run /flow:continue when ready to continue.
 ============================================
 ```
 ````

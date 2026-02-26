@@ -7,7 +7,7 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 8-phase Rai
 - `flow-phases.json` — state machine: phase names, commands, valid back-transitions
 - `skills/<name>/SKILL.md` — each skill's instructions
 - `hooks/hooks.json` — SessionStart hook registration
-- `hooks/session-start.sh` — detects in-progress features, injects resume context
+- `hooks/session-start.sh` — detects in-progress features, injects continue context
 - `lib/check-phase.py` — reusable phase entry guard
 - `.claude/settings.json` — project permissions (git rebase denied)
 - `docs/` — GitHub Pages site (main /docs, static HTML)

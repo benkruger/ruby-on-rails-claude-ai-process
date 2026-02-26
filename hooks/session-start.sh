@@ -60,16 +60,16 @@ if len(states) == 1:
     feature = s.get("feature", "")
 
     context = (
-        "<flow-session-resume>\n"
+        "<flow-session-continue>\n"
         f'FLOW feature in progress: "{feature}" — Phase {cp}: {phase_name}\n'
         "\n"
         "Your FIRST action before responding to anything else:\n"
-        "Invoke the flow:resume skill.\n"
+        "Invoke the flow:continue skill.\n"
         "\n"
         "Throughout this session: whenever the user corrects you, disagrees\n"
         "with your response, or says something was wrong, invoke flow:note\n"
         "immediately before replying to capture the correction.\n"
-        "</flow-session-resume>"
+        "</flow-session-continue>"
     )
 
 else:
@@ -82,14 +82,14 @@ else:
     feature_list = "\n".join(f"  - {f}" for f in features)
 
     context = (
-        "<flow-session-resume>\n"
+        "<flow-session-continue>\n"
         "Multiple FLOW features are in progress:\n"
         f"{feature_list}\n"
         "\n"
         "Your FIRST action before responding to anything else:\n"
         "Use AskUserQuestion to ask which feature to work on.\n"
-        "Once selected, cd into that feature's worktree then invoke the flow:resume skill.\n"
-        "</flow-session-resume>"
+        "Once selected, cd into that feature's worktree then invoke the flow:continue skill.\n"
+        "</flow-session-continue>"
     )
 
 output = {

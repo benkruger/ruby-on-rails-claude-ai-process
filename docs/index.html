@@ -556,8 +556,8 @@
         <p>Every feature has a <code>.flow-states/&lt;branch&gt;.json</code> file tracking research findings, design decisions, plan tasks, captured notes, and per-phase timing. State survives session breaks and compaction.</p>
       </div>
       <div class="feature">
-        <h4>Session Hook &mdash; Auto-Resume</h4>
-        <p>Every session start &mdash; new terminal, <code>/clear</code>, <code>/compact</code> &mdash; triggers a hook that scans for in-progress features. Claude&rsquo;s first action is <code>/flow:resume</code>. Close your laptop, open Claude Code the next morning, pick up exactly where you left off.</p>
+        <h4>Session Hook &mdash; Auto-Continue</h4>
+        <p>Every session start &mdash; new terminal, <code>/clear</code>, <code>/compact</code> &mdash; triggers a hook that scans for in-progress features. Claude&rsquo;s first action is <code>/flow:continue</code>. Close your laptop, open Claude Code the next morning, pick up exactly where you left off.</p>
       </div>
       <div class="feature">
         <h4>The Learning Pipeline</h4>
@@ -616,7 +616,7 @@
         <tr><td><code>/flow:init</code></td><td>One-time project setup — permissions, git excludes, version marker</td></tr>
         <tr><td><code>/flow:commit</code></td><td>Full diff review, approved commit message, pull before push</td></tr>
         <tr><td><code>/flow:status</code></td><td>Current phase, PR link, cumulative time per phase, next step</td></tr>
-        <tr><td><code>/flow:resume</code></td><td>Re-asks last transition question; rebuilds full context on new session</td></tr>
+        <tr><td><code>/flow:continue</code></td><td>Re-asks last transition question; rebuilds full context on new session</td></tr>
         <tr><td><code>/flow:note</code></td><td>Captures corrections to state file &mdash; auto-invoked when Claude is wrong</td></tr>
         <tr><td><code>/flow:abort</code></td><td>Abandon feature &mdash; close PR, delete remote branch, remove worktree, delete state</td></tr>
       </tbody>

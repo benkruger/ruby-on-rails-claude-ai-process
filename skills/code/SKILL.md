@@ -346,7 +346,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 ```
 ============================================
   FLOW — Paused
-  Run /flow:resume when ready to continue.
+  Run /flow:continue when ready to continue.
 ============================================
 ```
 ````

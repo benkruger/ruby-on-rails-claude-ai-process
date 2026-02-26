@@ -91,7 +91,7 @@ def merge_settings(project_root):
 
     # Write back
     settings_dir.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(json.dumps(settings, indent=2))
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
 
     return settings
 
@@ -99,7 +99,7 @@ def merge_settings(project_root):
 def write_version_marker(project_root, version):
     """Write .flow.json with the plugin version."""
     flow_json = project_root / ".flow.json"
-    flow_json.write_text(json.dumps({"flow_version": version}))
+    flow_json.write_text(json.dumps({"flow_version": version}) + "\n")
 
 
 def update_git_exclude(project_root):

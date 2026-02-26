@@ -152,6 +152,18 @@ def test_version_marker_matches_plugin_version(git_repo):
     assert flow_data["flow_version"] == _mod._plugin_version()
 
 
+def test_settings_file_has_trailing_newline(git_repo):
+    _run(git_repo)
+    content = (git_repo / ".claude" / "settings.json").read_text()
+    assert content.endswith("\n")
+
+
+def test_version_marker_has_trailing_newline(git_repo):
+    _run(git_repo)
+    content = (git_repo / ".flow.json").read_text()
+    assert content.endswith("\n")
+
+
 # --- Git exclude ---
 
 

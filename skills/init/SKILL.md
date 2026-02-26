@@ -90,7 +90,7 @@ The FLOW permissions merged by the script:
 }
 ```
 
-### Step 2 — Commit
+### Step 2 — Commit and push
 
 Stage and commit the settings and version marker:
 
@@ -98,8 +98,14 @@ Stage and commit the settings and version marker:
 git add .claude/settings.json .flow.json
 ```
 
+If `git status` shows nothing staged (re-run, no changes), skip the commit and push — print "Already initialized, no changes needed." and go to Done.
+
 ```bash
 git commit -m "Configure FLOW workspace permissions and version marker"
+```
+
+```bash
+git push
 ```
 
 ### Done — Complete

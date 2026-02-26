@@ -103,76 +103,149 @@ Provide these instructions to the sub-agent (fill in the details):
 > git diff origin/main...HEAD
 > ```
 >
-> Read every changed file completely. Then check:
+> Read every changed file completely. Then run each of these 10 security
+> checks against the diff. For each check, report either a finding (with
+> file path and line number) or mark it clean.
 >
-> <!-- PLACEHOLDER: Security checks will be designed in a separate
-> conversation. For now, the sub-agent should scan for obvious security
-> issues in the diff:
+> **Check 1: Authorization gaps** (`authorization_gaps`)
+> Look for controller actions added or modified in the diff that have no
+> `before_action` authentication/authorization filter. Check whether
+> existing auth filters are skipped for new actions.
+> Vulnerable pattern: a new action with no auth filter covering it
+> Vulnerable pattern: `skip_before_action :require_login, only: [:new_action]`
 >
-> - SQL injection (raw SQL, string interpolation in queries)
-> - Mass assignment (unpermitted params, open-ended permit)
-> - Authentication/authorization gaps (missing before_action, skipped checks)
-> - Sensitive data exposure (secrets in logs, PII in responses, credentials)
-> - CSRF protection (skipped verify_authenticity_token)
-> - Insecure direct object references (IDs from params without scoping)
-> - Command injection (system(), exec(), backticks with user input)
-> - Open redirects (redirect_to with user-controlled URLs)
-> - Missing input validation at system boundaries
+> **Check 2: Unscoped record access** (`unscoped_access`)
+> Look for record lookups that use `params[:id]` (or similar) without
+> scoping to the current user, account, or tenant.
+> Vulnerable: `Record::Base.find(params[:id])`
+> Safe: `current_account.records.find(params[:id])`
 >
-> This is a placeholder list. The actual checks, their severity levels,
-> and the reporting format will be designed separately. -->
+> **Check 3: Mass assignment** (`mass_assignment`)
+> Look for `params.permit!` (permits everything), overly broad `permit`
+> calls that include admin-only or internal fields, or params hashes
+> passed directly to `create!`/`update!` without `permit`.
+> Vulnerable: `Record::Create.create!(params[:record])`
+> Vulnerable: `params.require(:record).permit!`
+> Vulnerable: `permit(:role, :admin, :internal_flag)` when user-facing
 >
-> Return structured findings in two categories:
+> **Check 4: SQL injection** (`sql_injection`)
+> Look for string interpolation or concatenation inside `where`, `order`,
+> `select`, `group`, `having`, `pluck`, `execute`, `find_by_sql`, or
+> `ActiveRecord::Base.connection` calls.
+> Vulnerable: `where("name = '#{params[:name]}'")`
+> Vulnerable: `order("#{params[:sort]} #{params[:dir]}")`
+> Safe: `where(name: params[:name])`
+> Safe: `where("name = ?", params[:name])`
 >
-> 1. Security issues found (with file:line references and severity)
-> 2. Security considerations reviewed and found clean
+> **Check 5: Data exposure** (`data_exposure`)
+> Look for sensitive fields (password, token, secret, ssn, credit card,
+> api\_key) included in `as_json`, `to_json`, serializer attributes,
+> or API responses. Check for PII logged via `Rails.logger` or `puts`.
+> Check for credentials or secrets hardcoded in source.
+> Vulnerable: `render json: user.as_json`
+> Vulnerable: `Rails.logger.info("User #{user.email} token: #{user.token}")`
 >
-> If no issues are found, say so explicitly.
+> **Check 6: CSRF bypass** (`csrf_bypass`)
+> Look for `skip_before_action :verify_authenticity_token`. This is only
+> acceptable on API-only controllers that use token auth instead of
+> cookies. If the controller serves browser requests with cookie auth,
+> this is a finding.
+> Vulnerable: `skip_before_action :verify_authenticity_token` on a
+> controller that uses session/cookie auth
+>
+> **Check 7: Open redirects** (`open_redirects`)
+> Look for `redirect_to` where the URL comes from user input (params,
+> form fields, headers). Attackers use this for phishing.
+> Vulnerable: `redirect_to params[:return_url]`
+> Vulnerable: `redirect_to request.referer`
+> Safe: `redirect_to root_path`
+> Safe: `redirect_to params[:return_url], allow_other_host: false`
+>
+> **Check 8: RuboCop disables** (`rubocop_disables`)
+> Look for any `# rubocop:disable` comment anywhere in the diff. This is
+> an automatic finding — no judgment needed. Every disable must be
+> removed and the underlying code fixed.
+>
+> **Check 9: Auth test coverage** (`auth_test_coverage`)
+> If the diff adds a `before_action` auth check or an authorization
+> gate, look for a corresponding test that verifies the unauthorized
+> or forbidden case. A new auth check without a test for the reject
+> path is a finding.
+>
+> **Check 10: Route exposure** (`route_exposure`)
+> Look for new routes (in `config/routes.rb` or `config/routes/*.rb`)
+> that point to controller actions. Read the target controller and
+> verify it has an auth filter covering the routed action. A route to
+> an unprotected action is a finding.
+>
+> Return your findings as two lists:
+>
+> **Findings** — for each issue found:
+>
+> - Check name and key (e.g., "Authorization gaps" / `authorization_gaps`)
+> - Description of the specific issue
+> - File path and line number
+>
+> **Clean checks** — list the check keys that found no issues.
+>
+> If no issues are found across all checks, say so explicitly and list
+> all 10 checks as clean.
 
 Wait for the sub-agent to return before proceeding.
 
 ---
 
-## Step 2 — Review sub-agent findings
+## Step 2 — Confirm findings and record in state
 
-Read the sub-agent's structured findings. For each reported issue:
+Read the sub-agent's findings. For each reported issue:
 
-- Confirm against the actual code (sub-agent may have false positives)
-- Classify severity: **critical** (must fix), **moderate** (should fix),
-  **low** (note for awareness)
+1. Read the cited file and line to confirm the issue exists (sub-agents may
+   have false positives)
+2. Drop any finding that is a false positive — explain why it was dropped
 
-Compile the confirmed findings list for Step 3.
+Write all confirmed findings and clean checks to the state file:
+
+```json
+"security": {
+  "findings": [
+    {
+      "id": 1,
+      "check": "authorization_gaps",
+      "description": "PaymentController#show has no before_action auth check",
+      "file": "app/controllers/payment_controller.rb",
+      "line": 15,
+      "status": "pending"
+    }
+  ],
+  "clean_checks": ["sql_injection", "csrf_bypass", "open_redirects"],
+  "scanned_at": "2026-02-20T15:00:00Z"
+}
+```
+
+Number each finding with a sequential `id`. Set `status` to `"pending"` for
+every confirmed finding. `scanned_at` is the current UTC timestamp.
+
+If there are no confirmed findings, set `findings` to an empty array, list
+all 10 checks in `clean_checks`, and skip to Step 4.
 
 ---
 
-## Step 3 — Fixing Findings
+## Step 3 — Fix findings
 
-For each confirmed finding:
+Fix each confirmed finding one at a time, in order:
 
-**Critical finding** (exploitable vulnerability):
-- Use AskUserQuestion:
-  > "Found a critical security issue: <description>. How would you like
-  > to proceed?"
-  >
-  > - **Fix it here in Security**
-  > - **Go back to Code**
-  > - **Go back to Plan**
-
-**Moderate finding** (defense-in-depth gap):
-- Fix it directly
-- Describe what was fixed and why
-
-**Low finding** (awareness only):
-- Report but do not fix unless the user asks
-
-After fixing any findings, run `/flow:commit` for the Security fixes.
-
-Then run `bin/ci` — required before any state transition.
+1. Fix the issue in code
+2. Run `bin/ci`
+3. Invoke `/flow:commit` for the fix
+4. Update the finding's `status` to `"fixed"` in the state file
+5. Move to the next finding
 
 <HARD-GATE>
-bin/ci must be green before transitioning to Reflect.
-Any fix made during Security requires bin/ci to run again.
+bin/ci must be green after every fix. Do not move to the next finding
+until the current fix passes bin/ci and is committed.
 </HARD-GATE>
+
+Repeat until all findings have `status: "fixed"`.
 
 ---
 
@@ -186,35 +259,25 @@ Show a summary of what was found and fixed inside a fenced code block:
   FLOW — Phase 7: Security — SUMMARY
 ============================================
 
-  Issues found     : N
-  Issues fixed     : N
-  Issues noted     : N (low severity, awareness only)
+  Checks run       : 10
+  Findings         : N
+  Fixed            : N
+  Clean checks     : N
 
   Findings
   --------
-  - [CRITICAL] Fixed: SQL injection in PaymentController#create
-  - [MODERATE] Fixed: Missing authorization check on admin endpoint
-  - [LOW] Noted: Consider rate limiting on public API
+  - [FIXED] authorization_gaps: PaymentController#show has no auth check
+  - [FIXED] rubocop_disables: # rubocop:disable in payment_controller.rb
+
+  Clean Checks
+  ------------
+  sql_injection, csrf_bypass, open_redirects, ...
 
   bin/ci           : ✓ green
 
 ============================================
 ```
 ````
-
----
-
-## Back Navigation
-
-Use AskUserQuestion if a finding is too significant to fix in Security:
-
-> - **Go back to Code** — implementation needs rework
-> - **Go back to Plan** — plan was missing security considerations
-> - **Go back to Design** — approach needs rethinking
-> - **Go back to Research** — something fundamental was missed
-
-Update state for all phases between current and target before invoking
-the target skill.
 
 ---
 
@@ -272,4 +335,3 @@ Invoke `flow:status`, then use AskUserQuestion:
 - Always run `bin/ci` after any fix made during Security
 - Never transition to Reflect unless bin/ci is green
 - Read the full diff before starting — no partial reviews
-- Any `# rubocop:disable` comment in the diff is an automatic finding — remove it and fix the code

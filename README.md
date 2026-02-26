@@ -183,7 +183,6 @@ Every phase that allows it offers back-navigation when something was missed:
 | Plan | Design, Research |
 | Code | Plan, Design, Research |
 | Review | Code, Plan, Design, Research |
-| Security | Code, Plan, Design, Research |
 
 When returning, state is reset appropriately. Later phases are invalidated. Prior findings are preserved and extended — never discarded.
 

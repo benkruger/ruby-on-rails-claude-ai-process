@@ -156,6 +156,33 @@ Task statuses: `pending`, `in_progress`, `complete` (updated by Code)
 
 ---
 
+## Security Object
+
+Added to the state file when Phase 7: Security completes its scan.
+
+```json
+"security": {
+  "findings": [
+    {
+      "id": 1,
+      "check": "authorization_gaps",
+      "description": "PaymentController#show has no before_action auth check",
+      "file": "app/controllers/payment_controller.rb",
+      "line": 15,
+      "status": "pending"
+    }
+  ],
+  "clean_checks": ["sql_injection", "csrf_bypass", "open_redirects"],
+  "scanned_at": "2026-02-20T15:00:00Z"
+}
+```
+
+Finding statuses: `pending`, `fixed`
+
+`clean_checks` lists the check keys that found no issues. `scanned_at` is when the scan completed.
+
+---
+
 ## Design Object
 
 Added to the state file when Phase 3: Design completes.

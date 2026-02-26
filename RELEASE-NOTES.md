@@ -1,5 +1,24 @@
 # Release Notes
 
+## v0.8.4 — Performance and bug fixes
+
+### Improvements
+
+- Speed up `/release` skill: merge version and release notes into one
+  prompt, replace `/commit` delegation with direct commit-and-push,
+  reduce CI polling from 30s to 15s
+- Enforce automatic model selection via skill frontmatter
+- Add goal-over-mechanism rule to commit subject line guidelines
+- Consolidate 7 Bash permission entries into 1 via `bin/flow` dispatcher
+
+### Fixes
+
+- Fix missing trailing newlines in `settings.json` and `.flow.json`
+  written by `flow:init`
+- Add `git push` to `flow:init` so changes reach the remote
+- Handle `flow:init` re-runs gracefully (skip commit when nothing
+  changed)
+
 ## v0.8.3 — Extract testable Python from five skills
 
 ### New

@@ -1,11 +1,15 @@
 """Append a structured note to the FLOW state file.
 
 Usage:
-  bin/flow append-note <state_file_path> --phase <N> --type <correction|learning> --note "text"
+  bin/flow append-note --note "text" [--type correction|learning]
+
+Derives state file path and current phase from git context.
+Type defaults to "correction".
 
 Output (JSON to stdout):
-  Success: {"status": "ok", "note_count": N}
-  Error:   {"status": "error", "message": "..."}
+  Success:  {"status": "ok", "note_count": N}
+  No state: {"status": "no_state"}
+  Error:    {"status": "error", "message": "..."}
 """
 
 import argparse
@@ -14,10 +18,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-PHASE_NAMES = {
-    1: "Start", 2: "Research", 3: "Design", 4: "Plan",
-    5: "Code", 6: "Review", 7: "Reflect", 8: "Cleanup",
-}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from flow_utils import current_branch, project_root, PHASE_NAMES
 
 
 def _now():
@@ -46,27 +49,41 @@ def append_note(state_path, phase, note_type, note_text):
 
 def main():
     parser = argparse.ArgumentParser(description="Append a note to FLOW state")
-    parser.add_argument("state_file", help="Path to the state file")
-    parser.add_argument("--phase", type=int, required=True,
-                        help="Current phase number")
-    parser.add_argument("--type", dest="note_type", required=True,
+    parser.add_argument("--type", dest="note_type", default="correction",
                         choices=["correction", "learning"],
-                        help="Note type")
+                        help="Note type (default: correction)")
     parser.add_argument("--note", required=True,
                         help="Note text")
     args = parser.parse_args()
 
-    state_path = Path(args.state_file)
+    root = project_root()
+    branch = current_branch()
 
-    if not state_path.exists():
+    if not branch:
         print(json.dumps({
             "status": "error",
-            "message": f"State file not found: {args.state_file}",
+            "message": "Could not determine current branch",
+        }))
+        sys.exit(1)
+
+    state_path = root / ".flow-states" / f"{branch}.json"
+
+    if not state_path.exists():
+        print(json.dumps({"status": "no_state"}))
+        sys.exit(0)
+
+    try:
+        state_data = json.loads(state_path.read_text())
+        phase = state_data.get("current_phase", 1)
+    except Exception as e:
+        print(json.dumps({
+            "status": "error",
+            "message": f"Could not read state file: {e}",
         }))
         sys.exit(1)
 
     try:
-        state = append_note(state_path, args.phase, args.note_type, args.note)
+        state = append_note(state_path, phase, args.note_type, args.note)
     except Exception as e:
         print(json.dumps({
             "status": "error",

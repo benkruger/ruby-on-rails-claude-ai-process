@@ -9,6 +9,11 @@ Provides common functions used across multiple hook scripts:
 import subprocess
 from pathlib import Path
 
+PHASE_NAMES = {
+    1: "Start", 2: "Research", 3: "Design", 4: "Plan",
+    5: "Code", 6: "Review", 7: "Reflect", 8: "Cleanup",
+}
+
 
 def format_time(seconds):
     """Format seconds into human-readable time.

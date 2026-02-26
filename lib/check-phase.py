@@ -21,13 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from flow_utils import current_branch, project_root
-
-PHASES = {
-    "1": "Start",     "2": "Research",  "3": "Design",
-    "4": "Plan",      "5": "Code", "6": "Review",
-    "7": "Reflect",   "8": "Cleanup"
-}
+from flow_utils import current_branch, project_root, PHASE_NAMES
 
 COMMANDS = {
     "1": "/flow:start",     "2": "/flow:research",  "3": "/flow:design",
@@ -66,15 +60,16 @@ def main():
         print(f"BLOCKED: Could not read state file: {e}")
         sys.exit(1)
 
-    prev = str(phase - 1)
-    prev_data = state.get("phases", {}).get(prev, {})
+    prev = phase - 1
+    prev_str = str(prev)
+    prev_data = state.get("phases", {}).get(prev_str, {})
     prev_status = prev_data.get("status", "pending")
-    prev_name = PHASES.get(prev, f"Phase {prev}")
-    prev_cmd = COMMANDS.get(prev, f"/flow:phase{prev}")
+    prev_name = PHASE_NAMES.get(prev, f"Phase {prev}")
+    prev_cmd = COMMANDS.get(prev_str, f"/flow:phase{prev}")
 
     if prev_status != "complete":
         print(f"BLOCKED: Phase {prev}: {prev_name} must be complete before "
-              f"entering Phase {phase}: {PHASES.get(str(phase), '')}.")
+              f"entering Phase {phase}: {PHASE_NAMES.get(phase, '')}.")
         print(f"Phase {prev} current status: {prev_status}")
         print(f"Complete it first with: {prev_cmd}")
         sys.exit(1)
@@ -83,7 +78,7 @@ def main():
     this_data = state.get("phases", {}).get(str(phase), {})
     if this_data.get("status") == "complete":
         visits = this_data.get("visit_count", 0)
-        name = PHASES.get(str(phase), f"Phase {phase}")
+        name = PHASE_NAMES.get(phase, f"Phase {phase}")
         print(f"NOTE: Phase {phase}: {name} was previously completed "
               f"({visits} visit(s)). Re-entering.")
 

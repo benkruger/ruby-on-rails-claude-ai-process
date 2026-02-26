@@ -22,17 +22,7 @@ Do not wait to be asked. Capture first, then respond.
 
 ## Steps
 
-### Step 1 — Find the state file
-
-1. Get the current branch: run `git branch --show-current`.
-2. Find the project root: run `git worktree list --porcelain` and note the
-   path on the first `worktree` line.
-3. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
-   - If the file does not exist: skip silently — do not interrupt the session.
-
-If no state file is found, skip silently — do not interrupt the session.
-
-### Step 2 — Write the note
+### Step 1 — Write the note
 
 Compose the note text as a reusable pattern, not a specific complaint:
 
@@ -44,15 +34,20 @@ Compose the note text as a reusable pattern, not a specific complaint:
 
 The note should read as something useful to a future session, not a log of what happened.
 
-Run the append-note script with the state file path, current phase, type, and note text:
-
 ```bash
-exec ${CLAUDE_PLUGIN_ROOT}/bin/flow append-note <state_file_path> --phase <N> --type correction --note "<note text>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow append-note --note "<note_text>"
 ```
 
-The script appends a structured note with phase, phase\_name, timestamp, type, and note fields to the state file's `notes` array.
+The script derives the state file path and current phase internally.
 
-### Step 3 — Confirm quietly
+The script outputs JSON:
+
+- `{"status": "no_state"}` — no state file exists. Skip silently — do not
+  interrupt the session. Continue with your response.
+- `{"status": "ok", "note_count": N}` — note captured. Proceed to Step 2.
+- `{"status": "error", "message": "..."}` — show the error message and stop.
+
+### Step 2 — Confirm quietly
 
 Print one line only:
 

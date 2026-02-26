@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -14,6 +15,9 @@ LIB_DIR = REPO_ROOT / "lib"
 SKILLS_DIR = REPO_ROOT / "skills"
 DOCS_DIR = REPO_ROOT / "docs"
 BIN_DIR = REPO_ROOT / "bin"
+
+sys.path.insert(0, str(LIB_DIR))
+from flow_utils import PHASE_NAMES
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -80,15 +84,11 @@ def make_state(current_phase=1, phase_statuses=None):
     Unspecified phases default to "pending".
     """
     phase_statuses = phase_statuses or {}
-    names = {
-        1: "Start", 2: "Research", 3: "Design", 4: "Plan",
-        5: "Code", 6: "Review", 7: "Reflect", 8: "Cleanup",
-    }
     phases = {}
     for i in range(1, 9):
         status = phase_statuses.get(i, "pending")
         phases[str(i)] = {
-            "name": names[i],
+            "name": PHASE_NAMES[i],
             "status": status,
             "started_at": None,
             "completed_at": None,

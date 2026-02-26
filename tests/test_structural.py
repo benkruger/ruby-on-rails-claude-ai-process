@@ -65,30 +65,35 @@ def test_every_skill_dir_has_skill_md():
             assert skill_md.exists(), f"skills/{d.name}/ has no SKILL.md"
 
 
-def test_check_phase_dicts_match_flow_phases():
-    """PHASES and COMMANDS in check-phase.py must match flow-phases.json."""
+def test_phase_names_in_flow_utils_match_flow_phases():
+    """PHASE_NAMES in flow_utils.py must match flow-phases.json."""
+    data = _load_phases()
+    script = (LIB_DIR / "flow_utils.py").read_text()
+
+    # Extract PHASE_NAMES dict from script
+    phases_match = re.search(
+        r"^PHASE_NAMES\s*=\s*\{(.+?)\}", script, re.DOTALL | re.MULTILINE
+    )
+    assert phases_match, "Could not find PHASE_NAMES dict in flow_utils.py"
+
+    for num, phase in data["phases"].items():
+        pattern = rf'{num}:\s*"{re.escape(phase["name"])}"'
+        assert re.search(pattern, phases_match.group(0)), (
+            f"Phase {num} name '{phase['name']}' not found in flow_utils.py PHASE_NAMES"
+        )
+
+
+def test_check_phase_commands_match_flow_phases():
+    """COMMANDS in check-phase.py must match flow-phases.json."""
     data = _load_phases()
     script = (LIB_DIR / "check-phase.py").read_text()
-
-    # Extract PHASES dict from script
-    phases_match = re.search(
-        r"^PHASES\s*=\s*\{(.+?)\}", script, re.DOTALL | re.MULTILINE
-    )
-    assert phases_match, "Could not find PHASES dict in check-phase.py"
 
     commands_match = re.search(
         r"^COMMANDS\s*=\s*\{(.+?)\}", script, re.DOTALL | re.MULTILINE
     )
     assert commands_match, "Could not find COMMANDS dict in check-phase.py"
 
-    # Parse the PHASES dict entries
     for num, phase in data["phases"].items():
-        # Check name is present in PHASES
-        pattern = rf'"{num}":\s*"{re.escape(phase["name"])}"'
-        assert re.search(pattern, phases_match.group(0)), (
-            f"Phase {num} name '{phase['name']}' not found in check-phase.py PHASES"
-        )
-        # Check command is present in COMMANDS
         pattern = rf'"{num}":\s*"{re.escape(phase["command"])}"'
         assert re.search(pattern, commands_match.group(0)), (
             f"Phase {num} command '{phase['command']}' not found in check-phase.py COMMANDS"

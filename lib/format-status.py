@@ -18,12 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from flow_utils import current_branch, format_time, project_root
-
-PHASE_NAMES = {
-    1: "Start", 2: "Research", 3: "Design", 4: "Plan",
-    5: "Code", 6: "Review", 7: "Reflect", 8: "Cleanup",
-}
+from flow_utils import current_branch, format_time, project_root, PHASE_NAMES
 
 COMMANDS = {
     1: "/flow:start", 2: "/flow:research", 3: "/flow:design",

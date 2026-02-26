@@ -55,5 +55,5 @@ Review does not transition to Reflect until bin/ci is green.
 
 ## What Comes Next
 
-Phase 7: Reflect (`/flow:reflect`) — extract learnings and update
-CLAUDE.md before the PR is merged.
+Phase 7: Security (`/flow:security`) — scan for security issues in the
+feature diff before the PR is merged.

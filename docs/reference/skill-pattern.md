@@ -103,7 +103,7 @@ Replace `PREV` with the previous phase number and `PREV_NAME` with its name:
 
 **Rule:** Every phase that reads the codebase uses a mandatory sub-agent.
 
-Phases with sub-agents: Research, Design, Plan, Review.
+Phases with sub-agents: Research, Design, Plan, Review, Security.
 Phases without: Start, Code, Reflect, Cleanup.
 
 The pattern is the same in every phase:
@@ -128,7 +128,7 @@ phases. It reads the state file and the specific file it's modifying — nothing
 
 ## Note Capture at Transitions
 
-Every phase transition (Phases 1-7) includes a third option:
+Every phase transition (Phases 1-8) includes a third option:
 
 ```text
 "Phase X: Name is complete. Ready to begin Phase X+1?"

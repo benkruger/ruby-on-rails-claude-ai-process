@@ -1,9 +1,9 @@
 ---
-title: "Phase 8: Cleanup"
-nav_order: 11
+title: "Phase 9: Cleanup"
+nav_order: 12
 ---
 
-# Phase 8: Cleanup
+# Phase 9: Cleanup
 
 **Command:** `/flow:cleanup`
 
@@ -11,7 +11,7 @@ The final phase. Removes the git worktree and deletes the state file
 and log file. This is what fully closes out a feature and resets the
 environment for the next one.
 
-Best-effort — warns if the state file is missing or Phase 7 is incomplete,
+Best-effort — warns if the state file is missing or Phase 8 is incomplete,
 but proceeds after user confirmation.
 
 ---
@@ -40,7 +40,7 @@ This resets the SessionStart hook — the next session starts clean.
 
 ## What You Get
 
-By the end of Phase 8:
+By the end of Phase 9:
 
 - Worktree and all its contents removed
 - State file deleted — no more session hook injection for this feature
@@ -53,8 +53,8 @@ By the end of Phase 8:
 
 | Scenario | Behavior |
 |---|---|
-| State file exists, Phase 7 complete | Normal cleanup — no warnings |
-| State file exists, Phase 7 incomplete | Warns, proceeds after confirmation |
+| State file exists, Phase 8 complete | Normal cleanup — no warnings |
+| State file exists, Phase 8 incomplete | Warns, proceeds after confirmation |
 | State file missing | Warns, infers from git, proceeds after confirmation |
 
 Every step after confirmation is best-effort — if one fails, continue to the next.
@@ -63,7 +63,7 @@ Every step after confirmation is best-effort — if one fails, continue to the n
 
 ## Gates
 
-- Phase 7 complete is a warning, not a hard block
+- Phase 8 complete is a warning, not a hard block
 - Missing state file is a warning, not a hard block
 - Requires explicit user confirmation
 - Must run from project root

@@ -116,10 +116,10 @@ def _create_state_file(project_root, branch, feature_title, pr_url, pr_number):
     now = _now()
     phase_names = {
         1: "Start", 2: "Research", 3: "Design", 4: "Plan",
-        5: "Code", 6: "Review", 7: "Reflect", 8: "Cleanup",
+        5: "Code", 6: "Review", 7: "Security", 8: "Reflect", 9: "Cleanup",
     }
     phases = {}
-    for i in range(1, 9):
+    for i in range(1, 10):
         if i == 1:
             phases[str(i)] = {
                 "name": phase_names[i],

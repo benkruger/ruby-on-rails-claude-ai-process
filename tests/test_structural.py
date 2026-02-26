@@ -11,12 +11,12 @@ def _load_phases():
     return json.loads((REPO_ROOT / "flow-phases.json").read_text())
 
 
-def test_phases_has_1_through_8():
+def test_phases_has_1_through_9():
     data = _load_phases()
     phases = data["phases"]
-    for i in range(1, 9):
+    for i in range(1, 10):
         assert str(i) in phases, f"Phase {i} missing from flow-phases.json"
-    assert len(phases) == 8
+    assert len(phases) == 9
 
 
 def test_commands_match_flow_pattern():

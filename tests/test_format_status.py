@@ -219,8 +219,8 @@ def test_panel_next_label_when_phase_complete():
 
 def test_panel_all_complete_shows_timing():
     state = make_state(
-        current_phase=8,
-        phase_statuses={i: "complete" for i in range(1, 9)},
+        current_phase=9,
+        phase_statuses={i: "complete" for i in range(1, 10)},
     )
     state["phases"]["1"]["cumulative_seconds"] = 30
     state["phases"]["2"]["cumulative_seconds"] = 900
@@ -229,13 +229,14 @@ def test_panel_all_complete_shows_timing():
     state["phases"]["5"]["cumulative_seconds"] = 3600
     state["phases"]["6"]["cumulative_seconds"] = 450
     state["phases"]["7"]["cumulative_seconds"] = 300
-    state["phases"]["8"]["cumulative_seconds"] = 20
+    state["phases"]["8"]["cumulative_seconds"] = 300
+    state["phases"]["9"]["cumulative_seconds"] = 20
     panel = _mod.format_panel(state, VERSION)
     assert f"FLOW v{VERSION} — All Phases Complete!" in panel
     assert "Feature : Test Feature" in panel
     assert "PR      : https://github.com/test/test/pull/1" in panel
-    assert "Elapsed : 1h 58m" in panel
-    for i in range(1, 9):
+    assert "Elapsed : 2h 3m" in panel
+    for i in range(1, 10):
         assert f"[x] Phase {i}:" in panel
 
 
@@ -253,10 +254,10 @@ def test_panel_timing_formats():
     assert "(2m)" in panel
 
 
-def test_panel_has_all_8_phases():
+def test_panel_has_all_9_phases():
     state = make_state(current_phase=1, phase_statuses={1: "in_progress"})
     panel = _mod.format_panel(state, VERSION)
-    for i in range(1, 9):
+    for i in range(1, 10):
         assert f"Phase {i}:" in panel
 
 

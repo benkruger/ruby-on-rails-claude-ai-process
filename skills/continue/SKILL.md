@@ -33,8 +33,9 @@ The Skill to invoke maps directly to the current phase:
 | 4 — Plan | `flow:plan` |
 | 5 — Code | `flow:code` |
 | 6 — Review | `flow:review` |
-| 7 — Reflect | `flow:reflect` |
-| 8 — Cleanup | `flow:cleanup` |
+| 7 — Security | `flow:security` |
+| 8 — Reflect | `flow:reflect` |
+| 9 — Cleanup | `flow:cleanup` |
 
 ---
 

@@ -6,7 +6,7 @@ parent: Skills
 
 # /flow:reflect
 
-**Phase:** 7 — Reflect
+**Phase:** 8 — Reflect
 
 **Usage:** `/flow:reflect`
 
@@ -40,5 +40,5 @@ improvements, and notes plugin gaps. Runs before the PR merges.
 
 ## Gates
 
-- Phase 6: Review must be complete
+- Phase 7: Security must be complete
 - Only CLAUDE.md and `.claude/` files are committed — never application code

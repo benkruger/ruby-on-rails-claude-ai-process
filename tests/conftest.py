@@ -85,7 +85,7 @@ def make_state(current_phase=1, phase_statuses=None):
     """
     phase_statuses = phase_statuses or {}
     phases = {}
-    for i in range(1, 9):
+    for i in range(1, 10):
         status = phase_statuses.get(i, "pending")
         phases[str(i)] = {
             "name": PHASE_NAMES[i],

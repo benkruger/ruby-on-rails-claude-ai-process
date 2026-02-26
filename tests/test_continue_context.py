@@ -84,22 +84,22 @@ def test_happy_path_returns_ok_with_all_fields(state_dir, git_repo):
     assert data["worktree"] == ".worktrees/test-feature"
 
 
-def test_all_complete_returns_ok_with_phase_8(state_dir, git_repo):
+def test_all_complete_returns_ok_with_phase_9(state_dir, git_repo):
     branch_result = subprocess.run(
         ["git", "branch", "--show-current"],
         capture_output=True, text=True, cwd=str(git_repo),
     )
     branch = branch_result.stdout.strip()
     state = make_state(
-        current_phase=8,
-        phase_statuses={i: "complete" for i in range(1, 9)},
+        current_phase=9,
+        phase_statuses={i: "complete" for i in range(1, 10)},
     )
     write_state(state_dir, branch, state)
     result = _run(git_repo)
     assert result.returncode == 0
     data = json.loads(result.stdout)
     assert data["status"] == "ok"
-    assert data["current_phase"] == 8
+    assert data["current_phase"] == 9
     assert data["phase_name"] == "Cleanup"
     assert data["phase_command"] == "/flow:cleanup"
 
@@ -172,8 +172,8 @@ def test_panel_matches_format_status_output(state_dir, git_repo):
 # --- In-process unit tests ---
 
 
-def test_commands_dict_has_all_8():
-    for i in range(1, 9):
+def test_commands_dict_has_all_9():
+    for i in range(1, 10):
         assert i in _mod.COMMANDS
 
 

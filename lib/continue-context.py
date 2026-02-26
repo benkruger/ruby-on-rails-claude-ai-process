@@ -34,7 +34,7 @@ format_panel = _fs_mod.format_panel
 COMMANDS = {
     1: "/flow:start", 2: "/flow:research", 3: "/flow:design",
     4: "/flow:plan", 5: "/flow:code", 6: "/flow:review",
-    7: "/flow:reflect", 8: "/flow:cleanup",
+    7: "/flow:security", 8: "/flow:reflect", 9: "/flow:cleanup",
 }
 
 

@@ -248,17 +248,18 @@ def test_state_file_created(git_repo_with_remote):
     assert data["notes"] == []
 
 
-def test_state_file_has_all_8_phases(git_repo_with_remote):
-    """State file must have all 8 phases with correct names."""
+def test_state_file_has_all_9_phases(git_repo_with_remote):
+    """State file must have all 9 phases with correct names."""
     _run_no_gh(git_repo_with_remote, "test feature")
     state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
     data = json.loads(state_path.read_text())
 
     expected_names = {
         "1": "Start", "2": "Research", "3": "Design", "4": "Plan",
-        "5": "Code", "6": "Review", "7": "Reflect", "8": "Cleanup",
+        "5": "Code", "6": "Review", "7": "Security", "8": "Reflect",
+        "9": "Cleanup",
     }
-    assert len(data["phases"]) == 8
+    assert len(data["phases"]) == 9
     for num, name in expected_names.items():
         assert data["phases"][num]["name"] == name
 
@@ -273,7 +274,7 @@ def test_state_file_phase_fields(git_repo_with_remote):
         "name", "status", "started_at", "completed_at",
         "session_started_at", "cumulative_seconds", "visit_count",
     ]
-    for num in range(1, 9):
+    for num in range(1, 10):
         phase = data["phases"][str(num)]
         for field in required_fields:
             assert field in phase, f"Phase {num} missing field '{field}'"
@@ -298,7 +299,7 @@ def test_state_file_other_phases_pending(git_repo_with_remote):
     state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
     data = json.loads(state_path.read_text())
 
-    for num in range(2, 9):
+    for num in range(2, 10):
         phase = data["phases"][str(num)]
         assert phase["status"] == "pending"
         assert phase["started_at"] is None

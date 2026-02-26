@@ -150,7 +150,7 @@ def test_first_visit_no_previously_completed_message(git_repo, state_dir):
 
 
 def test_phase_8_requires_phase_7_complete(git_repo, state_dir):
-    """Phase 8 should follow the same rules — phase 7 must be complete."""
+    """Phase 8 (Reflect) requires phase 7 (Security) to be complete."""
     branch = subprocess.run(
         ["git", "branch", "--show-current"],
         cwd=str(git_repo), capture_output=True, text=True, check=True,
@@ -166,6 +166,25 @@ def test_phase_8_requires_phase_7_complete(git_repo, state_dir):
     result = _run(git_repo, 8)
     assert result.returncode == 1
     assert "Phase 7" in result.stdout
+
+
+def test_phase_9_requires_phase_8_complete(git_repo, state_dir):
+    """Phase 9 (Cleanup) requires phase 8 (Reflect) to be complete."""
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=str(git_repo), capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    state = make_state(
+        current_phase=9,
+        phase_statuses={
+            1: "complete", 2: "complete", 3: "complete", 4: "complete",
+            5: "complete", 6: "complete", 7: "complete", 8: "pending",
+        },
+    )
+    write_state(state_dir, branch, state)
+    result = _run(git_repo, 9)
+    assert result.returncode == 1
+    assert "Phase 8" in result.stdout
 
 
 # --- Worktree resolution ---

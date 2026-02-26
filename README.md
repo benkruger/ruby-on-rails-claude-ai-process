@@ -1,8 +1,8 @@
 # FLOW — Rails Development Lifecycle for Claude Code
 
-An opinionated 8-phase development plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that enforces research-first, design-first, TDD discipline on every feature in a Ruby on Rails codebase.
+An opinionated 9-phase development plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that enforces research-first, design-first, TDD discipline on every feature in a Ruby on Rails codebase.
 
-**Every feature. Same 8 phases. Same order. No shortcuts.**
+**Every feature. Same 9 phases. Same order. No shortcuts.**
 
 **Documentation:** [benkruger.github.io/flow](https://benkruger.github.io/flow)
 
@@ -19,8 +19,8 @@ FLOW imposes structure. Not bureaucracy — discipline.
 ## The Workflow
 
 ```text
-Start → Research → Design → Plan → Code → Review → Reflect → Cleanup
-  1         2         3       4      5        6        7          8
+Start → Research → Design → Plan → Code → Review → Security → Reflect → Cleanup
+  1         2         3       4      5        6         7          8         9
 ```
 
 | Phase | Command | Model | What happens |
@@ -31,8 +31,9 @@ Start → Research → Design → Plan → Code → Review → Reflect → Clean
 | **4: Plan** | `/flow:plan` | Sonnet | Sub-agent verifies tasks are executable, section-by-section approval, TDD ordering |
 | **5: Code** | `/flow:code` | **Opus** | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
 | **6: Review** | `/flow:review` | Sonnet | Sub-agent checks design alignment, research risk coverage, Rails anti-patterns |
-| **7: Reflect** | `/flow:reflect` | Sonnet | Corrections become reusable patterns, CLAUDE.md updated, plugin gaps noted |
-| **8: Cleanup** | `/flow:cleanup` | Haiku | Worktree removed, state file deleted, feature done |
+| **7: Security** | `/flow:security` | **Opus** | Sub-agent scans diff for vulnerabilities, auth gaps, data exposure, injection risks |
+| **8: Reflect** | `/flow:reflect` | Sonnet | Corrections become reusable patterns, CLAUDE.md updated, plugin gaps noted |
+| **9: Cleanup** | `/flow:cleanup` | Haiku | Worktree removed, state file deleted, feature done |
 
 ---
 
@@ -90,7 +91,7 @@ Available at any point in the workflow:
 
 ### Sub-Agent Architecture
 
-Five phases use sub-agents. Research, Design, Plan, and Review launch Explore-type sub-agents to read the codebase. Start launches a general-purpose Sonnet sub-agent when `bin/ci` fails. The main conversation stays focused on decisions while sub-agents handle the heavy lifting.
+Six phases use sub-agents. Research, Design, Plan, Review, and Security launch Explore-type sub-agents to read the codebase. Start launches a general-purpose Sonnet sub-agent when `bin/ci` fails. The main conversation stays focused on decisions while sub-agents handle the heavy lifting.
 
 ```text
 Main conversation          Sub-agent (Explore)
@@ -123,8 +124,9 @@ FLOW automatically selects the right model for each phase — Opus for hard thin
 | 4: Plan | Sonnet | Structured task generation, constrained by locked design |
 | 5: Code | **Opus** | Writing correct code against complex Rails codebase |
 | 6: Review | Sonnet | Sub-agent analyzes diff, fixes are targeted and small |
-| 7: Reflect | Sonnet | Synthesizing learnings into reusable patterns |
-| 8: Cleanup | Haiku | Delete worktree and state file |
+| 7: Security | **Opus** | Security analysis requires architectural reasoning about attack vectors and data flows |
+| 8: Reflect | Sonnet | Synthesizing learnings into reusable patterns |
+| 9: Cleanup | Haiku | Delete worktree and state file |
 | Commit | Sonnet | Writing clear, well-structured commit messages |
 
 ### State File Persistence
@@ -177,11 +179,11 @@ Every phase that allows it offers back-navigation when something was missed:
 
 | Phase | Can return to |
 |-------|--------------|
-| Research | Start |
 | Design | Research |
 | Plan | Design, Research |
 | Code | Plan, Design, Research |
-| Review | Code |
+| Review | Code, Plan, Design, Research |
+| Security | Code, Plan, Design, Research |
 
 When returning, state is reset appropriately. Later phases are invalidated. Prior findings are preserved and extended — never discarded.
 

@@ -12,7 +12,7 @@ parent: Skills
 
 Systematic review against design, research risks, and Rails
 anti-patterns. Fixes findings, runs bin/ci after every fix, then
-transitions to Reflect.
+transitions to Security.
 
 ---
 
@@ -41,6 +41,6 @@ transitions to Reflect.
 ## Gates
 
 - bin/ci must be green after every fix
-- bin/ci must be green before transitioning to Reflect
+- bin/ci must be green before transitioning to Security
 - Full diff must be read before review begins
 - Can return to Code, Plan, Design, or Research

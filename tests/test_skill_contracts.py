@@ -24,7 +24,7 @@ def _plugin_version():
 
 
 def _phase_skills():
-    """Return {phase_number: skill_name} for phases 1-8."""
+    """Return {phase_number: skill_name} for phases 1-9."""
     data = _load_phases()
     result = {}
     for num, phase in data["phases"].items():
@@ -50,10 +50,10 @@ def _utility_skills():
 # --- Phase gate consistency ---
 
 
-def test_phase_skills_2_through_7_have_hard_gate_checking_previous_phase():
-    """Phases 2-7 must have a HARD-GATE that checks phases.<N-1>.status."""
+def test_phase_skills_2_through_8_have_hard_gate_checking_previous_phase():
+    """Phases 2-8 must have a HARD-GATE that checks phases.<N-1>.status."""
     phase_skills = _phase_skills()
-    for phase_num in range(2, 8):
+    for phase_num in range(2, 9):
         skill_name = phase_skills[phase_num]
         content = _read_skill(skill_name)
         prev = phase_num - 1
@@ -133,8 +133,8 @@ def _clean_template_json(block):
     return cleaned
 
 
-def test_initial_state_template_has_all_8_phases():
-    """start-setup.py state template must have all 8 phases."""
+def test_initial_state_template_has_all_9_phases():
+    """start-setup.py state template must have all 9 phases."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "start_setup", LIB_DIR / "start-setup.py"
@@ -151,13 +151,13 @@ def test_initial_state_template_has_all_8_phases():
         state = json.loads((root / ".flow-states" / "test.json").read_text())
 
     phases = state["phases"]
-    assert len(phases) == 8, f"Expected 8 phases, got {len(phases)}"
+    assert len(phases) == 9, f"Expected 9 phases, got {len(phases)}"
 
     required_fields = [
         "name", "status", "started_at", "completed_at",
         "session_started_at", "cumulative_seconds", "visit_count",
     ]
-    for i in range(1, 9):
+    for i in range(1, 10):
         key = str(i)
         assert key in phases, f"Phase {i} missing from initial state template"
         for field in required_fields:
@@ -215,7 +215,7 @@ def test_phase_transitions_follow_sequence():
     phase_skills = _phase_skills()
     data = _load_phases()
 
-    for phase_num in range(1, 8):  # 1-7 transition to next
+    for phase_num in range(1, 9):  # 1-8 transition to next
         skill_name = phase_skills[phase_num]
         content = _read_skill(skill_name)
         next_num = phase_num + 1
@@ -262,7 +262,7 @@ def test_back_navigation_matches_can_return_to():
 def test_subagent_prompts_include_tool_restriction():
     """Research, Design, Plan, Review sub-agent prompts must include the
     tool restriction rule."""
-    subagent_skills = ["research", "design", "plan", "review"]
+    subagent_skills = ["research", "design", "plan", "review", "security"]
     for name in subagent_skills:
         content = _read_skill(name)
         assert "Glob" in content and "Read" in content, (
@@ -273,7 +273,7 @@ def test_subagent_prompts_include_tool_restriction():
 
 def test_subagent_types_match_requirements():
     """Research/Design/Plan/Review use Explore; Start uses general-purpose."""
-    explore_skills = ["research", "design", "plan", "review"]
+    explore_skills = ["research", "design", "plan", "review", "security"]
     for name in explore_skills:
         content = _read_skill(name)
         assert '"Explore"' in content, (
@@ -290,7 +290,7 @@ def test_subagent_types_match_requirements():
 
 
 def test_phase_skills_have_announce_banner():
-    """Every phase skill (1-8) must have an announce banner with correct
+    """Every phase skill (1-9) must have an announce banner with correct
     phase number, name, and version."""
     phase_skills = _phase_skills()
     data = _load_phases()
@@ -311,12 +311,12 @@ def test_phase_skills_have_announce_banner():
 
 
 def test_phase_skills_have_update_state_section():
-    """Phases 1-7 should have state update instructions.
-    Phase 8 (cleanup) deletes the state file instead of updating it."""
+    """Phases 1-8 should have state update instructions.
+    Phase 9 (cleanup) deletes the state file instead of updating it."""
     phase_skills = _phase_skills()
 
     for phase_num, skill_name in phase_skills.items():
-        if phase_num == 8:
+        if phase_num == 9:
             continue  # Cleanup deletes state, doesn't update it
         content = _read_skill(skill_name)
 
@@ -359,6 +359,7 @@ def test_model_frontmatter_matches_documented_table():
         "plan": "sonnet",
         "code": "opus",
         "review": "sonnet",
+        "security": "opus",
         "reflect": "sonnet",
         "cleanup": "haiku",
         "commit": "sonnet",
@@ -407,7 +408,7 @@ def test_phase_transition_names_current_phase():
     phase_skills = _phase_skills()
     data = _load_phases()
 
-    for phase_num in range(1, 8):  # 1-7 have transitions
+    for phase_num in range(1, 9):  # 1-8 have transitions
         skill_name = phase_skills[phase_num]
         content = _read_skill(skill_name)
         name = data["phases"][str(phase_num)]["name"]
@@ -419,23 +420,23 @@ def test_phase_transition_names_current_phase():
         )
 
 
-def test_phase_8_has_soft_gate_not_hard_gate():
-    """Phase 8 (cleanup) should have a SOFT-GATE, not a HARD-GATE.
+def test_phase_9_has_soft_gate_not_hard_gate():
+    """Phase 9 (cleanup) should have a SOFT-GATE, not a HARD-GATE.
     Cleanup warns but never blocks — it's the final escape hatch."""
     content = _read_skill("cleanup")
     assert "<SOFT-GATE>" in content, (
-        "Phase 8 (cleanup) should have <SOFT-GATE> — cleanup warns but never blocks"
+        "Phase 9 (cleanup) should have <SOFT-GATE> — cleanup warns but never blocks"
     )
     assert "<HARD-GATE>" not in content, (
-        "Phase 8 (cleanup) should NOT have <HARD-GATE> — cleanup must never block"
+        "Phase 9 (cleanup) should NOT have <HARD-GATE> — cleanup must never block"
     )
 
 
 def test_phase_transitions_have_note_capture_option():
-    """Phases 1-7 transition questions must offer a note-capture option.
+    """Phases 1-8 transition questions must offer a note-capture option.
     This is the third AskUserQuestion option at every phase boundary."""
     phase_skills = _phase_skills()
-    for phase_num in range(1, 8):
+    for phase_num in range(1, 9):
         skill_name = phase_skills[phase_num]
         content = _read_skill(skill_name)
         assert "correction or learning to capture" in content, (
@@ -461,7 +462,7 @@ def test_phase_1_hard_gate_checks_feature_name():
 
 
 def test_phase_skills_have_logging_section():
-    """All 8 phase skills must have a ## Logging section."""
+    """All 9 phase skills must have a ## Logging section."""
     phase_skills = _phase_skills()
     for phase_num, skill_name in phase_skills.items():
         content = _read_skill(skill_name)
@@ -470,8 +471,8 @@ def test_phase_skills_have_logging_section():
         )
 
 
-def test_phase_8_has_delete_state_instructions():
-    """Phase 8 (cleanup) should have instructions to delete the state file,
+def test_phase_9_has_delete_state_instructions():
+    """Phase 9 (cleanup) should have instructions to delete the state file,
     not update it."""
     content = _read_skill("cleanup")
     has_delete = (
@@ -480,12 +481,12 @@ def test_phase_8_has_delete_state_instructions():
         or "rm " in content
     )
     assert has_delete, (
-        "Phase 8 (cleanup) should have delete/remove instructions for state file"
+        "Phase 9 (cleanup) should have delete/remove instructions for state file"
     )
     # Should NOT have "Update State" section like other phases
     has_update_state = bool(re.search(r"##.*Update State", content, re.IGNORECASE))
     assert not has_update_state, (
-        "Phase 8 (cleanup) should NOT have an 'Update State' section — "
+        "Phase 9 (cleanup) should NOT have an 'Update State' section — "
         "it deletes the state file instead"
     )
 
@@ -547,7 +548,7 @@ def test_can_return_to_targets_are_reachable():
 
 
 def test_status_formatter_phase_names_match_flow_phases():
-    """format-status.py panel must include all 8 phases with correct names from
+    """format-status.py panel must include all 9 phases with correct names from
     flow-phases.json."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
@@ -571,7 +572,7 @@ def test_status_formatter_phase_names_match_flow_phases():
 
 
 def test_phase_skills_complete_banner_includes_timing():
-    """Every phase skill (1-8) COMPLETE banner must include version and
+    """Every phase skill (1-9) COMPLETE banner must include version and
     formatted_time in parentheses after COMPLETE."""
     phase_skills = _phase_skills()
     data = _load_phases()
@@ -690,7 +691,7 @@ def test_phase_state_updates_suppress_output():
     'Phase 1 started at X, now Y = Z seconds.' before the banner."""
     phase_skills = _phase_skills()
 
-    for phase_num in range(1, 8):
+    for phase_num in range(1, 9):
         skill_name = phase_skills[phase_num]
         content = _read_skill(skill_name)
 
@@ -715,7 +716,7 @@ def test_phase_complete_banners_use_formatted_time():
 
 
 def test_phase_skills_have_time_format_instruction():
-    """Phases 1-8 must include time formatting instructions near the
+    """Phases 1-9 must include time formatting instructions near the
     completion banner so Claude formats the time correctly."""
     phase_skills = _phase_skills()
 

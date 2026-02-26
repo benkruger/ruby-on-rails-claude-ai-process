@@ -49,7 +49,7 @@ already closed, worktree already removed), it continues to the next.
 
 | | `/flow:cleanup` | `/flow:abort` |
 |---|---|---|
-| **When** | After Reflect (Phase 7) | Any phase |
+| **When** | After Reflect (Phase 8) | Any phase |
 | **PR** | Left open (merge it yourself) | Closed |
 | **Remote branch** | Left intact | Deleted |
 | **Worktree** | Removed | Removed |

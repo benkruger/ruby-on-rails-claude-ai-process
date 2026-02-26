@@ -1,10 +1,10 @@
 ---
 name: reflect
-description: "Phase 7: Reflect — review what went wrong, capture learnings in CLAUDE.md, note plugin improvements. Runs before the PR is merged. The only commits are CLAUDE.md and .claude/ changes."
+description: "Phase 8: Reflect — review what went wrong, capture learnings in CLAUDE.md, note plugin improvements. Runs before the PR is merged. The only commits are CLAUDE.md and .claude/ changes."
 model: sonnet
 ---
 
-# FLOW Reflect — Phase 7: Reflect
+# FLOW Reflect — Phase 8: Reflect
 
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
@@ -16,9 +16,9 @@ stop immediately and show the error to the user.
 2. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
    - If the file does not exist: STOP. "BLOCKED: No FLOW feature in progress.
      Run /flow:start first."
-3. Check `phases.6.status` in the JSON.
-   - If not `"complete"`: STOP. "BLOCKED: Phase 6: Review must be
-     complete. Run /flow:review first."
+3. Check `phases.7.status` in the JSON.
+   - If not `"complete"`: STOP. "BLOCKED: Phase 7: Security must be
+     complete. Run /flow:security first."
 </HARD-GATE>
 
 Keep the project root, branch, and state data from the gate in context —
@@ -32,19 +32,19 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ````markdown
 ```text
 ============================================
-  FLOW v0.8.5 — Phase 7: Reflect — STARTING
+  FLOW v0.8.5 — Phase 8: Reflect — STARTING
 ============================================
 ```
 ````
 
 ## Update State
 
-Using the state data from the gate, cd into the worktree and update Phase 7:
+Using the state data from the gate, cd into the worktree and update Phase 8:
 - `status` → `in_progress`
 - `started_at` → current UTC timestamp (only if null — never overwrite)
 - `session_started_at` → current UTC timestamp
 - `visit_count` → increment by 1
-- `current_phase` → `7`
+- `current_phase` → `8`
 
 ## Logging
 
@@ -247,12 +247,12 @@ Use AskUserQuestion:
 
 ## Done — Update state and complete phase
 
-Update Phase 7 in state:
+Update Phase 8 in state:
 1. `cumulative_seconds` += `current_time - session_started_at`. Do not print the calculation.
 2. `status` → `complete`
 3. `completed_at` → current UTC timestamp
 4. `session_started_at` → `null`
-5. `current_phase` → `8`
+5. `current_phase` → `9`
 
 Format `cumulative_seconds` as `<formatted_time>`: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60.
 
@@ -261,7 +261,7 @@ Print inside a fenced code block:
 ````markdown
 ```text
 ============================================
-  FLOW v0.8.5 — Phase 7: Reflect — COMPLETE (<formatted_time>)
+  FLOW v0.8.5 — Phase 8: Reflect — COMPLETE (<formatted_time>)
   Merge the PR, then run /flow:cleanup.
 ============================================
 ```
@@ -269,16 +269,16 @@ Print inside a fenced code block:
 
 Invoke `flow:status`, then use AskUserQuestion:
 
-> "Phase 7: Reflect is complete. The PR now includes CLAUDE.md improvements. Ready to begin Phase 8: Cleanup?"
+> "Phase 8: Reflect is complete. The PR now includes CLAUDE.md improvements. Ready to begin Phase 9: Cleanup?"
 >
-> - **Yes, start Phase 8 now** — invoke `flow:cleanup`
+> - **Yes, start Phase 9 now** — invoke `flow:cleanup`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
 
 **If "I have a correction or learning to capture":**
 1. Ask the user what they want to capture
 2. Invoke `/flow:note` with their message
-3. Re-ask with only "Yes, start Phase 8 now" and "Not yet"
+3. Re-ask with only "Yes, start Phase 9 now" and "Not yet"
 
 **If Yes** — invoke `flow:cleanup` using the Skill tool.
 

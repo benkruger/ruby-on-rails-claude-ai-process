@@ -1,9 +1,9 @@
 ---
-title: "Phase 7: Reflect"
-nav_order: 9
+title: "Phase 8: Reflect"
+nav_order: 10
 ---
 
-# Phase 7: Reflect
+# Phase 8: Reflect
 
 **Command:** `/flow:reflect`
 
@@ -50,4 +50,4 @@ Sources 1 and 2 survive compaction. Context is a bonus if available.
 ## What Comes Next
 
 Merge the PR manually (which now includes CLAUDE.md improvements),
-then run Phase 8: Cleanup (`/flow:cleanup`).
+then run Phase 9: Cleanup (`/flow:cleanup`).

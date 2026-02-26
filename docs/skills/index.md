@@ -23,8 +23,9 @@ These skills correspond directly to a workflow phase. Each one starts and ends w
 | [`/flow:plan`](flow-plan.md) | 4 — Plan | Break design into ordered TDD tasks, section by section |
 | [`/flow:code`](flow-code.md) | 5 — Code | TDD task by task, diff review, bin/ci gate before each commit |
 | [`/flow:review`](flow-review.md) | 6 — Review | Design alignment, research risk coverage, Rails anti-pattern check |
-| [`/flow:reflect`](flow-reflect.md) | 7 — Reflect | Extract learnings, update CLAUDE.md, note plugin gaps |
-| [`/flow:cleanup`](flow-cleanup.md) | 8 — Cleanup | Remove worktree and delete state file — final phase |
+| [`/flow:security`](flow-security.md) | 7 — Security | Scan for security issues in the feature diff |
+| [`/flow:reflect`](flow-reflect.md) | 8 — Reflect | Extract learnings, update CLAUDE.md, note plugin gaps |
+| [`/flow:cleanup`](flow-cleanup.md) | 9 — Cleanup | Remove worktree and delete state file — final phase |
 
 ---
 

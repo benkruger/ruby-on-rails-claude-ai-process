@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FLOW — Rails Development Lifecycle for Claude Code</title>
-  <meta name="description" content="An opinionated 8-phase software development lifecycle plugin for Claude Code, built for Ruby on Rails. Research-first, design-first, TDD. Every feature, same phases, no shortcuts.">
+  <meta name="description" content="An opinionated 9-phase software development lifecycle plugin for Claude Code, built for Ruby on Rails. Research-first, design-first, TDD. Every feature, same phases, no shortcuts.">
   <style>
     :root {
       --bg: #ffffff;
@@ -475,7 +475,7 @@
 
   <header>
     <h1><a href="https://github.com/benkruger/flow" style="color: inherit; text-decoration: none;"><span>FLOW</span></a></h1>
-    <p class="tagline">An opinionated 8-phase software development lifecycle for Claude Code — built for Ruby on Rails. Every feature follows the same phases in the same order. No shortcuts.</p>
+    <p class="tagline">An opinionated 9-phase software development lifecycle for Claude Code — built for Ruby on Rails. Every feature follows the same phases in the same order. No shortcuts.</p>
   </header>
 
   <!-- WHY -->
@@ -489,7 +489,7 @@
   <!-- HOW -->
   <section>
     <h2>How</h2>
-    <p>Every feature goes through an <span class="highlight-phrase">8-phase orchestration</span>. Each phase has mandatory entry guards, structured outputs written to a persistent state file, and back-navigation when something was missed. No phase can be skipped.</p>
+    <p>Every feature goes through a <span class="highlight-phrase">9-phase orchestration</span>. Each phase has mandatory entry guards, structured outputs written to a persistent state file, and back-navigation when something was missed. No phase can be skipped.</p>
 
     <div class="pipeline">
       <div class="pipeline-step">
@@ -529,27 +529,33 @@
       </div>
       <div class="pipeline-step">
         <div class="step-num">7</div>
+        <span class="step-label">Security</span>
+        <span class="step-detail">Vulnerability scan &middot; auth gaps &middot; data exposure &middot; injection risks</span>
+        <span class="sub-agent-badge">sub-agent</span>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">8</div>
         <span class="step-label">Reflect</span>
         <span class="step-detail">Corrections become CLAUDE.md patterns &middot; plugin gaps noted</span>
       </div>
       <div class="pipeline-step">
-        <div class="step-num">8</div>
+        <div class="step-num">9</div>
         <span class="step-label">Cleanup</span>
         <span class="step-detail">Worktree removed &middot; state file deleted &middot; feature done</span>
       </div>
     </div>
 
-    <p>Phases 2, 3, 4, and 6 use mandatory Explore-type sub-agents to read the codebase. Phase 1 uses a general-purpose Sonnet sub-agent to fix CI failures automatically &mdash; whether from a dirty main branch, gem upgrade breakage, or flaky tests. The main conversation stays focused on decisions while sub-agents handle the heavy lifting.</p>
+    <p>Phases 2, 3, 4, 6, and 7 use mandatory Explore-type sub-agents to read the codebase. Phase 1 uses a general-purpose Sonnet sub-agent to fix CI failures automatically &mdash; whether from a dirty main branch, gem upgrade breakage, or flaky tests. The main conversation stays focused on decisions while sub-agents handle the heavy lifting.</p>
 
     <h3>Architecture</h3>
     <div class="features">
       <div class="feature">
         <h4>Sub-Agent Architecture</h4>
-        <p>Research, Design, Plan, and Review launch Explore sub-agents. Start launches a Sonnet sub-agent to fix CI failures. By the time Code begins, every callback has been found, every risk documented. Code trusts the state file.</p>
+        <p>Research, Design, Plan, Review, and Security launch Explore sub-agents. Start launches a Sonnet sub-agent to fix CI failures. By the time Code begins, every callback has been found, every risk documented. Code trusts the state file.</p>
       </div>
       <div class="feature">
         <h4>Smart Model Selection</h4>
-        <p>Each phase automatically selects the right model via skill frontmatter. Opus for Design and Code where reasoning matters most. Sonnet for structured phases. Haiku for mechanical steps. CI failures in Start are delegated to a Sonnet sub-agent.</p>
+        <p>Each phase automatically selects the right model via skill frontmatter. Opus for Design, Code, and Security where reasoning matters most. Sonnet for structured phases. Haiku for mechanical steps. CI failures in Start are delegated to a Sonnet sub-agent.</p>
       </div>
       <div class="feature">
         <h4>State File Persistence</h4>
@@ -731,7 +737,7 @@
   <!-- CTA -->
   <section style="padding: 64px 0;">
     <h2>Get Started</h2>
-    <p>All 8 phase skills, state file infrastructure, session hooks, and reference documentation in one plugin.</p>
+    <p>All 9 phase skills, state file infrastructure, session hooks, and reference documentation in one plugin.</p>
 
     <p style="color: var(--text-muted); font-size: 15px; margin-bottom: 12px;">Step 1: Install in Claude Code</p>
     <div style="position: relative;">

@@ -23,7 +23,7 @@ from flow_utils import current_branch, format_time, project_root, PHASE_NAMES
 COMMANDS = {
     1: "/flow:start", 2: "/flow:research", 3: "/flow:design",
     4: "/flow:plan", 5: "/flow:code", 6: "/flow:review",
-    7: "/flow:reflect", 8: "/flow:cleanup",
+    7: "/flow:security", 8: "/flow:reflect", 9: "/flow:cleanup",
 }
 
 # Column width for phase name alignment
@@ -56,7 +56,7 @@ def format_panel(state, version, now=None):
     # Check if all phases are complete
     all_complete = all(
         phases.get(str(i), {}).get("status") == "complete"
-        for i in range(1, 9)
+        for i in range(1, 10)
     )
 
     if all_complete:
@@ -93,7 +93,7 @@ def format_panel(state, version, now=None):
 
     current_phase_data = None
 
-    for i in range(1, 9):
+    for i in range(1, 10):
         phase = phases.get(str(i), {})
         status = phase.get("status", "pending")
         name = PHASE_NAMES[i]
@@ -150,7 +150,7 @@ def _format_all_complete(state, version, phases):
     # Total elapsed from phase timings
     total = sum(
         phases.get(str(i), {}).get("cumulative_seconds", 0)
-        for i in range(1, 9)
+        for i in range(1, 10)
     )
     lines.append(f"  Elapsed : {format_time(total)}")
 
@@ -158,7 +158,7 @@ def _format_all_complete(state, version, phases):
     lines.append("  Phases")
     lines.append("  ------")
 
-    for i in range(1, 9):
+    for i in range(1, 10):
         phase = phases.get(str(i), {})
         seconds = phase.get("cumulative_seconds", 0)
         time_str = format_time(seconds)

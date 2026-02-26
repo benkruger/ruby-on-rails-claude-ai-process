@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-A Claude Code plugin (`flow:` namespace) implementing an opinionated 8-phase Rails development lifecycle. Skills live in `skills/<name>/SKILL.md`. State lives in `.flow-states/<branch>.json` in the target Rails project.
+A Claude Code plugin (`flow:` namespace) implementing an opinionated 9-phase Rails development lifecycle. Skills live in `skills/<name>/SKILL.md`. State lives in `.flow-states/<branch>.json` in the target Rails project.
 
 ## Key Files
 

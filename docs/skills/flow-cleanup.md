@@ -6,12 +6,12 @@ parent: Skills
 
 # /flow:cleanup
 
-**Phase:** 8 — Cleanup
+**Phase:** 9 — Cleanup
 
 **Usage:** `/flow:cleanup`
 
 The final phase. Removes the git worktree and deletes the state file.
-Best-effort — warns if the state file is missing or Phase 7 is incomplete,
+Best-effort — warns if the state file is missing or Phase 8 is incomplete,
 but proceeds after user confirmation.
 
 ---
@@ -42,8 +42,8 @@ Cleanup handles three scenarios gracefully:
 
 | Scenario | Behavior |
 |---|---|
-| State file exists, Phase 7 complete | Normal cleanup — no warnings |
-| State file exists, Phase 7 incomplete | Warns, proceeds after confirmation |
+| State file exists, Phase 8 complete | Normal cleanup — no warnings |
+| State file exists, Phase 8 incomplete | Warns, proceeds after confirmation |
 | State file missing | Warns, infers from git state, proceeds after confirmation |
 
 Every step after user confirmation is best-effort. If worktree removal
@@ -54,7 +54,7 @@ state file doesn't exist, it notes that and finishes.
 
 ## Gates
 
-- Phase 7 complete is a warning, not a hard block
+- Phase 8 complete is a warning, not a hard block
 - Missing state file is a warning, not a hard block
 - Requires explicit user confirmation before removing the worktree
 - Must run from the project root — never from inside the worktree

@@ -730,3 +730,34 @@ def test_phase_skills_have_time_format_instruction():
             f"Phase {phase_num} ({skill_name}) missing time format "
             f"instruction — must specify format (Xh Ym / Xm / <1m)"
         )
+
+
+# --- Commit --auto flag ---
+
+
+def test_commit_auto_flag_restriction():
+    """Both commit SKILL.md copies must document that --auto is user-invoked only."""
+    plugin_commit = (SKILLS_DIR / "commit" / "SKILL.md").read_text()
+    maintainer_commit = (
+        REPO_ROOT / ".claude" / "skills" / "commit" / "SKILL.md"
+    ).read_text()
+
+    restriction = "`--auto` is user-invoked only"
+    assert restriction in plugin_commit, (
+        "skills/commit/SKILL.md missing '--auto is user-invoked only' restriction"
+    )
+    assert restriction in maintainer_commit, (
+        ".claude/skills/commit/SKILL.md missing '--auto is user-invoked only' restriction"
+    )
+
+
+def test_no_skill_invokes_commit_with_auto():
+    """No skill other than commit itself may reference /flow:commit --auto."""
+    for d in sorted(SKILLS_DIR.iterdir()):
+        if not d.is_dir() or d.name == "commit":
+            continue
+        content = (d / "SKILL.md").read_text()
+        assert "/flow:commit --auto" not in content, (
+            f"skills/{d.name}/SKILL.md references '/flow:commit --auto' — "
+            f"--auto is user-invoked only, skills must not invoke it programmatically"
+        )

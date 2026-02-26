@@ -51,6 +51,14 @@ Get `<branch>` from `git branch --show-current`.
 
 ---
 
+## Flag: --auto
+
+When the user invokes `/flow:commit --auto`, skip the Step 3 approval prompt and proceed directly to Step 4 (commit and push). Everything else is identical: `bin/ci`, diff display, commit message generation and display, pull-before-push.
+
+`--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically.
+
+---
+
 ## Process
 
 ### Step 0 — Run tests
@@ -162,7 +170,9 @@ Display the full message under the heading **Commit Message** before asking for 
 
 ### Step 3 — Ask for approval
 
-Use the `AskUserQuestion` tool with exactly these two options:
+If `--auto` was passed, skip this step and proceed directly to Step 4.
+
+Otherwise, use the `AskUserQuestion` tool with exactly these two options:
 
 Question: "Approve this commit?"
 - Option 1: **Approve** — "Looks good, commit and push"
@@ -226,7 +236,8 @@ will make fixes and re-invoke the commit skill when ready.
 ### Hard Rules
 
 - Never commit without showing the diff first
-- Never skip the approval step
+- Never skip the approval step — unless `--auto` was passed by the user
+- `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically.
 - Never use `--no-verify`
 - Never add Co-Authored-By trailers or attribution lines — commits are authored by the user alone
 - Always pull before pushing — other sessions may have merged changes

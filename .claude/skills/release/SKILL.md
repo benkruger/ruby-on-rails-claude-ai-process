@@ -48,10 +48,10 @@ Then check `conclusion`:
 
 - `"success"` → proceed
 - `"failure"` or `"cancelled"` → stop: "CI failed on main. Fix tests before releasing."
-- `null` (in_progress/queued) → poll: sleep 30 seconds, re-check, up to 3 retries
-  (90 seconds total). Print "CI still running... checking again in 30s (attempt N/3)"
+- `null` (in_progress/queued) → poll: sleep 15 seconds, re-check, up to 3 retries
+  (45 seconds total). Print "CI still running... checking again in 15s (attempt N/3)"
   each time. If still not done after 3 attempts, stop: "CI hasn't finished after
-  90 seconds. Check GitHub Actions manually."
+  45 seconds. Check GitHub Actions manually."
 
 ## Step 4 — Show what changed since last release
 
@@ -75,7 +75,7 @@ git log --oneline HEAD~20..HEAD
 
 Display the commit list. This is what goes into the release.
 
-## Step 5 — Determine the new version
+## Step 5 — Determine version and draft release notes
 
 Read the current version from `.claude-plugin/plugin.json`.
 
@@ -90,19 +90,23 @@ these rules (apply the highest that matches):
 - **Patch** — all commits are bug fixes, doc corrections, wording
   improvements, or permission/config tweaks
 
-State your recommendation and the one-line reason before asking.
+Then draft the release notes section:
 
-Use AskUserQuestion:
+```
+## v<new_version> — <short description>
 
-> "I recommend **<type>** (<new_version>) — <one sentence reason>.
->  Confirm the release type:"
-> - **<Recommended type>** — "<new_version>" (Recommended)
-> - **Patch** — "<major>.<minor>.<patch+1>"
-> - **Minor** — "<major>.<minor+1>.0"
-> - **Major** — "<major+1>.0.0"
+<Summary of what changed — written from the commit list in Step 4.
+Group by: new features, fixes, improvements. Be concise.>
+```
 
-Put the recommended type first in the list. Show all three options so
-the user can override.
+Present the recommendation and the draft release notes in your response,
+then use one AskUserQuestion:
+
+> "I recommend **<type>** (v<new_version>) — <one sentence reason>.
+>  Release notes are above. Approve this release?"
+> - **Approve** (Recommended)
+> - **Different version** — specify in Other
+> - **Notes need changes** — describe in Other
 
 ## Step 6 — Bump version in all files
 
@@ -117,26 +121,35 @@ and all skill banners in one step.
 
 ## Step 7 — Update RELEASE-NOTES.md
 
-Read the current `RELEASE-NOTES.md`. Add a new section at the top (below the `# Release Notes` heading) for the new version:
+Read the current `RELEASE-NOTES.md`. Add the release notes section
+approved in Step 5 at the top (below the `# Release Notes` heading).
 
+## Step 8 — Commit and push
+
+```bash
+git add -A
 ```
-## v<new_version> — <short description>
 
-<Summary of what changed — written from the commit list in Step 5.
-Group by: new features, fixes, improvements. Be concise.>
+Write `Release v<new_version>` to `.flow-commit-msg` via the Write tool, then:
+
+```bash
+git commit -F .flow-commit-msg
 ```
 
-Use AskUserQuestion to show the draft release notes:
+```bash
+rm .flow-commit-msg
+```
 
-> "Do these release notes look right?"
-> - **Yes, looks good**
-> - **Needs changes** — describe in Other
+```bash
+git pull origin main
+```
 
-## Step 8 — Commit the version bump
+```bash
+git push origin main
+```
 
-Use `/commit` to review and commit the version bump. The commit message
-should be `Release v<new_version>` — no body needed, the release notes
-tell the story.
+No diff review. No `bin/ci`. No approval prompt — CI was verified in
+Step 3, changes were shown in Step 4, and the user approved in Step 5.
 
 ## Step 9 — Tag and push
 

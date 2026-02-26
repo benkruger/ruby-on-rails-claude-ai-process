@@ -31,10 +31,9 @@ If you are in an active session and already know the current phase:
 
 If this is a new session or context has been compacted:
 
-1. Finds `.flow-states/<branch>.json` from the project root
-2. Changes into the worktree
-3. Invokes `/flow:status` to display current state
-4. Asks whether to continue the current phase
+1. Runs `bin/flow continue-context` to load branch, state, and status panel in one call
+2. Changes into the worktree and displays the status panel
+3. Asks whether to continue the current phase
 
 ---
 

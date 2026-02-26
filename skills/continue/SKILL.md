@@ -43,32 +43,34 @@ The Skill to invoke maps directly to the current phase:
 If this is a new session or you have no context about the current
 feature, rebuild from the state file:
 
-### Step 1 — Find the state file
+### Step 1 — Load context
 
-1. Get the current branch: run `git branch --show-current`.
-2. Find the project root: run `git worktree list --porcelain` and note the
-   path on the first `worktree` line.
-3. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
-   - If the file does not exist: report "No FLOW feature in progress on
-     branch '<branch>'." and stop.
+```bash
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow continue-context
+```
 
-If no state file is found — report it and stop.
+Parse the JSON output:
 
-### Step 2 — cd into the worktree
+- `"status": "no_state"` — report "No FLOW feature in progress on
+  branch '<branch>'." and stop.
+- `"status": "error"` — report the error message and stop.
+- `"status": "ok"` — continue to Step 2. The response contains
+  `panel`, `worktree`, `current_phase`, `phase_name`, and
+  `phase_command`.
 
-Read `worktree` from the state file and cd there.
+### Step 2 — cd and show status
 
-### Step 3 — Show status panel
+cd into the `worktree` path from Step 1, then print the `panel`
+inside a fenced code block (triple backticks with `text` language tag).
 
-Invoke the `flow:status` skill to display current state.
+### Step 3 — Ask the transition question
 
-### Step 4 — Ask the transition question
-
-Use AskUserQuestion:
+Use AskUserQuestion with the `phase_name` and `current_phase` from
+Step 1:
 
 > "Ready to continue Phase X: Name?"
 >
-> - **Yes, continue** — invoke the phase skill using the Skill tool
+> - **Yes, continue** — invoke the `phase_command` skill using the Skill tool
 > - **Not yet** — print the paused banner and stop
 
 ---

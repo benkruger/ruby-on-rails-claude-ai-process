@@ -1,5 +1,15 @@
 # Release Notes
 
+## v0.9.0 — Security phase with 10 actionable checks
+
+- **New**: Phase 7: Security — mandatory Explore sub-agent runs 10 security checks against the feature diff: authorization gaps, unscoped record access, mass assignment, SQL injection, data exposure, CSRF bypass, open redirects, RuboCop disables, auth test coverage, and route exposure
+- **New**: Per-finding commit workflow — each confirmed finding is fixed, tested with bin/ci, and committed individually
+- **New**: State tracking — findings and clean checks recorded in `state["security"]` for resumability across sessions
+- **Changed**: No severity tiers — every confirmed finding gets fixed
+- **Changed**: No back-navigation from Security — security issues are code-level fixes, not design problems
+
+---
+
 ## v0.8.5 — Performance and cleanup
 
 - **Renamed**: `/flow:resume` → `/flow:continue` to avoid conflict with Claude Code's built-in `/resume` command

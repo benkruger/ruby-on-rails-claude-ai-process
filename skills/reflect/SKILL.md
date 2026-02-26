@@ -10,16 +10,20 @@ model: sonnet
 Run this phase entry check as your very first action. If any check fails,
 stop immediately and show the error to the user.
 
-1. Find the project root: run `git worktree list --porcelain` and note the
-   path on the first `worktree` line.
-2. Get the current branch: run `git branch --show-current`.
-3. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
+1. Run both commands in parallel (two Bash calls in one response):
+   - `git worktree list --porcelain` — note the path on the first `worktree` line (this is the project root).
+   - `git branch --show-current` — this is the current branch.
+2. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
    - If the file does not exist: STOP. "BLOCKED: No FLOW feature in progress.
      Run /flow:start first."
-4. Check `phases.6.status` in the JSON.
+3. Check `phases.6.status` in the JSON.
    - If not `"complete"`: STOP. "BLOCKED: Phase 6: Review must be
      complete. Run /flow:review first."
 </HARD-GATE>
+
+Keep the project root, branch, and state data from the gate in context —
+all subsequent steps use them directly. Do not re-read the state file or
+re-run git commands to gather the same information.
 
 ## Announce
 
@@ -35,9 +39,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Update State
 
-Read `.flow-states/<branch>.json`. cd into the worktree.
-
-Update Phase 7:
+Using the state data from the gate, cd into the worktree and update Phase 7:
 - `status` → `in_progress`
 - `started_at` → current UTC timestamp (only if null — never overwrite)
 - `session_started_at` → current UTC timestamp
@@ -46,22 +48,8 @@ Update Phase 7:
 
 ## Logging
 
-After every Bash command completes, log it to `.flow-states/<branch>.log`.
-
-Run the command with exit code capture:
-
-```bash
-COMMAND; EC=$?; exit $EC
-```
-
-Then Read `.flow-states/<branch>.log` (empty string if it does not
-exist yet) and Write it back with this line appended:
-
-```text
-YYYY-MM-DDTHH:MM:SSZ [Phase 7] Step X — desc (exit EC)
-```
-
-Get `<branch>` from the state file.
+No logging for this phase. Reflect runs no Bash commands beyond the entry
+gate — there is nothing to log.
 
 ---
 
@@ -73,7 +61,7 @@ Read and synthesise from three sources before asking the user anything:
 
 For each phase, note:
 - `visit_count` > 1 → this phase had friction, was revisited
-- `cumulative_seconds` unusually high → this phase took much longer than expected
+- `cumulative_seconds` — note the time each phase took for context
 - `state["notes"]` → explicit corrections captured during the session
 - `state["research"]["risks"]` → risks found, check if any caused problems
 - `state["research"]["open_questions"]` → anything that was unresolved

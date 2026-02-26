@@ -1,5 +1,12 @@
 # Release Notes
 
+## v0.10.0 — Auto-mode flags for commit and release
+
+- **New**: `/flow:commit --auto` skips the approval prompt — user-invoked only, skills cannot call it programmatically
+- **New**: `/release` now auto-proceeds by default (no approval pause at Step 5); `--manual` flag restores the old approval prompt for version overrides or dry-runs
+
+---
+
 ## v0.9.0 — Security phase with 10 actionable checks
 
 - **New**: Phase 7: Security — mandatory Explore sub-agent runs 10 security checks against the feature diff: authorization gaps, unscoped record access, mass assignment, SQL injection, data exposure, CSRF bypass, open redirects, RuboCop disables, auth test coverage, and route exposure

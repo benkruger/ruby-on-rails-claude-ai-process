@@ -7,18 +7,21 @@ model: haiku
 # FLOW Cleanup — Phase 8: Cleanup
 
 <SOFT-GATE>
-Run this phase entry check as your very first action. This gate never
+Run this entry check as your very first action. This gate never
 blocks — it records warnings for the confirmation step.
 
 1. Find the project root: run `git worktree list --porcelain` and note the
    path on the first `worktree` line.
 2. Get the current branch: run `git branch --show-current`.
 3. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
+   - If the file exists: extract `feature`, `worktree`, and
+     `cumulative_seconds`. Check `phases.7.status` — if not `"complete"`,
+     record warning "Phase 7 not complete (status: <actual status>)."
    - If the file does not exist: record warning "No state file found for
      branch '<branch>'."
-4. If the file exists, check `phases.7.status` in the JSON.
-   - If not `"complete"`: record warning "Phase 7 not complete
-     (status: <actual status>)."
+
+Use these values for all subsequent steps — do not re-read the state file
+or re-run git commands to gather the same information.
 
 Carry any warnings forward to the confirmation step in Step 2.
 </SOFT-GATE>
@@ -37,34 +40,21 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Logging
 
-After every Bash command completes, log it to `.flow-states/<branch>.log`.
-
-Run the command with exit code capture:
-
-```bash
-COMMAND; EC=$?; exit $EC
-```
-
-Then Read `.flow-states/<branch>.log` (empty string if it does not
-exist yet) and Write it back with this line appended:
-
-```text
-YYYY-MM-DDTHH:MM:SSZ [Phase 8] Step X — desc (exit EC)
-```
-
-Get `<branch>` from the state file or `git branch --show-current`.
+No logging for this phase. Cleanup deletes the log file as part of its
+operation — writing log entries that are immediately deleted is pointless.
 
 ---
 
 ## Steps
 
-### Step 1 — Read state (handle missing)
+### Step 1 — Handle missing state file
 
-If the state file exists, read `.flow-states/<branch>.json` from
-the project root. Note the `worktree` and `feature` values.
+This step only runs if the SOFT-GATE found no state file. If the state
+file existed, the SOFT-GATE already extracted all needed values — skip
+to Step 2.
 
-If the state file is missing, infer what you can:
-- `branch` from `git branch --show-current`
+Infer what you can:
+- `branch` from `git branch --show-current` (already known from the gate)
 - Detect worktree path from `git worktree list`
 - Use the branch name as the feature name
 
@@ -94,7 +84,7 @@ If there were no warnings:
 - **Yes, clean up** — proceed
 - **No, not yet** — stop here
 
-### Steps 3–6 — Run cleanup script
+### Step 3 — Run cleanup script
 
 Run the cleanup script from the project root:
 

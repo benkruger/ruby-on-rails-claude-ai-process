@@ -32,11 +32,23 @@ def _all_docs_files():
 
 
 def _logging_skills():
-    """Return skill names that have a ## Logging section."""
-    return [
-        name for name in _all_skill_names()
-        if "## Logging" in _read_skill(name)
-    ]
+    """Return skill names that actively log (have ## Logging with content).
+
+    Skills that keep ## Logging but explicitly opt out (e.g., cleanup says
+    'No logging for this phase') are excluded from detailed logging checks.
+    """
+    result = []
+    for name in _all_skill_names():
+        content = _read_skill(name)
+        if "## Logging" not in content:
+            continue
+        match = re.search(
+            r"## Logging\n(.*?)(?=\n## |\n---|\Z)", content, re.DOTALL
+        )
+        if match and "No logging" in match.group(1):
+            continue
+        result.append(name)
+    return result
 
 
 def _extract_init_permissions_block():

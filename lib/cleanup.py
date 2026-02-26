@@ -52,7 +52,7 @@ def cleanup(project_root, branch, worktree, pr_number=None, delete_remote=False)
     wt_path = root / worktree
     if wt_path.exists():
         ok, output = _run_cmd(
-            ["git", "worktree", "remove", str(worktree), "--force"],
+            ["git", "worktree", "remove", str(wt_path), "--force"],
             root,
         )
         steps["worktree"] = "removed" if ok else f"failed: {output}"

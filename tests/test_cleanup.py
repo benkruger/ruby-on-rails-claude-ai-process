@@ -110,6 +110,30 @@ def test_cleanup_skips_pr_and_remote_by_default(git_repo):
     assert data["steps"]["local_branch"] == "skipped"
 
 
+def test_cleanup_full_happy_path(git_repo):
+    """Single invocation asserts all 6 step results, return code, status,
+    and all 3 filesystem effects (worktree, state file, log file)."""
+    wt_rel = _setup_feature(git_repo)
+    result = _run(git_repo, "test-feature", wt_rel)
+
+    assert result.returncode == 0
+    data = json.loads(result.stdout)
+    assert data["status"] == "ok"
+
+    # All 6 step results
+    assert data["steps"]["pr_close"] == "skipped"
+    assert data["steps"]["worktree"] == "removed"
+    assert data["steps"]["remote_branch"] == "skipped"
+    assert data["steps"]["local_branch"] == "skipped"
+    assert data["steps"]["state_file"] == "deleted"
+    assert data["steps"]["log_file"] == "deleted"
+
+    # All 3 filesystem effects
+    assert not (git_repo / wt_rel).exists()
+    assert not (git_repo / ".flow-states" / "test-feature.json").exists()
+    assert not (git_repo / ".flow-states" / "test-feature.log").exists()
+
+
 # --- Missing resources ---
 
 

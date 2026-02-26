@@ -7,9 +7,9 @@ nav_order: 11
 
 **Command:** `/flow:cleanup`
 
-The final phase. Removes the git worktree and deletes the state file.
-This is what fully closes out a feature and resets the environment for
-the next one.
+The final phase. Removes the git worktree and deletes the state file
+and log file. This is what fully closes out a feature and resets the
+environment for the next one.
 
 Best-effort — warns if the state file is missing or Phase 7 is incomplete,
 but proceeds after user confirmation.
@@ -28,25 +28,11 @@ If the state file is missing, infer from git state (branch name, worktree list).
 Explicit confirmation required before any destructive action. Any warnings
 from the entry check are included in the confirmation message.
 
-### 3. Navigate to project root
+### 3. Run cleanup
 
-All cleanup must run from the project root, not from inside the worktree.
-
-### 4. Remove the worktree
-
-```bash
-git worktree remove .worktrees/<feature-name> --force
-```
-
-If this fails (already removed), note it and continue.
-
-### 5. Delete the state file
-
-```bash
-rm .flow-states/<branch>.json
-```
-
-If this doesn't exist, note it and continue.
+`bin/flow cleanup` handles all three resources from the project root:
+worktree removal, state file deletion, and log file deletion. Each step
+is best-effort — if one fails, the rest still run.
 
 This resets the SessionStart hook — the next session starts clean.
 
@@ -58,6 +44,7 @@ By the end of Phase 8:
 
 - Worktree and all its contents removed
 - State file deleted — no more session hook injection for this feature
+- Log file deleted — no stale logs left behind
 - Local environment clean and ready for the next feature
 
 ---

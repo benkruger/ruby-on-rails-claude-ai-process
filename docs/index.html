@@ -536,7 +536,7 @@
       <div class="pipeline-step">
         <div class="step-num">8</div>
         <span class="step-label">Reflect</span>
-        <span class="step-detail">Corrections become CLAUDE.md patterns &middot; plugin gaps noted</span>
+        <span class="step-detail">Learnings routed to 5 destinations &middot; worktree memory rescued &middot; plugin gaps noted</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">9</div>
@@ -566,8 +566,8 @@
         <p>Every session start &mdash; new terminal, <code>/clear</code>, <code>/compact</code> &mdash; triggers a hook that scans for in-progress features. Claude&rsquo;s first action is <code>/flow:continue</code>. Close your laptop, open Claude Code the next morning, pick up exactly where you left off.</p>
       </div>
       <div class="feature">
-        <h4>The Learning Pipeline</h4>
-        <p>User corrects Claude &rarr; <code>/flow:note</code> captures it as a reusable pattern &rarr; Reflect synthesizes all notes &rarr; each approved pattern added to <code>CLAUDE.md</code> &rarr; every future feature benefits. The learnings compound.</p>
+        <h4>The Learning System</h4>
+        <p>User corrects Claude &rarr; <code>/flow:note</code> captures it &rarr; Claude writes observations to worktree memory &rarr; Reflect reads all four sources &rarr; each learning routed to the right destination (global CLAUDE.md, project CLAUDE.md, global rules, project rules, or project memory). Nothing is lost when the worktree is destroyed.</p>
       </div>
       <div class="feature">
         <h4>Phase Back-Navigation</h4>
@@ -627,6 +627,68 @@
         <tr><td><code>/flow:abort</code></td><td>Abandon feature &mdash; close PR, delete remote branch, remove worktree, delete state</td></tr>
       </tbody>
     </table>
+  </section>
+
+  <!-- THE LEARNING SYSTEM -->
+  <section>
+    <h2>The Learning System</h2>
+    <p>Most AI coding tools forget everything when the session ends. FLOW captures corrections as they happen, rescues session memory before worktrees are destroyed, and routes each learning to the right permanent home &mdash; where it compounds across every future feature.</p>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="step-num">1</div>
+        <span class="step-label">Capture</span>
+        <span class="step-detail">User corrects Claude &rarr; <code>/flow:note</code> captures it automatically</span>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">2</div>
+        <span class="step-label">Observe</span>
+        <span class="step-detail">Claude writes patterns and observations to worktree memory during feature work</span>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">3</div>
+        <span class="step-label">Synthesize</span>
+        <span class="step-detail">Reflect reads all four sources: state file &middot; notes &middot; conversation &middot; worktree memory</span>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">4</div>
+        <span class="step-label">Route</span>
+        <span class="step-detail">Each learning is routed to its correct permanent destination</span>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">5</div>
+        <span class="step-label">Survive</span>
+        <span class="step-detail">Worktree is destroyed &mdash; nothing is lost</span>
+      </div>
+    </div>
+
+    <h3>5 Destinations</h3>
+    <div class="features">
+      <div class="feature">
+        <h4>Global CLAUDE.md</h4>
+        <p>Process rules that apply to all projects. &ldquo;Always run bin/ci before committing.&rdquo;</p>
+      </div>
+      <div class="feature">
+        <h4>Project CLAUDE.md</h4>
+        <p>Project-specific architecture. &ldquo;Callbacks set fields from Current &mdash; don&rsquo;t pass explicitly.&rdquo;</p>
+      </div>
+      <div class="feature">
+        <h4>Global Rules</h4>
+        <p>Universal coding standards. &ldquo;Never use guard clauses.&rdquo;</p>
+      </div>
+      <div class="feature">
+        <h4>Project Rules</h4>
+        <p>Project-specific gotchas. &ldquo;expect_worker uses lambdas, not kind_of().&rdquo;</p>
+      </div>
+      <div class="feature">
+        <h4>Project Memory</h4>
+        <p>Patterns and observations. &ldquo;Tests with Time.zone.now fail near midnight.&rdquo;</p>
+      </div>
+      <div class="feature">
+        <h4>Private vs Committed</h4>
+        <p>Global CLAUDE.md, global rules, and project memory are user-private (direct edits). Project CLAUDE.md and project rules are committed to the feature branch via PR.</p>
+      </div>
+    </div>
   </section>
 
   <!-- COOL STUFF -->
@@ -700,7 +762,7 @@
           <div class="cool-card-back">
             <span class="cool-icon">🎯</span>
             <div class="cool-headline">Corrections capture themselves</div>
-            <p class="cool-desc">Correct Claude and <code>/flow:note</code> captures it automatically. Survives compaction and becomes a <code>CLAUDE.md</code> pattern at Reflect.</p>
+            <p class="cool-desc">Correct Claude and <code>/flow:note</code> captures it automatically. Survives compaction, then Reflect routes it to the right permanent home &mdash; CLAUDE.md, rules, or project memory.</p>
           </div>
         </div>
       </div>

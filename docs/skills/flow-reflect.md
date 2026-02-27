@@ -10,8 +10,9 @@ parent: Skills
 
 **Usage:** `/flow:reflect`
 
-Synthesises what went wrong from three sources, proposes CLAUDE.md
-improvements, and notes plugin gaps. Runs before the PR merges.
+Synthesises what went wrong from four sources, routes each learning to
+its correct permanent home, and notes plugin gaps. Runs before the PR
+merges.
 
 ---
 
@@ -22,15 +23,24 @@ improvements, and notes plugin gaps. Runs before the PR merges.
 | State file | Visit counts, timing, notes array | Yes |
 | `/flow:note` captures | Corrections logged automatically | Yes |
 | Conversation context | Session back-and-forth | Only if not compacted |
+| Worktree auto-memory | Patterns and observations from feature work | Yes |
 
 ---
 
 ## Outputs
 
-**CLAUDE.md** — committed to feature branch, merged with the feature:
+Approved learnings are routed to one of 5 destinations:
 
-- Generic reusable Rails patterns
-- Each entry approved individually
+| # | Destination | Path |
+|---|-------------|------|
+| 1 | Global CLAUDE.md | `~/.claude/CLAUDE.md` |
+| 2 | Project CLAUDE.md | `CLAUDE.md` in worktree |
+| 3 | Global rules | `~/.claude/rules/<topic>.md` |
+| 4 | Project rules | `.claude/rules/<topic>.md` in worktree |
+| 5 | Project memory | `~/.claude/projects/<repo-root>/memory/MEMORY.md` |
+
+Destinations 1, 3, 5 are user-private (direct edits, not committed).
+Destinations 2, 4 are committed to the feature branch via `/flow:commit`.
 
 **Plugin improvement notes** — presented only, never committed:
 

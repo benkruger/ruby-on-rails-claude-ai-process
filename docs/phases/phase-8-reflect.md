@@ -8,28 +8,39 @@ nav_order: 10
 **Command:** `/flow:reflect`
 
 Runs before the PR is merged. Reviews what went wrong across all phases,
-proposes CLAUDE.md improvements, and notes plugin gaps. The only commits
-are CLAUDE.md and `.claude/` changes — application code is never touched.
+proposes learnings, routes each to its correct permanent home, and notes
+plugin gaps. The only commits are CLAUDE.md and `.claude/` changes —
+application code is never touched.
 
 ---
 
-## Three Sources
+## Four Sources
 
-Reflect synthesises from all three before asking the user anything:
+Reflect synthesises from all four before asking the user anything:
 
 1. **State file data** — visit counts, timing, captured `/flow:note` entries, research risks, open questions
 2. **Captured notes** — corrections logged automatically by `/flow:note` throughout the session
 3. **Conversation context** — what Claude can still see of the session's back-and-forth
+4. **Worktree auto-memory** — patterns and observations Claude wrote to auto-memory during feature work, which will be lost when Cleanup removes the worktree
 
-Sources 1 and 2 survive compaction. Context is a bonus if available.
+Sources 1, 2, and 4 survive compaction. Context is a bonus if available.
 
 ---
 
 ## What Gets Captured
 
-**CLAUDE.md additions** — committed to the feature branch:
-- Generic, reusable Rails patterns discovered during this feature
-- Each approved individually before being written
+Each approved learning is routed to the destination where it belongs:
+
+| Destination | What goes here | Write method |
+|---|---|---|
+| Global CLAUDE.md | Process rules for all projects | Direct edit (private) |
+| Project CLAUDE.md | Project-specific architecture | Committed via PR |
+| Global rules | Universal coding standards | Direct edit (private) |
+| Project rules | Project-specific coding gotchas | Committed via PR |
+| Project memory | Patterns and observations | Direct edit (private) |
+
+Claude recommends a destination for each learning based on content type.
+The user confirms or overrides with one click.
 
 **Plugin improvement notes** — presented only, never committed:
 - Places where the FLOW process itself should improve

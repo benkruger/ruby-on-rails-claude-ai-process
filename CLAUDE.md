@@ -44,6 +44,12 @@ The state file (`.flow-states/<branch>.json`) is the backbone. Schema reference:
 
 Five phase skills launch mandatory Explore-type sub-agents: Research, Design, Plan, Review, Security. Start uses a general-purpose Sonnet sub-agent for CI failures. Code has no sub-agent. Sub-agent prompts must include a tool restriction rule and must not use Bash for file checks.
 
+### Memory
+
+During feature work, Claude writes auto-memory scoped to the worktree path (`~/.claude/projects/<worktree-path>/memory/MEMORY.md`). When Cleanup removes the worktree, this memory becomes orphaned. Reflect rescues worktree memory by reading it as a fourth source and routing useful items to permanent destinations.
+
+The 5 destinations: global CLAUDE.md (`~/.claude/CLAUDE.md`), project CLAUDE.md (`CLAUDE.md` in worktree), global rules (`~/.claude/rules/`), project rules (`.claude/rules/` in worktree), project memory (`~/.claude/projects/<repo-root>/memory/MEMORY.md`). Private destinations (1, 3, 5) are written directly outside the repo. Repo destinations (2, 4) are committed via PR. Notes captured by `/flow:note` feed into the same routing mechanism.
+
 ### Logging
 
 Phase skills log completion events to `.flow-states/<branch>.log` using a command-first pattern (no START timestamps). Logging goes to `.flow-states/`, never `/tmp/`.

@@ -32,7 +32,7 @@ Start → Research → Design → Plan → Code → Review → Security → Refl
 | **5: Code** | `/flow:code` | **Opus** | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
 | **6: Review** | `/flow:review` | Sonnet | Sub-agent checks design alignment, research risk coverage, Rails anti-patterns |
 | **7: Security** | `/flow:security` | **Opus** | Sub-agent scans diff for vulnerabilities, auth gaps, data exposure, injection risks |
-| **8: Reflect** | `/flow:reflect` | Sonnet | Corrections become reusable patterns, CLAUDE.md updated, plugin gaps noted |
+| **8: Reflect** | `/flow:reflect` | Sonnet | Learnings routed to CLAUDE.md, rules, and memory — plugin gaps noted |
 | **9: Cleanup** | `/flow:cleanup` | Haiku | Worktree removed, state file deleted, feature done |
 
 ---
@@ -155,20 +155,24 @@ The same hook also injects the correction-capture instruction for the full sessi
 
 Both behaviors — auto-resume and correction capture — are wired in at session start, without any user action.
 
-### The Learning Pipeline
+### The Learning System
 
-Every correction Claude makes has a path to becoming a permanent, reusable pattern:
+Every correction and observation has a path to becoming a permanent, reusable pattern — routed to the right home:
 
 ```text
-User corrects Claude
+User corrects Claude → /flow:note captures it in state["notes"]
+Claude writes observations → worktree auto-memory
        ↓
-/flow:note captures it as a reusable pattern in state["notes"]
+Reflect reads all four sources (state, notes, context, worktree memory)
        ↓
-Reflect phase synthesizes all notes from the full feature
+Each learning is routed to the right destination:
+  → Global CLAUDE.md    (process rules for all projects)
+  → Project CLAUDE.md   (project architecture — committed via PR)
+  → Global rules        (universal coding standards)
+  → Project rules       (project-specific gotchas — committed via PR)
+  → Project memory      (patterns and observations)
        ↓
-Each approved pattern is added to CLAUDE.md
-       ↓
-Every future feature in this Rails project benefits
+Worktree is destroyed — nothing is lost
 ```
 
 The learnings don't evaporate at session end. They compound.

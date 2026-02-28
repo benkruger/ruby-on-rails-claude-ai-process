@@ -1,5 +1,15 @@
 # Release Notes
 
+## v0.12.0 — Light mode for bug fixes
+
+- **New**: `--light` flag on `/flow:start` — for bug fixes and small changes that don't need full Design ceremony. Skips Phase 3: Design. Research uses a "recent changes first" protocol (git history before deep exploration) and writes a simplified design object so Plan and Review work unchanged.
+- **New**: State file gains `mode: "light"` (top-level) and `skipped: true` (on Design phase)
+- **New**: `/flow:status` shows `[~]` marker for skipped phases
+- **New**: Session hook appends "(light mode)" to resume context
+- 9 new tests, 100% coverage maintained
+
+---
+
 ## v0.11.0 — Multi-destination learning routing
 
 - **New**: Reflect routes learnings to 5 destinations — each approved learning goes to the right permanent home: global CLAUDE.md, project CLAUDE.md, global rules, project rules, or project memory. Claude recommends a destination; user confirms or overrides with one click.

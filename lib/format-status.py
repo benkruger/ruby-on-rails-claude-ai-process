@@ -98,7 +98,11 @@ def format_panel(state, version, now=None):
         status = phase.get("status", "pending")
         name = PHASE_NAMES[i]
 
-        if status == "complete":
+        if status == "complete" and phase.get("skipped"):
+            marker = "[~]"
+            padded_name = name.ljust(NAME_WIDTH)
+            lines.append(f"  {marker} Phase {i}:  {padded_name} (skipped)")
+        elif status == "complete":
             marker = "[x]"
             seconds = phase.get("cumulative_seconds", 0)
             time_str = format_time(seconds)
@@ -160,10 +164,13 @@ def _format_all_complete(state, version, phases):
 
     for i in range(1, 10):
         phase = phases.get(str(i), {})
-        seconds = phase.get("cumulative_seconds", 0)
-        time_str = format_time(seconds)
         padded_name = PHASE_NAMES[i].ljust(NAME_WIDTH)
-        lines.append(f"  [x] Phase {i}:  {padded_name} ({time_str})")
+        if phase.get("skipped"):
+            lines.append(f"  [~] Phase {i}:  {padded_name} (skipped)")
+        else:
+            seconds = phase.get("cumulative_seconds", 0)
+            time_str = format_time(seconds)
+            lines.append(f"  [x] Phase {i}:  {padded_name} ({time_str})")
 
     lines.append("")
     lines.append("============================================")

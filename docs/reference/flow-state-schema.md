@@ -73,6 +73,7 @@ One file per active feature. Multiple features can run simultaneously with no co
 | `pr_url` | string | Full GitHub PR URL |
 | `started_at` | ISO 8601 | When the feature was started (Phase 1 entry) |
 | `current_phase` | integer | The currently active phase number |
+| `mode` | string / absent | `"light"` for light mode features, absent for standard mode |
 | `notes` | array | Corrections captured via `/flow:note` — see [Notes Array](#notes-array) |
 
 ---
@@ -90,6 +91,7 @@ Each phase entry has identical fields regardless of status.
 | `session_started_at` | ISO 8601 / null | Timestamp when current session entered this phase — reset if session interrupted |
 | `cumulative_seconds` | integer | Total seconds spent in this phase across all visits — additive |
 | `visit_count` | integer | Number of times this phase has been entered |
+| `skipped` | boolean / absent | `true` when the phase was skipped (light mode Design). Absent otherwise |
 
 ---
 

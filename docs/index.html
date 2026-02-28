@@ -489,7 +489,7 @@
   <!-- HOW -->
   <section>
     <h2>How</h2>
-    <p>Every feature goes through a <span class="highlight-phrase">9-phase orchestration</span>. Each phase has mandatory entry guards, structured outputs written to a persistent state file, and back-navigation when something was missed. No phase can be skipped.</p>
+    <p>Every feature goes through a <span class="highlight-phrase">9-phase orchestration</span>. Each phase has mandatory entry guards, structured outputs written to a persistent state file, and back-navigation when something was missed. In standard mode, every phase runs. In <code>--light</code> mode, Design is skipped for bug fixes and small changes.</p>
 
     <div class="pipeline">
       <div class="pipeline-step">
@@ -823,7 +823,12 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>
       </button>
     </div>
-    <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px; margin-bottom: 28px;">FLOW creates a git worktree, opens a GitHub PR, runs <code>bin/ci</code> to establish a baseline, upgrades gems, runs <code>bin/ci</code> again to confirm green, and lands you in Phase 2: Research.</p>
+    <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px; margin-bottom: 12px;">FLOW creates a git worktree, opens a GitHub PR, runs <code>bin/ci</code> to establish a baseline, upgrades gems, runs <code>bin/ci</code> again to confirm green, and lands you in Phase 2: Research.</p>
+    <p style="color: var(--text-muted); font-size: 15px; margin-top: 12px; margin-bottom: 12px;">For bug fixes and small changes, use light mode:</p>
+    <div style="position: relative;">
+      <pre style="font-size: 15px; padding: 20px 24px; margin: 0;"><code>/flow:start --light fix login bug</code></pre>
+    </div>
+    <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px; margin-bottom: 28px;">Light mode skips Design. Research checks <code>git log</code> first, writes a simplified design object, and transitions directly to Plan. Same safety gates, less ceremony.</p>
 
     <div class="callout" style="margin-bottom: 32px;">
       <p>The plugin installs into Claude Code&rsquo;s managed plugin directory. <code>/flow:init</code> commits workspace permissions in <code>.claude/settings.json</code> and a version marker in <code>.flow.json</code> (once per project). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature tracks state. Cleanup deletes even that. <strong>Three commands to set up. One file while you work. Zero when you&rsquo;re done.</strong></p>

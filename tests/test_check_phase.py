@@ -203,6 +203,25 @@ def test_missing_phases_key_blocks(git_repo, state_dir):
     assert "BLOCKED" in result.stdout
 
 
+def test_skipped_phase_satisfies_gate(git_repo, state_dir):
+    """Phase marked complete+skipped (light mode) satisfies the next phase's gate."""
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=str(git_repo), capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    state = make_state(
+        current_phase=4,
+        phase_statuses={1: "complete", 2: "complete", 3: "complete"},
+        mode="light",
+    )
+    state["phases"]["3"]["skipped"] = True
+    state["phases"]["3"]["cumulative_seconds"] = 0
+    state["phases"]["3"]["visit_count"] = 0
+    write_state(state_dir, branch, state)
+    result = _run(git_repo, 4)
+    assert result.returncode == 0
+
+
 def test_blocked_message_includes_correct_command(git_repo, state_dir):
     """Blocked message should include the correct /flow:X command for the missing phase."""
     branch = subprocess.run(

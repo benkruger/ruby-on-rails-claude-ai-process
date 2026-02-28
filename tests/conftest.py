@@ -77,11 +77,12 @@ def state_dir(git_repo):
     return d
 
 
-def make_state(current_phase=1, phase_statuses=None):
+def make_state(current_phase=1, phase_statuses=None, mode=None):
     """Build a minimal state dict.
 
     phase_statuses is a dict like {1: "complete", 2: "in_progress"}.
     Unspecified phases default to "pending".
+    mode is an optional string ("light") added to the top-level state.
     """
     phase_statuses = phase_statuses or {}
     phases = {}
@@ -96,7 +97,7 @@ def make_state(current_phase=1, phase_statuses=None):
             "cumulative_seconds": 0,
             "visit_count": 1 if status in ("complete", "in_progress") else 0,
         }
-    return {
+    state = {
         "feature": "Test Feature",
         "branch": "test-feature",
         "worktree": ".worktrees/test-feature",
@@ -107,6 +108,9 @@ def make_state(current_phase=1, phase_statuses=None):
         "notes": [],
         "phases": phases,
     }
+    if mode is not None:
+        state["mode"] = mode
+    return state
 
 
 def write_state(state_dir, branch, state_dict):

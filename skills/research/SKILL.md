@@ -54,6 +54,100 @@ AskUserQuestion calls and state file writes.
 
 ---
 
+## Light Mode Check
+
+After the gate, check `state["mode"]`. If it equals `"light"`, follow the
+**Light Mode Protocol** below instead of the standard Steps 1-6.
+
+---
+
+## Light Mode Protocol
+
+When `state["mode"] == "light"`, Research does double duty: investigate the
+issue AND write a simplified design object so Plan and Review work unchanged.
+
+### Light Step 1 — What are we investigating?
+
+Use AskUserQuestion with one question:
+
+**Question 1:** "Describe the bug or change. What is the expected behavior, and what is happening instead?"
+- I'll describe it (select Other and type your description)
+
+Store the user's description in `state["research"]["scope"]`.
+
+### Light Step 2 — Recent changes first
+
+Check recent git history before deep exploration:
+
+1. Launch a sub-agent. Use the Task tool:
+   - `subagent_type`: `"Explore"`
+   - `description`: `"Light research — recent changes first"`
+
+   Provide these instructions:
+
+   > You are investigating a bug or small change in a Rails codebase.
+   > Description: <user's description from Light Step 1 — paste verbatim>
+   >
+   > **Tool rules:** Use Glob and Read tools for all file and directory checks.
+   > Use Grep for searching code. Never use Bash for file existence checks,
+   > directory listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
+   >
+   > **Start with recent changes:**
+   >
+   > 1. Run `git log --oneline -20` to see recent commits
+   > 2. Look for commits related to the described issue
+   > 3. If a recent commit looks relevant, run `git show <sha>` to see the diff
+   >
+   > **Then read affected files:**
+   >
+   > 1. Read only the files directly related to the issue
+   > 2. For each model, read the full class hierarchy
+   > 3. Check `test/support/` for relevant create_*! helpers
+   >
+   > Do NOT explore the entire codebase. Stay focused on the files
+   > directly related to the bug or change.
+   >
+   > Return a structured summary: recent relevant commits, affected files
+   > (full paths), root cause or change needed, per-model class hierarchy
+   > and callbacks (only for affected models), schema changes needed (if
+   > any), risks, and existing create_*! helpers found.
+
+2. Wait for the sub-agent to return.
+
+### Light Step 3 — Document findings and write design object
+
+Write research findings to `state["research"]` (same structure as full mode).
+
+**Also write** a simplified `state["design"]` object with fields populated
+from the investigation findings:
+
+```json
+{
+  "feature_description": "<user's bug description from Light Step 1>",
+  "chosen_approach": "<the fix or change identified during investigation>",
+  "rationale": "Identified during light-mode research",
+  "schema_changes": [],
+  "model_changes": [],
+  "controller_changes": [],
+  "worker_changes": [],
+  "route_changes": [],
+  "risks": [],
+  "approved_at": "<current UTC timestamp>"
+}
+```
+
+Populate the change arrays and risks from the investigation findings. Leave
+arrays empty where not applicable.
+
+### Light Step 4 — Present findings
+
+Show the user a clean summary (same format as full mode Step 6).
+
+Then skip to **Done** below — transition to Phase 4: Plan (not Phase 3:
+Design, which was already marked complete+skipped by `/flow:start --light`).
+
+---
+
 ## Step 1 — What are we researching?
 
 Before reading any code, ask the user what to focus on. The feature name
@@ -67,6 +161,7 @@ findings — extend them.
 Otherwise, use AskUserQuestion with two questions:
 
 **Question 1:** "What type of work is this?"
+
 - New feature
 - Change to existing feature
 - Bug investigation
@@ -252,9 +347,40 @@ Update `.flow-states/<branch>.json`:
 2. Set Phase 2 `status` to `complete`
 3. Set Phase 2 `completed_at` to current UTC timestamp
 4. Set Phase 2 `session_started_at` to `null`
-5. Set `current_phase` to `3`
+5. If `state["mode"] == "light"`: set `current_phase` to `4` (Design was skipped). Otherwise: set `current_phase` to `3`.
 
 Format `cumulative_seconds` as `<formatted_time>`: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60.
+
+### If light mode (`state["mode"] == "light"`)
+
+Print inside a fenced code block:
+
+````markdown
+```text
+============================================
+  FLOW v0.11.0 — Phase 2: Research — COMPLETE (<formatted_time>)
+  Next: Phase 4: Plan  (/flow:plan)
+  (Light mode — Design was skipped)
+============================================
+```
+````
+
+Invoke the `flow:status` skill to show the current state, then use AskUserQuestion:
+
+> "Phase 2: Research is complete. Ready to begin Phase 4: Plan?"
+>
+> - **Yes, start Phase 4 now**
+> - **Not yet**
+> - **I have a correction or learning to capture**
+
+**If "I have a correction or learning to capture":**
+1. Ask the user what they want to capture
+2. Invoke `/flow:note` with their message
+3. Re-ask with only "Yes, start Phase 4 now" and "Not yet"
+
+**If Yes** — invoke the `flow:plan` skill using the Skill tool.
+
+### If standard mode (no `state["mode"]` or not `"light"`)
 
 Print inside a fenced code block:
 
@@ -282,7 +408,9 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 
 **If Yes** — invoke the `flow:design` skill using the Skill tool.
 
-**If Not yet** — print inside a fenced code block:
+### Either mode — If Not yet
+
+Print inside a fenced code block:
 
 ````markdown
 ```text
@@ -297,7 +425,7 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 
 ## Hard Rules
 
-- Never propose a solution during Research — that is Design's job
+- Never propose a solution during Research — that is Design's job (in light mode, the design object is factual, not a design choice)
 - Never write or modify any application code
 - Always read the full class hierarchy for every affected model — never just the model file
 - Always check `test/support/` for existing helpers before noting that tests will be needed

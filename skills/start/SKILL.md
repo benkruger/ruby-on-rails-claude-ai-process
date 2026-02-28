@@ -10,6 +10,7 @@ model: haiku
 
 ```text
 /flow:start invoice pdf export
+/flow:start --light fix login bug
 ```
 
 Arguments become the feature name. Words are joined with hyphens:
@@ -19,6 +20,12 @@ Arguments become the feature name. Words are joined with hyphens:
 - PR title: `Invoice Pdf Export`
 
 Branch names are capped at **32 characters**. If the hyphenated name exceeds 32 characters, truncate at the last whole word (hyphen boundary) that fits. Strip any trailing hyphen.
+
+**`--light` flag:** For bug fixes and small changes that don't need full Design
+ceremony. When present, strip `--light` from the feature name before deriving
+the branch. Design (Phase 3) is marked complete+skipped in the state file.
+Research writes a simplified design object so Plan and Review work unchanged.
+Pass `--light` to `start-setup` as a separate argument after the feature name.
 
 <HARD-GATE>
 Do NOT proceed if the feature name is missing. Ask the user:
@@ -75,10 +82,12 @@ If any files are found, use AskUserQuestion:
 
 ### Step 2 — Set up workspace
 
-Run the consolidated setup script:
+Run the consolidated setup script. If `--light` was specified, pass it as a
+second argument:
 
 ```bash
 exec ${CLAUDE_PLUGIN_ROOT}/bin/flow start-setup "<feature-name>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow start-setup "<feature-name>" --light
 ```
 
 The script performs these operations in a single process:

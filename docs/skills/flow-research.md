@@ -55,12 +55,28 @@ If Research is revisited, prior findings are extended — never discarded.
 
 ---
 
+## Light Mode Behavior
+
+When `state["mode"] == "light"` (set by `/flow:start --light`), Research uses a
+"recent changes first" protocol:
+
+1. Asks the user to describe the bug or change
+2. Checks `git log` for recent relevant commits before exploring deeply
+3. Launches a focused sub-agent on only the affected files (not the full codebase)
+4. Writes both `state["research"]` and a simplified `state["design"]` object
+5. Transitions directly to Phase 4: Plan (Design was already marked skipped)
+
+The simplified design object contains the factual description of what needs to
+change — not design alternatives. Plan and Review read it unchanged.
+
+---
+
 ## Gates
 
-- Never proposes solutions — that is Design's job
+- Never proposes solutions — that is Design's job (in light mode, the design object is factual)
 - Never writes or modifies any application code
 - Always reads full class hierarchy for every affected model
-- Requires user approval before proceeding to Phase 3: Design
+- Requires user approval before proceeding to Phase 3: Design (or Phase 4: Plan in light mode)
 
 ---
 

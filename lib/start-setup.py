@@ -111,7 +111,8 @@ def _extract_pr_number(pr_url):
     return 0
 
 
-def _create_state_file(project_root, branch, feature_title, pr_url, pr_number):
+def _create_state_file(project_root, branch, feature_title, pr_url, pr_number,
+                       light_mode=False):
     """Create the FLOW state file."""
     now = _now()
     phase_names = {
@@ -129,6 +130,17 @@ def _create_state_file(project_root, branch, feature_title, pr_url, pr_number):
                 "session_started_at": now,
                 "cumulative_seconds": 0,
                 "visit_count": 1,
+            }
+        elif i == 3 and light_mode:
+            phases[str(i)] = {
+                "name": phase_names[i],
+                "status": "complete",
+                "started_at": None,
+                "completed_at": None,
+                "session_started_at": None,
+                "cumulative_seconds": 0,
+                "visit_count": 0,
+                "skipped": True,
             }
         else:
             phases[str(i)] = {
@@ -152,6 +164,8 @@ def _create_state_file(project_root, branch, feature_title, pr_url, pr_number):
         "notes": [],
         "phases": phases,
     }
+    if light_mode:
+        state["mode"] = "light"
 
     state_dir = project_root / ".flow-states"
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -180,6 +194,7 @@ def main():
         sys.exit(1)
 
     feature_words = sys.argv[1]
+    light_mode = "--light" in sys.argv[2:]
     branch = _branch_name(feature_words)
     feature_title = _title_case(feature_words)
     project_root = Path.cwd()
@@ -218,17 +233,21 @@ def main():
         _log(project_root, branch, f"git commit + push + gh pr create (exit 0)")
 
         # Step 2f — Create state file
-        _create_state_file(project_root, branch, feature_title, pr_url, pr_number)
+        _create_state_file(project_root, branch, feature_title, pr_url, pr_number,
+                           light_mode=light_mode)
         _log(project_root, branch, f"create .flow-states/{branch}.json (exit 0)")
 
-        print(json.dumps({
+        output = {
             "status": "ok",
             "worktree": f".worktrees/{branch}",
             "pr_url": pr_url,
             "pr_number": pr_number,
             "feature": feature_title,
             "branch": branch,
-        }))
+        }
+        if light_mode:
+            output["mode"] = "light"
+        print(json.dumps(output))
 
     except SetupError as e:
         print(json.dumps({

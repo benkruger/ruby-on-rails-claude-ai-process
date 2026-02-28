@@ -83,7 +83,7 @@ def _write_flow_json(repo, version):
     )
 
 
-def _run_no_gh(cwd, feature_name):
+def _run_no_gh(cwd, feature_name, extra_args=None):
     """Run start-setup.py with gh stubbed out and flow.json initialized."""
     # Ensure flow.json exists with correct version for the version gate
     _write_flow_json(cwd, _current_plugin_version())
@@ -99,8 +99,11 @@ def _run_no_gh(cwd, feature_name):
     )
     gh_stub.chmod(0o755)
     env["PATH"] = f"{stub_dir}:{env['PATH']}"
+    cmd = [sys.executable, SCRIPT, feature_name]
+    if extra_args:
+        cmd.extend(extra_args)
     result = subprocess.run(
-        [sys.executable, SCRIPT, feature_name],
+        cmd,
         capture_output=True, text=True, cwd=str(cwd), env=env,
     )
     return result
@@ -375,3 +378,63 @@ def test_extract_pr_number_malformed_url():
 def test_extract_pr_number_non_numeric():
     """PR URL with non-numeric part after /pull/ returns 0."""
     assert _mod._extract_pr_number("https://github.com/org/repo/pull/abc") == 0
+
+
+# --- Light mode ---
+
+
+def test_light_flag_sets_mode_in_state_file(git_repo_with_remote):
+    """--light sets mode: "light" in the state file."""
+    result = _run_no_gh(git_repo_with_remote, "fix login bug", extra_args=["--light"])
+    assert result.returncode == 0, result.stderr
+    state_path = git_repo_with_remote / ".flow-states" / "fix-login-bug.json"
+    data = json.loads(state_path.read_text())
+    assert data["mode"] == "light"
+
+
+def test_light_flag_marks_phase_3_complete_and_skipped(git_repo_with_remote):
+    """--light marks Phase 3: Design as complete with skipped: true."""
+    result = _run_no_gh(git_repo_with_remote, "fix login bug", extra_args=["--light"])
+    assert result.returncode == 0, result.stderr
+    state_path = git_repo_with_remote / ".flow-states" / "fix-login-bug.json"
+    data = json.loads(state_path.read_text())
+    phase3 = data["phases"]["3"]
+    assert phase3["status"] == "complete"
+    assert phase3["skipped"] is True
+    assert phase3["cumulative_seconds"] == 0
+    assert phase3["visit_count"] == 0
+
+
+def test_light_flag_not_in_branch_name(git_repo_with_remote):
+    """--light must not appear in the branch name."""
+    result = _run_no_gh(git_repo_with_remote, "fix login bug", extra_args=["--light"])
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert "--light" not in data["branch"]
+    assert "light" not in data["branch"]
+    assert data["branch"] == "fix-login-bug"
+
+
+def test_light_flag_in_output_json(git_repo_with_remote):
+    """--light includes mode: "light" in the output JSON."""
+    result = _run_no_gh(git_repo_with_remote, "fix login bug", extra_args=["--light"])
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["mode"] == "light"
+
+
+def test_standard_mode_has_no_mode_field(git_repo_with_remote):
+    """Standard mode (no --light) should not have a mode field in state file."""
+    result = _run_no_gh(git_repo_with_remote, "new feature")
+    assert result.returncode == 0, result.stderr
+    state_path = git_repo_with_remote / ".flow-states" / "new-feature.json"
+    data = json.loads(state_path.read_text())
+    assert "mode" not in data
+
+
+def test_standard_mode_has_no_mode_in_output(git_repo_with_remote):
+    """Standard mode (no --light) should not have a mode field in output JSON."""
+    result = _run_no_gh(git_repo_with_remote, "new feature")
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert "mode" not in data

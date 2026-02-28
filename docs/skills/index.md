@@ -17,7 +17,7 @@ These skills correspond directly to a workflow phase. Each one starts and ends w
 
 | Skill | Phase | Description |
 |-------|-------|-------------|
-| [`/flow:start`](flow-start.md) | 1 — Start | Create the worktree, upgrade gems, open the PR, configure permissions |
+| [`/flow:start`](flow-start.md) | 1 — Start | Create the worktree, upgrade gems, open the PR. Use `--light` for bug fixes |
 | [`/flow:research`](flow-research.md) | 2 — Research | Explore codebase, ask clarifying questions, document findings |
 | [`/flow:design`](flow-design.md) | 3 — Design | Propose 2-3 alternatives, get approval before any code |
 | [`/flow:plan`](flow-plan.md) | 4 — Plan | Break design into ordered TDD tasks, section by section |

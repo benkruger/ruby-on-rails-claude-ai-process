@@ -8,9 +8,11 @@ parent: Skills
 
 **Phase:** 1 — Start
 
-**Usage:** `/flow:start <feature name words>`
+**Usage:** `/flow:start <feature name words>` or `/flow:start --light <feature name words>`
 
 **Example:** `/flow:start app payment webhooks`
+
+**Light mode example:** `/flow:start --light fix login bug`
 
 Begins a new feature. This is always the first command run for any piece of work. It sets up an isolated environment, ensures dependencies are current, and establishes the PR before any feature code is written.
 
@@ -50,6 +52,18 @@ Branch names are capped at 32 characters, truncated at word boundaries.
 - Stops if `git pull` fails
 - Will not proceed past gem upgrade until `bin/ci` is green
 - Escalates to the user if `bin/ci` cannot be fixed after three attempts
+
+---
+
+## Light Mode
+
+When invoked with `--light`, Start sets `mode: "light"` in the state file and
+marks Phase 3: Design as complete and skipped. The `--light` flag is not
+included in the branch name.
+
+Light mode is designed for bug fixes and small changes that do not need full
+Design ceremony. Research writes a simplified design object directly, and the
+workflow transitions from Research to Plan (skipping Design).
 
 ---
 

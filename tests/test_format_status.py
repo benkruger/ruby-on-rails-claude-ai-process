@@ -261,6 +261,38 @@ def test_panel_has_all_9_phases():
         assert f"Phase {i}:" in panel
 
 
+def test_panel_shows_skipped_phase():
+    """Skipped phase (light mode) shows [~] marker and (skipped) label."""
+    state = make_state(
+        current_phase=4,
+        phase_statuses={1: "complete", 2: "complete", 3: "complete", 4: "in_progress"},
+        mode="light",
+    )
+    state["phases"]["3"]["skipped"] = True
+    state["phases"]["3"]["cumulative_seconds"] = 0
+    state["phases"]["3"]["visit_count"] = 0
+    panel = _mod.format_panel(state, VERSION)
+    assert "[~] Phase 3:" in panel
+    assert "(skipped)" in panel
+
+
+def test_panel_skipped_phase_in_all_complete():
+    """Skipped phase in all-complete panel shows [~] and (skipped)."""
+    state = make_state(
+        current_phase=9,
+        phase_statuses={i: "complete" for i in range(1, 10)},
+        mode="light",
+    )
+    state["phases"]["3"]["skipped"] = True
+    state["phases"]["3"]["cumulative_seconds"] = 0
+    for i in range(1, 10):
+        if i != 3:
+            state["phases"][str(i)]["cumulative_seconds"] = 60
+    panel = _mod.format_panel(state, VERSION)
+    assert "[~] Phase 3:" in panel
+    assert "(skipped)" in panel
+
+
 def test_elapsed_since_with_no_started_at():
     assert _mod._elapsed_since(None) == 0
 

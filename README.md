@@ -60,6 +60,16 @@ Start a new Claude Code session so permissions take effect, then start a feature
 
 This creates branch `invoice-pdf-export`, a worktree at `.worktrees/invoice-pdf-export`, opens a GitHub PR, runs `bin/ci` to establish a baseline, upgrades gems, runs `bin/ci` again to confirm green, and lands you in Phase 2: Research.
 
+### Light Mode
+
+For bug fixes and small changes that don't need full Design ceremony:
+
+```bash
+/flow:start --light fix login bug
+```
+
+Light mode skips Phase 3: Design. Research uses a "recent changes first" protocol — checking `git log` for recent relevant commits before deep exploration — and writes a simplified design object directly. The workflow goes Start, Research, Plan, Code, Review, Security, Reflect, Cleanup. Same safety gates, less ceremony.
+
 ---
 
 ## Minimal Footprint

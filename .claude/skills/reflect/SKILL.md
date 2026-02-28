@@ -43,7 +43,7 @@ Note: context may have been compacted. Use what is available.
 
 With the evidence gathered in Step 1, follow the reflection process below.
 
-When Step E says to commit, use `/commit`.
+When Step E says to commit, use `/commit --auto`.
 
 ### Step A — Synthesize findings
 
@@ -155,7 +155,7 @@ Collect all approved rewordings. Do not apply yet.
 Read the target CLAUDE.md. Apply all approved additions and rewordings.
 Do not duplicate existing content.
 
-Then commit via `/commit`.
+Then commit via `/commit --auto`.
 
 Only CLAUDE.md and `.claude/` files are committed — never application code.
 

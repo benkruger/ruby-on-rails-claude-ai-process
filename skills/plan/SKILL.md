@@ -46,18 +46,338 @@ Using the state data from the gate, cd into the worktree and update Phase 4:
 - `visit_count` → increment by 1
 - `current_phase` → `4`
 
-## Framework Fragment
+## Framework Instructions
 
-Read the framework-specific instructions from
-`${CLAUDE_PLUGIN_ROOT}/skills/plan/<framework>.md`
-where `<framework>` is the `framework` field from the state file
-(`.flow-states/<branch>.json`).
-
-The fragment provides plan section initialization, section verification
-sub-agent prompt, section definitions, and plan save schema referenced below.
+Read the `framework` field from the state file and follow only the matching
+section below for plan section initialization, section verification sub-agent
+prompt, section definitions, and plan save schema.
 
 Initialise `state["plan"]` using the **Plan Sections Initialization** from
-the framework fragment.
+the matching framework section below.
+
+### If Rails
+
+#### Plan Sections Initialization
+
+Initialise `state["plan"]` if it does not exist:
+
+```json
+{
+  "sections": {
+    "schema":      { "status": "pending", "tasks": [] },
+    "models":      { "status": "pending", "tasks": [] },
+    "workers":     { "status": "pending", "tasks": [] },
+    "controllers": { "status": "pending", "tasks": [] },
+    "integration": { "status": "pending", "tasks": [] }
+  },
+  "current_section": null,
+  "tasks": [],
+  "approved_at": null
+}
+```
+
+#### Section Verification Sub-Agent Prompt
+
+Provide these instructions to the section verification sub-agent
+(fill in the details):
+
+> You are verifying plan tasks for the FLOW plan phase.
+> Feature: <feature name from state>
+> Section: <current section name>
+>
+> Design decisions: <paste relevant state["design"] fields>
+> Research findings: <paste relevant state["research"] fields>
+>
+> Tasks to verify:
+> <paste the draft tasks for this section>
+>
+> **Tool rules:** Use Glob and Read tools for all file and directory checks.
+> Never use Bash for file existence checks (`test -f`, `ls`, `stat`, etc.).
+>
+> For each task, check the codebase:
+>
+> 1. **File paths** — Use Glob to verify files exist. For new files,
+>    use Glob on the parent directory to confirm it exists.
+> 2. **Test helpers** — Use Grep to search test/support/ for create_*!
+>    helpers. If not found, flag that a helper creation task is needed.
+> 3. **Route context** — Use Read to check route files. What routes already
+>    exist in the target file? What patterns are used?
+> 4. **Schema context** — Use Read to check data/release.sql for related tables.
+>
+> Return per-task:
+>
+> - File paths: verified / corrected
+> - Available helpers (if test task)
+> - Route context (if route/controller task)
+> - Schema context (if schema task)
+> - Any corrections needed
+
+#### Section Definitions
+
+Work through each section below in order:
+
+##### Section 1 — Schema
+
+*Skip if `design["schema_changes"]` is empty.*
+
+Generate tasks for all `data/release.sql` changes:
+
+```text
+Task 1 — Schema
+  Add <table_name> table to data/release.sql
+  Files: data/release.sql
+  Note: Column types, constraints, indexes, foreign keys
+```
+
+One task per table or significant column change. Be specific — include
+column names, types, and any constraints.
+
+**No back navigation on first section.**
+
+##### Section 2 — Models and Tests
+
+Generate tasks following strict TDD order — test before implementation:
+
+```text
+Task N — Test (failing)
+  Write failing test for <Model>::Base — <what it tests>
+  Files: test/models/<model>/base_test.rb
+  Helper: test/support/<model>_helpers.rb (create_<model>! if needed)
+  TDD: write test first, run it, confirm it fails
+
+Task N+1 — Implementation
+  Implement <Model>::Base
+  Files: app/models/<model>/base.rb
+  Note: table_name, soft delete, associations, callbacks
+
+Task N+2 — Test (failing)
+  Write failing test for <Model>::Create
+  Files: test/models/<model>/create_test.rb
+
+Task N+3 — Implementation
+  Implement <Model>::Create
+  Files: app/models/<model>/create.rb
+```
+
+Pair every implementation task with a test task that comes before it.
+Check `test/support/` — if a `create_*!` helper is missing, add a task
+to create it before the test task that needs it.
+
+##### Section 3 — Workers
+
+*Skip if `design["worker_changes"]` is empty.*
+
+Generate tasks following TDD order:
+
+```text
+Task N — Test (failing)
+  Write failing test for <Worker>
+  Files: test/workers/<worker>_test.rb
+  Note: Test pre_perform!, perform!, post_perform! separately
+        Test halt! conditions
+
+Task N+1 — Implementation
+  Implement <Worker>
+  Files: app/workers/<worker>.rb
+  Note: Queue from config/sidekiq.yml, pre_perform!/perform!/post_perform! structure
+```
+
+##### Section 4 — Controllers and Routes
+
+Generate tasks following TDD order:
+
+```text
+Task N — Route
+  Add route to config/routes/<file>.rb
+  Files: config/routes/<file>.rb
+  Note: scope with module:, as:, controller:, action: explicitly
+
+Task N+1 — Test (failing)
+  Write failing controller test
+  Files: test/controllers/<path>_test.rb
+  Note: authenticate_admin! or authenticate_user! as needed
+
+Task N+2 — Implementation
+  Implement <Controller>#<action>
+  Files: app/controllers/<path>_controller.rb
+  Note: options OpenStruct params, render_ok/render_error responses
+```
+
+##### Section 5 — Integration Tests
+
+Generate tasks for any cross-cutting test coverage:
+
+```text
+Task N — Integration test
+  Write integration test for <end-to-end flow>
+  Files: test/integration/<name>_test.rb
+  Note: Full lifecycle — create, read, edge cases
+```
+
+#### Plan Save Schema
+
+Write to `.flow-states/<branch>.json` under `plan`:
+
+```json
+{
+  "sections": {
+    "schema":      { "status": "approved", "tasks": [1] },
+    "models":      { "status": "approved", "tasks": [2,3,4,5] },
+    "workers":     { "status": "approved", "tasks": [6,7] },
+    "controllers": { "status": "approved", "tasks": [8,9,10] },
+    "integration": { "status": "approved", "tasks": [11,12] }
+  },
+  "current_section": null,
+  "tasks": [
+    {
+      "id": 1,
+      "section": "schema",
+      "type": "schema",
+      "description": "Add payments table to data/release.sql",
+      "files": ["data/release.sql"],
+      "tdd": false,
+      "status": "pending"
+    }
+  ],
+  "approved_at": "<current UTC timestamp>"
+}
+```
+
+### If Python
+
+#### Plan Sections Initialization
+
+Initialise `state["plan"]` if it does not exist:
+
+```json
+{
+  "sections": {
+    "modules": { "status": "pending", "tasks": [] },
+    "scripts": { "status": "pending", "tasks": [] },
+    "tests":   { "status": "pending", "tasks": [] }
+  },
+  "current_section": null,
+  "tasks": [],
+  "approved_at": null
+}
+```
+
+#### Section Verification Sub-Agent Prompt
+
+Provide these instructions to the section verification sub-agent
+(fill in the details):
+
+> You are verifying plan tasks for the FLOW plan phase.
+> Feature: <feature name from state>
+> Section: <current section name>
+>
+> Design decisions: <paste relevant state["design"] fields>
+> Research findings: <paste relevant state["research"] fields>
+>
+> Tasks to verify:
+> <paste the draft tasks for this section>
+>
+> **Tool rules:** Use Glob and Read tools for all file and directory checks.
+> Never use Bash for file existence checks (`test -f`, `ls`, `stat`, etc.).
+>
+> For each task, check the codebase:
+>
+> 1. **File paths** — Use Glob to verify files exist. For new files,
+>    use Glob on the parent directory to confirm it exists.
+> 2. **Test fixtures** — Use Grep to search conftest.py for existing
+>    fixtures. If not found, flag that a fixture creation task is needed.
+> 3. **Module context** — Use Read to check imports and dependencies.
+>    What modules already exist? What patterns are used?
+>
+> Return per-task:
+>
+> - File paths: verified / corrected
+> - Available fixtures (if test task)
+> - Module context (if module task)
+> - Any corrections needed
+
+#### Section Definitions
+
+Work through each section below in order:
+
+##### Section 1 — Modules
+
+Generate tasks following strict TDD order — test before implementation:
+
+```text
+Task N — Test (failing)
+  Write failing test for <module>
+  Files: tests/test_<module>.py
+  Fixture: conftest.py (add fixture if needed)
+  TDD: write test first, run it, confirm it fails
+
+Task N+1 — Implementation
+  Implement <module>
+  Files: lib/<module>.py (or appropriate path)
+  Note: imports, function signatures, error handling
+```
+
+Pair every implementation task with a test task that comes before it.
+Check `conftest.py` — if a fixture is missing, add a task to create it
+before the test task that needs it.
+
+**No back navigation on first section.**
+
+##### Section 2 — Scripts
+
+*Skip if `design["script_changes"]` is empty.*
+
+Generate tasks following TDD order:
+
+```text
+Task N — Test (failing)
+  Write failing test for <script>
+  Files: tests/test_<script>.py
+  Note: Test argument parsing, main flow, error handling
+
+Task N+1 — Implementation
+  Implement <script>
+  Files: bin/<script> or lib/<script>.py
+  Note: argparse, main flow, exit codes
+```
+
+##### Section 3 — Integration Tests
+
+Generate tasks for any cross-cutting test coverage:
+
+```text
+Task N — Integration test
+  Write integration test for <end-to-end flow>
+  Files: tests/test_<name>_integration.py
+  Note: Full lifecycle — setup, execute, verify
+```
+
+#### Plan Save Schema
+
+Write to `.flow-states/<branch>.json` under `plan`:
+
+```json
+{
+  "sections": {
+    "modules": { "status": "approved", "tasks": [1,2,3,4] },
+    "scripts": { "status": "approved", "tasks": [5,6] },
+    "tests":   { "status": "approved", "tasks": [7] }
+  },
+  "current_section": null,
+  "tasks": [
+    {
+      "id": 1,
+      "section": "modules",
+      "type": "test",
+      "description": "Write failing test for flow_utils",
+      "files": ["tests/test_flow_utils.py"],
+      "tdd": true,
+      "status": "pending"
+    }
+  ],
+  "approved_at": "<current UTC timestamp>"
+}
+```
 
 ## Logging
 
@@ -143,7 +463,7 @@ them. Use the Task tool:
 - `description`: `"Plan task verification — <section name>"`
 
 Provide the sub-agent with the **Section Verification Sub-Agent Prompt**
-from the framework fragment (fill in the feature name, section, design
+from the framework section above (fill in the feature name, section, design
 decisions, research findings, and tasks).
 
 Adjust tasks based on the sub-agent's findings before presenting the
@@ -169,7 +489,7 @@ why (because earlier decisions affect later ones).
 
 ---
 
-Follow the **Section Definitions** from the framework fragment. Work through
+Follow the **Section Definitions** from the framework section above. Work through
 each section in order. Skip sections with no corresponding design changes.
 
 ---
@@ -220,7 +540,7 @@ Then use AskUserQuestion:
 ## Step 4 — Save plan to state
 
 Write the plan to `.flow-states/<branch>.json` under `plan` using the
-**Plan Save Schema** from the framework fragment.
+**Plan Save Schema** from the framework section above.
 
 ---
 

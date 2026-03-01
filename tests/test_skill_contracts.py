@@ -265,7 +265,7 @@ def test_back_navigation_matches_can_return_to():
 
 def test_subagent_prompts_include_tool_restriction():
     """Research, Design, Plan, Review, Security sub-agent prompts must include
-    the tool restriction rule (in SKILL.md or framework fragment)."""
+    the tool restriction rule in SKILL.md."""
     subagent_skills = ["research", "design", "plan", "review", "security"]
     for name in subagent_skills:
         skill_dir = SKILLS_DIR / name
@@ -287,14 +287,10 @@ def test_subagent_types_match_requirements():
             f"skills/{name}/SKILL.md should use Explore subagent_type"
         )
 
-    # Start's general-purpose sub-agent may be in SKILL.md or a framework fragment
-    start_dir = SKILLS_DIR / "start"
-    start_content = ""
-    for md_file in sorted(start_dir.glob("*.md")):
-        start_content += md_file.read_text()
+    # Start's general-purpose sub-agent is in SKILL.md (framework sections merged)
+    start_content = _read_skill("start")
     assert '"general-purpose"' in start_content, (
-        "skills/start/ should use general-purpose subagent_type "
-        "(in SKILL.md or framework fragment)"
+        "skills/start/SKILL.md should use general-purpose subagent_type"
     )
 
 
@@ -790,53 +786,33 @@ def test_release_default_skips_approval():
 # --- Framework fragment contracts ---
 
 
-def test_framework_fragments_are_paired():
-    """Every skill with rails.md must have python.md and vice versa."""
+def test_no_framework_fragment_files():
+    """No skill directory should have rails.md or python.md fragment files.
+    Framework instructions are merged into SKILL.md."""
     for d in sorted(SKILLS_DIR.iterdir()):
         if not d.is_dir():
             continue
-        has_rails = (d / "rails.md").exists()
-        has_python = (d / "python.md").exists()
-        if has_rails or has_python:
-            assert has_rails and has_python, (
-                f"skills/{d.name}/ has {'rails.md' if has_rails else 'python.md'} "
-                f"but not {'python.md' if has_rails else 'rails.md'} — "
-                f"framework fragments must be paired"
-            )
-
-
-def test_skills_with_fragments_reference_framework():
-    """If a skill dir has fragment files, its SKILL.md must contain the
-    fragment reference pattern telling Claude to load the right one."""
-    for d in sorted(SKILLS_DIR.iterdir()):
-        if not d.is_dir():
-            continue
-        has_fragments = (d / "rails.md").exists() or (d / "python.md").exists()
-        if not has_fragments:
-            continue
-        content = (d / "SKILL.md").read_text()
-        assert "framework" in content.lower(), (
-            f"skills/{d.name}/SKILL.md has fragment files but does not "
-            f"reference framework — must instruct Claude to load the "
-            f"correct fragment based on the state file's framework field"
+        assert not (d / "rails.md").exists(), (
+            f"skills/{d.name}/rails.md still exists — "
+            f"framework fragments should be merged into SKILL.md"
+        )
+        assert not (d / "python.md").exists(), (
+            f"skills/{d.name}/python.md still exists — "
+            f"framework fragments should be merged into SKILL.md"
         )
 
 
-def test_subagent_prompts_in_fragments_include_tool_restriction():
-    """Framework fragments with sub-agent prompts must include the
-    Glob/Read tool restriction rule."""
-    for d in sorted(SKILLS_DIR.iterdir()):
-        if not d.is_dir():
-            continue
-        for fragment_name in ("rails.md", "python.md"):
-            fragment = d / fragment_name
-            if not fragment.exists():
-                continue
-            content = fragment.read_text()
-            # Only check fragments that launch sub-agents
-            if "subagent_type" not in content and "Agent tool" not in content:
-                continue
-            assert "Glob" in content and "Read" in content, (
-                f"skills/{d.name}/{fragment_name} launches a sub-agent but "
-                f"does not include the Glob/Read tool restriction rule"
-            )
+def test_multi_framework_skills_have_both_sections():
+    """Skills that had framework fragments must have both Rails and Python
+    content inline in SKILL.md."""
+    multi_framework_skills = [
+        "start", "research", "design", "plan", "code", "review", "security",
+    ]
+    for name in multi_framework_skills:
+        content = _read_skill(name)
+        assert re.search(r"(?i)rails", content), (
+            f"skills/{name}/SKILL.md missing Rails framework section"
+        )
+        assert re.search(r"(?i)python", content), (
+            f"skills/{name}/SKILL.md missing Python framework section"
+        )

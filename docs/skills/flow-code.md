@@ -32,13 +32,13 @@ For each task:
 
 ## Framework Architecture Enforced
 
-Architecture checks are defined by the framework fragment. Each framework enforces its own rules for reading code before writing, using test infrastructure correctly, and following framework conventions.
+Architecture checks are defined by the framework instructions in the skill. Each framework enforces its own rules for reading code before writing, using test infrastructure correctly, and following framework conventions.
 
 ---
 
 ## Test Runs
 
-- **During TDD**: targeted test command from framework fragment — fast feedback
+- **During TDD**: targeted test command from framework instructions — fast feedback
 - **Before commit**: `bin/ci` — full suite, must be green
 - **End of phase**: `coverage/uncovered.txt` must be empty
 

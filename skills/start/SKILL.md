@@ -128,12 +128,177 @@ the failure to the user, and stop.
 
 ### Step 3 — Framework-specific setup
 
-Read the framework-specific instructions from
-`${CLAUDE_PLUGIN_ROOT}/skills/start/<framework>.md`
-where `<framework>` is the `framework` field from the state file
-(`.flow-states/<branch>.json`).
+Read the `framework` field from the state file (`.flow-states/<branch>.json`)
+and follow only the matching section below.
 
-Follow all steps in the fragment before proceeding to Done.
+#### If Rails
+
+##### Step 3a — Baseline `bin/ci`
+
+```bash
+bin/ci
+```
+
+- **Passes** — note as baseline and continue
+- **Fails** — launch the CI fix sub-agent (see Step 3d). Pass the full
+  `bin/ci` output. After the sub-agent returns:
+  - **Fixed** — use `/flow:commit` to commit the fix, then continue
+  - **Not fixed** — stop and report to the user what is failing
+
+##### Step 3b — Upgrade gems
+
+```bash
+bundle update --all
+```
+
+##### Step 3c — Post-update `bin/ci`
+
+```bash
+bin/ci
+```
+
+- **Passes** — continue to Step 3e
+- **Fails** — launch the CI fix sub-agent (see Step 3d). Pass the full
+  `bin/ci` output. After the sub-agent returns:
+  - **Fixed** — continue to Step 3e (Gemfile.lock + fixes committed together)
+  - **Not fixed** — stop and report to the user what is failing
+
+##### Step 3d — CI fix sub-agent
+
+When `bin/ci` fails in Step 3a or Step 3c, launch a sub-agent to diagnose
+and fix the failures. Use the Task tool:
+
+- `subagent_type`: `"general-purpose"`
+- `model`: `"sonnet"`
+- `description`: `"Fix bin/ci failures"`
+
+Provide these instructions (fill in the worktree path and bin/ci output):
+
+> You are fixing CI failures in a Rails worktree.
+> Worktree: `<worktree path>`
+> cd into the worktree before running any commands.
+>
+> The `bin/ci` output:
+> <paste the full bin/ci output>
+>
+> Use the Glob and Read tools to explore code — do not use Bash for file checks.
+>
+> Fix the failures in this order:
+>
+> 1. **RuboCop violations** — ALWAYS run `rubocop -A` first. This
+>    auto-corrects most violations. Then run `bin/ci`. If violations
+>    remain, fix the code manually to satisfy the cop.
+> 2. **Test failures** — read the failing test and the code it tests.
+>    Understand the root cause. Fix the code, not the test (unless the
+>    test itself is wrong). Run `bin/rails test <file>` to verify,
+>    then `bin/ci` for a full check.
+> 3. **Coverage gaps** — read `test/coverage/uncovered.txt` to see exactly
+>    which lines are uncovered. Write the missing test, then `bin/ci`
+>
+> **Never modify `.rubocop.yml` or any RuboCop configuration.**
+> Fix the code, never the rules. Do not add exclusions or disable cops.
+>
+> Max 3 attempts. After each fix, run `bin/ci`. If green, report what
+> was fixed and stop. If still failing after 3 attempts, report exactly
+> what is failing and what was tried.
+>
+> Return:
+>
+> 1. Status: fixed / not_fixed
+> 2. What was wrong
+> 3. What was changed (files modified)
+
+Wait for the sub-agent to return.
+
+<HARD-GATE>
+Do NOT proceed past Step 3a or Step 3c until bin/ci is green.
+</HARD-GATE>
+
+##### Step 3e — Commit and push
+
+Use `/flow:commit` to review and commit the changes (`Gemfile.lock` + any gem fixes).
+
+##### Rails report additions
+
+Include in the Done report:
+
+- Whether baseline `bin/ci` was clean
+- Which gems were upgraded (`git diff Gemfile.lock` summary)
+- Confirmation `bin/ci` is green
+
+#### If Python
+
+##### Step 3a — Baseline `bin/ci`
+
+```bash
+bin/ci
+```
+
+- **Passes** — note as baseline and continue to Done
+- **Fails** — launch the CI fix sub-agent (see Step 3b). Pass the full
+  `bin/ci` output. After the sub-agent returns:
+  - **Fixed** — use `/flow:commit` to commit the fix, then continue to Done
+  - **Not fixed** — stop and report to the user what is failing
+
+##### Step 3b — CI fix sub-agent
+
+When `bin/ci` fails in Step 3a, launch a sub-agent to diagnose
+and fix the failures. Use the Agent tool:
+
+- `subagent_type`: `"general-purpose"`
+- `model`: `"sonnet"`
+- `description`: `"Fix bin/ci failures"`
+
+Provide these instructions (fill in the worktree path and bin/ci output):
+
+> You are fixing CI failures in a Python worktree.
+> Worktree: `<worktree path>`
+> cd into the worktree before running any commands.
+>
+> The `bin/ci` output:
+> <paste the full bin/ci output>
+>
+> Use the Glob and Read tools to explore code — do not use Bash for file checks.
+>
+> Fix the failures in this order:
+>
+> 1. **Lint violations** — read the lint output carefully. Fix the code
+>    to satisfy the linter. Then run `bin/ci`.
+> 2. **Test failures** — read the failing test and the code it tests.
+>    Understand the root cause. Fix the code, not the test (unless the
+>    test itself is wrong). Run `bin/test <file>` to verify,
+>    then `bin/ci` for a full check.
+> 3. **Coverage gaps** — identify uncovered lines from the coverage
+>    report. Write the missing test, then `bin/ci`.
+>
+> Max 3 attempts. After each fix, run `bin/ci`. If green, report what
+> was fixed and stop. If still failing after 3 attempts, report exactly
+> what is failing and what was tried.
+>
+> Return:
+>
+> 1. Status: fixed / not_fixed
+> 2. What was wrong
+> 3. What was changed (files modified)
+
+Wait for the sub-agent to return.
+
+<HARD-GATE>
+Do NOT proceed past Step 3a until bin/ci is green.
+</HARD-GATE>
+
+##### Step 3c — Commit fixes (if any)
+
+If the CI fix sub-agent made changes, use `/flow:commit` to commit them.
+
+If baseline was already green, skip this step.
+
+##### Python report additions
+
+Include in the Done report:
+
+- Whether baseline `bin/ci` was clean
+- Confirmation `bin/ci` is green
 
 ### Done — Update state and complete phase
 
@@ -187,4 +352,4 @@ Invoke the `flow:status` skill to show the current state, then use AskUserQuesti
 Then report:
 - Worktree location
 - PR link
-- Any additional report items from the framework fragment
+- Any additional report items from the framework section above

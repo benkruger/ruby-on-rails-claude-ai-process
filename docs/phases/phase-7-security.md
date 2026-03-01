@@ -16,7 +16,7 @@ the code is safe.
 
 ## What Security Checks
 
-The security sub-agent runs 10 checks against the full diff. The specific checks are defined by the framework fragment — each framework has its own security checklist tailored to its common vulnerability patterns (e.g., authorization gaps and CSRF for Rails; command injection and path traversal for Python).
+The security sub-agent runs 10 checks against the full diff. The specific checks are defined by the framework instructions in the skill — each framework has its own security checklist tailored to its common vulnerability patterns (e.g., authorization gaps and CSRF for Rails; command injection and path traversal for Python).
 
 ---
 

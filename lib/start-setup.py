@@ -71,6 +71,9 @@ def _create_worktree(project_root, branch):
         ["git", "worktree", "add", str(wt_path), "-b", branch],
         project_root, "worktree",
     )
+    venv_dir = project_root / ".venv"
+    if venv_dir.is_dir():
+        (wt_path / ".venv").symlink_to(Path("..", "..", ".venv"))
     return wt_path
 
 

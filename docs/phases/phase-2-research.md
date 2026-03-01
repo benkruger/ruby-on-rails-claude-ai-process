@@ -13,7 +13,7 @@ Research answers one question: *what exists?* Not what we will build — that is
 
 ## Why Research First
 
-Every framework has conventions that bite you if you skip research — callbacks that silently overwrite values, hidden scoping, test infrastructure that must be used. Your `CLAUDE.md` knows these patterns at a project level. Research applies them to the *specific files* being touched. The framework fragment defines which checks to run.
+Every framework has conventions that bite you if you skip research — callbacks that silently overwrite values, hidden scoping, test infrastructure that must be used. Your `CLAUDE.md` knows these patterns at a project level. Research applies them to the *specific files* being touched. The framework instructions in the skill define which checks to run.
 
 ---
 

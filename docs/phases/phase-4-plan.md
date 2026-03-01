@@ -15,7 +15,7 @@ TDD order is built in: tests always come before implementations.
 
 ## Sections
 
-Tasks are generated in execution order defined by the framework fragment. Each framework defines its own sections (e.g., Rails uses schema/models/workers/controllers/integration; Python uses modules/scripts/tests). Sections with no changes are skipped automatically.
+Tasks are generated in execution order defined by the framework instructions in the skill. Each framework defines its own sections (e.g., Rails uses schema/models/workers/controllers/integration; Python uses modules/scripts/tests). Sections with no changes are skipped automatically.
 
 ---
 

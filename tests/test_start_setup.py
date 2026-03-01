@@ -440,6 +440,34 @@ def test_standard_mode_has_no_mode_in_output(git_repo_with_remote):
     assert "mode" not in data
 
 
+# --- .venv symlink in worktree ---
+
+
+def test_venv_symlink_created_in_worktree(git_repo_with_remote):
+    """When .venv/ exists in the project root, worktree gets a relative symlink."""
+    venv_dir = git_repo_with_remote / ".venv"
+    venv_dir.mkdir()
+    (venv_dir / "bin").mkdir()
+    (venv_dir / "bin" / "python3").write_text("fake")
+
+    _run_no_gh(git_repo_with_remote, "test feature")
+
+    wt_venv = git_repo_with_remote / ".worktrees" / "test-feature" / ".venv"
+    assert wt_venv.is_symlink()
+    assert os.readlink(str(wt_venv)) == os.path.join("..", "..", ".venv")
+
+
+def test_worktree_created_without_venv(git_repo_with_remote):
+    """When no .venv/ exists, worktree is created successfully without it."""
+    result = _run_no_gh(git_repo_with_remote, "test feature")
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["status"] == "ok"
+
+    wt_venv = git_repo_with_remote / ".worktrees" / "test-feature" / ".venv"
+    assert not wt_venv.exists()
+
+
 # --- Framework propagation ---
 
 

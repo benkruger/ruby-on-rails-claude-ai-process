@@ -63,15 +63,151 @@ YYYY-MM-DDTHH:MM:SSZ [Phase 6] Step X — desc (exit EC)
 
 Get `<branch>` from the state file.
 
-## Framework Fragment
+## Framework Instructions
 
-Read the framework-specific instructions from
-`${CLAUDE_PLUGIN_ROOT}/skills/review/<framework>.md`
-where `<framework>` is the `framework` field from the state file
-(`.flow-states/<branch>.json`).
+Read the `framework` field from the state file and follow only the matching
+section below for the diff analysis sub-agent prompt and framework-specific
+hard rules.
 
-The fragment provides the diff analysis sub-agent prompt and
-framework-specific hard rules referenced below.
+### If Rails
+
+#### Diff Analysis Sub-Agent Prompt
+
+Provide these instructions to the Step 1 sub-agent (fill in the details):
+
+> You are analyzing a feature diff for the FLOW review phase.
+> Feature: <feature name from state>
+>
+> **Tool rules:** Use Glob and Read tools for all file and directory checks.
+> Use Grep for searching code. Only use Bash for git commands (git diff,
+> git log, git blame). Never use Bash for file existence checks, directory
+> listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
+>
+> Approved design:
+> <paste state["design"] — chosen_approach, schema_changes, model_changes,
+> controller_changes, worker_changes, route_changes>
+>
+> Research risks:
+> <paste state["research"]["risks"]>
+>
+> Plan tasks:
+> <paste state["plan"]["tasks"] summaries>
+>
+> First, get the full diff:
+>
+> ```bash
+> git diff origin/main...HEAD
+> ```
+>
+> Read every changed file completely. Then check:
+>
+> **Design alignment:**
+>
+> - Do schema changes match design["schema_changes"]?
+> - Do model decisions match design["model_changes"]?
+> - Do controller/route changes match design?
+> - Do worker changes match design?
+> - Flag any deviation — minor drift or major mismatch.
+>
+> **Research risk coverage:**
+>
+> - For each risk in the list, confirm it was handled in the diff.
+> - Flag any risk not addressed.
+>
+> **Rails anti-pattern check:**
+>
+> - Associations: every belongs_to/has_many has inverse_of:, dependent:,
+>   class_name: explicit
+> - Queries: no N+1, no DB queries in views, no .first/.last for defaults
+> - Callbacks: Current attribute usage correct, no update_column
+> - Models: self.table_name in namespaced Base, no STI
+> - Soft deletes: .unscoped usage correct
+> - Workers: halt! in pre_perform!, queue matches sidekiq.yml
+> - Tests: create_*! helpers used, both branches tested, assertions present
+> - RuboCop: scan diff for rubocop:disable comments, check .rubocop.yml changes
+> - Code clarity: descriptive names, no inline comments, no over-engineering
+>
+> Return structured findings in three categories:
+>
+> 1. Design alignment issues (with file:line references)
+> 2. Uncovered research risks (with which risk and why)
+> 3. Anti-pattern violations (with file:line and what to fix)
+>
+> If a category has no findings, say so explicitly.
+
+#### Rails-Specific Hard Rules
+
+- Any `# rubocop:disable` comment in the diff is an automatic finding — remove it and fix the code
+- Any modification to `.rubocop.yml` in the diff is an automatic finding — revert it and fix the code
+
+### If Python
+
+#### Diff Analysis Sub-Agent Prompt
+
+Provide these instructions to the Step 1 sub-agent (fill in the details):
+
+> You are analyzing a feature diff for the FLOW review phase.
+> Feature: <feature name from state>
+>
+> **Tool rules:** Use Glob and Read tools for all file and directory checks.
+> Use Grep for searching code. Only use Bash for git commands (git diff,
+> git log, git blame). Never use Bash for file existence checks, directory
+> listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
+>
+> Approved design:
+> <paste state["design"] — chosen_approach, module_changes, test_changes,
+> script_changes>
+>
+> Research risks:
+> <paste state["research"]["risks"]>
+>
+> Plan tasks:
+> <paste state["plan"]["tasks"] summaries>
+>
+> First, get the full diff:
+>
+> ```bash
+> git diff origin/main...HEAD
+> ```
+>
+> Read every changed file completely. Then check:
+>
+> **Design alignment:**
+>
+> - Do module changes match design["module_changes"]?
+> - Do test changes match design["test_changes"]?
+> - Do script changes match design["script_changes"]?
+> - Flag any deviation — minor drift or major mismatch.
+>
+> **Research risk coverage:**
+>
+> - For each risk in the list, confirm it was handled in the diff.
+> - Flag any risk not addressed.
+>
+> **Python anti-pattern check:**
+>
+> Imports: no circular imports, no wildcard imports (`from x import *`).
+> Mutable defaults: no mutable default arguments (`def f(x=[])`).
+> Error handling: no bare `except:`, no broad `except Exception`
+> without re-raise.
+> Type safety: consistent use of type hints if the project uses them.
+> Tests: fixtures used where appropriate, both branches tested,
+> assertions present.
+> Lint: scan diff for noqa/type:ignore comments.
+> Code clarity: descriptive names, no inline comments, no over-engineering.
+>
+> Return structured findings in three categories:
+>
+> 1. Design alignment issues (with file:line references)
+> 2. Uncovered research risks (with which risk and why)
+> 3. Anti-pattern violations (with file:line and what to fix)
+>
+> If a category has no findings, say so explicitly.
+
+#### Python-Specific Hard Rules
+
+- Any `# noqa` or `# type: ignore` comment in the diff is a finding — remove it and fix the code
+- Any modification to lint configuration in the diff is a finding — revert it and fix the code
 
 ---
 
@@ -88,7 +224,7 @@ Then launch a mandatory sub-agent to analyze the full diff. Use the Task tool:
 - `description`: `"Review diff analysis"`
 
 Provide the sub-agent with the **Diff Analysis Sub-Agent Prompt** from the
-framework fragment (fill in the feature name, design, risks, and tasks).
+framework section above (fill in the feature name, design, risks, and tasks).
 
 Wait for the sub-agent to return before proceeding.
 
@@ -235,4 +371,4 @@ Invoke `flow:status`, then use AskUserQuestion:
 - Never skip the design alignment check
 - Never skip the research risk coverage check
 - Read the full diff before starting — no partial reviews
-- Plus the **Framework-Specific Hard Rules** from the framework fragment
+- Plus the **Framework-Specific Hard Rules** from the framework section above

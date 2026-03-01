@@ -18,7 +18,7 @@ one at a time with a commit per fix.
 
 ## What It Checks
 
-The 10 security checks are defined by the framework fragment. Each framework has its own checklist tailored to common vulnerability patterns (e.g., authorization gaps and CSRF bypass for Rails; command injection and path traversal for Python).
+The 10 security checks are defined by the framework instructions in the skill. Each framework has its own checklist tailored to common vulnerability patterns (e.g., authorization gaps and CSRF bypass for Rails; command injection and path traversal for Python).
 
 ---
 

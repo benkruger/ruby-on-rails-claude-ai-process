@@ -9,7 +9,7 @@ nav_order: 2
 
 **Example:** `/flow:start app payment webhooks`
 
-This is always the first phase, for every feature without exception. It establishes an isolated workspace, verifies the health of the codebase, configures workspace permissions, and opens the PR before any feature work begins. Framework-specific setup (dependency upgrades, CI fixes) is handled by the framework fragment.
+This is always the first phase, for every feature without exception. It establishes an isolated workspace, verifies the health of the codebase, configures workspace permissions, and opens the PR before any feature work begins. Framework-specific setup (dependency upgrades, CI fixes) is handled by the framework instructions in the skill.
 
 ---
 
@@ -41,7 +41,7 @@ Run `bin/ci` inside the worktree to capture the health of the codebase before an
 
 ### 4. Framework-specific setup
 
-Runs framework-specific steps defined in the framework fragment (e.g., dependency upgrades for Rails, baseline checks for Python). A general-purpose Sonnet sub-agent handles any CI failures — max 3 attempts before escalating to the user.
+Runs framework-specific steps defined in the skill (e.g., dependency upgrades for Rails, baseline checks for Python). A general-purpose Sonnet sub-agent handles any CI failures — max 3 attempts before escalating to the user.
 
 ### 5. Commit and push
 

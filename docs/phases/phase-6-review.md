@@ -24,7 +24,7 @@ Every risk in `state["research"]["risks"]` confirmed as handled.
 A risk found and not addressed is a bug waiting to happen.
 
 **3. Framework anti-patterns**
-Things bin/ci cannot catch — defined by the framework fragment. Each framework has its own anti-pattern checklist (e.g., N+1 queries and callback misuse for Rails; circular imports and mutable defaults for Python).
+Things bin/ci cannot catch — defined by the framework instructions in the skill. Each framework has its own anti-pattern checklist (e.g., N+1 queries and callback misuse for Rails; circular imports and mutable defaults for Python).
 
 **4. Fresh read-through**
 Every changed file read as if seeing it for the first time.

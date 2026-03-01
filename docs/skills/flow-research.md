@@ -28,7 +28,7 @@ Explores the codebase before any design or implementation begins. Reads all affe
 
 ## Framework-Specific Checks
 
-Every Research run checks for framework-specific concerns defined by the framework fragment. Each framework has its own checklist of conventions and gotchas (e.g., callback hierarchy and soft deletes for Rails; circular imports and fixture patterns for Python).
+Every Research run checks for framework-specific concerns defined by the framework instructions in the skill. Each framework has its own checklist of conventions and gotchas (e.g., callback hierarchy and soft deletes for Rails; circular imports and fixture patterns for Python).
 
 ---
 

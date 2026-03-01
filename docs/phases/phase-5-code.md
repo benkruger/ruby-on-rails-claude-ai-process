@@ -28,7 +28,7 @@ For each task in the plan, in order:
 
 ## Framework Testing Rules
 
-Architecture checks and testing conventions are defined by the framework fragment. Each framework enforces its own rules (e.g., Rails requires test helpers and full class hierarchy reads; Python requires fixture checks and import analysis).
+Architecture checks and testing conventions are defined by the framework instructions in the skill. Each framework enforces its own rules (e.g., Rails requires test helpers and full class hierarchy reads; Python requires fixture checks and import analysis).
 
 ---
 
@@ -36,7 +36,7 @@ Architecture checks and testing conventions are defined by the framework fragmen
 
 During the TDD cycle, run the specific file for fast feedback:
 
-The targeted test command is defined by the framework fragment (e.g., `bin/rails test <file>` for Rails, `bin/test <file>` for Python).
+The targeted test command is defined by the framework instructions (e.g., `bin/rails test <file>` for Rails, `bin/test <file>` for Python).
 
 `bin/ci` only runs when the task is done and the diff is approved.
 

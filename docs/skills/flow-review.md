@@ -22,7 +22,7 @@ transitions to Security.
 |------|------|
 | Design alignment | Implementation matches `state["design"]` |
 | Research risks | Every risk in `state["research"]["risks"]` accounted for |
-| Anti-patterns | Framework-specific checks from the framework fragment |
+| Anti-patterns | Framework-specific checks from the skill's framework instructions |
 | Tests | Test infrastructure used correctly, both branches covered, assertions present |
 | Clarity | Descriptive names, no inline comments, no over-engineering |
 

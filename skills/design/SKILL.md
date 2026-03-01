@@ -90,7 +90,7 @@ Store the user's full description in `state["design"]["feature_description"]`.
 
 Review the research data already in context from the gate:
 - `affected_files` — what code will be touched
-- `risks` — Rails-specific gotchas already discovered
+- `risks` — gotchas already discovered
 - `clarifications` — decisions already made via Q&A
 - `summary` — plain English of what exists
 
@@ -145,11 +145,8 @@ Option A: [Short title]
     ## Approach
     [2-3 sentence summary]
 
-    ## Schema
-    [What changes in data/release.sql]
-
-    ## Models
-    [Base/Create decisions]
+    ## Changes
+    [Key changes by category — use framework fragment categories]
 
     ## Trade-offs
     + [Pro]

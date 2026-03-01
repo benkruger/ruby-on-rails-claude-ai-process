@@ -1,6 +1,6 @@
 ---
 name: code
-description: "Phase 5: Code — execute plan tasks one at a time with TDD. Review diff before each commit. bin/ci must pass before moving to the next task. All Rails architecture standards enforced."
+description: "Phase 5: Code — execute plan tasks one at a time with TDD. Review diff before each commit. bin/ci must pass before moving to the next task. Framework architecture standards enforced."
 model: opus
 ---
 
@@ -162,8 +162,8 @@ render the output inline:
 **Status**
 
 ```text
-modified:   app/models/payment/base.rb
-new file:   test/models/payment/base_test.rb
+modified:   <path/to/implementation_file>
+new file:   <path/to/test_file>
 ```
 
 **Diff**

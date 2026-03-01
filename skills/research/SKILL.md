@@ -208,23 +208,18 @@ Write the full research findings into `flow-state.json["research"]`:
   "research": {
     "clarifications": [...],
     "affected_files": [
-      "app/models/payment/base.rb",
-      "app/models/payment/create.rb",
-      "app/workers/payment_webhook_worker.rb",
-      "app/controllers/api/payments_controller.rb",
-      "config/routes/api.rb",
-      "data/release.sql",
-      "test/support/payment_helpers.rb"
+      "<path/to/affected_file_1>",
+      "<path/to/affected_file_2>",
+      "<path/to/affected_file_3>"
     ],
     "risks": [
-      "Payment::Base has a before_save callback that sets Current.account — passing account explicitly in update! will be silently overwritten",
-      "PaymentWebhookWorker queue is 'critical' in sidekiq.yml — any new worker for this feature should use the same queue",
-      "Payments use soft deletes — queries must use .unscoped if deleted records are relevant"
+      "<specific risk discovered during exploration>",
+      "<another risk with details on why it matters>"
     ],
     "open_questions": [
-      "Stripe webhook signing secret — confirmed available in ENV but not yet in credentials"
+      "<question that could not be resolved from the codebase alone>"
     ],
-    "summary": "The payment webhook system will touch three models (Payment::Base, Payment::Create, WebhookEvent::Create), one new worker, and a new API route. The most significant risk is the before_save callback on Payment::Base that sets processed_at from Current — this must be set via Current, not passed directly."
+    "summary": "<plain English summary of what was found, what will be touched, and the most significant risk>"
   }
 }
 ```
@@ -243,18 +238,18 @@ Show the user a clean summary. Print inside a fenced code block (triple backtick
 
   Affected Files
   --------------
-  - app/models/payment/base.rb
-  - app/workers/payment_webhook_worker.rb
+  - <path/to/file_1>
+  - <path/to/file_2>
   - ... (all files)
 
   Risks Discovered
   ----------------
-  - Payment::Base before_save sets processed_at from Current
+  - <risk description>
   - ...
 
   Open Questions
   --------------
-  - Stripe webhook signing secret location
+  - <unresolved question>
 
   Summary
   -------

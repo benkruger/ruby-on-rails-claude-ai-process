@@ -115,15 +115,11 @@ If the user adds something, note it and incorporate it into the plan.
 
 Review the design data already in context from the gate:
 - `feature_description`
-- `schema_changes`
-- `model_changes`
-- `controller_changes`
-- `worker_changes`
-- `route_changes`
+- All change category fields (framework-defined — see the design object in the state file)
 - `risks`
 
-Skip sections with no changes (e.g., if `worker_changes` is empty,
-skip the workers section and note it was skipped).
+Skip sections with no changes (e.g., if a change category is empty,
+skip that section and note it was skipped).
 
 ---
 
@@ -190,18 +186,14 @@ Once all sections are approved, show the complete ordered task list. Print insid
 
   Feature: <feature>
 
-  [ ] Task 1  — Schema:  Add payments table to data/release.sql
-  [ ] Task 2  — Test:    Failing test for Payment::Base
-  [ ] Task 3  — Model:   Implement Payment::Base
-  [ ] Task 4  — Test:    Failing test for Payment::Create
-  [ ] Task 5  — Model:   Implement Payment::Create
-  [ ] Task 6  — Test:    Failing test for PaymentWebhookWorker
-  [ ] Task 7  — Worker:  Implement PaymentWebhookWorker
-  [ ] Task 8  — Route:   Add POST /api/webhooks/payment
-  [ ] Task 9  — Test:    Controller test for webhooks#payment
-  [ ] Task 10 — Impl:    Implement WebhooksController#payment
-  [ ] Task 11 — Test:    Integration test for full webhook flow
-  [ ] Task 12 — CI:      bin/ci green
+  [ ] Task 1  — <section>: <description>
+  [ ] Task 2  — Test:      Failing test for <component>
+  [ ] Task 3  — <section>: Implement <component>
+  [ ] Task 4  — Test:      Failing test for <component>
+  [ ] Task 5  — <section>: Implement <component>
+  ...
+  [ ] Task N  — Test:      Integration test for full flow
+  [ ] Task N+1 — CI:       bin/ci green
 
 ============================================
 ```
@@ -284,7 +276,6 @@ Invoke `flow:status`, then use AskUserQuestion:
 ## Hard Rules
 
 - Always TDD order — test task before every implementation task
-- Always check `test/support/` for existing helpers before creating new ones
 - Never skip sections silently — always note when a section is skipped and why
 - When going back invalidates sections, explain clearly which sections need re-approval
 - Never write implementation code during Plan — task descriptions only

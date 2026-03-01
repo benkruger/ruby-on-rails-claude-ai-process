@@ -1,6 +1,6 @@
 ---
 name: review
-description: "Phase 6: Review — systematic code review against design, research risks, and Rails anti-patterns. Fixes issues found, runs bin/ci after any fix, then transitions to Reflect."
+description: "Phase 6: Review — systematic code review against design, research risks, and framework anti-patterns. Fixes issues found, runs bin/ci after any fix, then transitions to Reflect."
 model: sonnet
 ---
 
@@ -153,9 +153,9 @@ Show a summary of what was found and fixed inside a fenced code block:
 
   Findings fixed
   --------------
-  - Added inverse_of: to Payment::Base associations
-  - Removed N+1 query in PaymentWebhookWorker#perform!
-  - Added dependent: :destroy to Account has_many :payments
+  - <description of fix and why>
+  - <description of fix and why>
+  - <description of fix and why>
 
   bin/ci            : ✓ green
 

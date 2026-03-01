@@ -110,17 +110,19 @@ Write all confirmed findings and clean checks to the state file:
   "findings": [
     {
       "id": 1,
-      "check": "authorization_gaps",
-      "description": "PaymentController#show has no before_action auth check",
-      "file": "app/controllers/payment_controller.rb",
+      "check": "<check_name>",
+      "description": "<what was found and where>",
+      "file": "<path/to/affected_file>",
       "line": 15,
       "status": "pending"
     }
   ],
-  "clean_checks": ["sql_injection", "csrf_bypass", "open_redirects"],
+  "clean_checks": ["<check_1>", "<check_2>", "<check_3>"],
   "scanned_at": "2026-02-20T15:00:00Z"
 }
 ```
+
+Check names and categories are defined by the framework fragment.
 
 Number each finding with a sequential `id`. Set `status` to `"pending"` for
 every confirmed finding. `scanned_at` is the current UTC timestamp.
@@ -166,12 +168,12 @@ Show a summary of what was found and fixed inside a fenced code block:
 
   Findings
   --------
-  - [FIXED] authorization_gaps: PaymentController#show has no auth check
-  - [FIXED] rubocop_disables: # rubocop:disable in payment_controller.rb
+  - [FIXED] <check_name>: <description of finding>
+  - [FIXED] <check_name>: <description of finding>
 
   Clean Checks
   ------------
-  sql_injection, csrf_bypass, open_redirects, ...
+  <check_1>, <check_2>, <check_3>, ...
 
   bin/ci           : ✓ green
 

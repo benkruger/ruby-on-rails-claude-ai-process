@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-FLOW_ALLOW = [
+UNIVERSAL_ALLOW = [
     "Bash(cd .worktrees/* && *)",
     "Bash(git add *)",
     "Bash(git commit *)",
@@ -30,14 +30,21 @@ FLOW_ALLOW = [
     "Bash(git push origin --delete *)",
     "Bash(git branch -D *)",
     "Bash(bin/ci)",
+    "Bash(rm .flow-commit-*)",
+    "Bash(*bin/flow *)",
+]
+
+RAILS_ALLOW = [
     "Bash(bin/rails test *)",
     "Bash(rubocop *)",
     "Bash(rubocop -A)",
     "Bash(bundle update --all)",
-    "Bash(rm .flow-commit-*)",
     "Bash(bundle exec *)",
-    "Bash(*bin/flow *)",
     "Bash(psql *)",
+]
+
+PYTHON_ALLOW = [
+    "Bash(bin/test *)",
 ]
 
 FLOW_DENY = [
@@ -53,7 +60,14 @@ FLOW_DENY = [
 EXCLUDE_ENTRIES = [".flow-states/", ".worktrees/"]
 
 
-def merge_settings(project_root):
+def _allow_list(framework):
+    """Build the merged allow list for the given framework."""
+    if framework == "rails":
+        return UNIVERSAL_ALLOW + RAILS_ALLOW
+    return UNIVERSAL_ALLOW + PYTHON_ALLOW
+
+
+def merge_settings(project_root, framework):
     """Merge FLOW permissions into .claude/settings.json. Returns merged dict."""
     settings_dir = project_root / ".claude"
     settings_path = settings_dir / "settings.json"
@@ -73,7 +87,7 @@ def merge_settings(project_root):
 
     # Additive merge — only add entries not already present
     existing_allow = set(settings["permissions"]["allow"])
-    for entry in FLOW_ALLOW:
+    for entry in _allow_list(framework):
         if entry not in existing_allow:
             settings["permissions"]["allow"].append(entry)
 
@@ -93,10 +107,11 @@ def merge_settings(project_root):
     return settings
 
 
-def write_version_marker(project_root, version):
-    """Write .flow.json with the plugin version."""
+def write_version_marker(project_root, version, framework):
+    """Write .flow.json with the plugin version and framework."""
     flow_json = project_root / ".flow.json"
-    flow_json.write_text(json.dumps({"flow_version": version}) + "\n")
+    data = {"flow_version": version, "framework": framework}
+    flow_json.write_text(json.dumps(data) + "\n")
 
 
 def update_git_exclude(project_root):
@@ -151,7 +166,7 @@ def main():
     if len(sys.argv) < 2:
         print(json.dumps({
             "status": "error",
-            "message": "Usage: python3 init-setup.py <project_root>",
+            "message": "Usage: python3 init-setup.py <project_root> --framework rails|python",
         }))
         sys.exit(1)
 
@@ -163,10 +178,24 @@ def main():
         }))
         sys.exit(1)
 
+    # Parse --framework argument
+    framework = None
+    for i, arg in enumerate(sys.argv[2:], start=2):
+        if arg == "--framework" and i + 1 < len(sys.argv):
+            framework = sys.argv[i + 1]
+            break
+
+    if framework not in ("rails", "python"):
+        print(json.dumps({
+            "status": "error",
+            "message": "Missing or invalid --framework argument. Must be 'rails' or 'python'.",
+        }))
+        sys.exit(1)
+
     try:
         version = _plugin_version()
-        merge_settings(project_root)
-        write_version_marker(project_root, version)
+        merge_settings(project_root, framework)
+        write_version_marker(project_root, version, framework)
         exclude_updated = update_git_exclude(project_root)
 
         print(json.dumps({
@@ -174,6 +203,7 @@ def main():
             "settings_merged": True,
             "exclude_updated": exclude_updated,
             "version_marker": True,
+            "framework": framework,
         }))
     except Exception as e:
         print(json.dumps({

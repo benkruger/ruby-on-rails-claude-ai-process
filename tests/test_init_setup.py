@@ -17,12 +17,12 @@ _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 
 
-def _run(project_root):
+def _run(project_root, framework="rails"):
     """Run init-setup.py via subprocess."""
-    result = subprocess.run(
-        [sys.executable, SCRIPT, str(project_root)],
-        capture_output=True, text=True,
-    )
+    cmd = [sys.executable, SCRIPT, str(project_root)]
+    if framework:
+        cmd.extend(["--framework", framework])
+    result = subprocess.run(cmd, capture_output=True, text=True)
     return result
 
 
@@ -68,10 +68,19 @@ def test_creates_settings_from_scratch(git_repo):
     assert "deny" in settings["permissions"]
 
 
-def test_settings_has_all_allow_entries(git_repo):
-    _run(git_repo)
+def test_settings_has_all_allow_entries_rails(git_repo):
+    _run(git_repo, framework="rails")
     settings = json.loads((git_repo / ".claude" / "settings.json").read_text())
-    for entry in _mod.FLOW_ALLOW:
+    expected = _mod.UNIVERSAL_ALLOW + _mod.RAILS_ALLOW
+    for entry in expected:
+        assert entry in settings["permissions"]["allow"]
+
+
+def test_settings_has_all_allow_entries_python(git_repo):
+    _run(git_repo, framework="python")
+    settings = json.loads((git_repo / ".claude" / "settings.json").read_text())
+    expected = _mod.UNIVERSAL_ALLOW + _mod.PYTHON_ALLOW
+    for entry in expected:
         assert entry in settings["permissions"]["allow"]
 
 
@@ -231,10 +240,19 @@ def test_git_exclude_not_updated_when_already_present(git_repo):
 # --- In-process tests ---
 
 
-def test_merge_settings_empty_project(tmp_path):
-    _mod.merge_settings(tmp_path)
+def test_merge_settings_empty_project_rails(tmp_path):
+    _mod.merge_settings(tmp_path, "rails")
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
-    assert len(settings["permissions"]["allow"]) == len(_mod.FLOW_ALLOW)
+    expected = _mod.UNIVERSAL_ALLOW + _mod.RAILS_ALLOW
+    assert len(settings["permissions"]["allow"]) == len(expected)
+    assert len(settings["permissions"]["deny"]) == len(_mod.FLOW_DENY)
+
+
+def test_merge_settings_empty_project_python(tmp_path):
+    _mod.merge_settings(tmp_path, "python")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    expected = _mod.UNIVERSAL_ALLOW + _mod.PYTHON_ALLOW
+    assert len(settings["permissions"]["allow"]) == len(expected)
     assert len(settings["permissions"]["deny"]) == len(_mod.FLOW_DENY)
 
 
@@ -283,7 +301,7 @@ def test_main_exception_returns_error(git_repo, monkeypatch):
     )
     import io
     captured = io.StringIO()
-    monkeypatch.setattr(sys, "argv", [SCRIPT, str(git_repo)])
+    monkeypatch.setattr(sys, "argv", [SCRIPT, str(git_repo), "--framework", "rails"])
     monkeypatch.setattr(sys, "stdout", captured)
     with __import__("pytest").raises(SystemExit) as exc_info:
         _mod.main()
@@ -291,3 +309,65 @@ def test_main_exception_returns_error(git_repo, monkeypatch):
     data = json.loads(captured.getvalue())
     assert data["status"] == "error"
     assert "test error" in data["message"]
+
+
+# --- Framework argument ---
+
+
+def test_missing_framework_returns_error(git_repo):
+    result = _run(git_repo, framework=None)
+    assert result.returncode == 1
+    data = json.loads(result.stdout)
+    assert data["status"] == "error"
+    assert "framework" in data["message"].lower()
+
+
+def test_invalid_framework_returns_error(git_repo):
+    result = _run(git_repo, framework="django")
+    assert result.returncode == 1
+    data = json.loads(result.stdout)
+    assert data["status"] == "error"
+    assert "framework" in data["message"].lower()
+
+
+def test_flow_json_includes_framework_rails(git_repo):
+    _run(git_repo, framework="rails")
+    data = json.loads((git_repo / ".flow.json").read_text())
+    assert data["framework"] == "rails"
+
+
+def test_flow_json_includes_framework_python(git_repo):
+    _run(git_repo, framework="python")
+    data = json.loads((git_repo / ".flow.json").read_text())
+    assert data["framework"] == "python"
+
+
+def test_rails_framework_excludes_python_permissions(git_repo):
+    _run(git_repo, framework="rails")
+    settings = json.loads((git_repo / ".claude" / "settings.json").read_text())
+    for entry in _mod.PYTHON_ALLOW:
+        assert entry not in settings["permissions"]["allow"]
+
+
+def test_python_framework_excludes_rails_permissions(git_repo):
+    _run(git_repo, framework="python")
+    settings = json.loads((git_repo / ".claude" / "settings.json").read_text())
+    for entry in _mod.RAILS_ALLOW:
+        assert entry not in settings["permissions"]["allow"]
+
+
+def test_framework_output_in_ok_response(git_repo):
+    result = _run(git_repo, framework="python")
+    assert result.returncode == 0
+    data = json.loads(result.stdout)
+    assert data["framework"] == "python"
+
+
+def test_rerun_preserves_framework(git_repo):
+    _run(git_repo, framework="rails")
+    _run(git_repo, framework="rails")
+    data = json.loads((git_repo / ".flow.json").read_text())
+    assert data["framework"] == "rails"
+    settings = json.loads((git_repo / ".claude" / "settings.json").read_text())
+    allow_list = settings["permissions"]["allow"]
+    assert len(allow_list) == len(set(allow_list))

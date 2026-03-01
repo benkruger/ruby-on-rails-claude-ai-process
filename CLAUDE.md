@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-A Claude Code plugin (`flow:` namespace) implementing an opinionated 9-phase Rails development lifecycle. Skills live in `skills/<name>/SKILL.md`. State lives in `.flow-states/<branch>.json` in the target Rails project.
+A Claude Code plugin (`flow:` namespace) implementing an opinionated 9-phase development lifecycle. Supports Rails and Python via framework-specific skill fragments. Skills live in `skills/<name>/SKILL.md` with framework content in `skills/<phase>/rails.md` and `skills/<phase>/python.md`. State lives in `.flow-states/<branch>.json` in the target project.
 
 ## Key Files
 
@@ -30,7 +30,7 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 9-phase Rai
 
 ### Plugin vs Target Project
 
-This repo is the plugin source. When installed, skills and hooks run in the target Rails project's working directory. State files live in the target project's `.flow-states/`. Worktrees are created in the target project. Hooks must be tested in the context of a target project directory structure, not this repo.
+This repo is the plugin source. When installed, skills and hooks run in the target project's working directory. State files live in the target project's `.flow-states/`. Worktrees are created in the target project. Hooks must be tested in the context of a target project directory structure, not this repo.
 
 ### Skills Are Markdown, Not Code
 
@@ -91,6 +91,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 - CLAUDE.md changes only through `/reflect` — never edit CLAUDE.md directly. The `/reflect` skill exists to review mistakes, propose additions, get individual approval for each change, and commit. Editing CLAUDE.md outside of `/reflect` bypasses all of that.
 - **Never add pymarkdown exclusions** — The `.pymarkdown.yml` disables MD013 (line length), MD025 (multiple H1 with frontmatter), MD033 (inline HTML), and MD036 (emphasis as heading) because those conflict with this repo's intentional patterns. No further rule disablements or path exclusions may be added. If a markdown file triggers a lint error, fix the file — do not suppress the rule. If a rule genuinely cannot be satisfied, surface it to the user for a decision.
 - **Prefer dedicated tools over Bash for all non-execution tasks** — Read files with the Read tool, search with Glob and Grep, create with Write, modify with Edit. Bash should only be used for commands that genuinely require shell execution: `bin/ci`, `bin/test`, `bin/flow`, `make`, and `git`. In this project's strict permission environment (`defaultMode: "plan"`), every Bash command not in the allow list triggers a permission prompt. When you need to explore, understand, or modify files, use dedicated tools — they never prompt.
+- **Explore agents use Bash internally** — In this project's strict permission environment, launching an Explore agent for codebase research will trigger Bash permission prompts and block. Use Glob, Grep, and Read directly for all research tasks. Only use the Agent tool when you need a general-purpose agent that will run allowed commands (bin/ci, bin/test, git).
 
 ## Lessons Learned
 
@@ -120,3 +121,4 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 - **Commit subjects describe the goal, not the mechanism** — When a change has both a mechanism (what was done) and a goal (why it was done), the subject line must describe the goal. "Move scripts from hooks/ to lib/" is mechanism. "Consolidate 7 permission entries into 1" is the goal. The body explains the mechanism — the subject line tells readers why they should care.
 - **Check test and build configuration when moving source files** — When moving files to a new directory, grep for the old directory path in configuration files too: pytest.ini, Makefile, CI configs, coverage settings. These files reference source directories but are easy to miss because they are not code and not docs.
 - **Never claim something doesn't exist without searching first** — When the user asks about a skill, file, or feature, search the codebase (Glob or Grep) before answering. Claude claimed flow:init didn't exist because it wasn't in the 8 numbered phases, but skills/init/SKILL.md was right there. Memory is not a substitute for a file search.
+- **Update CLAUDE.md when the project's scope changes** — When a feature changes what the project is (e.g., single-framework to multi-framework), update CLAUDE.md's project description and architecture sections in the same change. Stale descriptions mislead future sessions.

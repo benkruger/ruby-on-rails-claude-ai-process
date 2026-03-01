@@ -20,7 +20,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ````text
 ```
 ============================================
-  FLOW v0.13.0 — Init — STARTING
+  FLOW v0.13.1 — Init — STARTING
 ============================================
 ```
 ````
@@ -132,7 +132,7 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 ````text
 ```
 ============================================
-  FLOW v0.13.0 — Init — COMPLETE
+  FLOW v0.13.1 — Init — COMPLETE
 ============================================
 ```
 ````

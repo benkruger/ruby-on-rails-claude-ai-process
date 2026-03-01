@@ -1,5 +1,19 @@
 # Release Notes
 
+## v0.13.1 — Permission prompt fixes and simulation tests
+
+**Fixes**
+
+- Fixed permission prompts during FLOW execution by adding `defaultMode: acceptEdits`, substituting placeholders instead of skipping them, and adding `git pull origin *` to the allow list
+- Added init skill for one-time workspace setup (permissions merge, version marker, git excludes)
+
+**Improvements**
+
+- Added 7 permission simulation tests: unrecognized placeholder detection, deny-list collision checks, allow/deny overlap detection, regex converter unit tests, and init-setup.py / init/SKILL.md sync enforcement
+- Documented the Permission Invariant in CLAUDE.md
+
+---
+
 ## v0.13.0 — Multi-framework support
 
 FLOW now supports Rails and Python projects. `/flow:init` asks which framework

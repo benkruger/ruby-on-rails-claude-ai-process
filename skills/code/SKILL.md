@@ -46,6 +46,16 @@ Using the state data from the gate, cd into the worktree and update Phase 5:
 - `visit_count` → increment by 1
 - `current_phase` → `5`
 
+## Framework Fragment
+
+Read the framework-specific instructions from
+`${CLAUDE_PLUGIN_ROOT}/skills/code/<framework>.md`
+where `<framework>` is the `framework` field from the state file
+(`.flow-states/<branch>.json`).
+
+The fragment provides architecture checks, the targeted test command,
+CI failure fix order, and framework-specific hard rules referenced below.
+
 ## Logging
 
 After every Bash command completes, log it to `.flow-states/<branch>.log`.
@@ -109,36 +119,8 @@ Print inside a fenced code block:
 
 ### Architecture Check
 
-Before writing a single line, check based on task type:
-
-**Model task:**
-- Read the full class hierarchy: the model file, its parent class, and ApplicationRecord
-- Look for `before_save`, `after_create`, `before_destroy` and all other callbacks
-- Check for `default_scope` (soft deletes — use `.unscoped` where needed)
-- Note the Base/Create split — never skip reading both
-- If `update!` or `save` will be called, check if callbacks will overwrite your values — set `Current` attributes instead of passing directly
-
-**Test task:**
-- Search `test/support/` for existing `create_*!` helpers for affected models
-- If a helper exists → use it. Never `Model::Create.create!` directly.
-- If a helper is missing and multiple tests need it → create it in `test/support/`
-- Never `update_column` — always `update!`
-- Read the mailer template if testing a mailer — all fields it references must be populated
-
-**Worker task:**
-- Check `config/sidekiq.yml` for the correct queue name before writing the worker
-- Structure: `pre_perform!` (load/validate, call `halt!` to stop), `perform!` (main work), `post_perform!` (cleanup/notifications)
-- Test via `worker.perform(...)`, check `worker.halted?`
-
-**Controller task:**
-- Params via `options` (OpenStruct): `options.record_id`
-- Responses: `render_ok`, `render_error`, `render_unauthorized`, `render_not_found`
-- Check which subdomain's BaseController to inherit from
-
-**Route task:**
-- Always use `scope` with `module:`, `as:`, `controller:`, `action:` explicitly
-- Never raw paths — always named route helpers
-- Check `config/routes/` for the correct file for this subdomain
+Follow the **Architecture Check** from the framework fragment. Check based
+on task type as described there before writing any code.
 
 ---
 
@@ -150,11 +132,8 @@ Before writing a single line, check based on task type:
 
 Write the test file. Follow the test task description exactly.
 
-Run the specific test file to confirm it fails:
-
-```bash
-bin/rails test <test/path/to/file_test.rb>
-```
+Run the **Targeted Test Command** from the framework fragment to confirm
+it fails.
 
 The test MUST fail before proceeding. If it passes immediately, the test
 is not testing the right thing — rewrite it until it fails for the right reason.
@@ -163,11 +142,7 @@ is not testing the right thing — rewrite it until it fails for the right reaso
 
 Write only what is needed to make the test pass. No over-engineering.
 
-Run the test again to confirm it passes:
-
-```bash
-bin/rails test <test/path/to/file_test.rb>
-```
+Run the **Targeted Test Command** again to confirm it passes.
 
 **Step C — Refactor**
 
@@ -217,10 +192,7 @@ Run `bin/ci`. This must be green before committing.
 **If bin/ci fails:**
 
 - Read the output carefully
-- Fix each failure — follow the same approach as flow:start gem breakage:
-  - RuboCop violations → `rubocop -A` first, then manual fixes
-  - Test failures → understand the root cause, fix the code not the test
-  - Coverage gaps → write the missing test
+- Fix each failure following the **CI Failure Fix Order** from the framework fragment
 - Re-run `bin/ci` after each fix
 - Max 3 attempts — if still failing after 3, stop and report exactly what is failing
 
@@ -361,9 +333,5 @@ Invoke `flow:status`, then use AskUserQuestion:
 - **Never skip the review** — user approves every task before bin/ci runs
 - **Never skip bin/ci** — must be green before every commit
 - **Never move to the next task** until the current task is committed
-- **Never use `Model::Create.create!`** in tests — always `create_*!` helpers
-- **Never use `update_column`** — always `update!`
 - **Never rebase** — always merge
-- **Always read full class hierarchy** before touching any model
-- **Never disable a RuboCop cop** — fix the code, not the cop. No `# rubocop:disable` without direct user approval. Stop and ask if you believe it is genuinely necessary.
-- **Never modify `.rubocop.yml`** — fix the code, not the configuration. Ask the user explicitly before touching this file.
+- Plus the **Framework-Specific Hard Rules** from the framework fragment

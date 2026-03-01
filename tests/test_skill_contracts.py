@@ -264,13 +264,16 @@ def test_back_navigation_matches_can_return_to():
 
 
 def test_subagent_prompts_include_tool_restriction():
-    """Research, Design, Plan, Review sub-agent prompts must include the
-    tool restriction rule."""
+    """Research, Design, Plan, Review, Security sub-agent prompts must include
+    the tool restriction rule (in SKILL.md or framework fragment)."""
     subagent_skills = ["research", "design", "plan", "review", "security"]
     for name in subagent_skills:
-        content = _read_skill(name)
-        assert "Glob" in content and "Read" in content, (
-            f"skills/{name}/SKILL.md sub-agent prompt missing "
+        skill_dir = SKILLS_DIR / name
+        combined = ""
+        for md_file in sorted(skill_dir.glob("*.md")):
+            combined += md_file.read_text()
+        assert "Glob" in combined and "Read" in combined, (
+            f"skills/{name}/ sub-agent prompt missing "
             f"Glob/Read tool restriction"
         )
 

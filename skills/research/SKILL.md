@@ -54,6 +54,18 @@ AskUserQuestion calls and state file writes.
 
 ---
 
+## Framework Fragment
+
+Read the framework-specific instructions from
+`${CLAUDE_PLUGIN_ROOT}/skills/research/<framework>.md`
+where `<framework>` is the `framework` field from the state file
+(`.flow-states/<branch>.json`).
+
+The fragment provides sub-agent prompts, the light mode design object
+template, and framework-specific hard rules referenced in the steps below.
+
+---
+
 ## Light Mode Check
 
 After the gate, check `state["mode"]`. If it equals `"light"`, follow the
@@ -83,34 +95,8 @@ Check recent git history before deep exploration:
    - `subagent_type`: `"Explore"`
    - `description`: `"Light research — recent changes first"`
 
-   Provide these instructions:
-
-   > You are investigating a bug or small change in a Rails codebase.
-   > Description: <user's description from Light Step 1 — paste verbatim>
-   >
-   > **Tool rules:** Use Glob and Read tools for all file and directory checks.
-   > Use Grep for searching code. Never use Bash for file existence checks,
-   > directory listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
-   >
-   > **Start with recent changes:**
-   >
-   > 1. Run `git log --oneline -20` to see recent commits
-   > 2. Look for commits related to the described issue
-   > 3. If a recent commit looks relevant, run `git show <sha>` to see the diff
-   >
-   > **Then read affected files:**
-   >
-   > 1. Read only the files directly related to the issue
-   > 2. For each model, read the full class hierarchy
-   > 3. Check `test/support/` for relevant create_*! helpers
-   >
-   > Do NOT explore the entire codebase. Stay focused on the files
-   > directly related to the bug or change.
-   >
-   > Return a structured summary: recent relevant commits, affected files
-   > (full paths), root cause or change needed, per-model class hierarchy
-   > and callbacks (only for affected models), schema changes needed (if
-   > any), risks, and existing create_*! helpers found.
+   Provide the sub-agent with the **Light Mode Sub-Agent Prompt** from the
+   framework fragment (fill in the user's description from Light Step 1).
 
 2. Wait for the sub-agent to return.
 
@@ -118,26 +104,10 @@ Check recent git history before deep exploration:
 
 Write research findings to `state["research"]` (same structure as full mode).
 
-**Also write** a simplified `state["design"]` object with fields populated
-from the investigation findings:
-
-```json
-{
-  "feature_description": "<user's bug description from Light Step 1>",
-  "chosen_approach": "<the fix or change identified during investigation>",
-  "rationale": "Identified during light-mode research",
-  "schema_changes": [],
-  "model_changes": [],
-  "controller_changes": [],
-  "worker_changes": [],
-  "route_changes": [],
-  "risks": [],
-  "approved_at": "<current UTC timestamp>"
-}
-```
-
-Populate the change arrays and risks from the investigation findings. Leave
-arrays empty where not applicable.
+**Also write** a simplified `state["design"]` object using the **Light Mode
+Design Object Template** from the framework fragment. Populate the change
+arrays and risks from the investigation findings. Leave arrays empty where
+not applicable.
 
 ### Light Step 4 — Present findings
 
@@ -187,52 +157,8 @@ Launch a mandatory sub-agent to explore the codebase. Use the Task tool:
 - `subagent_type`: `"Explore"`
 - `description`: `"Research codebase exploration"`
 
-Provide these instructions to the sub-agent (fill in the scope from Step 1):
-
-> You are exploring a Rails codebase for the FLOW research phase.
-> Research scope: <user's description from Step 1 — paste verbatim>
->
-> **Tool rules:** Use Glob and Read tools for all file and directory checks.
-> Use Grep for searching code. Never use Bash for file existence checks,
-> directory listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
->
-> Systematically read all code relevant to this feature:
->
-> **Models** — Find all related models. For each, read the full class
-> hierarchy (model + parent + ApplicationRecord). Look for: before_save,
-> after_create, before_destroy callbacks. Check for default_scope (soft
-> deletes), self.inheritance_column (no STI), belongs_to/has_many with
-> dependent: options. Note the Base/Create split pattern.
->
-> **Controllers** — Find affected controllers. Note subdomain, BaseController
-> inheritance, params pattern (options OpenStruct), response helpers.
->
-> **Workers** — Find affected Sidekiq workers. Read pre_perform!/perform!/
-> post_perform! structure. Check config/sidekiq.yml for queue names.
->
-> **Routes** — Read config/routes/ files relevant to this feature. Note
-> scope with module:, as:, controller:, action: pattern.
->
-> **Schema** — Read data/release.sql for all relevant tables. Note column
-> types, constraints, indexes, foreign keys.
->
-> **Tests** — Search test/support/ for existing create_*! helpers for
-> affected models. Note existing test patterns.
->
-> **Git history** — Run git log --oneline -10 on key files. Use git blame
-> on anything non-obvious.
->
-> Return your findings as a structured summary:
->
-> - Affected files (full paths)
-> - Per-model: class hierarchy, callbacks, associations, soft deletes
-> - Per-controller: subdomain, BaseController, params pattern
-> - Per-worker: queue name, halt conditions
-> - Routes: file and pattern
-> - Schema: table structure
-> - Test helpers: existing create_*! helpers found
-> - Risks: anything that could cause problems (callback chains, soft
->   deletes, Current attribute dependencies)
+Provide the sub-agent with the **Full Mode Sub-Agent Prompt** from the
+framework fragment (fill in the scope from Step 1).
 
 Wait for the sub-agent to return before proceeding. Use the sub-agent's
 findings as the basis for all subsequent steps — do not re-read files
@@ -427,6 +353,5 @@ Print inside a fenced code block:
 
 - Never propose a solution during Research — that is Design's job (in light mode, the design object is factual, not a design choice)
 - Never write or modify any application code
-- Always read the full class hierarchy for every affected model — never just the model file
-- Always check `test/support/` for existing helpers before noting that tests will be needed
 - If returning to Research, read prior findings first and extend — never discard
+- Plus the **Framework-Specific Hard Rules** from the framework fragment

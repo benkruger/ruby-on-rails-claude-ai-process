@@ -52,6 +52,16 @@ No logging for this phase. Design runs no Bash commands beyond the entry
 gate — the work is AskUserQuestion calls, a sub-agent exploration, and
 state file writes.
 
+## Framework Fragment
+
+Read the framework-specific instructions from
+`${CLAUDE_PLUGIN_ROOT}/skills/design/<framework>.md`
+where `<framework>` is the `framework` field from the state file
+(`.flow-states/<branch>.json`).
+
+The fragment provides alternatives structure, validation sub-agent prompt,
+design presentation format, and design object schema referenced below.
+
 ---
 
 ## Step 1 — What are we building?
@@ -92,14 +102,8 @@ that contradicts what Research found without flagging it explicitly.
 ## Step 3 — Propose 2-3 alternatives
 
 Based on the feature description and research findings, propose 2-3
-genuinely distinct approaches. Each alternative must address:
-
-- **Approach summary** — 2-3 sentences describing the strategy
-- **Schema changes** — new tables, columns, indexes for `data/release.sql`
-- **Model changes** — Base/Create split, associations, callbacks
-- **Controller / route changes** — subdomain, new routes, params pattern
-- **Worker changes** — any async work, which queue
-- **Key trade-offs** — what you gain and what you give up
+genuinely distinct approaches. Structure each alternative using the
+**Alternatives Structure** from the framework fragment.
 
 Alternatives should be meaningfully different — not variations of the
 same idea. If only one approach makes sense, explain why and present
@@ -115,37 +119,9 @@ Use the Task tool:
 - `subagent_type`: `"Explore"`
 - `description`: `"Design alternative validation"`
 
-Provide these instructions to the sub-agent (fill in the details):
-
-> You are validating design alternatives for the FLOW design phase.
-> Feature: <feature name from state>
->
-> **Tool rules:** Use Glob and Read tools for all file and directory checks.
-> Use Grep for searching code. Never use Bash for file existence checks,
-> directory listings, or reading file contents (`test -f`, `ls`, `cat`, etc.).
->
-> Research findings: <paste state["research"] summary, affected_files, risks>
->
-> Alternatives to validate:
-> <paste the 2-3 alternatives drafted in Step 3>
->
-> For each alternative, check the codebase:
->
-> 1. **Feasibility** — Do the files it would touch exist? Does the route
->    structure support it? Does the schema allow it?
-> 2. **Conflicts** — Any naming collisions with existing code? Callback
->    chains that would interfere? Existing logic that contradicts the approach?
-> 3. **Reuse opportunities** — Existing helpers, shared modules, or patterns
->    that this alternative could leverage instead of building from scratch?
-> 4. **Files to modify** — Exact list of files each alternative would need
->    to create or modify.
->
-> Return per-alternative:
->
-> - Feasibility: confirmed / blocked (with reason)
-> - Conflicts found (if any)
-> - Reuse opportunities (if any)
-> - Files that would need modification (full paths)
+Provide the sub-agent with the **Validation Sub-Agent Prompt** from the
+framework fragment (fill in the feature name, research findings, and
+alternatives).
 
 Wait for the sub-agent to return. Incorporate its findings into the
 alternatives before presenting them to the user in Step 5.
@@ -211,40 +187,8 @@ have obvious answers from the research findings.
 
 ## Step 7 — Present full design for approval
 
-Show the complete design based on the chosen approach and refinements. Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
-
-````markdown
-```text
-============================================
-  FLOW — Phase 3: Design — PROPOSAL
-============================================
-
-  Feature     : <feature description>
-  Approach    : <chosen approach title>
-
-  Schema Changes
-  --------------
-  <list of tables/columns/indexes — or "None">
-
-  Model Changes
-  -------------
-  <Base/Create decisions, associations, callbacks>
-
-  Controller / Route Changes
-  --------------------------
-  <subdomain, route, params pattern>
-
-  Worker Changes
-  --------------
-  <queue, structure — or "None">
-
-  Risks
-  -----
-  <risks from research that are relevant to this approach>
-
-============================================
-```
-````
+Show the complete design based on the chosen approach and refinements using
+the **Design Presentation Format** from the framework fragment.
 
 Then use AskUserQuestion:
 
@@ -261,22 +205,8 @@ Phase 2 back to `in_progress`, then invoke `flow:research`.
 
 ## Step 8 — Save design to state
 
-Write to `.flow-states/<branch>.json` under `design`:
-
-```json
-"design": {
-  "feature_description": "<user's own words from Step 1>",
-  "chosen_approach": "<approach title>",
-  "rationale": "<why this approach was chosen>",
-  "schema_changes": [],
-  "model_changes": [],
-  "controller_changes": [],
-  "worker_changes": [],
-  "route_changes": [],
-  "risks": [],
-  "approved_at": "<current UTC timestamp>"
-}
-```
+Write the design to `.flow-states/<branch>.json` under `design` using the
+**Design Object Schema** from the framework fragment.
 
 ---
 

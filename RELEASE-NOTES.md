@@ -1,5 +1,21 @@
 # Release Notes
 
+## v0.13.0 — Multi-framework support
+
+FLOW now supports Rails and Python projects. `/flow:init` asks which framework
+the project uses and configures permissions accordingly. Each phase skill loads
+framework-specific content from fragment files (`skills/<phase>/rails.md` and
+`skills/<phase>/python.md`), keeping the shared workflow in SKILL.md.
+
+- **New**: Framework question in `/flow:init` — writes `framework` to `.flow.json`
+- **New**: Framework-aware permissions — Rails and Python each get their own Bash allow lists
+- **New**: Framework propagation — `framework` flows from `.flow.json` into the state file at Start
+- **New**: 7 skill fragment pairs (Start, Research, Design, Plan, Code, Review, Security) — each with Rails and Python variants covering architecture checks, sub-agent prompts, design categories, plan sections, and security checks
+- **New**: Test infrastructure extended to scan fragment files for permission coverage, JSON validity, sub-agent tool restrictions, and fragment pairing
+- **Improved**: Docs, README, and plugin metadata updated for multi-framework support
+
+---
+
 ## v0.12.0 — Light mode for bug fixes
 
 - **New**: `--light` flag on `/flow:start` — for bug fixes and small changes that don't need full Design ceremony. Skips Phase 3: Design. Research uses a "recent changes first" protocol (git history before deep exploration) and writes a simplified design object so Plan and Review work unchanged.

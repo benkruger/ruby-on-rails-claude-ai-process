@@ -39,7 +39,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ````text
 ```
 ============================================
-  FLOW v0.12.0 — Phase 1: Start — STARTING
+  FLOW v0.13.0 — Phase 1: Start — STARTING
 ============================================
 ```
 ````
@@ -153,7 +153,7 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 ````text
 ```
 ============================================
-  FLOW v0.12.0 — Phase 1: Start — COMPLETE (<formatted_time>)
+  FLOW v0.13.0 — Phase 1: Start — COMPLETE (<formatted_time>)
 ============================================
 ```
 ````

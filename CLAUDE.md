@@ -58,6 +58,10 @@ Phase skills log completion events to `.flow-states/<branch>.log` using a comman
 
 The version lives in 4 places, all must match: `plugin.json`, `marketplace.json` (top-level metadata), `marketplace.json` (plugins array entry). `test_structural.py` enforces consistency.
 
+### Permission Invariant
+
+Every `` ```bash `` block in every skill and docs file must run without triggering a Claude Code permission prompt. `test_permissions.py` enforces this: it extracts every bash block, substitutes placeholders with concrete values, and verifies each command matches an allow-list pattern and does not match a deny-list pattern. New bash commands require a matching permission entry. New placeholders require a `PLACEHOLDER_SUBS` entry. Unrecognized placeholders fail the test — they are never silently skipped.
+
 ## Test Architecture
 
 Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_dir` (flow-states dir inside git repo), `make_state()` (build state dicts), `write_state()` (write state JSON files).
@@ -69,7 +73,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 | `test_check_phase.py` | Phase guard: blocks on incomplete prerequisites, allows on complete, handles worktrees, re-entry notes |
 | `test_session_start.py` | Session hook: feature detection, timing reset, resume injection, multi-feature handling |
 | `test_docs_sync.py` | Docs completeness: every skill has a docs page, every phase has a docs page, index and README mention all commands |
-| `test_permissions.py` | Permission coverage: every Bash command in every SKILL.md has coverage in settings.json. Adding a new Bash command to a skill without updating settings.json will fail this test |
+| `test_permissions.py` | Permission simulation: allow/deny coverage, placeholder validation, source-of-truth sync between init-setup.py and init/SKILL.md, regex unit tests. Unrecognized placeholders fail loudly |
 | `test_bin_ci.py` | CI runner: venv detection, pass/fail behavior |
 | `test_bin_test.py` | Test runner: venv detection, pass/fail, argument passthrough |
 | `test_start_setup.py` | Start setup script: branch naming, settings merge, worktree, state file, logging, error paths |

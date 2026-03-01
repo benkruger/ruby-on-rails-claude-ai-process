@@ -9,7 +9,7 @@ that break permission matching or shell behavior.
 import json
 import re
 
-from conftest import REPO_ROOT, SKILLS_DIR
+from conftest import LIB_DIR, REPO_ROOT, SKILLS_DIR
 
 MAINTAINER_SKILLS_DIR = REPO_ROOT / ".claude" / "skills"
 SETTINGS_JSON = REPO_ROOT / ".claude" / "settings.json"
@@ -85,6 +85,23 @@ def _extract_init_permissions_block():
 def _extract_init_permissions():
     """Extract the allow list from init/SKILL.md reference JSON."""
     return _extract_init_permissions_block()["allow"]
+
+
+def _extract_init_deny():
+    """Extract the deny list from init/SKILL.md reference JSON."""
+    return _extract_init_permissions_block()["deny"]
+
+
+def _concrete_example(perm):
+    """Generate a representative command from a Bash(pattern) permission.
+
+    Replaces * with 'test-value' to create a concrete command that should
+    match the pattern. Returns None for non-Bash entries.
+    """
+    match = re.match(r"Bash\((.+)\)", perm)
+    if not match:
+        return None
+    return match.group(1).replace("*", "test-value")
 
 
 def _permission_to_regex(perm):
@@ -622,3 +639,280 @@ def test_maintainer_permissions_deny_destructive_git():
     deny = data["permissions"]["deny"]
     for entry in REQUIRED_DENY_ENTRIES:
         assert entry in deny, f"Missing deny entry in settings.json: {entry}"
+
+
+def test_no_unrecognized_placeholders_in_bash_blocks():
+    """Every angle-bracket placeholder in bash blocks must be in PLACEHOLDER_SUBS.
+
+    Unrecognized placeholders cause _substitute_placeholders to return None,
+    which silently skips the command — meaning it has zero permission coverage.
+    This test makes the silent skip a loud failure."""
+    errors = []
+
+    files_to_check = _all_plugin_skill_files()
+    for rel, content in _all_docs_files():
+        files_to_check.append((rel, content))
+
+    for filepath, content in files_to_check:
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in bash_blocks:
+            line = block.strip()
+
+            # Strip leading blockquote markers from sub-agent prompts
+            lines = line.split("\n")
+            lines = [re.sub(r'^>\s*', '', l) for l in lines]
+            line = "\n".join(lines).strip()
+
+            # Skip COMMAND templates (logging templates)
+            if "COMMAND" in line:
+                continue
+
+            # Apply all known substitutions
+            for placeholder, value in PLACEHOLDER_SUBS.items():
+                line = line.replace(placeholder, value)
+
+            # Check for remaining angle-bracket placeholders
+            remaining = re.findall(r"<[a-z_/-]+>", line, re.IGNORECASE)
+            if remaining:
+                unique = sorted(set(remaining))
+                errors.append(
+                    f"{filepath}: unrecognized placeholder(s) {unique} in "
+                    f"bash block. Add entries to PLACEHOLDER_SUBS in "
+                    f"test_permissions.py."
+                )
+
+    assert not errors, (
+        f"Found {len(errors)} bash block(s) with unrecognized placeholders. "
+        f"These commands are silently skipped by permission tests, meaning "
+        f"they have NO coverage. Add the missing placeholders to "
+        f"PLACEHOLDER_SUBS:\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
+def test_permission_to_regex_known_conversions():
+    """Pin known input/output pairs for _permission_to_regex."""
+    # Exact match — no trailing wildcard
+    r = _permission_to_regex("Bash(git push)")
+    assert r is not None
+    assert r.match("git push")
+    assert not r.match("git push origin")
+
+    # Trailing glob
+    r = _permission_to_regex("Bash(git push *)")
+    assert r is not None
+    assert r.match("git push origin main")
+    assert not r.match("git pull")
+
+    # Exact binary — no glob
+    r = _permission_to_regex("Bash(bin/ci)")
+    assert r is not None
+    assert r.match("bin/ci")
+    assert not r.match("bin/ci --verbose")
+
+    # cd prefix with glob
+    r = _permission_to_regex("Bash(cd .worktrees/* && *)")
+    assert r is not None
+    assert r.match("cd .worktrees/my-branch && bin/ci")
+
+    # Leading glob
+    r = _permission_to_regex("Bash(*bin/flow *)")
+    assert r is not None
+    assert r.match("/usr/local/bin/flow run")
+    assert r.match("bin/flow run")
+
+    # rm with glob suffix
+    r = _permission_to_regex("Bash(rm .flow-commit-*)")
+    assert r is not None
+    assert r.match("rm .flow-commit-abc123")
+
+    # Non-Bash entries return None
+    assert _permission_to_regex("Write(*)") is None
+    assert _permission_to_regex("plain string") is None
+
+
+def test_no_skill_command_matches_deny():
+    """No bash command in any plugin skill or docs file should match a deny pattern.
+
+    Deny always wins over allow. A command matching both is always blocked."""
+    deny = _extract_init_deny()
+    deny_regexes = [_permission_to_regex(d) for d in deny]
+    deny_regexes = [r for r in deny_regexes if r is not None]
+
+    errors = []
+
+    files_to_check = _all_plugin_skill_files()
+    for rel, content in _all_docs_files():
+        files_to_check.append((rel, content))
+
+    for filepath, content in files_to_check:
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in bash_blocks:
+            cmd = _extract_primary_command(block)
+            if cmd is None:
+                continue
+
+            for i, regex in enumerate(deny_regexes):
+                if regex.match(cmd):
+                    errors.append(
+                        f"{filepath}: command '{cmd}' matches deny entry "
+                        f"'{deny[i]}'. This command will always be blocked."
+                    )
+                    break
+
+    assert not errors, (
+        f"Found {len(errors)} command(s) matching deny patterns. "
+        f"Deny always wins — these commands will trigger permission prompts "
+        f"regardless of allow entries:\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
+def test_no_maintainer_command_matches_deny():
+    """No bash command in maintainer skills should match a settings.json deny pattern."""
+    data = json.loads(SETTINGS_JSON.read_text())
+    deny = data["permissions"]["deny"]
+    deny_regexes = [_permission_to_regex(d) for d in deny]
+    deny_regexes = [r for r in deny_regexes if r is not None]
+
+    errors = []
+
+    for filepath, content in _maintainer_files():
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in bash_blocks:
+            cmd = _extract_primary_command(block)
+            if cmd is None:
+                continue
+
+            for i, regex in enumerate(deny_regexes):
+                if regex.match(cmd):
+                    errors.append(
+                        f"{filepath}: command '{cmd}' matches deny entry "
+                        f"'{deny[i]}'. This command will always be blocked."
+                    )
+                    break
+
+    assert not errors, (
+        f"Found {len(errors)} maintainer command(s) matching deny patterns:\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
+def test_no_allow_deny_overlap_in_plugin_permissions():
+    """No allow entry in init/SKILL.md should produce a command that matches deny.
+
+    If an allow pattern generates commands that also match a deny pattern,
+    the allow entry is dead — deny always wins."""
+    perms = _extract_init_permissions_block()
+    allow = perms["allow"]
+    deny = perms["deny"]
+    deny_regexes = [_permission_to_regex(d) for d in deny]
+    deny_regexes = [r for r in deny_regexes if r is not None]
+
+    errors = []
+
+    for entry in allow:
+        example = _concrete_example(entry)
+        if example is None:
+            continue
+        for i, regex in enumerate(deny_regexes):
+            if regex.match(example):
+                errors.append(
+                    f"allow '{entry}' (example: '{example}') matches deny "
+                    f"'{deny[i]}'. This allow entry is dead — deny always wins."
+                )
+                break
+
+    assert not errors, (
+        f"Found {len(errors)} allow/deny overlap(s) in init/SKILL.md "
+        f"permissions:\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
+def test_no_allow_deny_overlap_in_maintainer_settings():
+    """No allow entry in settings.json should produce a command that matches deny."""
+    data = json.loads(SETTINGS_JSON.read_text())
+    allow = data["permissions"]["allow"]
+    deny = data["permissions"]["deny"]
+    deny_regexes = [_permission_to_regex(d) for d in deny]
+    deny_regexes = [r for r in deny_regexes if r is not None]
+
+    errors = []
+
+    for entry in allow:
+        example = _concrete_example(entry)
+        if example is None:
+            continue
+        for i, regex in enumerate(deny_regexes):
+            if regex.match(example):
+                errors.append(
+                    f"allow '{entry}' (example: '{example}') matches deny "
+                    f"'{deny[i]}'. This allow entry is dead — deny always wins."
+                )
+                break
+
+    assert not errors, (
+        f"Found {len(errors)} allow/deny overlap(s) in .claude/settings.json:\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
+def test_init_setup_lists_match_skill_md_reference():
+    """Permission lists in lib/init-setup.py must match init/SKILL.md JSON.
+
+    init-setup.py is the code that writes permissions at runtime.
+    init/SKILL.md contains the reference JSON for documentation.
+    If they drift, the docs lie about what gets installed."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "init_setup", LIB_DIR / "init-setup.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    # Build complete sets from init-setup.py
+    code_allow = set(mod.UNIVERSAL_ALLOW + mod.RAILS_ALLOW + mod.PYTHON_ALLOW)
+    code_deny = set(mod.FLOW_DENY)
+
+    # Get reference JSON from init/SKILL.md
+    perms = _extract_init_permissions_block()
+    skill_allow = set(perms["allow"])
+    skill_deny = set(perms["deny"])
+
+    errors = []
+
+    only_in_code_allow = code_allow - skill_allow
+    if only_in_code_allow:
+        errors.append(
+            f"In init-setup.py allow but not init/SKILL.md: "
+            f"{sorted(only_in_code_allow)}"
+        )
+
+    only_in_skill_allow = skill_allow - code_allow
+    if only_in_skill_allow:
+        errors.append(
+            f"In init/SKILL.md allow but not init-setup.py: "
+            f"{sorted(only_in_skill_allow)}"
+        )
+
+    only_in_code_deny = code_deny - skill_deny
+    if only_in_code_deny:
+        errors.append(
+            f"In init-setup.py deny but not init/SKILL.md: "
+            f"{sorted(only_in_code_deny)}"
+        )
+
+    only_in_skill_deny = skill_deny - code_deny
+    if only_in_skill_deny:
+        errors.append(
+            f"In init/SKILL.md deny but not init-setup.py: "
+            f"{sorted(only_in_skill_deny)}"
+        )
+
+    assert not errors, (
+        f"Permission lists out of sync between lib/init-setup.py (runtime "
+        f"source) and skills/init/SKILL.md (reference docs):\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )

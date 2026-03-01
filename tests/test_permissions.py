@@ -23,6 +23,21 @@ def _all_skill_names():
     return [d.name for d in sorted(SKILLS_DIR.iterdir()) if d.is_dir()]
 
 
+def _all_plugin_skill_files():
+    """Return (relative_path, content) for all .md files in all skill dirs.
+
+    Includes SKILL.md and any fragment files (rails.md, python.md, etc.).
+    """
+    result = []
+    for skill_dir in sorted(SKILLS_DIR.iterdir()):
+        if not skill_dir.is_dir():
+            continue
+        for md_file in sorted(skill_dir.glob("*.md")):
+            rel = md_file.relative_to(REPO_ROOT)
+            result.append((str(rel), md_file.read_text()))
+    return result
+
+
 def _all_docs_files():
     """Return (relative_path, content) for all .md files in docs/, recursively."""
     result = []
@@ -177,11 +192,7 @@ def test_no_bash_commands_reference_tmp():
     stay inside the project root."""
     errors = []
 
-    files_to_check = []
-    for name in _all_skill_names():
-        files_to_check.append(
-            (f"skills/{name}/SKILL.md", _read_skill(name))
-        )
+    files_to_check = _all_plugin_skill_files()
     for rel, content in _all_docs_files():
         files_to_check.append((rel, content))
 
@@ -211,11 +222,7 @@ def test_no_command_substitution_in_bash_blocks():
     Read/Write tools to append the log line with the timestamp."""
     errors = []
 
-    files_to_check = []
-    for name in _all_skill_names():
-        files_to_check.append(
-            (f"skills/{name}/SKILL.md", _read_skill(name))
-        )
+    files_to_check = _all_plugin_skill_files()
     for rel, content in _all_docs_files():
         files_to_check.append((rel, content))
 
@@ -246,11 +253,7 @@ def test_no_bash_redirects_to_dot_claude():
     of Bash >> for any .claude/ path."""
     errors = []
 
-    files_to_check = []
-    for name in _all_skill_names():
-        files_to_check.append(
-            (f"skills/{name}/SKILL.md", _read_skill(name))
-        )
+    files_to_check = _all_plugin_skill_files()
     for rel, content in _all_docs_files():
         files_to_check.append((rel, content))
 
@@ -325,11 +328,7 @@ def test_no_exit_in_bash_blocks():
     returns the exit code natively — the wrapper adds nothing."""
     errors = []
 
-    files_to_check = []
-    for name in _all_skill_names():
-        files_to_check.append(
-            (f"skills/{name}/SKILL.md", _read_skill(name))
-        )
+    files_to_check = _all_plugin_skill_files()
     for rel, content in _all_docs_files():
         files_to_check.append((rel, content))
 
@@ -362,11 +361,7 @@ def test_all_bash_commands_have_permission_coverage():
     errors = []
 
     # Collect all files to check
-    files_to_check = []
-    for name in _all_skill_names():
-        files_to_check.append(
-            (f"skills/{name}/SKILL.md", _read_skill(name))
-        )
+    files_to_check = _all_plugin_skill_files()
     for rel, content in _all_docs_files():
         files_to_check.append((rel, content))
 
@@ -418,11 +413,7 @@ def test_cd_prefixed_commands_have_full_permission_coverage():
     cd_pattern = re.compile(r'^cd\s+\S+\s*&&\s*')
     errors = []
 
-    files_to_check = []
-    for name in _all_skill_names():
-        files_to_check.append(
-            (f"skills/{name}/SKILL.md", _read_skill(name))
-        )
+    files_to_check = _all_plugin_skill_files()
     for rel, content in _all_docs_files():
         files_to_check.append((rel, content))
 

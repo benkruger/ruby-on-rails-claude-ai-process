@@ -27,10 +27,20 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Steps
 
-### Step 1 — Run init setup script
+### Step 1 — Ask framework
+
+Use AskUserQuestion:
+
+- Question: "What framework does this project use?"
+- Option 1: **Rails** — "Ruby on Rails project"
+- Option 2: **Python** — "Python project"
+
+Store the answer as `framework` (lowercase: `rails` or `python`).
+
+### Step 2 — Run init setup script
 
 ```bash
-exec ${CLAUDE_PLUGIN_ROOT}/bin/flow init-setup <project_root>
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow init-setup <project_root> --framework <framework>
 ```
 
 The script handles:
@@ -38,14 +48,22 @@ The script handles:
 - Reading or creating `.claude/settings.json`
 - Merging FLOW permissions (additive only — preserves existing entries)
 - Setting `defaultMode` to `acceptEdits` if not already set
-- Writing `.flow.json` version marker
+- Writing `.flow.json` with version marker and framework
 - Adding `.flow-states/` and `.worktrees/` to `.git/info/exclude`
 
-Output JSON: `{"status": "ok", "settings_merged": true, "exclude_updated": true, "version_marker": true}`
+Output JSON: `{"status": "ok", "settings_merged": true, "exclude_updated": true, "version_marker": true, "framework": "rails|python"}`
 
 If the script returns an error, show the message and stop.
 
-The FLOW permissions merged by the script:
+The permissions merged depend on the framework. Universal permissions are always merged. Framework-specific permissions are added based on the chosen framework.
+
+**Universal** (always merged): git operations, worktree management, PR lifecycle, bin/ci, bin/flow
+
+**Rails** (when framework is rails): bin/rails test, rubocop, bundle, psql
+
+**Python** (when framework is python): bin/test
+
+All permissions (universal + both framework sets) for reference:
 
 ```json
 {
@@ -64,13 +82,15 @@ The FLOW permissions merged by the script:
       "Bash(git push origin --delete *)",
       "Bash(git branch -D *)",
       "Bash(bin/ci)",
+      "Bash(rm .flow-commit-*)",
+      "Bash(*bin/flow *)",
       "Bash(bin/rails test *)",
       "Bash(rubocop *)",
       "Bash(rubocop -A)",
       "Bash(bundle update --all)",
-      "Bash(rm .flow-commit-*)",
       "Bash(bundle exec *)",
-      "Bash(*bin/flow *)"
+      "Bash(psql *)",
+      "Bash(bin/test *)"
     ],
     "deny": [
       "Bash(git rebase *)",
@@ -86,7 +106,7 @@ The FLOW permissions merged by the script:
 }
 ```
 
-### Step 2 — Commit and push
+### Step 3 — Commit and push
 
 Stage and commit the settings and version marker:
 
@@ -118,6 +138,7 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 
 Report:
 
+- Framework: `<framework>`
 - Settings written to `.claude/settings.json`
 - Version marker written to `.flow.json`
 - Git excludes configured for `.flow-states/` and `.worktrees/`

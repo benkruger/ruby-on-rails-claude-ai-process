@@ -288,3 +288,7 @@ Then report:
 - Worktree location
 - PR link
 - Any additional report items from the framework section above
+
+## Hard Rules
+
+- Do not narrate internal operations to the user — no "The framework is Python", no "Proceeding to phase completion", no "No additional setup steps are needed". Just do the work silently and show results

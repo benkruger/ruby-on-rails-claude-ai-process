@@ -71,14 +71,16 @@ detection — just follow the matching section silently.
 
 Provide these instructions to the Step 2 sub-agent (fill in the scope):
 
+> **CRITICAL — Tool rules (violating these will trigger permission
+> prompts that block the user):** Use Glob and Read tools for ALL file
+> and directory operations. Use Grep for searching code. The ONLY Bash
+> commands allowed are `git log` and `git blame`. Never use Bash for
+> anything else — no find, ls, cat, wc, test -f, stat, or running
+> project tooling (pytest, python, pip, etc.). If you need to check
+> whether a file exists, use Glob — never ls or test -f.
+>
 > You are exploring a Rails codebase for the FLOW research phase.
 > Research scope: <user's description from Step 1 — paste verbatim>
->
-> **Tool rules:** Use Glob and Read tools for all file and directory
-> operations. Use Grep for searching code. Only use Bash for commands
-> explicitly listed in these instructions. Never use Bash for any other
-> purpose — no find, ls, cat, wc, test -f, stat, or running project
-> tooling (pytest, python, pip, etc.).
 >
 > Systematically read all code relevant to this feature:
 >
@@ -122,14 +124,16 @@ Provide these instructions to the Step 2 sub-agent (fill in the scope):
 
 Provide these instructions to the Light Step 2 sub-agent (fill in the description):
 
+> **CRITICAL — Tool rules (violating these will trigger permission
+> prompts that block the user):** Use Glob and Read tools for ALL file
+> and directory operations. Use Grep for searching code. The ONLY Bash
+> commands allowed are `git log`, `git show`, and `git blame`. Never
+> use Bash for anything else — no find, ls, cat, wc, test -f, stat, or
+> running project tooling (pytest, python, pip, etc.). If you need to
+> check whether a file exists, use Glob — never ls or test -f.
+>
 > You are investigating a bug or small change in a Rails codebase.
 > Description: <user's description from Light Step 1 — paste verbatim>
->
-> **Tool rules:** Use Glob and Read tools for all file and directory
-> operations. Use Grep for searching code. Only use Bash for commands
-> explicitly listed in these instructions. Never use Bash for any other
-> purpose — no find, ls, cat, wc, test -f, stat, or running project
-> tooling (pytest, python, pip, etc.).
 >
 > **Start with recent changes:**
 >
@@ -184,14 +188,16 @@ arrays empty where not applicable.
 
 Provide these instructions to the Step 2 sub-agent (fill in the scope):
 
+> **CRITICAL — Tool rules (violating these will trigger permission
+> prompts that block the user):** Use Glob and Read tools for ALL file
+> and directory operations. Use Grep for searching code. The ONLY Bash
+> commands allowed are `git log` and `git blame`. Never use Bash for
+> anything else — no find, ls, cat, wc, test -f, stat, or running
+> project tooling (pytest, python, pip, etc.). If you need to check
+> whether a file exists, use Glob — never ls or test -f.
+>
 > You are exploring a Python codebase for the FLOW research phase.
 > Research scope: <user's description from Step 1 — paste verbatim>
->
-> **Tool rules:** Use Glob and Read tools for all file and directory
-> operations. Use Grep for searching code. Only use Bash for commands
-> explicitly listed in these instructions. Never use Bash for any other
-> purpose — no find, ls, cat, wc, test -f, stat, or running project
-> tooling (pytest, python, pip, etc.).
 >
 > Systematically read all code relevant to this feature:
 >
@@ -226,14 +232,16 @@ Provide these instructions to the Step 2 sub-agent (fill in the scope):
 
 Provide these instructions to the Light Step 2 sub-agent (fill in the description):
 
+> **CRITICAL — Tool rules (violating these will trigger permission
+> prompts that block the user):** Use Glob and Read tools for ALL file
+> and directory operations. Use Grep for searching code. The ONLY Bash
+> commands allowed are `git log`, `git show`, and `git blame`. Never
+> use Bash for anything else — no find, ls, cat, wc, test -f, stat, or
+> running project tooling (pytest, python, pip, etc.). If you need to
+> check whether a file exists, use Glob — never ls or test -f.
+>
 > You are investigating a bug or small change in a Python codebase.
 > Description: <user's description from Light Step 1 — paste verbatim>
->
-> **Tool rules:** Use Glob and Read tools for all file and directory
-> operations. Use Grep for searching code. Only use Bash for commands
-> explicitly listed in these instructions. Never use Bash for any other
-> purpose — no find, ls, cat, wc, test -f, stat, or running project
-> tooling (pytest, python, pip, etc.).
 >
 > **Start with recent changes:**
 >
@@ -391,6 +399,10 @@ Good research questions:
 - Rollback ("What's the behaviour if this fails mid-way?")
 
 Do NOT ask about things that can be inferred from the codebase. Only ask when genuinely unclear.
+
+Do NOT ask about approach, strategy, or implementation options — that is
+Design's job. Research questions are about understanding scope and
+constraints, never about choosing how to solve the problem.
 
 ---
 
@@ -570,7 +582,8 @@ Print inside a fenced code block:
 
 ## Hard Rules
 
-- Never propose a solution during Research — that is Design's job (in light mode, the design object is factual, not a design choice)
+- Never propose a solution during Research — that is Design's job (in light mode, the design object is factual, not a design choice). This includes asking the user to choose between approaches, strategies, or implementation options. Clarifying questions ask about scope and constraints ("Does this apply to X?"), never about approach ("Should we do A or B?")
 - Never write or modify any application code
 - If returning to Research, read prior findings first and extend — never discard
+- Do not narrate internal operations to the user — no "The framework is Python", no "Now let me show your current status:", no "Proceeding to phase completion". Just do the work silently and show results
 - Plus the **Framework-Specific Hard Rules** from the framework section above

@@ -22,8 +22,10 @@ stop immediately and show the error to the user.
 </HARD-GATE>
 
 Keep the project root, branch, and state data from the gate in context —
-all subsequent steps use them directly. Do not re-read the state file or
-re-run git commands to gather the same information.
+use the project root to build Read tool paths (e.g.
+`<project_root>/.flow-states/<branch>.json`). Do not re-read the state
+file or re-run git commands to gather the same information. Do not `cd`
+to the project root — `bin/flow` commands find paths internally.
 
 ## Announce
 

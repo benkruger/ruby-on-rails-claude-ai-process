@@ -338,6 +338,21 @@ def test_phase_skills_have_update_state_section():
         )
 
 
+def test_phase_skills_have_state_write_instruction():
+    """Phases 1-8 must instruct Claude to use Read+Write (not Edit) for
+    state file updates. Without this, Claude constructs python3 heredocs
+    or uses the Edit tool, both of which fail: heredocs trigger permission
+    prompts and Edit fails on non-unique field names across phases."""
+    phase_skills = _phase_skills()
+    for phase_num in range(1, 9):
+        skill_name = phase_skills[phase_num]
+        content = _read_skill(skill_name)
+        assert "Never use the Edit tool for state file" in content, (
+            f"Phase {phase_num} ({skill_name}) missing "
+            f"'Never use the Edit tool for state file' instruction"
+        )
+
+
 # --- Recommended models ---
 
 

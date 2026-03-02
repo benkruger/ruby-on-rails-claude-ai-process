@@ -245,6 +245,12 @@ Update `.flow-states/<branch>.json`:
 
 Update Phase 1 task to `completed`.
 
+**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
+modify the fields listed above in memory, then use the Write tool to
+write the entire file back. Never use the Edit tool for state file
+changes — field names repeat across phases and cause non-unique match
+errors.
+
 For the banner below, compute `<formatted_time>` from the integer `cumulative_seconds` stored above: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60. Do not write the formatted string back to the state file.
 
 Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:

@@ -56,18 +56,12 @@ def _git_repo_template(tmp_path_factory):
         ["git", "init"], cwd=template,
         capture_output=True, check=True,
     )
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"], cwd=template,
-        capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"], cwd=template,
-        capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "commit.gpgsign", "false"], cwd=template,
-        capture_output=True, check=True,
-    )
+    config_path = template / ".git" / "config"
+    with open(config_path, "a") as f:
+        f.write(
+            "[user]\n\temail = test@test.com\n\tname = Test\n"
+            "[commit]\n\tgpgsign = false\n"
+        )
     subprocess.run(
         ["git", "commit", "--allow-empty", "-m", "init"], cwd=template,
         capture_output=True, check=True,
@@ -86,11 +80,8 @@ def git_repo(_git_repo_template, tmp_path):
 @pytest.fixture
 def branch(git_repo):
     """Return the current branch name of the git repo."""
-    result = subprocess.run(
-        ["git", "branch", "--show-current"],
-        cwd=str(git_repo), capture_output=True, text=True, check=True,
-    )
-    return result.stdout.strip()
+    head = (git_repo / ".git" / "HEAD").read_text().strip()
+    return head.removeprefix("ref: refs/heads/")
 
 
 @pytest.fixture

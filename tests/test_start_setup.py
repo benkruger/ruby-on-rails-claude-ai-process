@@ -37,18 +37,12 @@ def _git_repo_with_remote_template(tmp_path_factory):
         ["git", "clone", str(bare), str(repo)],
         capture_output=True, check=True,
     )
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"],
-        cwd=str(repo), capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        cwd=str(repo), capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "commit.gpgsign", "false"],
-        cwd=str(repo), capture_output=True, check=True,
-    )
+    config_path = repo / ".git" / "config"
+    with open(config_path, "a") as f:
+        f.write(
+            "[user]\n\temail = test@test.com\n\tname = Test\n"
+            "[commit]\n\tgpgsign = false\n"
+        )
     subprocess.run(
         ["git", "commit", "--allow-empty", "-m", "init"],
         cwd=str(repo), capture_output=True, check=True,
@@ -67,10 +61,12 @@ def git_repo_with_remote(_git_repo_with_remote_template, tmp_path):
     shutil.copytree(_git_repo_with_remote_template, parent_copy)
     repo = parent_copy / "repo"
     bare = parent_copy / "bare.git"
-    subprocess.run(
-        ["git", "remote", "set-url", "origin", str(bare)],
-        cwd=str(repo), capture_output=True, check=True,
+    config_path = repo / ".git" / "config"
+    config_text = config_path.read_text()
+    config_text = config_text.replace(
+        str(_git_repo_with_remote_template / "bare.git"), str(bare)
     )
+    config_path.write_text(config_text)
     return repo
 
 
@@ -123,54 +119,72 @@ def _run_no_gh(cwd, feature_name, framework="rails"):
     return result
 
 
-# --- Branch name derivation ---
+@pytest.fixture(scope="module")
+def _default_run(_git_repo_with_remote_template, tmp_path_factory):
+    """Run start-setup.py once for all 'test feature' assertion tests."""
+    parent = tmp_path_factory.mktemp("default-run")
+    parent_copy = parent / "remote-setup"
+    shutil.copytree(_git_repo_with_remote_template, parent_copy)
+    repo = parent_copy / "repo"
+    bare = parent_copy / "bare.git"
+    config_path = repo / ".git" / "config"
+    config_text = config_path.read_text()
+    config_text = config_text.replace(
+        str(_git_repo_with_remote_template / "bare.git"), str(bare)
+    )
+    config_path.write_text(config_text)
+    result = _run_no_gh(repo, "test feature")
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    state_path = repo / ".flow-states" / "test-feature.json"
+    state = json.loads(state_path.read_text())
+    log_path = repo / ".flow-states" / "test-feature.log"
+    log = log_path.read_text() if log_path.exists() else ""
+    return data, state, log, repo
 
 
-def test_branch_name_from_feature(git_repo_with_remote):
+# --- Branch name derivation (in-process) ---
+
+
+def test_branch_name_from_feature():
     """Feature words joined with hyphens, lowercased."""
-    result = _run_no_gh(git_repo_with_remote, "Invoice Pdf Export")
-    assert result.returncode == 0, result.stderr
-    data = json.loads(result.stdout)
-    assert data["branch"] == "invoice-pdf-export"
+    assert _mod._branch_name("Invoice Pdf Export") == "invoice-pdf-export"
 
 
-def test_branch_name_truncated_at_32_chars(git_repo_with_remote):
+def test_branch_name_truncated_at_32_chars():
     """Branch names exceeding 32 chars are truncated at last whole word."""
-    result = _run_no_gh(git_repo_with_remote, "this is a very long feature name that exceeds limit")
-    assert result.returncode == 0, result.stderr
-    data = json.loads(result.stdout)
-    assert len(data["branch"]) <= 32
-    assert not data["branch"].endswith("-")
-    assert data["branch"] == "this-is-a-very-long-feature-name"
+    result = _mod._branch_name("this is a very long feature name that exceeds limit")
+    assert len(result) <= 32
+    assert not result.endswith("-")
+    assert result == "this-is-a-very-long-feature-name"
 
 
-def test_branch_name_exactly_32_chars(git_repo_with_remote):
+def test_branch_name_exactly_32_chars():
     """Branch name exactly 32 chars is not truncated."""
-    result = _run_no_gh(git_repo_with_remote, "abcdefgh abcdefgh abcdefgh abcde")
-    assert result.returncode == 0, result.stderr
-    data = json.loads(result.stdout)
-    assert data["branch"] == "abcdefgh-abcdefgh-abcdefgh-abcde"
+    assert _mod._branch_name("abcdefgh abcdefgh abcdefgh abcde") == "abcdefgh-abcdefgh-abcdefgh-abcde"
 
 
-# --- Feature name title-casing ---
+def test_branch_name_single_long_word():
+    """Single word >32 chars with no hyphens truncates at 32."""
+    result = _mod._branch_name("a" * 40)
+    assert len(result) == 32
+    assert result == "a" * 32
 
 
-def test_feature_name_title_cased(git_repo_with_remote):
+# --- Feature name title-casing (in-process) ---
+
+
+def test_feature_name_title_cased():
     """Feature name in output is title-cased."""
-    result = _run_no_gh(git_repo_with_remote, "invoice pdf export")
-    assert result.returncode == 0, result.stderr
-    data = json.loads(result.stdout)
-    assert data["feature"] == "Invoice Pdf Export"
+    assert _mod._title_case("invoice pdf export") == "Invoice Pdf Export"
 
 
-# --- Happy path output ---
+# --- Happy path output (shared run) ---
 
 
-def test_happy_path_returns_ok_json(git_repo_with_remote):
+def test_happy_path_returns_ok_json(_default_run):
     """Successful run returns JSON with status, worktree, feature, branch."""
-    result = _run_no_gh(git_repo_with_remote, "test feature")
-    assert result.returncode == 0, result.stderr
-    data = json.loads(result.stdout)
+    data, state, log, repo = _default_run
     assert data["status"] == "ok"
     assert data["worktree"] == ".worktrees/test-feature"
     assert data["feature"] == "Test Feature"
@@ -187,18 +201,12 @@ def test_git_pull_failure_returns_error(tmp_path):
     subprocess.run(
         ["git", "init"], cwd=tmp_path, capture_output=True, check=True,
     )
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"],
-        cwd=tmp_path, capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        cwd=tmp_path, capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "commit.gpgsign", "false"],
-        cwd=tmp_path, capture_output=True, check=True,
-    )
+    config_path = tmp_path / ".git" / "config"
+    with open(config_path, "a") as f:
+        f.write(
+            "[user]\n\temail = test@test.com\n\tname = Test\n"
+            "[commit]\n\tgpgsign = false\n"
+        )
     subprocess.run(
         ["git", "commit", "--allow-empty", "-m", "init"],
         cwd=tmp_path, capture_output=True, check=True,
@@ -235,129 +243,110 @@ def test_fails_when_flow_version_mismatch(tmp_path):
     assert "mismatch" in data["message"]
 
 
-def test_succeeds_when_flow_version_matches(git_repo_with_remote):
+def test_succeeds_when_flow_version_matches(_default_run):
     """start-setup.py succeeds when flow.json has the current version."""
-    result = _run_no_gh(git_repo_with_remote, "test feature")
-    assert result.returncode == 0, result.stderr
-    data = json.loads(result.stdout)
+    data, state, log, repo = _default_run
     assert data["status"] == "ok"
 
 
-# --- Worktree creation ---
+# --- Worktree creation (shared run) ---
 
 
-def test_worktree_created(git_repo_with_remote):
+def test_worktree_created(_default_run):
     """Worktree directory is created at .worktrees/<branch>."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    wt_path = git_repo_with_remote / ".worktrees" / "test-feature"
+    data, state, log, repo = _default_run
+    wt_path = repo / ".worktrees" / "test-feature"
     assert wt_path.is_dir()
 
 
-# --- State file creation ---
+# --- State file creation (shared run) ---
 
 
-def test_state_file_created(git_repo_with_remote):
+def test_state_file_created(_default_run):
     """State file created at .flow-states/<branch>.json."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
-    assert state_path.exists()
-    data = json.loads(state_path.read_text())
-    assert data["feature"] == "Test Feature"
-    assert data["branch"] == "test-feature"
-    assert data["worktree"] == ".worktrees/test-feature"
-    assert data["current_phase"] == 1
-    assert data["notes"] == []
+    data, state, log, repo = _default_run
+    assert state["feature"] == "Test Feature"
+    assert state["branch"] == "test-feature"
+    assert state["worktree"] == ".worktrees/test-feature"
+    assert state["current_phase"] == 1
+    assert state["notes"] == []
 
 
-def test_state_file_has_all_7_phases(git_repo_with_remote):
+def test_state_file_has_all_7_phases(_default_run):
     """State file must have all 7 phases with correct names."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
-    data = json.loads(state_path.read_text())
+    data, state, log, repo = _default_run
 
     expected_names = {
         "1": "Start", "2": "Plan", "3": "Code", "4": "Review",
         "5": "Security", "6": "Reflect", "7": "Cleanup",
     }
-    assert len(data["phases"]) == 7
+    assert len(state["phases"]) == 7
     for num, name in expected_names.items():
-        assert data["phases"][num]["name"] == name
+        assert state["phases"][num]["name"] == name
 
 
-def test_state_file_phase_fields(git_repo_with_remote):
+def test_state_file_phase_fields(_default_run):
     """Each phase has all required fields."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
-    data = json.loads(state_path.read_text())
+    data, state, log, repo = _default_run
 
     required_fields = [
         "name", "status", "started_at", "completed_at",
         "session_started_at", "cumulative_seconds", "visit_count",
     ]
     for num in range(1, 8):
-        phase = data["phases"][str(num)]
+        phase = state["phases"][str(num)]
         for field in required_fields:
             assert field in phase, f"Phase {num} missing field '{field}'"
 
 
-def test_state_file_phase_1_in_progress(git_repo_with_remote):
+def test_state_file_phase_1_in_progress(_default_run):
     """Phase 1 should be in_progress with timestamps set."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
-    data = json.loads(state_path.read_text())
+    data, state, log, repo = _default_run
 
-    phase1 = data["phases"]["1"]
+    phase1 = state["phases"]["1"]
     assert phase1["status"] == "in_progress"
     assert phase1["started_at"] is not None
     assert phase1["session_started_at"] is not None
     assert phase1["visit_count"] == 1
 
 
-def test_state_file_other_phases_pending(git_repo_with_remote):
+def test_state_file_other_phases_pending(_default_run):
     """Phases 2-7 should be pending with null timestamps."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
-    data = json.loads(state_path.read_text())
+    data, state, log, repo = _default_run
 
     for num in range(2, 8):
-        phase = data["phases"][str(num)]
+        phase = state["phases"][str(num)]
         assert phase["status"] == "pending"
         assert phase["started_at"] is None
         assert phase["session_started_at"] is None
         assert phase["visit_count"] == 0
 
 
-# --- Logging ---
+# --- Logging (shared run) ---
 
 
-def test_log_file_created(git_repo_with_remote):
+def test_log_file_created(_default_run):
     """Log file created at .flow-states/<branch>.log."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    log_path = git_repo_with_remote / ".flow-states" / "test-feature.log"
-    assert log_path.exists()
-    content = log_path.read_text()
-    assert "[Phase 1]" in content
+    data, state, log, repo = _default_run
+    assert log
+    assert "[Phase 1]" in log
 
 
-def test_log_entries_have_timestamps(git_repo_with_remote):
+def test_log_entries_have_timestamps(_default_run):
     """Log entries have ISO 8601 timestamps."""
-    _run_no_gh(git_repo_with_remote, "test feature")
-    log_path = git_repo_with_remote / ".flow-states" / "test-feature.log"
-    content = log_path.read_text()
-    lines = [line for line in content.strip().splitlines() if line.strip()]
+    data, state, log, repo = _default_run
+    lines = [line for line in log.strip().splitlines() if line.strip()]
     for line in lines:
         assert line[0:4].isdigit(), f"Log line missing timestamp: {line}"
         assert "T" in line[:20], f"Log line missing ISO format: {line}"
 
 
-# --- PR creation (stubbed) ---
+# --- PR creation (shared run) ---
 
 
-def test_pr_url_and_number_in_output(git_repo_with_remote):
+def test_pr_url_and_number_in_output(_default_run):
     """Output JSON includes pr_url and pr_number from gh pr create."""
-    result = _run_no_gh(git_repo_with_remote, "test feature")
-    assert result.returncode == 0, result.stderr
-    data = json.loads(result.stdout)
+    data, state, log, repo = _default_run
     assert data["pr_url"] == "https://github.com/test/repo/pull/42"
     assert data["pr_number"] == 42
 
@@ -380,13 +369,6 @@ def test_missing_feature_name_fails(tmp_path):
 # --- In-process unit tests for edge cases ---
 
 
-def test_branch_name_single_long_word():
-    """Single word >32 chars with no hyphens truncates at 32."""
-    result = _mod._branch_name("a" * 40)
-    assert len(result) == 32
-    assert result == "a" * 32
-
-
 def test_extract_pr_number_malformed_url():
     """Malformed PR URL returns 0."""
     assert _mod._extract_pr_number("not-a-url") == 0
@@ -397,17 +379,14 @@ def test_extract_pr_number_non_numeric():
     assert _mod._extract_pr_number("https://github.com/org/repo/pull/abc") == 0
 
 
-# --- plan_file field ---
+# --- plan_file field (shared run) ---
 
 
-def test_state_file_has_plan_file_null(git_repo_with_remote):
+def test_state_file_has_plan_file_null(_default_run):
     """State file must have plan_file: null on creation."""
-    result = _run_no_gh(git_repo_with_remote, "test feature")
-    assert result.returncode == 0, result.stderr
-    state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
-    data = json.loads(state_path.read_text())
-    assert "plan_file" in data
-    assert data["plan_file"] is None
+    data, state, log, repo = _default_run
+    assert "plan_file" in state
+    assert state["plan_file"] is None
 
 
 # --- .venv symlink in worktree ---
@@ -427,27 +406,22 @@ def test_venv_symlink_created_in_worktree(git_repo_with_remote):
     assert os.readlink(str(wt_venv)) == os.path.join("..", "..", ".venv")
 
 
-def test_worktree_created_without_venv(git_repo_with_remote):
+def test_worktree_created_without_venv(_default_run):
     """When no .venv/ exists, worktree is created successfully without it."""
-    result = _run_no_gh(git_repo_with_remote, "test feature")
-    assert result.returncode == 0, result.stderr
-    data = json.loads(result.stdout)
+    data, state, log, repo = _default_run
     assert data["status"] == "ok"
 
-    wt_venv = git_repo_with_remote / ".worktrees" / "test-feature" / ".venv"
+    wt_venv = repo / ".worktrees" / "test-feature" / ".venv"
     assert not wt_venv.exists()
 
 
 # --- Framework propagation ---
 
 
-def test_state_file_includes_framework(git_repo_with_remote):
+def test_state_file_includes_framework(_default_run):
     """State file must include framework from .flow.json."""
-    result = _run_no_gh(git_repo_with_remote, "test feature")
-    assert result.returncode == 0, result.stderr
-    state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
-    data = json.loads(state_path.read_text())
-    assert data["framework"] == "rails"
+    data, state, log, repo = _default_run
+    assert state["framework"] == "rails"
 
 
 def test_state_file_includes_python_framework(git_repo_with_remote):

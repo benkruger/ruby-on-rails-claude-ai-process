@@ -183,12 +183,7 @@ def test_git_exclude_updated(git_repo):
     data = json.loads(result.stdout)
     assert data["exclude_updated"] is True
 
-    # Find the exclude file
-    git_common = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=str(git_repo), capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    exclude_path = git_repo / git_common / "info" / "exclude"
+    exclude_path = git_repo / ".git" / "info" / "exclude"
     content = exclude_path.read_text()
     assert ".flow-states/" in content
     assert ".worktrees/" in content
@@ -198,22 +193,14 @@ def test_git_exclude_idempotent(git_repo):
     _run(git_repo)
     _run(git_repo)
 
-    git_common = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=str(git_repo), capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    exclude_path = git_repo / git_common / "info" / "exclude"
+    exclude_path = git_repo / ".git" / "info" / "exclude"
     content = exclude_path.read_text()
     assert content.count(".flow-states/") == 1
     assert content.count(".worktrees/") == 1
 
 
 def test_git_exclude_preserves_existing_content(git_repo):
-    git_common = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=str(git_repo), capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    info_dir = git_repo / git_common / "info"
+    info_dir = git_repo / ".git" / "info"
     info_dir.mkdir(parents=True, exist_ok=True)
     exclude_path = info_dir / "exclude"
     exclude_path.write_text("*.log\n")
@@ -226,11 +213,7 @@ def test_git_exclude_preserves_existing_content(git_repo):
 
 
 def test_git_exclude_not_updated_when_already_present(git_repo):
-    git_common = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=str(git_repo), capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    info_dir = git_repo / git_common / "info"
+    info_dir = git_repo / ".git" / "info"
     info_dir.mkdir(parents=True, exist_ok=True)
     (info_dir / "exclude").write_text(".flow-states/\n.worktrees/\n")
 
@@ -264,11 +247,7 @@ def test_update_git_exclude_no_git(tmp_path):
 
 
 def test_update_git_exclude_adds_newline_if_missing(git_repo):
-    git_common = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=str(git_repo), capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    info_dir = git_repo / git_common / "info"
+    info_dir = git_repo / ".git" / "info"
     info_dir.mkdir(parents=True, exist_ok=True)
     (info_dir / "exclude").write_text("*.tmp")  # No trailing newline
 
@@ -279,11 +258,7 @@ def test_update_git_exclude_adds_newline_if_missing(git_repo):
 
 
 def test_update_git_exclude_creates_file_when_missing(git_repo):
-    git_common = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=str(git_repo), capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    info_dir = git_repo / git_common / "info"
+    info_dir = git_repo / ".git" / "info"
     exclude_path = info_dir / "exclude"
     if exclude_path.exists():
         exclude_path.unlink()

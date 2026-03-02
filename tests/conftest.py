@@ -84,6 +84,16 @@ def git_repo(_git_repo_template, tmp_path):
 
 
 @pytest.fixture
+def branch(git_repo):
+    """Return the current branch name of the git repo."""
+    result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=str(git_repo), capture_output=True, text=True, check=True,
+    )
+    return result.stdout.strip()
+
+
+@pytest.fixture
 def state_dir(git_repo):
     """Create .flow-states/ inside the git repo."""
     d = git_repo / ".flow-states"

@@ -13,6 +13,9 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 9-phase dev
 - `docs/` — GitHub Pages site (main /docs, static HTML)
 - `lib/extract-release-notes.py` — extracts version sections from RELEASE-NOTES.md for GitHub Releases
 - `lib/start-setup.py` — consolidated Start phase setup (git pull, worktree, settings, PR, state file)
+- `lib/flow_utils.py` — shared utilities: `now()` (Pacific Time timestamps), `PACIFIC` timezone, `format_time()`, `current_branch()`, `project_root()`, `PHASE_NAMES`
+- `lib/phase-transition.py` — phase entry/completion (timing, counters, status, formatted_time)
+- `lib/set-timestamp.py` — mid-phase timestamp fields and task updates via dot-path notation
 - `bin/flow` — dispatcher script routing subcommands to `lib/*.py`
 - `docs/reference/flow-state-schema.md` — state file schema reference
 - `docs/reference/skill-pattern.md` — template pattern for building new phase skills
@@ -58,6 +61,10 @@ Phase skills log completion events to `.flow-states/<branch>.log` using a comman
 
 The version lives in 4 places, all must match: `plugin.json`, `marketplace.json` (top-level metadata), `marketplace.json` (plugins array entry). `test_structural.py` enforces consistency.
 
+### State Mutations
+
+Claude never computes timestamps, time differences, or counter increments. All standard state mutations go through `bin/flow` commands: `phase-transition` for entry/completion, `set-timestamp` for mid-phase fields. Claude still writes complex content objects (design, plan, research, security) via Read+Write, but timestamp fields within those objects are set to null and filled separately by `set-timestamp`.
+
 ### Permission Invariant
 
 Every `` ```bash `` block in every skill and docs file must run without triggering a Claude Code permission prompt. `test_permissions.py` enforces this: it extracts every bash block, substitutes placeholders with concrete values, and verifies each command matches an allow-list pattern and does not match a deny-list pattern. New bash commands require a matching permission entry. New placeholders require a `PLACEHOLDER_SUBS` entry. Unrecognized placeholders fail the test — they are never silently skipped.
@@ -77,6 +84,8 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 | `test_bin_ci.py` | CI runner: venv detection, pass/fail behavior |
 | `test_bin_test.py` | Test runner: venv detection, pass/fail, argument passthrough |
 | `test_start_setup.py` | Start setup script: branch naming, settings merge, worktree, state file, logging, error paths |
+| `test_phase_transition.py` | Phase entry/completion: timing, counters, status, formatted_time |
+| `test_set_timestamp.py` | Mid-phase timestamps: dot-path navigation, NOW replacement, task updates |
 | `test_extract_release.py` | Release notes extraction from RELEASE-NOTES.md |
 
 ## Maintainer Skills (private to this repo)
@@ -94,6 +103,8 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 - Never rebase — merge only (denied in `.claude/settings.json`)
 - CLAUDE.md changes only through `/reflect` — never edit CLAUDE.md directly. The `/reflect` skill exists to review mistakes, propose additions, get individual approval for each change, and commit. Editing CLAUDE.md outside of `/reflect` bypasses all of that.
 - **Never add pymarkdown exclusions** — The `.pymarkdown.yml` disables MD013 (line length), MD025 (multiple H1 with frontmatter), MD033 (inline HTML), and MD036 (emphasis as heading) because those conflict with this repo's intentional patterns. No further rule disablements or path exclusions may be added. If a markdown file triggers a lint error, fix the file — do not suppress the rule. If a rule genuinely cannot be satisfied, surface it to the user for a decision.
+- **Skills must never instruct Claude to compute values** — no timestamp generation, no time arithmetic, no counter increments, no `date -u`. All computation goes through `bin/flow` subcommands. Skills say "run this command", never "calculate this value". `test_skill_contracts.py` enforces this: `test_phase_skills_no_inline_time_computation` fails if any phase skill contains computational instruction patterns.
+- **All timestamps use Pacific Time** — `lib/flow_utils.py` provides `now()` which returns `datetime.now(ZoneInfo("America/Los_Angeles")).isoformat(timespec="seconds")`. All scripts import `now` from `flow_utils` — never generate timestamps locally. Existing state files with UTC timestamps (`Z` suffix) are handled by `datetime.fromisoformat()` which parses both formats.
 - **Prefer dedicated tools over Bash for all non-execution tasks** — Read files with the Read tool, search with Glob and Grep, create with Write, modify with Edit. Bash should only be used for commands that genuinely require shell execution: `bin/ci`, `bin/test`, `bin/flow`, `make`, and `git`. In this project's strict permission environment (`defaultMode: "plan"`), every Bash command not in the allow list triggers a permission prompt. When you need to explore, understand, or modify files, use dedicated tools — they never prompt.
 
 ## Lessons Learned
@@ -127,3 +138,4 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 - **Update CLAUDE.md when the project's scope changes** — When a feature changes what the project is (e.g., single-framework to multi-framework), update CLAUDE.md's project description and architecture sections in the same change. Stale descriptions mislead future sessions.
 - **Never use replace_all=True on JSON state file edits when the old_string appears in multiple semantic contexts** — "pending" appears in both task statuses and phase statuses. Use targeted old_string with enough surrounding context to make the match unique to a single location.
 - **Store numeric state fields as raw integers, never formatted strings** — `cumulative_seconds` and `visit_count` must be integers in the JSON state file. The human-readable format (e.g. `"<1m"`, `"5m"`) is for display output only and must never be written to storage.
+- **Before changing output formats, grep tests for the old format** — When switching timestamps from UTC to Pacific Time, 5 tests failed because they asserted UTC-specific patterns (`endswith("Z")`, regex requiring `Z$`). Before changing any value format in production code, search test files for assertions that depend on the old format and update them in the same change.

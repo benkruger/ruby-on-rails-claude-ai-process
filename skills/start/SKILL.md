@@ -46,7 +46,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Logging
 
-After every Bash command in Step 4, log it to `.flow-states/<branch>.log`. Step 3 handles its own logging internally.
+After every Bash command in Steps 4–7, log it to `.flow-states/<branch>.log`. Step 3 handles its own logging internally.
 
 Run the command directly — do not append any suffix:
 
@@ -140,46 +140,32 @@ If the error step is `init_check`, tell the user to run `/flow:init` first
 and stop. For all other errors, read the stderr output for details, report
 the failure to the user, and stop.
 
-### Step 4 — Framework-specific setup
-
 Read the `framework` field from the state file (`.flow-states/<branch>.json`)
 and follow only the matching section below.
 
 #### If Rails
 
-##### Step 4a — Baseline `bin/ci`
-
-```bash
-bin/ci
-```
-
-- **Passes** — note as baseline and continue
-- **Fails** — launch the CI fix sub-agent (see Step 4d). Pass the full
-  `bin/ci` output. After the sub-agent returns:
-  - **Fixed** — use `/flow:commit` to commit the fix, then continue
-  - **Not fixed** — stop and report to the user what is failing
-
-##### Step 4b — Upgrade gems
+### Step 4 — Upgrade gems
 
 ```bash
 bundle update --all
 ```
 
-##### Step 4c — Post-update `bin/ci`
+### Step 5 — Post-upgrade `bin/ci`
 
 ```bash
 bin/ci
 ```
 
-- **Passes** — continue to Step 4e
-- **Fails** — launch the CI fix sub-agent (see Step 4d). Pass the full
+- **Passes** — continue to Step 7
+- **Fails** — launch the CI fix sub-agent (see Step 6). Pass the full
   `bin/ci` output. After the sub-agent returns:
-  - **Fixed** — continue to Step 4e (Gemfile.lock + fixes committed together)
+  - **Fixed** — continue to Step 7 (Gemfile.lock + fixes committed together)
   - **Not fixed** — stop and report to the user what is failing
 
-##### Step 4d — CI fix sub-agent
+### Step 6 — CI fix sub-agent
 
-When `bin/ci` fails in Step 4a or Step 4c, launch a sub-agent to diagnose
+When `bin/ci` fails in Step 5, launch a sub-agent to diagnose
 and fix the failures. Use the Task tool:
 
 - `subagent_type`: `"general-purpose"`
@@ -229,98 +215,24 @@ Provide these instructions (fill in the worktree path and bin/ci output):
 Wait for the sub-agent to return.
 
 <HARD-GATE>
-Do NOT proceed past Step 4a or Step 4c until bin/ci is green.
+Do NOT proceed past Step 5 until bin/ci is green.
 </HARD-GATE>
 
-##### Step 4e — Commit and push
+### Step 7 — Commit and push
 
 Use `/flow:commit` to review and commit the changes (`Gemfile.lock` + any gem fixes).
 
-##### Rails report additions
+#### Rails report additions
 
 Include in the Done report:
 
-- Whether baseline `bin/ci` was clean
 - Which gems were upgraded (`git diff Gemfile.lock` summary)
 - Confirmation `bin/ci` is green
 
 #### If Python
 
-##### Step 4a — Baseline `bin/ci`
-
-```bash
-bin/ci
-```
-
-- **Passes** — note as baseline and continue to Done
-- **Fails** — launch the CI fix sub-agent (see Step 4b). Pass the full
-  `bin/ci` output. After the sub-agent returns:
-  - **Fixed** — use `/flow:commit` to commit the fix, then continue to Done
-  - **Not fixed** — stop and report to the user what is failing
-
-##### Step 4b — CI fix sub-agent
-
-When `bin/ci` fails in Step 4a, launch a sub-agent to diagnose
-and fix the failures. Use the Agent tool:
-
-- `subagent_type`: `"general-purpose"`
-- `model`: `"sonnet"`
-- `description`: `"Fix bin/ci failures"`
-
-Provide these instructions (fill in the worktree path and bin/ci output):
-
-> You are fixing CI failures in a Python worktree.
-> Worktree: `<worktree path>`
-> cd into the worktree before running any commands.
->
-> The `bin/ci` output:
-> <paste the full bin/ci output>
->
-> **Tool rules:** Use Glob and Read tools for all file and directory
-> operations. Use Grep for searching code. Only use Bash for commands
-> explicitly listed in these instructions (bin/ci, bin/test). Never use
-> Bash for any other purpose — no find, ls, cat, wc, test -f, stat, or
-> running project tooling not listed here.
->
-> Fix the failures in this order:
->
-> 1. **Lint violations** — read the lint output carefully. Fix the code
->    to satisfy the linter. Then run `bin/ci`.
-> 2. **Test failures** — read the failing test and the code it tests.
->    Understand the root cause. Fix the code, not the test (unless the
->    test itself is wrong). Run `bin/test <file>` to verify,
->    then `bin/ci` for a full check.
-> 3. **Coverage gaps** — identify uncovered lines from the coverage
->    report. Write the missing test, then `bin/ci`.
->
-> Max 3 attempts. After each fix, run `bin/ci`. If green, report what
-> was fixed and stop. If still failing after 3 attempts, report exactly
-> what is failing and what was tried.
->
-> Return:
->
-> 1. Status: fixed / not_fixed
-> 2. What was wrong
-> 3. What was changed (files modified)
-
-Wait for the sub-agent to return.
-
-<HARD-GATE>
-Do NOT proceed past Step 4a until bin/ci is green.
-</HARD-GATE>
-
-##### Step 4c — Commit fixes (if any)
-
-If the CI fix sub-agent made changes, use `/flow:commit` to commit them.
-
-If baseline was already green, skip this step.
-
-##### Python report additions
-
-Include in the Done report:
-
-- Whether baseline `bin/ci` was clean
-- Confirmation `bin/ci` is green
+No additional setup needed — Step 2 already verified `bin/ci` on main,
+and Python has no dependency upgrade step. Proceed to Done.
 
 ### Done — Update state and complete phase
 

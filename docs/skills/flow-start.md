@@ -25,10 +25,8 @@ Begins a new feature. This is always the first command run for any piece of work
 1. Checks for existing active FLOW features
 2. Runs `bin/ci` on main to verify the codebase is healthy
 3. Runs `lib/start-setup.py` — verifies `/flow:init` version gate, git pull, worktree creation, empty commit + push + PR, and state file creation
-4. Runs `bin/ci` as a baseline health check
-5. Runs framework-specific setup (dependency upgrades, CI fixes via a Sonnet sub-agent)
-6. Commits via `/flow:commit`
-7. Marks Phase 1 complete and transitions to Phase 2: Research
+4. Framework-specific setup (Rails: gem upgrade, post-upgrade `bin/ci`, CI fixes via a Sonnet sub-agent, commit. Python: no additional setup)
+5. Marks Phase 1 complete and transitions to Phase 2: Research
 
 ---
 

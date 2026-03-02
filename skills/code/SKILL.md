@@ -52,7 +52,8 @@ If `"status": "error"`, report the error and stop.
 
 Read the `framework` field from the state file and follow only the matching
 section below for architecture checks, targeted test command, CI failure fix
-order, and framework-specific hard rules.
+order, and framework-specific hard rules. Do not announce the framework —
+just follow the matching section silently.
 
 ### If Rails
 

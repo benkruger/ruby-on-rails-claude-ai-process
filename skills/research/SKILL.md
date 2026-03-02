@@ -60,7 +60,8 @@ AskUserQuestion calls and state file writes.
 
 Read the `framework` field from the state file and follow only the matching
 section below for sub-agent prompts, light mode design object template, and
-framework-specific hard rules.
+framework-specific hard rules. Do not announce or narrate the framework
+detection — just follow the matching section silently.
 
 ### If Rails
 
@@ -346,22 +347,14 @@ If this is a return visit (`visit_count` > 1), show what was previously
 found and ask: "What gaps should we fill this time?" Do not discard prior
 findings — extend them.
 
-Otherwise, use AskUserQuestion with two questions:
+Otherwise, ask the user directly (plain text, not AskUserQuestion):
 
-**Question 1:** "What type of work is this?"
+> What should we research? Describe the area of the codebase to explore
+> and what we're trying to understand.
 
-- New feature
-- Change to existing feature
-- Bug investigation
-- Refactor / restructure
-
-**Question 2:** "Describe what we should research. What area of the codebase should we explore, and what are we trying to understand?"
-- I'll describe it (select Other and type your description)
-- I'm not sure yet — help me figure out where to start
-
-The user's answer to Question 2 directs the entire exploration. If they
-select "I'm not sure yet", ask follow-up questions to narrow the scope
-before proceeding. Do not assume scope from the feature branch name.
+Wait for the user's response. If they are vague, ask follow-up questions
+to narrow the scope before proceeding. Do not assume scope from the
+feature branch name.
 
 Store the user's description in `state["research"]["scope"]` in the
 state file.

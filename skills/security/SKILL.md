@@ -70,7 +70,8 @@ Get `<branch>` from the state file.
 ## Framework Instructions
 
 Read the `framework` field from the state file and follow only the matching
-section below for the security analysis sub-agent prompt.
+section below for the security analysis sub-agent prompt. Do not announce
+the framework — just follow the matching section silently.
 
 ### If Rails
 

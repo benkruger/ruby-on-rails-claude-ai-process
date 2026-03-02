@@ -141,7 +141,8 @@ and stop. For all other errors, read the stderr output for details, report
 the failure to the user, and stop.
 
 Read the `framework` field from the state file (`.flow-states/<branch>.json`)
-and follow only the matching section below.
+and follow only the matching section below. Do not announce the framework —
+just follow the matching section silently.
 
 #### If Rails
 
@@ -232,7 +233,8 @@ Include in the Done report:
 #### If Python
 
 No additional setup needed — Step 2 already verified `bin/ci` on main,
-and Python has no dependency upgrade step. Proceed to Done.
+and Python has no dependency upgrade step. Proceed silently to Done —
+do not announce the framework or explain why steps were skipped.
 
 ### Done — Update state and complete phase
 

@@ -52,7 +52,8 @@ If `"status": "error"`, report the error and stop.
 
 Read the `framework` field from the state file and follow only the matching
 section below for plan section initialization, section verification sub-agent
-prompt, section definitions, and plan save schema.
+prompt, section definitions, and plan save schema. Do not announce the
+framework — just follow the matching section silently.
 
 Initialise `state["plan"]` using the **Plan Sections Initialization** from
 the matching framework section below.

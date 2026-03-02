@@ -58,7 +58,8 @@ state file writes.
 
 Read the `framework` field from the state file and follow only the matching
 section below for alternatives structure, validation sub-agent prompt,
-design presentation format, and design object schema.
+design presentation format, and design object schema. Do not announce the
+framework — just follow the matching section silently.
 
 ### If Rails
 

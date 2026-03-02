@@ -67,7 +67,8 @@ Get `<branch>` from the state file.
 
 Read the `framework` field from the state file and follow only the matching
 section below for the diff analysis sub-agent prompt and framework-specific
-hard rules.
+hard rules. Do not announce the framework — just follow the matching
+section silently.
 
 ### If Rails
 

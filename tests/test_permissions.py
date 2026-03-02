@@ -138,6 +138,9 @@ PLACEHOLDER_SUBS = {
     "<current-branch>": "test-branch",
     "<test/path/to/file_test.rb>": "test/models/user_test.rb",
     "<tests/path/to/test_file.py>": "tests/test_foo.py",
+    "<task_index>": "0",
+    "<N>": "2",
+    "<path>": "design.approved_at",
 }
 
 

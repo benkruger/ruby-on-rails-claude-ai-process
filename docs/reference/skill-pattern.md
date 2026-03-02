@@ -67,19 +67,26 @@ when building new phase skills.
 
 **On phase entry:**
 
-- `status` → `in_progress`
-- `started_at` → current UTC timestamp (only if null — never overwrite)
-- `session_started_at` → current UTC timestamp
-- `visit_count` → increment by 1
-- `current_phase` → this phase number
+```bash
+bin/flow phase-transition --phase <N> --action enter
+```
 
 **On phase exit:**
 
-- `cumulative_seconds` → `+= (now - session_started_at)`
-- `status` → `complete`
-- `completed_at` → current UTC timestamp
-- `session_started_at` → `null`
-- `current_phase` → next phase number
+```bash
+bin/flow phase-transition --phase <N> --action complete
+```
+
+The `phase-transition` script handles all timing, counters, and status
+fields. Skills must never compute timestamps, time differences, or
+counter increments — all computation goes through `bin/flow` commands.
+
+For mid-phase timestamp fields (`approved_at`, `scanned_at`, task
+status changes), use:
+
+```bash
+bin/flow set-timestamp --set <path>=NOW
+```
 
 ---
 

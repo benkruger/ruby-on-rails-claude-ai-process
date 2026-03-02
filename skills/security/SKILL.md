@@ -39,18 +39,14 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Update State
 
-Using the state data from the gate, cd into the worktree and update Phase 7:
-- `status` → `in_progress`
-- `started_at` → current UTC timestamp (only if null — never overwrite)
-- `session_started_at` → current UTC timestamp
-- `visit_count` → increment by 1
-- `current_phase` → `7`
+Update state for phase entry:
 
-**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
-modify the fields listed above in memory, then use the Write tool to
-write the entire file back. Never use the Edit tool for state file
-changes — field names repeat across phases and cause non-unique match
-errors.
+```bash
+bin/flow phase-transition --phase 7 --action enter
+```
+
+Parse the JSON output to confirm `"status": "ok"`.
+If `"status": "error"`, report the error and stop.
 
 ## Logging
 
@@ -340,14 +336,14 @@ Write all confirmed findings and clean checks to the state file:
     }
   ],
   "clean_checks": ["<check_1>", "<check_2>", "<check_3>"],
-  "scanned_at": "2026-02-20T15:00:00Z"
+  "scanned_at": null
 }
 ```
 
 Check names and categories are defined by the framework section above.
 
 Number each finding with a sequential `id`. Set `status` to `"pending"` for
-every confirmed finding. `scanned_at` is the current UTC timestamp.
+every confirmed finding. Set `scanned_at` to `null` in the object you write.
 
 If there are no confirmed findings, set `findings` to an empty array, list
 all 10 checks in `clean_checks`, and skip to Step 4.
@@ -356,6 +352,12 @@ all 10 checks in `clean_checks`, and skip to Step 4.
 modify the fields in memory, then use the Write tool to write the
 entire file back. Never use the Edit tool for state file changes —
 field names repeat across phases and cause non-unique match errors.
+
+Then set the scan timestamp:
+
+```bash
+bin/flow set-timestamp --set security.scanned_at=NOW
+```
 
 ---
 
@@ -417,20 +419,15 @@ Show a summary of what was found and fixed inside a fenced code block:
 
 ## Done — Update state and complete phase
 
-Update Phase 7 in state:
-1. `cumulative_seconds` += `current_time - session_started_at`. Do not print the calculation.
-2. `status` → `complete`
-3. `completed_at` → current UTC timestamp
-4. `session_started_at` → `null`
-5. `current_phase` → `8`
+Complete the phase:
 
-**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
-modify the fields listed above in memory, then use the Write tool to
-write the entire file back. Never use the Edit tool for state file
-changes — field names repeat across phases and cause non-unique match
-errors.
+```bash
+bin/flow phase-transition --phase 7 --action complete
+```
 
-For the banner below, compute `<formatted_time>` from the integer `cumulative_seconds` stored above: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60. Do not write the formatted string back to the state file.
+Parse the JSON output. If `"status": "error"`, report the error and stop.
+Use the `formatted_time` field in the COMPLETE banner below. Do not print
+the timing calculation.
 
 Print inside a fenced code block:
 

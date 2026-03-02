@@ -15,17 +15,11 @@ Output (JSON to stdout):
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from flow_utils import current_branch, project_root, PHASE_NAMES
-
-
-def _now():
-    """Return current UTC timestamp in ISO 8601 format."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+from flow_utils import current_branch, now, project_root, PHASE_NAMES
 
 
 def append_note(state_path, phase, note_type, note_text):
@@ -38,7 +32,7 @@ def append_note(state_path, phase, note_type, note_text):
     state["notes"].append({
         "phase": phase,
         "phase_name": PHASE_NAMES.get(phase, f"Phase {phase}"),
-        "timestamp": _now(),
+        "timestamp": now(),
         "type": note_type,
         "note": note_text,
     })

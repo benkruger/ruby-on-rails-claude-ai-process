@@ -1,13 +1,23 @@
 """Shared utilities for FLOW hooks.
 
 Provides common functions used across multiple hook scripts:
+- now: current Pacific Time timestamp
 - format_time: human-readable time formatting
 - project_root: find the main git repo root (works from worktrees)
 - current_branch: get the current git branch name
 """
 
 import subprocess
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+PACIFIC = ZoneInfo("America/Los_Angeles")
+
+
+def now():
+    """Return current Pacific Time timestamp in ISO 8601 format."""
+    return datetime.now(PACIFIC).isoformat(timespec="seconds")
 
 PHASE_NAMES = {
     1: "Start", 2: "Research", 3: "Design", 4: "Plan",

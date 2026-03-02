@@ -80,7 +80,7 @@ def test_note_written_to_state_file(state_dir, git_repo):
     assert note["phase_name"] == "Research"
     assert note["type"] == "correction"
     assert note["note"] == "Always merge, never rebase"
-    assert note["timestamp"].endswith("Z")
+    assert "T" in note["timestamp"]  # ISO 8601 format
 
 
 def test_multiple_notes_append(state_dir, git_repo):

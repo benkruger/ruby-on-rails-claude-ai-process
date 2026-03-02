@@ -338,19 +338,83 @@ def test_phase_skills_have_update_state_section():
         )
 
 
-def test_phase_skills_have_state_write_instruction():
-    """Phases 1-8 must instruct Claude to use Read+Write (not Edit) for
-    state file updates. Without this, Claude constructs python3 heredocs
-    or uses the Edit tool, both of which fail: heredocs trigger permission
-    prompts and Edit fails on non-unique field names across phases."""
+def test_phase_skills_with_content_writes_have_state_write_instruction():
+    """Phase skills that write complex content objects (research, design,
+    plan, security) must instruct Claude to use Read+Write (not Edit) for
+    state file updates. Without this, Claude uses the Edit tool, which fails
+    on non-unique field names across phases.
+
+    Skills that only use bin/flow commands for state mutations (start, code,
+    review, reflect) do not need this instruction."""
     phase_skills = _phase_skills()
-    for phase_num in range(1, 9):
+    content_write_phases = {2, 3, 4, 7}  # research, design, plan, security
+    for phase_num in content_write_phases:
         skill_name = phase_skills[phase_num]
         content = _read_skill(skill_name)
         assert "Never use the Edit tool for state file" in content, (
             f"Phase {phase_num} ({skill_name}) missing "
             f"'Never use the Edit tool for state file' instruction"
         )
+
+
+# --- Phase transition commands ---
+
+
+def test_phase_skills_use_phase_transition_for_entry():
+    """Phases 2-8 must use bin/flow phase-transition for state entry.
+    Phase 1 uses start-setup.py which creates the state file directly."""
+    phase_skills = _phase_skills()
+    for phase_num in range(2, 9):
+        skill_name = phase_skills[phase_num]
+        content = _read_skill(skill_name)
+        assert "phase-transition" in content, (
+            f"Phase {phase_num} ({skill_name}) missing "
+            f"'phase-transition' command for entry"
+        )
+        assert "--action enter" in content, (
+            f"Phase {phase_num} ({skill_name}) missing "
+            f"'--action enter' for phase entry"
+        )
+
+
+def test_phase_skills_use_phase_transition_for_completion():
+    """Phases 1-8 must use bin/flow phase-transition for state completion."""
+    phase_skills = _phase_skills()
+    for phase_num in range(1, 9):
+        skill_name = phase_skills[phase_num]
+        content = _read_skill(skill_name)
+        assert "--action complete" in content, (
+            f"Phase {phase_num} ({skill_name}) missing "
+            f"'--action complete' for phase completion"
+        )
+
+
+def test_phase_skills_no_inline_time_computation():
+    """No phase skill may contain inline time computation instructions.
+    All timing goes through bin/flow phase-transition. The hallmark
+    pattern 'current_time - session_started_at' causes Claude to
+    improvise python3 heredocs that trigger permission prompts."""
+    phase_skills = _phase_skills()
+    for phase_num, skill_name in phase_skills.items():
+        content = _read_skill(skill_name)
+        assert "current_time - session_started_at" not in content, (
+            f"Phase {phase_num} ({skill_name}) contains inline time "
+            f"computation 'current_time - session_started_at' — "
+            f"use bin/flow phase-transition instead"
+        )
+
+
+def test_code_skill_uses_set_timestamp_for_tasks():
+    """Code skill must use bin/flow set-timestamp for task status updates."""
+    content = _read_skill("code")
+    assert "set-timestamp" in content, (
+        "skills/code/SKILL.md missing 'set-timestamp' command "
+        "for task status updates"
+    )
+    assert "plan.tasks" in content, (
+        "skills/code/SKILL.md missing 'plan.tasks' path reference "
+        "for task status updates via set-timestamp"
+    )
 
 
 # --- Recommended models ---

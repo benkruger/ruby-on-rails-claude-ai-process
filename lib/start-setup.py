@@ -13,13 +13,11 @@ Output (JSON to stdout):
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-def _now():
-    """Return current UTC timestamp in ISO 8601 format."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+from flow_utils import now
 
 
 def _branch_name(feature_words):
@@ -117,7 +115,7 @@ def _extract_pr_number(pr_url):
 def _create_state_file(project_root, branch, feature_title, pr_url, pr_number,
                        light_mode=False, framework="rails"):
     """Create the FLOW state file."""
-    now = _now()
+    current_time = now()
     phase_names = {
         1: "Start", 2: "Research", 3: "Design", 4: "Plan",
         5: "Code", 6: "Review", 7: "Security", 8: "Reflect", 9: "Cleanup",
@@ -128,9 +126,9 @@ def _create_state_file(project_root, branch, feature_title, pr_url, pr_number,
             phases[str(i)] = {
                 "name": phase_names[i],
                 "status": "in_progress",
-                "started_at": now,
+                "started_at": current_time,
                 "completed_at": None,
-                "session_started_at": now,
+                "session_started_at": current_time,
                 "cumulative_seconds": 0,
                 "visit_count": 1,
             }
@@ -162,7 +160,7 @@ def _create_state_file(project_root, branch, feature_title, pr_url, pr_number,
         "worktree": f".worktrees/{branch}",
         "pr_number": pr_number,
         "pr_url": pr_url,
-        "started_at": now,
+        "started_at": current_time,
         "current_phase": 1,
         "framework": framework,
         "notes": [],
@@ -183,7 +181,7 @@ def _log(project_root, branch, message):
     log_dir = project_root / ".flow-states"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"{branch}.log"
-    timestamp = _now()
+    timestamp = now()
     with open(log_path, "a") as f:
         f.write(f"{timestamp} [Phase 1] {message}\n")
 

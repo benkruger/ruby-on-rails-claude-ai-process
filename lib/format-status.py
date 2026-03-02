@@ -13,12 +13,12 @@ Output (JSON to stdout):
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from flow_utils import current_branch, format_time, project_root, PHASE_NAMES
+from flow_utils import current_branch, format_time, PACIFIC, project_root, PHASE_NAMES
 
 COMMANDS = {
     1: "/flow:start", 2: "/flow:research", 3: "/flow:design",
@@ -35,8 +35,8 @@ def _elapsed_since(started_at, now=None):
     if not started_at:
         return 0
     if now is None:
-        now = datetime.now(timezone.utc)
-    start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+        now = datetime.now(PACIFIC)
+    start = datetime.fromisoformat(started_at)
     return max(0, int((now - start).total_seconds()))
 
 

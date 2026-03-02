@@ -39,18 +39,14 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Update State
 
-Using the state data from the gate, cd into the worktree and update Phase 5:
-- `status` → `in_progress`
-- `started_at` → current UTC timestamp (only if null — never overwrite)
-- `session_started_at` → current UTC timestamp
-- `visit_count` → increment by 1
-- `current_phase` → `5`
+Update state for phase entry:
 
-**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
-modify the fields listed above in memory, then use the Write tool to
-write the entire file back. Never use the Edit tool for state file
-changes — field names repeat across phases and cause non-unique match
-errors.
+```bash
+bin/flow phase-transition --phase 5 --action enter
+```
+
+Parse the JSON output to confirm `"status": "ok"`.
+If `"status": "error"`, report the error and stop.
 
 ## Framework Instructions
 
@@ -217,12 +213,14 @@ Work through `state["plan"]["tasks"]` in order. For each task:
 
 ### Before Starting a Task
 
-Update the task in state: `status → in_progress`, `started_at → now`.
+Update the task in state:
 
-**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
-modify the fields in memory, then use the Write tool to write the
-entire file back. Never use the Edit tool for state file changes —
-field names repeat across phases and cause non-unique match errors.
+```bash
+bin/flow set-timestamp --set plan.tasks.<task_index>.status=in_progress --set plan.tasks.<task_index>.started_at=NOW
+```
+
+Replace `<task_index>` with the task's 0-based index in the
+`state["plan"]["tasks"]` array.
 
 Print inside a fenced code block:
 
@@ -345,13 +343,13 @@ Add <what was built> — Task <id> of <total>
 ### Complete the Task
 
 Update the task in state:
-- `status → complete`
-- `completed_at → now`
 
-**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
-modify the fields in memory, then use the Write tool to write the
-entire file back. Never use the Edit tool for state file changes —
-field names repeat across phases and cause non-unique match errors.
+```bash
+bin/flow set-timestamp --set plan.tasks.<task_index>.status=complete --set plan.tasks.<task_index>.completed_at=NOW
+```
+
+Replace `<task_index>` with the task's 0-based index in the
+`state["plan"]["tasks"]` array.
 
 Print inside a fenced code block:
 
@@ -415,20 +413,15 @@ is empty. 100% coverage is mandatory.
 
 ## Done — Update state and complete phase
 
-Update Phase 5 in state:
-1. `cumulative_seconds` += `current_time - session_started_at`. Do not print the calculation.
-2. `status` → `complete`
-3. `completed_at` → current UTC timestamp
-4. `session_started_at` → `null`
-5. `current_phase` → `6`
+Complete the phase:
 
-**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
-modify the fields listed above in memory, then use the Write tool to
-write the entire file back. Never use the Edit tool for state file
-changes — field names repeat across phases and cause non-unique match
-errors.
+```bash
+bin/flow phase-transition --phase 5 --action complete
+```
 
-For the banner below, compute `<formatted_time>` from the integer `cumulative_seconds` stored above: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60. Do not write the formatted string back to the state file.
+Parse the JSON output. If `"status": "error"`, report the error and stop.
+Use the `formatted_time` field in the COMPLETE banner below. Do not print
+the timing calculation.
 
 Print inside a fenced code block:
 

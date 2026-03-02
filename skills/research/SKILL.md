@@ -39,18 +39,14 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Update State
 
-Using the state data from the gate, cd into the worktree and update Phase 2:
-- `status` → `in_progress`
-- `started_at` → current UTC timestamp (only if currently null — never overwrite)
-- `session_started_at` → current UTC timestamp
-- `visit_count` → increment by 1
-- `current_phase` → `2`
+Update state for phase entry:
 
-**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
-modify the fields listed above in memory, then use the Write tool to
-write the entire file back. Never use the Edit tool for state file
-changes — field names repeat across phases and cause non-unique match
-errors.
+```bash
+bin/flow phase-transition --phase 2 --action enter
+```
+
+Parse the JSON output to confirm `"status": "ok"`.
+If `"status": "error"`, report the error and stop.
 
 ## Logging
 
@@ -167,7 +163,7 @@ Use this template for `state["design"]` in Light Step 3:
   "worker_changes": [],
   "route_changes": [],
   "risks": [],
-  "approved_at": "<current UTC timestamp>"
+  "approved_at": null
 }
 ```
 
@@ -268,7 +264,7 @@ Use this template for `state["design"]` in Light Step 3:
   "test_changes": [],
   "script_changes": [],
   "risks": [],
-  "approved_at": "<current UTC timestamp>"
+  "approved_at": null
 }
 ```
 
@@ -321,9 +317,15 @@ Check recent git history before deep exploration:
 Write research findings to `state["research"]` (same structure as full mode).
 
 **Also write** a simplified `state["design"]` object using the **Light Mode
-Design Object Template** from the framework section above. Populate the change
-arrays and risks from the investigation findings. Leave arrays empty where
-not applicable.
+Design Object Template** from the framework section above. Set `approved_at`
+to `null` in the object you write. Populate the change arrays and risks from
+the investigation findings. Leave arrays empty where not applicable.
+
+Then set the approval timestamp:
+
+```bash
+bin/flow set-timestamp --set design.approved_at=NOW
+```
 
 ### Light Step 4 — Present findings
 
@@ -484,20 +486,20 @@ Show the user a clean summary. Print inside a fenced code block (triple backtick
 
 ## Done — Update state and complete phase
 
-Update `.flow-states/<branch>.json`:
-1. Calculate `cumulative_seconds`: `current_time - session_started_at` + existing `cumulative_seconds`. Do not print the calculation.
-2. Set Phase 2 `status` to `complete`
-3. Set Phase 2 `completed_at` to current UTC timestamp
-4. Set Phase 2 `session_started_at` to `null`
-5. If `state["mode"] == "light"`: set `current_phase` to `4` (Design was skipped). Otherwise: set `current_phase` to `3`.
+Complete the phase. If `state["mode"] == "light"`, use `--next-phase 4`
+(Design was skipped). Otherwise use the default:
 
-**How to update:** Read `.flow-states/<branch>.json`, parse the JSON,
-modify the fields listed above in memory, then use the Write tool to
-write the entire file back. Never use the Edit tool for state file
-changes — field names repeat across phases and cause non-unique match
-errors.
+```bash
+bin/flow phase-transition --phase 2 --action complete
+```
 
-For the banner below, compute `<formatted_time>` from the integer `cumulative_seconds` stored above: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60. Do not write the formatted string back to the state file.
+```bash
+bin/flow phase-transition --phase 2 --action complete --next-phase 4
+```
+
+Parse the JSON output. If `"status": "error"`, report the error and stop.
+Use the `formatted_time` field in the COMPLETE banner below. Do not print
+the timing calculation.
 
 ### If light mode (`state["mode"] == "light"`)
 

@@ -59,7 +59,7 @@ gate — there is nothing to log.
 
 ## Step 1 — Gather all sources
 
-Read and synthesise from four sources before asking the user anything:
+Read and synthesise from four sources before doing anything else:
 
 ### Source A — State file and plan file data
 
@@ -110,8 +110,7 @@ worktree. This memory will be lost when Cleanup removes the worktree.
 
 ## Step 2 — Synthesize findings
 
-Before asking the user anything, organize all gathered evidence into five
-categories:
+Organize all gathered evidence into five categories:
 
 **Process violations** — existing rules in CLAUDE.md that were broken or
 nearly broken during the session. Quote the specific rule.
@@ -138,15 +137,126 @@ contain useful patterns, observations, or context that future sessions
 should know. Filter for durable value — not everything in auto-memory is
 worth keeping. Skip this category if Source D was empty or did not exist.
 
-## Step 3 — Present findings
+---
 
-Present the synthesis to the user in a banner:
+## Step 3 — Route and apply
+
+This step is fully autonomous — decide destinations and apply all changes
+without asking the user.
+
+### The 5 destinations
+
+| # | Name | Path | Write method |
+|---|------|------|-------------|
+| 1 | Global CLAUDE.md | `~/.claude/CLAUDE.md` | Edit directly |
+| 2 | Project CLAUDE.md | `CLAUDE.md` in worktree | Edit, commit via `/flow:commit --auto` |
+| 3 | Global rules | `~/.claude/rules/<topic>.md` | Edit directly |
+| 4 | Project rules | `.claude/rules/<topic>.md` in worktree | Edit, commit via `/flow:commit --auto` |
+| 5 | Project memory | `~/.claude/projects/<repo-root>/memory/MEMORY.md` | Edit directly |
+
+Destinations 1, 3, 5 are user-private (outside the repo, not committed).
+Destinations 2, 4 are committed to the feature branch via PR.
+
+### Routing heuristics
+
+| Learning type | Recommended destination |
+|---|---|
+| Process/behavior rule ("always X before Y") | 1 — Global CLAUDE.md |
+| Project architecture discovery | 2 — Project CLAUDE.md |
+| Universal coding style or anti-pattern | 3 — Global rules |
+| Project-specific coding gotcha | 4 — Project rules |
+| Informal pattern, observation, ephemeral note | 5 — Project memory |
+
+### Writing rules for CLAUDE.md and rules files
+
+- Write for Claude, not for humans — the audience is a future Claude session
+- Be direct, specific, and actionable — describe the exact situation and the
+  exact required behavior
+- One to three sentences maximum
+- Generic and reusable — not tied to the specific feature or session
+- Placed in the correct section of the target file
+
+### Apply changes
+
+For each item in "Missing rules" and "Worth preserving":
+1. Select a destination using the routing heuristics table
+2. Compose a learning entry following the writing rules above
+3. Read the target file, apply the addition. Do not duplicate existing content.
+
+For each item in "Process violations":
+1. Evaluate whether the existing rule's language was clear enough
+2. If the violation happened because the rule was ambiguous or easy to
+   overlook, reword the rule at its current destination
+3. Read the target file, apply the rewording. Do not duplicate existing content.
+
+### Private destinations (1, 3, 5) — direct edits
+
+For each private destination with changes:
+1. Read the target file
+2. Apply all additions and rewordings for that destination
+3. These are outside the repo — no commit needed
+
+### Repo destinations (2, 4) — committed in Step 4
+
+For each repo destination with changes:
+1. Read the target file in the worktree
+2. Apply all additions and rewordings for that destination
+
+### Worktree memory rescue
+
+If Source D contained items that were routed to a destination above, they
+are already handled. For any remaining useful items in the worktree
+auto-memory that were not surfaced as findings, merge them into project
+memory (destination 5: `~/.claude/projects/<repo-root>/memory/MEMORY.md`)
+so they survive cleanup.
+
+To determine `<repo-root>`: read `state["worktree"]`. The worktree is
+inside the project (e.g., `/Users/ben/code/hh/.worktrees/my-feature`).
+The repo root is the worktree's parent's parent — strip `.worktrees/<name>`
+(e.g., `/Users/ben/code/hh`). Escape: replace `/` with `-`, drop the
+leading `-`.
+
+---
+
+## Step 4 — Commit
+
+If any repo-destination changes were made (destinations 2 or 4), commit
+once via `/flow:commit --auto`. Only CLAUDE.md and `.claude/` files are
+committed — never application code.
+
+If no repo-destination changes were made, skip this step.
+
+---
+
+## Step 5 — File GitHub issues
+
+For each item in "Process gaps", file a GitHub issue on the plugin repo:
+
+```bash
+gh issue create --repo benkruger/flow --label reflect --title "<issue_title>" --body "<issue_body>"
+```
+
+The issue title should be a concise description of the process gap. The
+issue body should describe the gap generically — no user project details,
+no feature-specific context. Focus on what the FLOW process should do
+differently.
+
+If there are no process gap items, skip this step.
+
+---
+
+## Step 6 — Present report
+
+Present the full report to the user:
 
 ````markdown
 ```text
 ============================================
-  Reflect — Findings
+  Reflect — Report
 ============================================
+
+  Findings
+  --------
 
   Process violations
   ------------------
@@ -175,178 +285,25 @@ Present the synthesis to the user in a banner:
   - Tests with Time.zone.now fail near midnight
   - ...
 
-============================================
-```
-````
-
-Omit the "Worth preserving" section from the banner if Source D was empty
-or had nothing worth keeping.
-
-Then use AskUserQuestion:
-
-> "Does this capture what went wrong? Anything I missed or got wrong?"
->
-> - **Yes, this is accurate** — proceed to proposals
-> - **Needs corrections** — describe what to change
-
-If "Needs corrections", revise and re-present until accurate.
-
-## Step 4 — Propose additions with destination routing
-
-For each item in "Missing rules" and "Worth preserving", propose a specific
-addition and recommend a destination.
-
-### The 5 destinations
-
-| # | Name | Path | Write method |
-|---|------|------|-------------|
-| 1 | Global CLAUDE.md | `~/.claude/CLAUDE.md` | Edit directly |
-| 2 | Project CLAUDE.md | `CLAUDE.md` in worktree | Edit, commit via `/flow:commit` |
-| 3 | Global rules | `~/.claude/rules/<topic>.md` | Edit directly |
-| 4 | Project rules | `.claude/rules/<topic>.md` in worktree | Edit, commit via `/flow:commit` |
-| 5 | Project memory | `~/.claude/projects/<repo-root>/memory/MEMORY.md` | Edit directly |
-
-Destinations 1, 3, 5 are user-private (outside the repo, not committed).
-Destinations 2, 4 are committed to the feature branch via PR.
-
-### Routing heuristics
-
-| Learning type | Recommended destination |
-|---|---|
-| Process/behavior rule ("always X before Y") | 1 — Global CLAUDE.md |
-| Project architecture discovery | 2 — Project CLAUDE.md |
-| Universal coding style or anti-pattern | 3 — Global rules |
-| Project-specific coding gotcha | 4 — Project rules |
-| Informal pattern, observation, ephemeral note | 5 — Project memory |
-
-### Per-proposal workflow
-
-**Writing rules for CLAUDE.md and rules files:**
-- Write for Claude, not for humans — the audience is a future Claude session
-- Be direct, specific, and actionable — describe the exact situation and the
-  exact required behavior
-- One to three sentences maximum
-- Generic and reusable — not tied to the specific feature or session
-- Placed in the correct section of the target file
-
-Present each proposal individually using AskUserQuestion:
-
-> "Proposed addition:
-> '[proposed text]'
-> Section: [target section]
-> Recommended destination: [name] ([path])"
->
-> - **Yes, add to [recommended destination]**
-> - **Yes, but different destination** — will ask which
-> - **Yes, but rephrase** — describe how
-> - **No, skip this one**
-
-For "Yes, but different destination" — present the 5-destination list and
-ask which one. For "Yes, but rephrase" — revise and confirm before
-collecting.
-
-Collect all approved additions with their destinations. Do not apply yet.
-
-## Step 5 — Strengthen violated rules
-
-For each item in "Process violations", evaluate whether the existing rule's
-language was clear enough. If the violation happened because the rule was
-ambiguous or easy to overlook, propose a rewording.
-
-Present each rewording proposal individually using AskUserQuestion with
-destination routing (same options as Step 4 — the rule being strengthened
-determines the destination).
-
-Collect all approved rewordings with their destinations. Do not apply yet.
-
-## Step 6 — Apply approved changes
-
-Group all approved additions and rewordings by destination.
-
-### Private destinations (1, 3, 5) — direct edits
-
-For each private destination with approved changes:
-1. Read the target file
-2. Apply all approved additions and rewordings for that destination
-3. Do not duplicate existing content
-
-These are outside the repo — no commit needed.
-
-### Repo destinations (2, 4) — commit via PR
-
-For each repo destination with approved changes:
-1. Read the target file in the worktree
-2. Apply all approved additions and rewordings for that destination
-3. Do not duplicate existing content
-
-After all repo-destination edits are applied, commit once via `/flow:commit`.
-Only CLAUDE.md and `.claude/` files are committed — never application code.
-
-### Worktree memory rescue
-
-If Source D contained items that were approved and routed to a destination,
-those are already handled above. For any remaining useful items in the
-worktree auto-memory that were not surfaced as proposals (e.g., structural
-notes about the project that are clearly valuable), merge them into project
-memory (destination 5: `~/.claude/projects/<repo-root>/memory/MEMORY.md`)
-so they survive cleanup.
-
-To determine `<repo-root>`: read `state["worktree"]`. The worktree is
-inside the project (e.g., `/Users/ben/code/hh/.worktrees/my-feature`).
-The repo root is the worktree's parent's parent — strip `.worktrees/<name>`
-(e.g., `/Users/ben/code/hh`). Escape: replace `/` with `-`, drop the
-leading `-`.
-
-### Summary
-
-Print a summary of what was written where:
-
-````markdown
-```text
-============================================
-  Reflect — Changes Applied
-============================================
-
+  Changes applied
+  ---------------
   Global CLAUDE.md: 2 additions
   Project rules (.claude/rules/testing.md): 1 addition
   Project memory: 3 items rescued from worktree
   Project CLAUDE.md: 1 addition (committed)
 
-============================================
-```
-````
-
----
-
-## Step 7 — Plugin improvement notes
-
-Present the plugin gaps inside a fenced code block:
-
-````markdown
-```text
-============================================
-  FLOW — Plugin Improvements to Consider
-============================================
-
-  These are improvements to the FLOW process itself.
-  They are not committed — review and open issues on
-  the plugin repo if you want to address them.
-
-  - Research skill: explicitly ask about Sidekiq queue names
-  - Plan skill: prompt for multi-session git workflow awareness
-  - flow:commit: add note about branch-behind being common
+  Issues filed
+  ------------
+  #42: Commit skill should warn when branch is behind
+  #43: Plan skill should prompt for queue awareness
 
 ============================================
 ```
 ````
 
-Use AskUserQuestion:
-
-> "Would you like to add anything to the plugin improvement notes
-> before we close out Reflect?"
->
-> - **No, that's everything**
-> - **Yes, add this** — describe in Other
+Omit the "Worth preserving" section if Source D was empty or had nothing
+worth keeping. Omit "Changes applied" if no changes were made. Omit
+"Issues filed" if no issues were filed.
 
 ---
 
@@ -404,8 +361,10 @@ Invoke `flow:status`, then use AskUserQuestion:
 ## Hard Rules
 
 - Never commit application code in Reflect — only CLAUDE.md and .claude/
-- Always read all four sources before presenting findings
-- Follow the reflection process (Steps 1 through 7) exactly — do not skip or reorder steps
-- Plugin improvement notes are presented only — never committed
+- Always read all four sources before synthesizing findings
+- Follow the reflection process (Steps 1 through 6) exactly — do not skip or reorder steps
+- Decisions on destinations and wording are autonomous — do not ask the user for approval mid-process
+- The report in Step 6 is the user's review point — make it comprehensive
 - Global writes (`~/.claude/CLAUDE.md`, `~/.claude/rules/`, `~/.claude/projects/`) are direct edits — never committed
-- Repo writes (`CLAUDE.md`, `.claude/rules/`) go through `/flow:commit`
+- Repo writes (`CLAUDE.md`, `.claude/rules/`) go through `/flow:commit --auto`
+- Plugin improvement notes are filed as GitHub issues on the plugin repo — never committed to the target project

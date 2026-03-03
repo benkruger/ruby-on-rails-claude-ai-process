@@ -826,9 +826,12 @@ def test_commit_auto_flag_restriction():
 
 
 def test_no_skill_invokes_commit_with_auto():
-    """No skill other than commit itself may reference /flow:commit --auto."""
+    """No skill other than commit and reflect may reference /flow:commit --auto.
+
+    Reflect uses --auto because the phase is fully autonomous — Claude
+    gathers, routes, applies, and commits without mid-process user approval."""
     for d in sorted(SKILLS_DIR.iterdir()):
-        if not d.is_dir() or d.name == "commit":
+        if not d.is_dir() or d.name in ("commit", "reflect"):
             continue
         content = (d / "SKILL.md").read_text()
         assert "/flow:commit --auto" not in content, (

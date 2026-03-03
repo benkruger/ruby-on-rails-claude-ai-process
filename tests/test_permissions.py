@@ -141,6 +141,8 @@ PLACEHOLDER_SUBS = {
     "<N>": "2",
     "<path>": "design.approved_at",
     "<plan_file_path>": ".claude/plans/test-plan.md",
+    "<issue_title>": "Test issue title",
+    "<issue_body>": "Test issue body",
 }
 
 

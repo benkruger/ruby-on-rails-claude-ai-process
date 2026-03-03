@@ -34,7 +34,7 @@ On completion (whether approved or denied), print the same way:
 
 When the user invokes `/flow:commit --auto`, skip the Step 3 approval prompt and proceed directly to Step 4 (commit and push). Everything else is identical: `bin/ci`, diff display, commit message generation and display, pull-before-push.
 
-`--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically.
+`--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 
 ---
 
@@ -216,7 +216,7 @@ will make fixes and re-invoke the commit skill when ready.
 
 - Never commit without showing the diff first
 - Never skip the approval step — unless `--auto` was passed by the user
-- `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically.
+- `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 - Never use `--no-verify`
 - Never add Co-Authored-By trailers or attribution lines — commits are authored by the user alone
 - Always pull before pushing — other sessions may have merged changes

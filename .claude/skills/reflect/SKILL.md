@@ -5,7 +5,7 @@ description: "Reflect on session mistakes. Reviews conversation against CLAUDE.m
 
 # Reflect
 
-Review what went wrong in this session and propose CLAUDE.md improvements.
+Review what went wrong in this session and apply CLAUDE.md improvements.
 
 ## Announce
 
@@ -43,11 +43,9 @@ Note: context may have been compacted. Use what is available.
 
 With the evidence gathered in Step 1, follow the reflection process below.
 
-When Step E says to commit, use `/commit --auto`.
-
 ### Step A — Synthesize findings
 
-Before asking the user anything, organize all gathered evidence into four
+Before doing anything else, organize all gathered evidence into four
 categories:
 
 **Process violations** — existing rules in CLAUDE.md that were broken or
@@ -70,15 +68,47 @@ existing rule covered it. These are gaps in CLAUDE.md.
 skills, workflows) should be improved. These are not CLAUDE.md rules —
 they are process changes.
 
-### Step B — Present findings
+### Step B — Route and apply
 
-Present the synthesis to the user in a banner:
+This step is fully autonomous — decide destinations and apply all changes
+without asking the user.
+
+**Writing rules for CLAUDE.md:**
+- Write for Claude, not for humans — the audience is a future Claude session
+- Be direct, specific, and actionable — describe the exact situation and the
+  exact required behavior
+- One to three sentences maximum
+- Generic and reusable — not tied to the specific feature or session
+- Placed in the correct section of the target CLAUDE.md
+
+For each item in "Missing rules":
+1. Compose a specific CLAUDE.md addition following the writing rules above
+2. Read the target file, apply the addition. Do not duplicate existing content.
+
+For each item in "Process violations":
+1. Evaluate whether the existing rule's language was clear enough
+2. If the violation happened because the rule was ambiguous or easy to
+   overlook, reword the rule
+3. Read the target file, apply the rewording. Do not duplicate existing content.
+
+Only CLAUDE.md and `.claude/` files are modified — never application code.
+
+### Step C — Commit
+
+Commit all changes via `/commit --auto`.
+
+### Step D — Present report
+
+Present the full report to the user:
 
 ````
 ```
 ============================================
-  Reflect — Findings
+  Reflect — Report
 ============================================
+
+  Findings
+  --------
 
   Process violations
   ------------------
@@ -102,62 +132,15 @@ Present the synthesis to the user in a banner:
   - /flow:commit should warn when branch is behind
   - ...
 
+  Changes applied
+  ---------------
+  CLAUDE.md: 2 additions, 1 rewording
+
 ============================================
 ```
 ````
 
-Then use AskUserQuestion:
-
-> "Does this capture what went wrong? Anything I missed or got wrong?"
-> - **Yes, this is accurate** — proceed to proposals
-> - **Needs corrections** — describe what to change
-
-If "Needs corrections", revise and re-present until accurate.
-
-### Step C — Propose CLAUDE.md additions
-
-For each item in "Missing rules", propose a specific addition to CLAUDE.md.
-
-**Writing rules for CLAUDE.md:**
-- Write for Claude, not for humans — the audience is a future Claude session
-- Be direct, specific, and actionable — describe the exact situation and the
-  exact required behavior
-- One to three sentences maximum
-- Generic and reusable — not tied to the specific feature or session
-- Placed in the correct section of the target CLAUDE.md
-
-Present each proposal individually using AskUserQuestion:
-
-> "Proposed CLAUDE.md addition:
-> '[proposed text]'
-> Section: [target section]"
-> - **Yes, add it**
-> - **Yes, but rephrase** — describe how
-> - **No, skip this one**
-
-For "Yes, but rephrase" — revise and confirm before collecting.
-
-Collect all approved additions. Do not apply yet.
-
-### Step D — Strengthen violated rules
-
-For each item in "Process violations", evaluate whether the existing rule's
-language was clear enough. If the violation happened because the rule was
-ambiguous or easy to overlook, propose a rewording.
-
-Present each rewording proposal individually using AskUserQuestion (same
-three options as Step C).
-
-Collect all approved rewordings. Do not apply yet.
-
-### Step E — Apply approved changes
-
-Read the target CLAUDE.md. Apply all approved additions and rewordings.
-Do not duplicate existing content.
-
-Then commit via `/commit --auto`.
-
-Only CLAUDE.md and `.claude/` files are committed — never application code.
+Omit "Changes applied" if no changes were made.
 
 ---
 
@@ -173,6 +156,8 @@ Print:
 
 ## Hard Rules
 
-- Always read CLAUDE.md before presenting findings — never work from memory
-- Always read the full conversation context before presenting findings
-- Follow the reflection process (Steps A through E) exactly — do not skip or reorder steps
+- Always read CLAUDE.md before synthesizing findings — never work from memory
+- Always read the full conversation context before synthesizing findings
+- Follow the reflection process (Steps A through D) exactly — do not skip or reorder steps
+- Decisions on wording are autonomous — do not ask the user for approval mid-process
+- The report in Step D is the user's review point — make it comprehensive

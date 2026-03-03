@@ -7,16 +7,17 @@ nav_order: 7
 
 **Command:** `/flow:reflect`
 
-Runs before the PR is merged. Reviews what went wrong across all phases,
-proposes learnings, routes each to its correct permanent home, and notes
-plugin gaps. The only commits are CLAUDE.md and `.claude/` changes —
-application code is never touched.
+Runs before the PR is merged. Autonomously reviews what went wrong across
+all phases, routes learnings to their correct permanent homes, files GitHub
+issues for plugin improvements, and presents a comprehensive report. The
+only commits are CLAUDE.md and `.claude/` changes — application code is
+never touched.
 
 ---
 
 ## Four Sources
 
-Reflect synthesises from all four before asking the user anything:
+Reflect synthesises from all four before taking any action:
 
 1. **State file data** — visit counts, timing, captured `/flow:note` entries, plan file risks
 2. **Captured notes** — corrections logged automatically by `/flow:note` throughout the session
@@ -29,7 +30,7 @@ Sources 1, 2, and 4 survive compaction. Context is a bonus if available.
 
 ## What Gets Captured
 
-Each approved learning is routed to the destination where it belongs:
+Claude decides destinations autonomously using content-type heuristics:
 
 | Destination | What goes here | Write method |
 |---|---|---|
@@ -39,12 +40,9 @@ Each approved learning is routed to the destination where it belongs:
 | Project rules | Project-specific coding gotchas | Committed via PR |
 | Project memory | Patterns and observations | Direct edit (private) |
 
-Claude recommends a destination for each learning based on content type.
-The user confirms or overrides with one click.
-
-**Plugin improvement notes** — presented only, never committed:
+**Plugin improvement notes** — filed as GitHub issues on the plugin repo:
 - Places where the FLOW process itself should improve
-- User decides whether to open issues on the plugin repo
+- One issue per process gap, labeled `reflect`
 
 ---
 

@@ -34,6 +34,7 @@ UNIVERSAL_ALLOW = [
     "Bash(rm .flow-commit-*)",
     "Bash(*bin/flow *)",
     "Bash(gh pr view *)",
+    "Bash(gh issue create *)",
 ]
 
 RAILS_ALLOW = [

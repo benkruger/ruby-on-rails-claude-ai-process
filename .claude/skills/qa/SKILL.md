@@ -16,7 +16,7 @@ Test the FLOW plugin locally before releasing. Maintainer-only — requires the 
 /qa --refresh
 ```
 
-- `/qa` — check dev mode status. If active, ask "Stop QA or refresh?" If not, ask "Start QA?"
+- `/qa` — show dev mode status, then prompt for next action
 - `/qa --start` — switch marketplace to local source, create `.dev-mode` marker
 - `/qa --stop` — restore production marketplace, remove `.dev-mode` marker
 - `/qa --refresh` — re-run marketplace update to pick up new changes
@@ -168,16 +168,38 @@ Print:
 
 Check if `.flow-states/.dev-mode` exists using the Read tool.
 
-If dev mode is **active**, use AskUserQuestion:
+If dev mode is **active**, print inside a fenced code block:
 
-> "Dev mode is active. What would you like to do?"
+````markdown
+```text
+============================================
+  FLOW QA — Dev mode: ACTIVE
+  Plugin cache is using local source.
+============================================
+```
+````
+
+Then use AskUserQuestion:
+
+> "What would you like to do?"
 >
 > - **Stop QA** — runs `/qa --stop`
 > - **Refresh cache** — runs `/qa --refresh`
 
 Then invoke the chosen flag.
 
-If dev mode is **not active**, use AskUserQuestion:
+If dev mode is **not active**, print inside a fenced code block:
+
+````markdown
+```text
+============================================
+  FLOW QA — Dev mode: INACTIVE
+  Plugin cache is using production source.
+============================================
+```
+````
+
+Then use AskUserQuestion:
 
 > "Start QA dev mode?"
 >

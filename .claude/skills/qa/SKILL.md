@@ -89,16 +89,7 @@ Use the Read tool to check if `.flow-states/.dev-mode` exists.
 
 If it does not exist, print "Not in dev mode. Nothing to stop." and stop.
 
-### Step 2 — Ask pass/fail
-
-Use AskUserQuestion:
-
-> "Did QA pass?"
->
-> - **Yes — QA passed**
-> - **No — QA failed**
-
-### Step 3 — Restore production marketplace
+### Step 2 — Restore production marketplace
 
 Run:
 
@@ -112,7 +103,7 @@ Then:
 claude plugin marketplace update flow-marketplace
 ```
 
-### Step 4 — Remove dev mode marker
+### Step 3 — Remove dev mode marker
 
 Use Bash to remove the marker:
 
@@ -120,24 +111,14 @@ Use Bash to remove the marker:
 rm .flow-states/.dev-mode
 ```
 
-### Step 5 — Report
+### Step 4 — Report
 
-If QA passed, print inside a fenced code block:
-
-````markdown
-```text
-============================================
-  FLOW QA — PASSED
-============================================
-```
-````
-
-If QA failed, print inside a fenced code block:
+Print inside a fenced code block:
 
 ````markdown
 ```text
 ============================================
-  FLOW QA — FAILED
+  FLOW QA — Dev mode stopped
 ============================================
 ```
 ````

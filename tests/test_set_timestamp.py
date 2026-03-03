@@ -1,5 +1,6 @@
 """Tests for lib/set-timestamp.py — mid-phase timestamp and value updates."""
 
+import importlib.util
 import json
 import re
 import subprocess
@@ -10,6 +11,12 @@ from conftest import LIB_DIR, make_state, write_state
 SCRIPT = str(LIB_DIR / "set-timestamp.py")
 
 ISO_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[Z+-]")
+
+_spec = importlib.util.spec_from_file_location(
+    "set_timestamp", LIB_DIR / "set-timestamp.py"
+)
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
 
 
 def _run(git_repo, *set_args):
@@ -23,50 +30,36 @@ def _run(git_repo, *set_args):
     return result
 
 
-def _read_state(state_dir, branch):
-    """Read and parse the state file."""
-    return json.loads((state_dir / f"{branch}.json").read_text())
+# --- Simple paths (in-process) ---
 
 
-# --- Simple paths ---
-
-
-def test_simple_path_with_now(git_repo, state_dir, branch):
+def test_simple_path_with_now():
     """design.approved_at=NOW writes a timestamp."""
     state = make_state(current_phase=3, phase_statuses={1: "complete", 2: "complete", 3: "in_progress"})
     state["design"] = {"approved_at": None}
-    write_state(state_dir, branch, state)
 
-    result = _run(git_repo, "design.approved_at=NOW")
-    assert result.returncode == 0
+    updated, updates = _mod.apply_updates(state, ["design.approved_at=NOW"])
 
-    output = json.loads(result.stdout)
-    assert output["status"] == "ok"
-    assert len(output["updates"]) == 1
-    assert output["updates"][0]["path"] == "design.approved_at"
-    assert ISO_PATTERN.match(output["updates"][0]["value"])
-
-    updated = _read_state(state_dir, branch)
+    assert len(updates) == 1
+    assert updates[0]["path"] == "design.approved_at"
+    assert ISO_PATTERN.match(updates[0]["value"])
     assert ISO_PATTERN.match(updated["design"]["approved_at"])
 
 
-def test_simple_path_with_string_value(git_repo, state_dir, branch):
+def test_simple_path_with_string_value():
     """Non-NOW values are written as plain strings."""
     state = make_state(current_phase=3, phase_statuses={1: "complete", 2: "complete", 3: "in_progress"})
     state["design"] = {"status": "pending"}
-    write_state(state_dir, branch, state)
 
-    result = _run(git_repo, "design.status=approved")
-    assert result.returncode == 0
+    updated, updates = _mod.apply_updates(state, ["design.status=approved"])
 
-    updated = _read_state(state_dir, branch)
     assert updated["design"]["status"] == "approved"
 
 
-# --- Nested paths with array indexing ---
+# --- Nested paths with array indexing (in-process) ---
 
 
-def test_nested_path_with_array_index(git_repo, state_dir, branch):
+def test_nested_path_with_array_index():
     """plan.tasks.0.started_at=NOW navigates into an array."""
     state = make_state(current_phase=5, phase_statuses={
         1: "complete", 2: "complete", 3: "complete", 4: "complete", 5: "in_progress",
@@ -77,17 +70,14 @@ def test_nested_path_with_array_index(git_repo, state_dir, branch):
             {"id": 2, "status": "pending", "started_at": None},
         ],
     }
-    write_state(state_dir, branch, state)
 
-    result = _run(git_repo, "plan.tasks.0.started_at=NOW")
-    assert result.returncode == 0
+    updated, updates = _mod.apply_updates(state, ["plan.tasks.0.started_at=NOW"])
 
-    updated = _read_state(state_dir, branch)
     assert ISO_PATTERN.match(updated["plan"]["tasks"][0]["started_at"])
     assert updated["plan"]["tasks"][1]["started_at"] is None
 
 
-def test_task_status_update(git_repo, state_dir, branch):
+def test_task_status_update():
     """plan.tasks.0.status=in_progress sets a string value on a task."""
     state = make_state(current_phase=5, phase_statuses={
         1: "complete", 2: "complete", 3: "complete", 4: "complete", 5: "in_progress",
@@ -97,19 +87,16 @@ def test_task_status_update(git_repo, state_dir, branch):
             {"id": 1, "status": "pending", "started_at": None},
         ],
     }
-    write_state(state_dir, branch, state)
 
-    result = _run(git_repo, "plan.tasks.0.status=in_progress")
-    assert result.returncode == 0
+    updated, updates = _mod.apply_updates(state, ["plan.tasks.0.status=in_progress"])
 
-    updated = _read_state(state_dir, branch)
     assert updated["plan"]["tasks"][0]["status"] == "in_progress"
 
 
-# --- Multiple --set args ---
+# --- Multiple --set args (in-process) ---
 
 
-def test_multiple_set_args(git_repo, state_dir, branch):
+def test_multiple_set_args():
     """Two --set args are applied atomically in one write."""
     state = make_state(current_phase=5, phase_statuses={
         1: "complete", 2: "complete", 3: "complete", 4: "complete", 5: "in_progress",
@@ -119,40 +106,47 @@ def test_multiple_set_args(git_repo, state_dir, branch):
             {"id": 1, "status": "pending", "started_at": None},
         ],
     }
-    write_state(state_dir, branch, state)
 
-    result = _run(
-        git_repo,
+    updated, updates = _mod.apply_updates(state, [
         "plan.tasks.0.status=in_progress",
         "plan.tasks.0.started_at=NOW",
-    )
-    assert result.returncode == 0
+    ])
 
-    output = json.loads(result.stdout)
-    assert len(output["updates"]) == 2
-
-    updated = _read_state(state_dir, branch)
+    assert len(updates) == 2
     assert updated["plan"]["tasks"][0]["status"] == "in_progress"
     assert ISO_PATTERN.match(updated["plan"]["tasks"][0]["started_at"])
 
 
-# --- Security scanned_at ---
+# --- Security scanned_at (in-process) ---
 
 
-def test_security_scanned_at(git_repo, state_dir, branch):
+def test_security_scanned_at():
     """security.scanned_at=NOW sets the scan timestamp."""
     state = make_state(current_phase=5, phase_statuses={
         1: "complete", 2: "complete", 3: "complete", 4: "complete",
         5: "in_progress",
     })
     state["security"] = {"findings": [], "clean_checks": [], "scanned_at": None}
+
+    updated, updates = _mod.apply_updates(state, ["security.scanned_at=NOW"])
+
+    assert ISO_PATTERN.match(updated["security"]["scanned_at"])
+
+
+# --- CLI integration (subprocess) ---
+
+
+def test_cli_happy_path(git_repo, state_dir, branch):
+    """CLI happy path: write value and confirm state file updated via subprocess."""
+    state = make_state(current_phase=3, phase_statuses={1: "complete", 2: "complete", 3: "in_progress"})
+    state["design"] = {"status": "pending"}
     write_state(state_dir, branch, state)
 
-    result = _run(git_repo, "security.scanned_at=NOW")
+    result = _run(git_repo, "design.status=approved")
     assert result.returncode == 0
-
-    updated = _read_state(state_dir, branch)
-    assert ISO_PATTERN.match(updated["security"]["scanned_at"])
+    output = json.loads(result.stdout)
+    assert output["status"] == "ok"
+    assert output["updates"][0]["value"] == "approved"
 
 
 # --- Error cases ---

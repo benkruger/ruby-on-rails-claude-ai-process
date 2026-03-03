@@ -37,7 +37,7 @@ def _get_branch(git_repo):
     return result.stdout.strip()
 
 
-# --- CLI behavior ---
+# --- CLI behavior (subprocess) ---
 
 
 def test_no_branch_returns_error(tmp_path):
@@ -56,24 +56,26 @@ def test_no_state_file_returns_no_state(git_repo):
     assert data["status"] == "no_state"
 
 
-def test_happy_path_returns_ok(state_dir, git_repo):
-    branch = _get_branch(git_repo)
+def test_happy_path_returns_ok(tmp_path):
+    """append_note returns updated state with one note."""
     state = make_state(current_phase=2, phase_statuses={1: "complete", 2: "in_progress"})
-    write_state(state_dir, branch, state)
-    result = _run("Always merge, never rebase", note_type="correction", cwd=git_repo)
-    assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["status"] == "ok"
-    assert data["note_count"] == 1
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps(state))
+
+    updated = _mod.append_note(state_path, 2, "correction", "Always merge, never rebase")
+
+    assert len(updated["notes"]) == 1
 
 
-def test_note_written_to_state_file(state_dir, git_repo):
-    branch = _get_branch(git_repo)
+def test_note_written_to_state_file(tmp_path):
+    """append_note persists note to disk with all expected fields."""
     state = make_state(current_phase=2, phase_statuses={1: "complete", 2: "in_progress"})
-    path = write_state(state_dir, branch, state)
-    _run("Always merge, never rebase", note_type="correction", cwd=git_repo)
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps(state))
 
-    updated = json.loads(path.read_text())
+    _mod.append_note(state_path, 2, "correction", "Always merge, never rebase")
+
+    updated = json.loads(state_path.read_text())
     assert len(updated["notes"]) == 1
     note = updated["notes"][0]
     assert note["phase"] == 2
@@ -83,16 +85,17 @@ def test_note_written_to_state_file(state_dir, git_repo):
     assert "T" in note["timestamp"]  # ISO 8601 format
 
 
-def test_multiple_notes_append(state_dir, git_repo):
-    branch = _get_branch(git_repo)
+def test_multiple_notes_append(tmp_path):
+    """Three sequential append_note calls accumulate all three notes."""
     state = make_state(current_phase=2, phase_statuses={1: "complete", 2: "in_progress"})
-    write_state(state_dir, branch, state)
-    _run("First note", note_type="correction", cwd=git_repo)
-    _run("Second note", note_type="learning", cwd=git_repo)
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps(state))
 
-    result = _run("Third note", note_type="correction", cwd=git_repo)
-    data = json.loads(result.stdout)
-    assert data["note_count"] == 3
+    _mod.append_note(state_path, 2, "correction", "First note")
+    _mod.append_note(state_path, 2, "learning", "Second note")
+    updated = _mod.append_note(state_path, 2, "correction", "Third note")
+
+    assert len(updated["notes"]) == 3
 
 
 def test_type_defaults_to_correction(state_dir, git_repo):

@@ -41,7 +41,7 @@ def test_empty_state_directory_exits_0_silent(git_repo):
 
 
 def test_single_feature_returns_valid_json(git_repo):
-    """Single feature → valid JSON with flow-session-continue and feature name."""
+    """Single feature → valid JSON with flow-session-context and feature name."""
     state_dir = git_repo / ".flow-states"
     state_dir.mkdir(parents=True)
     state = make_state(current_phase=2, phase_statuses={1: "complete", 2: "in_progress"})
@@ -53,7 +53,7 @@ def test_single_feature_returns_valid_json(git_repo):
 
     output = json.loads(result.stdout)
     ctx = output["additional_context"]
-    assert "flow-session-continue" in ctx
+    assert "flow-session-context" in ctx
     assert "Invoice Pdf Export" in ctx
     assert "flow:continue" in ctx
 
@@ -172,7 +172,21 @@ def test_missing_current_phase_defaults_to_phase_1(git_repo):
     result = _run(git_repo)
     assert result.returncode == 0
     output = json.loads(result.stdout)
-    assert "flow-session-continue" in output["additional_context"]
+    assert "flow-session-context" in output["additional_context"]
+
+
+def test_single_feature_does_not_force_action(git_repo):
+    """Single feature context must NOT force Claude to invoke flow:continue."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+    state = make_state(current_phase=2, phase_statuses={1: "complete", 2: "in_progress"})
+    write_state(state_dir, "my-feature", state)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "FIRST action" not in ctx
+    assert "Invoke the flow:continue skill" not in ctx
 
 
 def test_single_feature_includes_note_instruction(git_repo):
@@ -188,8 +202,8 @@ def test_single_feature_includes_note_instruction(git_repo):
     assert "flow:note" in ctx
 
 
-def test_multiple_features_includes_ask_instruction(git_repo):
-    """Multiple features context must include AskUserQuestion instruction."""
+def test_multiple_features_does_not_force_action(git_repo):
+    """Multiple features context must NOT force Claude to act unprompted."""
     state_dir = git_repo / ".flow-states"
     state_dir.mkdir(parents=True)
 
@@ -206,7 +220,30 @@ def test_multiple_features_includes_ask_instruction(git_repo):
     result = _run(git_repo)
     output = json.loads(result.stdout)
     ctx = output["additional_context"]
-    assert "AskUserQuestion" in ctx
+    assert "FIRST action" not in ctx
+    assert "flow:note" in ctx
+
+
+def test_multiple_features_includes_note_instruction(git_repo):
+    """Multiple features context must include the flow:note auto-invoke instruction."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+
+    s1 = make_state(current_phase=2, phase_statuses={1: "complete", 2: "in_progress"})
+    s1["feature"] = "Feature One"
+    write_state(state_dir, "feature-one", s1)
+
+    s2 = make_state(current_phase=3, phase_statuses={
+        1: "complete", 2: "complete", 3: "in_progress",
+    })
+    s2["feature"] = "Feature Two"
+    write_state(state_dir, "feature-two", s2)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "flow:note" in ctx
+    assert "corrects you" in ctx
 
 
 def test_output_has_both_context_fields(git_repo):

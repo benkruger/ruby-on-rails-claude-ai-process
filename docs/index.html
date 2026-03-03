@@ -562,8 +562,8 @@
         <p>Every feature has a <code>.flow-states/&lt;branch&gt;.json</code> file tracking the plan file path, captured notes, security findings, and per-phase timing. State survives session breaks and compaction.</p>
       </div>
       <div class="feature">
-        <h4>Session Hook &mdash; Auto-Continue</h4>
-        <p>Every session start &mdash; new terminal, <code>/clear</code>, <code>/compact</code> &mdash; triggers a hook that scans for in-progress features. Claude&rsquo;s first action is <code>/flow:continue</code>. Close your laptop, open Claude Code the next morning, pick up exactly where you left off.</p>
+        <h4>Session Hook &mdash; Feature Awareness</h4>
+        <p>Every session start &mdash; new terminal, <code>/clear</code>, <code>/compact</code> &mdash; triggers a hook that scans for in-progress features. Claude knows the feature name, current phase, and worktree &mdash; but waits for you to type <code>/flow:continue</code>. No auto-prompting, no interruptions.</p>
       </div>
       <div class="feature">
         <h4>The Learning System</h4>

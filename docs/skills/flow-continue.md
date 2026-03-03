@@ -10,7 +10,7 @@ parent: Skills
 
 **Usage:** `/flow:continue`
 
-Resumes the current FLOW feature. Behaves differently depending on context:
+Resumes the current FLOW feature. The session hook provides awareness of in-progress features, but this skill is the explicit action that resumes work. Behaves differently depending on context:
 
 - **Mid-session** (you already have context) — re-asks the last phase transition question
 - **New session** (no context) — reads the state file, shows status, then asks

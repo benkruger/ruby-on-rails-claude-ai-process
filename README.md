@@ -134,19 +134,17 @@ Every feature has a state file at `.flow-states/<branch>.json`. It stores:
 
 State survives session breaks and compaction. Multiple features can run simultaneously in separate worktrees with separate state files.
 
-### Session Hook — Auto-Resume
+### Session Hook — Feature Awareness
 
 Every Claude Code session start — new terminal, `/clear`, `/compact` — triggers a hook that scans `.flow-states/` for in-progress features.
 
-If a feature is found, Claude's **first action** is to invoke `/flow:continue`. No prompt needed. No "what were we working on?" You close your laptop, open Claude Code the next morning, and the session opens with your feature's current phase, PR link, and time spent — then asks one question: "Ready to continue Phase 2: Plan?" Say yes and you're back exactly where you left off.
+If a feature is found, Claude knows the feature name, current phase, and worktree — but does not act on it. No auto-prompting, no "Ready to continue?" interrupting your train of thought. When you want to resume, type `/flow:continue` and pick up exactly where you left off.
 
-If two features are in progress across two worktrees, the hook asks which one to resume before proceeding.
-
-The same hook also injects the correction-capture instruction for the full session:
+The same hook injects the correction-capture instruction for the full session:
 
 > "Throughout this session: whenever the user corrects you, invoke `/flow:note` immediately before replying."
 
-Both behaviors — auto-resume and correction capture — are wired in at session start, without any user action.
+Both behaviors — feature awareness and correction capture — are wired in at session start, without any user action.
 
 ### The Learning System
 

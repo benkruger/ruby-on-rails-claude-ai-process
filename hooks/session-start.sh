@@ -3,8 +3,8 @@
 #
 # Scans .flow-states/ for in-progress features.
 # 0 files  → exits silently
-# 1 file   → resets interrupted session timing, injects resume instruction
-# 2+ files → asks user to pick a feature, then resumes
+# 1 file   → resets interrupted session timing, injects awareness context
+# 2+ files → injects awareness context listing all features
 
 set -euo pipefail
 
@@ -68,17 +68,17 @@ if len(states) == 1:
     phase_name = s.get("phases", {}).get(cp, {}).get("name", "")
     feature = s.get("feature", "")
     context = (
-        "<flow-session-continue>\n"
+        "<flow-session-context>\n"
         f"{dev_preamble}"
         f'FLOW feature in progress: "{feature}" — Phase {cp}: {phase_name}\n'
         "\n"
-        "Your FIRST action before responding to anything else:\n"
-        "Invoke the flow:continue skill.\n"
+        "Do NOT invoke flow:continue or ask about this feature unprompted.\n"
+        "The user will type /flow:continue when ready to resume.\n"
         "\n"
         "Throughout this session: whenever the user corrects you, disagrees\n"
         "with your response, or says something was wrong, invoke flow:note\n"
         "immediately before replying to capture the correction.\n"
-        "</flow-session-continue>"
+        "</flow-session-context>"
     )
 
 else:
@@ -91,15 +91,18 @@ else:
     feature_list = "\n".join(f"  - {f}" for f in features)
 
     context = (
-        "<flow-session-continue>\n"
+        "<flow-session-context>\n"
         f"{dev_preamble}"
         "Multiple FLOW features are in progress:\n"
         f"{feature_list}\n"
         "\n"
-        "Your FIRST action before responding to anything else:\n"
-        "Use AskUserQuestion to ask which feature to work on.\n"
-        "Once selected, cd into that feature's worktree then invoke the flow:continue skill.\n"
-        "</flow-session-continue>"
+        "Do NOT invoke flow:continue or ask about these features unprompted.\n"
+        "The user will type /flow:continue when ready to resume.\n"
+        "\n"
+        "Throughout this session: whenever the user corrects you, disagrees\n"
+        "with your response, or says something was wrong, invoke flow:note\n"
+        "immediately before replying to capture the correction.\n"
+        "</flow-session-context>"
     )
 
 output = {

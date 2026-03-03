@@ -1,11 +1,22 @@
 """Tests for lib/check-phase.py — the phase entry guard."""
 
+import importlib.util
+import io
 import subprocess
 import sys
+
+import pytest
 
 from conftest import LIB_DIR, make_state, write_state
 
 SCRIPT = str(LIB_DIR / "check-phase.py")
+
+# Import check-phase.py for in-process unit tests
+_spec = importlib.util.spec_from_file_location(
+    "check_phase_mod", LIB_DIR / "check-phase.py"
+)
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
 
 
 def _run(git_repo, phase, state_dir=None):
@@ -17,7 +28,7 @@ def _run(git_repo, phase, state_dir=None):
     return result
 
 
-# --- Basic behavior ---
+# --- Basic behavior (subprocess — covers main() paths) ---
 
 
 def test_phase_1_always_exits_0(git_repo):
@@ -45,19 +56,26 @@ def test_no_state_file_exits_1(git_repo):
     assert "/flow:start" in result.stdout
 
 
-def test_corrupt_json_exits_1(git_repo, state_dir, branch):
+def test_corrupt_json_exits_1(tmp_path, monkeypatch):
     """Corrupt JSON state file should block with parse error message."""
-    (state_dir / f"{branch}.json").write_text("{bad json")
-    result = _run(git_repo, 2)
-    assert result.returncode == 1
-    assert "Could not read state file" in result.stdout
+    state_dir = tmp_path / ".flow-states"
+    state_dir.mkdir()
+    (state_dir / "test-branch.json").write_text("{bad json")
 
+    captured = io.StringIO()
+    monkeypatch.setattr(_mod, "current_branch", lambda: "test-branch")
+    monkeypatch.setattr(_mod, "project_root", lambda: tmp_path)
+    monkeypatch.setattr(sys, "argv", [SCRIPT, "--required", "2"])
+    monkeypatch.setattr(sys, "stdout", captured)
 
-# --- Phase status checks ---
+    with pytest.raises(SystemExit) as exc_info:
+        _mod.main()
+    assert exc_info.value.code == 1
+    assert "Could not read state file" in captured.getvalue()
 
 
 def test_previous_phase_pending_blocks(git_repo, state_dir, branch):
-    """Previous phase 'pending' should block entry."""
+    """Previous phase 'pending' blocks entry (covers print+exit path in main)."""
     state = make_state(current_phase=2, phase_statuses={1: "pending"})
     write_state(state_dir, branch, state)
     result = _run(git_repo, 2)
@@ -66,62 +84,57 @@ def test_previous_phase_pending_blocks(git_repo, state_dir, branch):
     assert "pending" in result.stdout
 
 
-def test_previous_phase_in_progress_blocks(git_repo, state_dir, branch):
-    """Previous phase 'in_progress' should also block."""
+# --- Phase status checks (in-process) ---
+
+
+def test_previous_phase_in_progress_blocks():
     state = make_state(current_phase=2, phase_statuses={1: "in_progress"})
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 2)
-    assert result.returncode == 1
-    assert "BLOCKED" in result.stdout
-    assert "in_progress" in result.stdout
+    allowed, output = _mod.check_phase(state, 2)
+    assert not allowed
+    assert "BLOCKED" in output
+    assert "in_progress" in output
 
 
-def test_previous_phase_complete_allows(git_repo, state_dir, branch):
-    """Previous phase 'complete' should allow entry."""
+def test_previous_phase_complete_allows():
     state = make_state(current_phase=2, phase_statuses={1: "complete"})
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 2)
-    assert result.returncode == 0
+    allowed, output = _mod.check_phase(state, 2)
+    assert allowed
 
 
-def test_sequential_chain_phase_4_with_1_to_3_complete(git_repo, state_dir, branch):
-    """Phase 4 entry should work when phases 1-3 are complete."""
+def test_sequential_chain_phase_4_with_1_to_3_complete():
     state = make_state(
         current_phase=4,
         phase_statuses={1: "complete", 2: "complete", 3: "complete"},
     )
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 4)
-    assert result.returncode == 0
+    allowed, output = _mod.check_phase(state, 4)
+    assert allowed
 
 
-# --- Re-entry ---
+# --- Re-entry (in-process) ---
 
 
-def test_re_entering_completed_phase_shows_note(git_repo, state_dir, branch):
-    """Re-entering a completed phase should exit 0 with a 'previously completed' note."""
+def test_re_entering_completed_phase_shows_note():
+    """Re-entering a completed phase should return allowed=True with a note."""
     state = make_state(
         current_phase=2,
         phase_statuses={1: "complete", 2: "complete"},
     )
     state["phases"]["2"]["visit_count"] = 2
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 2)
-    assert result.returncode == 0
-    assert "previously completed" in result.stdout
-    assert "2 visit(s)" in result.stdout
+    allowed, output = _mod.check_phase(state, 2)
+    assert allowed
+    assert "previously completed" in output
+    assert "2 visit(s)" in output
 
 
-def test_first_visit_no_previously_completed_message(git_repo, state_dir, branch):
+def test_first_visit_no_previously_completed_message():
     """First visit to a pending phase should not show 'previously completed'."""
     state = make_state(current_phase=2, phase_statuses={1: "complete"})
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 2)
-    assert result.returncode == 0
-    assert "previously completed" not in result.stdout
+    allowed, output = _mod.check_phase(state, 2)
+    assert allowed
+    assert "previously completed" not in output
 
 
-def test_phase_6_requires_phase_5_complete(git_repo, state_dir, branch):
+def test_phase_6_requires_phase_5_complete():
     """Phase 6 (Reflect) requires phase 5 (Security) to be complete."""
     state = make_state(
         current_phase=6,
@@ -130,13 +143,12 @@ def test_phase_6_requires_phase_5_complete(git_repo, state_dir, branch):
             5: "pending",
         },
     )
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 6)
-    assert result.returncode == 1
-    assert "Phase 5" in result.stdout
+    allowed, output = _mod.check_phase(state, 6)
+    assert not allowed
+    assert "Phase 5" in output
 
 
-def test_phase_7_requires_phase_6_complete(git_repo, state_dir, branch):
+def test_phase_7_requires_phase_6_complete():
     """Phase 7 (Cleanup) requires phase 6 (Reflect) to be complete."""
     state = make_state(
         current_phase=7,
@@ -145,44 +157,37 @@ def test_phase_7_requires_phase_6_complete(git_repo, state_dir, branch):
             5: "complete", 6: "pending",
         },
     )
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 7)
-    assert result.returncode == 1
-    assert "Phase 6" in result.stdout
+    allowed, output = _mod.check_phase(state, 7)
+    assert not allowed
+    assert "Phase 6" in output
 
 
-# --- Worktree resolution ---
-
-
-def test_missing_phases_key_blocks(git_repo, state_dir, branch):
+def test_missing_phases_key_blocks():
     """State file with no 'phases' key should block (defaults to pending)."""
-    state = {"feature": "Test", "branch": branch, "current_phase": 2}
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 2)
-    assert result.returncode == 1
-    assert "BLOCKED" in result.stdout
+    state = {"feature": "Test", "branch": "test", "current_phase": 2}
+    allowed, output = _mod.check_phase(state, 2)
+    assert not allowed
+    assert "BLOCKED" in output
 
 
-def test_blocked_message_includes_correct_command(git_repo, state_dir, branch):
-    """Blocked message should include the correct /flow:X command for the missing phase."""
+def test_blocked_message_includes_correct_command():
+    """Blocked message should include the correct /flow:X command."""
     state = make_state(current_phase=4, phase_statuses={
         1: "complete", 2: "complete", 3: "pending",
     })
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 4)
-    assert result.returncode == 1
-    assert "/flow:code" in result.stdout
+    allowed, output = _mod.check_phase(state, 4)
+    assert not allowed
+    assert "/flow:code" in output
 
 
-def test_phase_0_blocks(git_repo, state_dir, branch):
+def test_phase_0_blocks():
     """Phase 0 is invalid — should block because phase -1 doesn't exist."""
     state = make_state(current_phase=1, phase_statuses={1: "complete"})
-    write_state(state_dir, branch, state)
-    result = _run(git_repo, 0)
-    assert result.returncode == 1
+    allowed, output = _mod.check_phase(state, 0)
+    assert not allowed
 
 
-# --- Worktree resolution ---
+# --- Worktree resolution (subprocess) ---
 
 
 def test_worktree_finds_state_in_main_repo(git_repo, state_dir):
@@ -204,5 +209,3 @@ def test_worktree_finds_state_in_main_repo(git_repo, state_dir):
 
     result = _run(wt_path, 2)
     assert result.returncode == 0
-
-

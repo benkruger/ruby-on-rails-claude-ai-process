@@ -1,0 +1,18 @@
+Eliminate subprocess overhead in check-phase tests — Task 8 of 9
+
+tl;dr
+
+All phase-status logic in check-phase.py lived inside main() with
+sys.exit() calls, making it impossible to test without spawning a
+subprocess per test. Extracting check_phase(state, phase) lets 11 of
+16 tests call the function directly, eliminating git_repo fixture copies
+and subprocess spawns for each.
+
+- lib/check-phase.py: Extract check_phase(state, phase) returning
+  (allowed, output) tuple; refactor main() to call it and print/exit
+  based on the return value
+- tests/test_check_phase.py: Add module import, convert 10 tests to
+  call check_phase() directly with state dicts, convert
+  test_corrupt_json_exits_1 to use monkeypatch on main(), keep 5
+  subprocess tests for main() path coverage (phase 1, detached HEAD,
+  missing state file, blocked path print+exit, worktree resolution)

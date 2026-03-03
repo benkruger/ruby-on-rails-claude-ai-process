@@ -30,6 +30,39 @@ COMMANDS = {
 }
 
 
+def check_phase(state, phase):
+    """Check if entry into `phase` is allowed given the state dict.
+
+    Returns (allowed: bool, output: str) where output is the message to print.
+    output is empty string if allowed with no note.
+    """
+    prev = phase - 1
+    prev_str = str(prev)
+    prev_data = state.get("phases", {}).get(prev_str, {})
+    prev_status = prev_data.get("status", "pending")
+    prev_name = PHASE_NAMES.get(prev, f"Phase {prev}")
+    prev_cmd = COMMANDS.get(prev_str, f"/flow:phase{prev}")
+
+    if prev_status != "complete":
+        lines = [
+            f"BLOCKED: Phase {prev}: {prev_name} must be complete before "
+            f"entering Phase {phase}: {PHASE_NAMES.get(phase, '')}.",
+            f"Phase {prev} current status: {prev_status}",
+            f"Complete it first with: {prev_cmd}",
+        ]
+        return (False, "\n".join(lines))
+
+    # Allowed — note if revisiting
+    this_data = state.get("phases", {}).get(str(phase), {})
+    if this_data.get("status") == "complete":
+        visits = this_data.get("visit_count", 0)
+        name = PHASE_NAMES.get(phase, f"Phase {phase}")
+        return (True, f"NOTE: Phase {phase}: {name} was previously completed "
+                      f"({visits} visit(s)). Re-entering.")
+
+    return (True, "")
+
+
 def main():
     parser = argparse.ArgumentParser(description="SDLC phase entry guard")
     parser.add_argument("--required", type=int, required=True,
@@ -60,29 +93,10 @@ def main():
         print(f"BLOCKED: Could not read state file: {e}")
         sys.exit(1)
 
-    prev = phase - 1
-    prev_str = str(prev)
-    prev_data = state.get("phases", {}).get(prev_str, {})
-    prev_status = prev_data.get("status", "pending")
-    prev_name = PHASE_NAMES.get(prev, f"Phase {prev}")
-    prev_cmd = COMMANDS.get(prev_str, f"/flow:phase{prev}")
-
-    if prev_status != "complete":
-        print(f"BLOCKED: Phase {prev}: {prev_name} must be complete before "
-              f"entering Phase {phase}: {PHASE_NAMES.get(phase, '')}.")
-        print(f"Phase {prev} current status: {prev_status}")
-        print(f"Complete it first with: {prev_cmd}")
-        sys.exit(1)
-
-    # Allowed — note if revisiting
-    this_data = state.get("phases", {}).get(str(phase), {})
-    if this_data.get("status") == "complete":
-        visits = this_data.get("visit_count", 0)
-        name = PHASE_NAMES.get(phase, f"Phase {phase}")
-        print(f"NOTE: Phase {phase}: {name} was previously completed "
-              f"({visits} visit(s)). Re-entering.")
-
-    sys.exit(0)
+    allowed, output = check_phase(state, phase)
+    if output:
+        print(output)
+    sys.exit(0 if allowed else 1)
 
 
 if __name__ == "__main__":

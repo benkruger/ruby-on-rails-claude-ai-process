@@ -44,7 +44,7 @@ Subject starts with an imperative verb — Add, Fix, Update, Remove, Refactor. N
 ## Gates
 
 - Never commits without showing the diff first
-- Never skips the approval step
+- Never skips the approval step — unless `--auto` or Python framework
 - Never uses `--no-verify`
 - Warns if `bin/ci` has not been run since the last code change
 
@@ -59,5 +59,7 @@ Pass `--auto` to skip the approval prompt when you already know the change is go
 ```
 
 Everything else stays identical: `bin/ci` runs first, the full diff is displayed, the commit message is generated and shown, and pull-before-push happens. The only difference is that Step 3 (approval prompt) is skipped.
+
+**Python projects** automatically use auto mode — when the target project's framework is `python` (per `.flow.json`), the approval prompt is always skipped.
 
 `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically.

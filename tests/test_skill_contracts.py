@@ -861,6 +861,18 @@ def test_reset_has_confirmation():
     )
 
 
+def test_commit_python_auto_approval():
+    """Commit SKILL.md must reference .flow.json for Python auto-approval."""
+    content = (SKILLS_DIR / "commit" / "SKILL.md").read_text()
+    assert ".flow.json" in content, (
+        "skills/commit/SKILL.md missing '.flow.json' reference — "
+        "Python projects auto-approve via framework detection"
+    )
+    assert re.search(r"[Pp]ython.*auto", content), (
+        "skills/commit/SKILL.md missing Python auto-approval behavior"
+    )
+
+
 def test_no_skill_invokes_commit_with_auto():
     """No skill other than commit and reflect may reference /flow:commit --auto.
 

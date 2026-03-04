@@ -34,6 +34,8 @@ On completion (whether approved or denied), print the same way:
 
 When the user invokes `/flow:commit --auto`, skip the Step 3 approval prompt and proceed directly to Step 4 (commit and push). Everything else is identical: `bin/ci`, diff display, commit message generation and display, pull-before-push.
 
+**Python projects:** When the target project's framework is `python` (check `.flow.json`), `--auto` is always on — skip the approval prompt regardless of whether `--auto` was explicitly passed.
+
 `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 
 ---
@@ -149,7 +151,7 @@ Display the full message under the heading **Commit Message** before asking for 
 
 ### Step 3 — Ask for approval
 
-If `--auto` was passed, skip this step and proceed directly to Step 4.
+If `--auto` was passed, or the project framework is `python` (read `.flow.json`), skip this step and proceed directly to Step 4.
 
 Otherwise, use the `AskUserQuestion` tool with exactly these two options:
 
@@ -215,7 +217,7 @@ will make fixes and re-invoke the commit skill when ready.
 ### Hard Rules
 
 - Never commit without showing the diff first
-- Never skip the approval step — unless `--auto` was passed by the user
+- Never skip the approval step — unless `--auto` was passed by the user or the project framework is `python`
 - `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 - Never use `--no-verify`
 - Never add Co-Authored-By trailers or attribution lines — commits are authored by the user alone

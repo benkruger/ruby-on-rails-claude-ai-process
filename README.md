@@ -239,7 +239,7 @@ These skills and scripts live in the FLOW repo itself (`.claude/skills/` and `li
 | `/commit` | Full diff review, commit message draft, approval gate, pull-before-push |
 | `/reflect` | Review session mistakes against CLAUDE.md rules, propose targeted improvements |
 | `/release` | Bump version in plugin.json and marketplace.json, tag, push, create GitHub Release |
-| `/qa` | Switch marketplace to local source, test in a live session, restore when done |
+| `/qa` | `--start`/`--stop` dev mode — nukes plugin cache, swaps marketplace source, tracks via `.dev-mode` marker |
 | `/reset` | Remove all FLOW artifacts — close PRs, delete worktrees/branches/state files |
 
 ### Local QA Workflow
@@ -247,17 +247,22 @@ These skills and scripts live in the FLOW repo itself (`.claude/skills/` and `li
 Every plugin change can be tested locally before releasing:
 
 ```bash
-/qa
+/qa --start
 ```
 
-This runs `bin/ci`, then re-registers the marketplace to point at the local source directory and updates the plugin cache. You open a new Claude Code session in a target project, test whatever you need, come back, and `/qa` restores the marketplace to the GitHub source and reports the result.
+This nukes the plugin cache directory, re-registers the marketplace to point at the local source, and updates the cache. Open a new Claude Code session in a target project to test. When done:
+
+```bash
+/qa --stop
+```
+
+This nukes the cache again, restores the marketplace to the GitHub source, and updates. A `.flow-states/.dev-mode` marker tracks whether dev mode is active.
 
 The underlying commands can also be run directly:
 
 ```bash
+rm -rf ~/.claude/plugins/cache/flow-marketplace
 claude plugin marketplace add /path/to/flow    # point cache at local source
-claude plugin marketplace update flow-marketplace
-claude plugin marketplace add benkruger/flow    # restore production source
 claude plugin marketplace update flow-marketplace
 ```
 

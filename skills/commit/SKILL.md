@@ -44,7 +44,8 @@ When the user invokes `/flow:commit --auto`, skip the Step 3 approval prompt and
 
 ### Step 0 — Run tests
 
-Run `bin/ci`. If any test fails, stop and report the failure.
+Run `bin/ci --if-dirty`. This skips the run if no files changed since the
+last green run. If any test fails, stop and report the failure.
 Do not proceed to diff review until tests pass.
 
 ### Step 1 — Show the diff

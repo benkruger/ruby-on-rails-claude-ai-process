@@ -91,8 +91,10 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 ## Maintainer Skills (private to this repo)
 
 - `/commit` — `.claude/skills/commit` — review diff, approve, commit, push
+- `/qa` — `.claude/skills/qa/SKILL.md` — switch marketplace to local source, test in a live session, restore when done
 - `/reflect` — `.claude/skills/reflect/SKILL.md` — review session mistakes, propose CLAUDE.md improvements
 - `/release` — `.claude/skills/release/SKILL.md` — bump version, tag, push, create GitHub Release
+- `/reset` — `.claude/skills/reset/SKILL.md` — remove all FLOW artifacts (worktrees, branches, PRs, state files)
 
 ## Conventions
 

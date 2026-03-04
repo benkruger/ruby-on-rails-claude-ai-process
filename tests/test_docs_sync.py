@@ -141,6 +141,18 @@ def test_readme_mentions_all_phase_commands():
         )
 
 
+def test_readme_mentions_all_maintainer_commands():
+    """README.md must mention all maintainer skill commands as /<name>."""
+    readme = (REPO_ROOT / "README.md").read_text()
+    maintainer_dir = REPO_ROOT / ".claude" / "skills"
+    for d in sorted(maintainer_dir.iterdir()):
+        if d.is_dir() and (d / "SKILL.md").exists():
+            command = f"/{d.name}"
+            assert command in readme, (
+                f"README.md does not mention maintainer command '{command}'"
+            )
+
+
 def test_readme_mentions_all_utility_commands():
     """README.md must mention all utility skill commands."""
     readme = (REPO_ROOT / "README.md").read_text()

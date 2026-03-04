@@ -42,7 +42,9 @@
       "Bash(git branch -D *)",
       "Bash(*bin/flow *)",
       "Bash(.venv/bin/pip install *)",
-      "Bash(gh pr view *)"
+      "Bash(gh pr list *)",
+      "Bash(gh pr view *)",
+      "Bash(rm .flow-states/*)"
     ],
     "deny": [
       "Bash(git rebase *)",

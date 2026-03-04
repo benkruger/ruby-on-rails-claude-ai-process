@@ -825,6 +825,42 @@ def test_commit_auto_flag_restriction():
     )
 
 
+# --- Reset skill (maintainer) ---
+
+
+def test_reset_guard_requires_main_branch():
+    """Reset SKILL.md must guard against running outside main branch."""
+    content = (REPO_ROOT / ".claude" / "skills" / "reset" / "SKILL.md").read_text()
+    assert "main" in content, (
+        "Reset SKILL.md must reference the main branch"
+    )
+    assert "git branch --show-current" in content, (
+        "Reset SKILL.md must check current branch with git branch --show-current"
+    )
+
+
+def test_reset_has_inventory_step():
+    """Reset SKILL.md must inventory artifacts before destroying them."""
+    content = (REPO_ROOT / ".claude" / "skills" / "reset" / "SKILL.md").read_text()
+    assert "git worktree list" in content, (
+        "Reset must inventory worktrees"
+    )
+    assert "gh pr list" in content, (
+        "Reset must inventory open PRs"
+    )
+    assert ".flow-states" in content, (
+        "Reset must inventory state files"
+    )
+
+
+def test_reset_has_confirmation():
+    """Reset SKILL.md must confirm before destroying artifacts."""
+    content = (REPO_ROOT / ".claude" / "skills" / "reset" / "SKILL.md").read_text()
+    assert "AskUserQuestion" in content, (
+        "Reset SKILL.md must use AskUserQuestion to confirm before destroying"
+    )
+
+
 def test_no_skill_invokes_commit_with_auto():
     """No skill other than commit and reflect may reference /flow:commit --auto.
 

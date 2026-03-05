@@ -43,6 +43,11 @@ is best-effort — if one fails, the rest still run.
 
 This resets the SessionStart hook — the next session starts clean.
 
+### 5. Pull merged changes
+
+Pulls `origin main` so local main has the merged feature code. If the
+pull fails, a warning is shown but cleanup is still considered complete.
+
 ---
 
 ## What You Get
@@ -52,6 +57,7 @@ By the end of Phase 7:
 - Worktree and all its contents removed
 - State file deleted — no more session hook injection for this feature
 - Log file deleted — no stale logs left behind
+- Local main pulled up to date with the merged feature code
 - Local environment clean and ready for the next feature
 
 ---

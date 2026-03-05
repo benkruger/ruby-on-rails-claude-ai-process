@@ -139,6 +139,17 @@ The script outputs JSON with a `steps` dict showing what happened to each resour
 
 Report the results to the user: what was cleaned, what was already gone, and what failed.
 
+### Step 5 — Pull merged changes
+
+The worktree is removed and you are on main. Pull to get the merged
+feature code:
+
+```bash
+git pull origin main
+```
+
+If the pull fails, warn the user but do not block — cleanup succeeded.
+
 ### Done — Print banner
 
 For the banner below, compute `<formatted_time>` from the integer `cumulative_seconds` read in Step 1: `Xh Ym` if ≥ 3600, `Xm` if ≥ 60, `<1m` if < 60. Do not write the formatted string back to the state file.

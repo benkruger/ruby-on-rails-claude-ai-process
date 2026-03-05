@@ -26,6 +26,7 @@ Best-effort — warns if the state file is missing or Phase 6 is incomplete.
    warnings from the entry check
 4. Runs the cleanup process:
    navigate to root, remove worktree, delete state file and log, report results
+5. Pulls `origin main` so local main has the merged feature code
 
 ---
 

@@ -50,6 +50,12 @@ bin/flow phase-transition --phase 2 --action enter
 Parse the JSON output to confirm `"status": "ok"`.
 If `"status": "error"`, report the error and stop.
 
+## Enter Plan Mode
+
+Call `EnterPlanMode` now. All subsequent steps run in plan mode —
+no file edits are possible until the plan is approved and ExitPlanMode
+is called.
+
 ## Logging
 
 No logging for this phase. Plan uses Claude Code's native plan mode —
@@ -89,13 +95,12 @@ Wait for the user's response. This is the input for the planning phase.
 
 ---
 
-## Step 2 — Enter plan mode
+## Step 2 — Explore and write the plan
 
-Call `EnterPlanMode` to begin planning.
-
-In plan mode, explore the codebase, design the approach, and write the
-implementation plan to a plan file. Use the full power of plan mode:
-read files, search code, explore patterns, and design the solution.
+You are already in plan mode (entered after Update State). Explore the
+codebase, design the approach, and write the implementation plan to a
+plan file. Use the full power of plan mode: read files, search code,
+explore patterns, and design the solution.
 
 ### Framework Instructions
 

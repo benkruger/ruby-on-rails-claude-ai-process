@@ -27,10 +27,10 @@ commit, then move to the next.
 
 ---
 
-## bin/ci Rule
+## bin/flow ci Rule
 
-bin/ci runs after every fix made during Security.
-Security does not transition to Reflect until bin/ci is green.
+`bin/flow ci` runs after every fix made during Security.
+Security does not transition to Reflect until `bin/flow ci` is green.
 
 ---
 

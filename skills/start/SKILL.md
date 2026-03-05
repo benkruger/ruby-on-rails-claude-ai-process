@@ -85,15 +85,15 @@ Parse the JSON output. If `"status": "error"`, tell the user to run `/flow:init`
 
 ### Step 3 — Verify main is green
 
-Run `bin/ci` on main before creating any resources:
+Run `bin/flow ci` on main before creating any resources:
 
 ```bash
-bin/ci
+bin/flow ci
 ```
 
 If it fails, stop immediately:
 
-> "bin/ci is failing on main. Please fix CI before starting a new feature."
+> "`bin/flow ci` is failing on main. Please fix CI before starting a new feature."
 
 Do not create a worktree, PR, or state file. Exit the skill entirely.
 
@@ -151,58 +151,58 @@ just follow the matching section silently.
 bundle update --all
 ```
 
-### Step 6 — Post-upgrade `bin/ci`
+### Step 6 — Post-upgrade `bin/flow ci`
 
 ```bash
-bin/ci
+bin/flow ci
 ```
 
 - **Passes** — continue to Step 8
 - **Fails** — launch the CI fix sub-agent (see Step 7). Pass the full
-  `bin/ci` output. After the sub-agent returns:
+  `bin/flow ci` output. After the sub-agent returns:
   - **Fixed** — continue to Step 8 (Gemfile.lock + fixes committed together)
   - **Not fixed** — stop and report to the user what is failing
 
 ### Step 7 — CI fix sub-agent
 
-When `bin/ci` fails in Step 6, launch a sub-agent to diagnose
+When `bin/flow ci` fails in Step 6, launch a sub-agent to diagnose
 and fix the failures. Use the Task tool:
 
 - `subagent_type`: `"general-purpose"`
 - `model`: `"sonnet"`
-- `description`: `"Fix bin/ci failures"`
+- `description`: `"Fix bin/flow ci failures"`
 
-Provide these instructions (fill in the worktree path and bin/ci output):
+Provide these instructions (fill in the worktree path and bin/flow ci output):
 
 > You are fixing CI failures in a Rails worktree.
 > Worktree: `<worktree path>`
 > cd into the worktree before running any commands.
 >
-> The `bin/ci` output:
-> <paste the full bin/ci output>
+> The `bin/flow ci` output:
+> <paste the full bin/flow ci output>
 >
 > **Tool rules:** Use Glob and Read tools for all file and directory
 > operations. Use Grep for searching code. Only use Bash for commands
-> explicitly listed in these instructions (bin/ci, bin/rails test,
+> explicitly listed in these instructions (bin/flow ci, bin/rails test,
 > rubocop -A, rubocop). Never use Bash for any other purpose — no find,
 > ls, cat, wc, test -f, stat, or running project tooling not listed here.
 >
 > Fix the failures in this order:
 >
 > 1. **RuboCop violations** — ALWAYS run `rubocop -A` first. This
->    auto-corrects most violations. Then run `bin/ci`. If violations
+>    auto-corrects most violations. Then run `bin/flow ci`. If violations
 >    remain, fix the code manually to satisfy the cop.
 > 2. **Test failures** — read the failing test and the code it tests.
 >    Understand the root cause. Fix the code, not the test (unless the
 >    test itself is wrong). Run `bin/rails test <file>` to verify,
->    then `bin/ci` for a full check.
+>    then `bin/flow ci` for a full check.
 > 3. **Coverage gaps** — read `test/coverage/uncovered.txt` to see exactly
->    which lines are uncovered. Write the missing test, then `bin/ci`
+>    which lines are uncovered. Write the missing test, then `bin/flow ci`
 >
 > **Never modify `.rubocop.yml` or any RuboCop configuration.**
 > Fix the code, never the rules. Do not add exclusions or disable cops.
 >
-> Max 3 attempts. After each fix, run `bin/ci`. If green, report what
+> Max 3 attempts. After each fix, run `bin/flow ci`. If green, report what
 > was fixed and stop. If still failing after 3 attempts, report exactly
 > what is failing and what was tried.
 >
@@ -215,7 +215,7 @@ Provide these instructions (fill in the worktree path and bin/ci output):
 Wait for the sub-agent to return.
 
 <HARD-GATE>
-Do NOT proceed past Step 6 until bin/ci is green.
+Do NOT proceed past Step 6 until `bin/flow ci` is green.
 </HARD-GATE>
 
 ### Step 8 — Commit and push
@@ -227,11 +227,11 @@ Use `/flow:commit` to review and commit the changes (`Gemfile.lock` + any gem fi
 Include in the Done report:
 
 - Which gems were upgraded (`git diff Gemfile.lock` summary)
-- Confirmation `bin/ci` is green
+- Confirmation `bin/flow ci` is green
 
 #### If Python
 
-No additional setup needed — Step 3 already verified `bin/ci` on main,
+No additional setup needed — Step 3 already verified `bin/flow ci` on main,
 and Python has no dependency upgrade step. Proceed silently to Done —
 do not announce the framework or explain why steps were skipped.
 

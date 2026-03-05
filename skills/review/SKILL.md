@@ -1,6 +1,6 @@
 ---
 name: review
-description: "Phase 4: Review — systematic code review against the plan, identified risks, and framework anti-patterns. Fixes issues found, runs bin/ci after any fix, then transitions to Security."
+description: "Phase 4: Review — systematic code review against the plan, identified risks, and framework anti-patterns. Fixes issues found, runs bin/flow ci after any fix, then transitions to Security."
 model: sonnet
 ---
 
@@ -254,8 +254,8 @@ After fixing any findings, run `/flow:commit` for the Review fixes.
 Then run `bin/flow ci --if-dirty` — required before any state transition.
 
 <HARD-GATE>
-bin/ci must be green before transitioning to Security.
-Any fix made during Review requires bin/ci to run again.
+`bin/flow ci` must be green before transitioning to Security.
+Any fix made during Review requires `bin/flow ci` to run again.
 </HARD-GATE>
 
 ---
@@ -279,7 +279,7 @@ Show a summary of what was found and fixed inside a fenced code block:
   - <description of fix and why>
   - <description of fix and why>
 
-  bin/ci            : ✓ green
+  bin/flow ci       : ✓ green
 
 ============================================
 ```
@@ -354,8 +354,8 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 ## Hard Rules
 
-- Always run `bin/ci` after any fix made during Review
-- Never transition to Security unless bin/ci is green
+- Always run `bin/flow ci` after any fix made during Review
+- Never transition to Security unless `bin/flow ci` is green
 - Never skip the plan alignment check
 - Never skip the risk coverage check
 - Read the full diff before starting — no partial reviews

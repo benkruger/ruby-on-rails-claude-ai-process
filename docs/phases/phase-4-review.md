@@ -8,7 +8,7 @@ nav_order: 5
 **Command:** `/flow:review`
 
 Systematic code review against the approved plan, identified risks,
-and framework anti-patterns. bin/ci was already green from Code — Review
+and framework anti-patterns. `bin/flow ci` was already green from Code — Review
 adds what automated tools cannot catch.
 
 ---
@@ -24,7 +24,7 @@ Every risk identified in the plan confirmed as handled.
 A risk found and not addressed is a bug waiting to happen.
 
 **3. Framework anti-patterns**
-Things bin/ci cannot catch — defined by the framework instructions in the skill. Each framework has its own anti-pattern checklist (e.g., N+1 queries and callback misuse for Rails; circular imports and mutable defaults for Python).
+Things `bin/flow ci` cannot catch — defined by the framework instructions in the skill. Each framework has its own anti-pattern checklist (e.g., N+1 queries and callback misuse for Rails; circular imports and mutable defaults for Python).
 
 **4. Fresh read-through**
 Every changed file read as if seeing it for the first time.
@@ -34,15 +34,15 @@ Clarity, naming, no over-engineering.
 
 ## Findings
 
-- **Minor** — fixed directly in Review, committed, bin/ci re-run
+- **Minor** — fixed directly in Review, committed, `bin/flow ci` re-run
 - **Significant** — AskUserQuestion: fix here, go back to Code or Plan
 
 ---
 
-## bin/ci Rule
+## bin/flow ci Rule
 
-bin/ci runs after every fix made during Review.
-Review does not transition to Security until bin/ci is green.
+`bin/flow ci` runs after every fix made during Review.
+Review does not transition to Security until `bin/flow ci` is green.
 
 ---
 

@@ -60,7 +60,7 @@ All three modes share the same diff/message/approval/push process.
 - Never commits without showing the diff first
 - Never skips the approval step — unless `--auto` or Python framework (FLOW mode only)
 - Never uses `--no-verify`
-- FLOW mode: Warns if `bin/ci` has not been run since the last code change
+- FLOW mode: Warns if `bin/flow ci` has not been run since the last code change
 
 ---
 
@@ -72,7 +72,7 @@ Pass `--auto` to skip the approval prompt when you already know the change is go
 /flow:commit --auto
 ```
 
-Everything else stays identical: `bin/ci` runs first, the full diff is displayed, the commit message is generated and shown, and pull-before-push happens. The only difference is that Step 3 (approval prompt) is skipped.
+Everything else stays identical: `bin/flow ci` runs first, the full diff is displayed, the commit message is generated and shown, and pull-before-push happens. The only difference is that Step 3 (approval prompt) is skipped.
 
 **Python projects (FLOW mode only)** automatically use auto mode — when the target project's framework is `python` (per `.flow.json`), the approval prompt is always skipped. This applies only in FLOW mode; Maintainer and Standalone modes always require explicit approval.
 

@@ -107,7 +107,7 @@ bin/rails test <test/path/to/file_test.rb>
 
 #### CI Failure Fix Order
 
-If bin/ci fails:
+If `bin/flow ci` fails:
 
 - RuboCop violations → `rubocop -A` first, then manual fixes
 - Test failures → understand the root cause, fix the code not the test
@@ -157,7 +157,7 @@ bin/test <tests/path/to/test_file.py>
 
 #### CI Failure Fix Order
 
-If bin/ci fails:
+If `bin/flow ci` fails:
 
 - Lint violations → read the lint output carefully, fix the code
 - Test failures → understand the root cause, fix the code not the test
@@ -279,7 +279,7 @@ still passes.
 ### Review
 
 After the TDD cycle passes, show the diff for this task and ask for
-review before touching `bin/ci` or committing.
+review before running `bin/flow ci` or committing.
 
 Run `git status` and `git diff HEAD` as two separate commands, then
 render the output inline:
@@ -299,13 +299,13 @@ new file:   <path/to/test_file>
 ```
 
 **If streamline mode is active** (see below), skip the AskUserQuestion
-and proceed directly to bin/ci.
+and proceed directly to `bin/flow ci`.
 
 Otherwise, use AskUserQuestion:
 
 > "Task <n>: <description> — does this look right?"
 >
-> - **Yes, run bin/ci and commit**
+> - **Yes, run bin/flow ci and commit**
 > - **Needs changes** — describe what to fix
 > - **Streamline remaining tasks** — (only shown from the second task onward)
 
@@ -315,23 +315,23 @@ again. Loop until approved.
 **If "Streamline remaining tasks"** — set a session-only flag (not
 persisted to state). For all remaining tasks, still show the diff for
 user visibility, but skip the AskUserQuestion and proceed directly to
-bin/ci and commit.
+`bin/flow ci` and commit.
 
 ---
 
-### bin/ci Gate
+### bin/flow ci Gate
 
-Run `bin/ci`. This must be green before committing.
+Run `bin/flow ci`. This must be green before committing.
 
-**If bin/ci fails:**
+**If `bin/flow ci` fails:**
 
 - Read the output carefully
 - Fix each failure following the **CI Failure Fix Order** from the framework section above
-- Re-run `bin/ci` after each fix
+- Re-run `bin/flow ci` after each fix
 - Max 3 attempts — if still failing after 3, stop and report exactly what is failing
 
 <HARD-GATE>
-Do NOT commit and do NOT move to the next task until bin/ci is green.
+Do NOT commit and do NOT move to the next task until `bin/flow ci` is green.
 </HARD-GATE>
 
 ---
@@ -379,7 +379,7 @@ Use AskUserQuestion:
 
 Once every task from the plan file is complete:
 
-**Final bin/ci sweep:**
+**Final `bin/flow ci --if-dirty` sweep:**
 
 ```bash
 bin/flow ci --if-dirty
@@ -393,11 +393,11 @@ cat coverage/uncovered.txt
 
 If there are uncovered lines:
 - Write tests for each uncovered line
-- Run `bin/ci` again
+- Run `bin/flow ci` again
 - Repeat until `coverage/uncovered.txt` is empty
 
 <HARD-GATE>
-Do NOT transition to Review until bin/ci is green AND coverage/uncovered.txt
+Do NOT transition to Review until `bin/flow ci` is green AND coverage/uncovered.txt
 is empty. 100% coverage is mandatory.
 </HARD-GATE>
 
@@ -455,7 +455,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 - **Never skip the TDD cycle** — test must fail before code is written
 - **Never skip the review for the first task** — after the first task, the user may opt into streamline mode which auto-proceeds through remaining tasks
-- **Never skip bin/ci** — must be green before every commit
+- **Never skip `bin/flow ci`** — must be green before every commit
 - **Never move to the next task** until the current task is committed
 - **Never rebase** — always merge
 - Plus the **Framework-Specific Hard Rules** from the framework section above

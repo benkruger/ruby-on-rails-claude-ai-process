@@ -11,7 +11,7 @@ parent: Skills
 **Usage:** `/flow:review`
 
 Systematic review against design, research risks, and framework
-anti-patterns. Fixes findings, runs bin/ci after every fix, then
+anti-patterns. Fixes findings, runs `bin/flow ci` after every fix, then
 transitions to Security.
 
 ---
@@ -30,14 +30,14 @@ transitions to Security.
 
 ## Fixing Findings
 
-- Minor → fix directly, commit, re-run bin/ci
+- Minor → fix directly, commit, re-run `bin/flow ci`
 - Significant → AskUserQuestion: fix here or go back to Code/Plan/Design/Research
 
 ---
 
 ## Gates
 
-- bin/ci must be green after every fix
-- bin/ci must be green before transitioning to Security
+- `bin/flow ci` must be green after every fix
+- `bin/flow ci` must be green before transitioning to Security
 - Full diff must be read before review begins
 - Can return to Code, Plan, Design, or Research

@@ -23,9 +23,9 @@ Begins a new feature. This is always the first command run for any piece of work
 ## What It Does
 
 1. Checks for existing active FLOW features
-2. Runs `bin/ci` on main to verify the codebase is healthy
+2. Runs `bin/flow ci` on main to verify the codebase is healthy
 3. Runs `lib/start-setup.py` — verifies `/flow:init` version gate, git pull, worktree creation, empty commit + push + PR, and state file creation
-4. Framework-specific setup (Rails: gem upgrade, post-upgrade `bin/ci`, CI fixes via a Sonnet sub-agent, commit. Python: no additional setup)
+4. Framework-specific setup (Rails: gem upgrade, post-upgrade `bin/flow ci`, CI fixes via a Sonnet sub-agent, commit. Python: no additional setup)
 5. Marks Phase 1 complete and transitions to Phase 2: Research
 
 ---
@@ -47,10 +47,10 @@ Branch names are capped at 32 characters, truncated at word boundaries.
 ## Gates
 
 - Stops immediately if no feature name is provided
-- Stops if `bin/ci` fails on main before creating worktree
+- Stops if `bin/flow ci` fails on main before creating worktree
 - Stops if `git pull` fails
-- Will not proceed past dependency upgrade until `bin/ci` is green
-- Escalates to the user if `bin/ci` cannot be fixed after three attempts
+- Will not proceed past dependency upgrade until `bin/flow ci` is green
+- Escalates to the user if `bin/flow ci` cannot be fixed after three attempts
 
 ---
 

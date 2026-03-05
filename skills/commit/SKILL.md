@@ -71,7 +71,7 @@ On completion (whether approved or denied), print the same way:
 
 ## Flag: --auto
 
-When the user invokes `/flow:commit --auto`, skip the Step 3 approval prompt and proceed directly to Step 4 (commit and push). Everything else is identical: `bin/ci`, diff display, commit message generation and display, pull-before-push.
+When the user invokes `/flow:commit --auto`, skip the Step 3 approval prompt and proceed directly to Step 4 (commit and push). Everything else is identical: `bin/flow ci`, diff display, commit message generation and display, pull-before-push.
 
 In FLOW mode, Python projects also skip approval — see Step 3.
 
@@ -270,4 +270,4 @@ will make fixes and re-invoke the commit skill when ready.
 
 ## Additional Rules
 
-- **FLOW mode only:** If `bin/ci` has not been run since the last code change, warn the user before asking for approval
+- **FLOW mode only:** If `bin/flow ci` has not been run since the last code change, warn the user before asking for approval

@@ -25,7 +25,7 @@ Run `bin/flow init-check` to verify `/flow:init` has been run with the current p
 
 ### 3. Verify main is green
 
-Run `bin/ci` on main. If it fails, stop — fix CI before starting a feature.
+Run `bin/flow ci` on main. If it fails, stop — fix CI before starting a feature.
 No worktree, PR, or state file is created if main is broken.
 
 ### 4. Set up workspace
@@ -41,9 +41,9 @@ The script returns JSON with the worktree path, PR URL, and PR number. Claude th
 
 ### 5. Framework-specific setup
 
-**Rails:** Upgrade gems with `bundle update --all`, then run `bin/ci`. If it fails, a Sonnet sub-agent diagnoses and fixes (max 3 attempts). Commit changes via `/flow:commit`.
+**Rails:** Upgrade gems with `bundle update --all`, then run `bin/flow ci`. If it fails, a Sonnet sub-agent diagnoses and fixes (max 3 attempts). Commit changes via `/flow:commit`.
 
-**Python:** No additional setup — Step 3 verified `bin/ci` on main.
+**Python:** No additional setup — Step 3 verified `bin/flow ci` on main.
 
 ---
 
@@ -55,7 +55,7 @@ By the end of Phase 1:
 - A branch pushed to remote with CI running
 - An open PR
 - Workspace permissions configured in `.claude/settings.json`
-- Dependencies current and `bin/ci` green
+- Dependencies current and `bin/flow ci` green
 - A clean, known-good baseline to build from
 
 ---

@@ -27,7 +27,7 @@ The 10 security checks are defined by the framework instructions in the skill. E
 Every confirmed finding gets fixed directly:
 
 1. Fix one finding
-2. Run `bin/ci`
+2. Run `bin/flow ci`
 3. Commit via `/flow:commit`
 4. Mark finding as fixed in state
 5. Next finding
@@ -37,6 +37,6 @@ Every confirmed finding gets fixed directly:
 ## Gates
 
 - Phase 6: Review must be complete
-- bin/ci must be green after every fix
-- bin/ci must be green before transitioning to Reflect
+- `bin/flow ci` must be green after every fix
+- `bin/flow ci` must be green before transitioning to Reflect
 - Full diff must be read before analysis begins

@@ -161,4 +161,4 @@ prompt catches things the user thought of but didn't say.
 - Always use AskUserQuestion for the transition — never print "type /flow:next"
 - Yes → invoke next skill via Skill tool
 - Not yet → paused banner only
-- **Always run `bin/ci` before any state transition that touches code**
+- **Always run `bin/flow ci` before any state transition that touches code**

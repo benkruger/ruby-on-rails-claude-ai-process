@@ -371,8 +371,8 @@ entire file back. Never use the Edit tool for state file changes —
 field names repeat across phases and cause non-unique match errors.
 
 <HARD-GATE>
-bin/ci must be green after every fix. Do not move to the next finding
-until the current fix passes bin/ci and is committed.
+`bin/flow ci` must be green after every fix. Do not move to the next finding
+until the current fix passes `bin/flow ci` and is committed.
 </HARD-GATE>
 
 Repeat until all findings have `status: "fixed"`.
@@ -403,7 +403,7 @@ Show a summary of what was found and fixed inside a fenced code block:
   ------------
   <check_1>, <check_2>, <check_3>, ...
 
-  bin/ci           : ✓ green
+  bin/flow ci      : ✓ green
 
 ============================================
 ```
@@ -463,6 +463,6 @@ Invoke `flow:status`, then use AskUserQuestion:
 
 ## Hard Rules
 
-- Always run `bin/ci` after any fix made during Security
-- Never transition to Reflect unless bin/ci is green
+- Always run `bin/flow ci` after any fix made during Security
+- Never transition to Reflect unless `bin/flow ci` is green
 - Read the full diff before starting — no partial reviews

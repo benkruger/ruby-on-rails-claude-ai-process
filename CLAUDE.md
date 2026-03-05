@@ -101,7 +101,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 ## Conventions
 
 - All commits via `/flow:commit` skill — no exceptions, no shortcuts, no "just this once"
-- All changes require `bin/ci` green before committing — tests are the gate
+- All changes require `bin/flow ci` green before committing — tests are the gate
 - New skills are automatically covered by test_skill_contracts.py (glob-based discovery)
 - Namespace is `flow:` — plugin.json name is `"flow"`
 - Never rebase — merge only (denied in `.claude/settings.json`)
@@ -147,4 +147,3 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 - **When a skill says "for each X, do Y", process every item** — During /reset, the inventory found 2 worktrees, 4 branches, and 3 state files, but only 1 of each was actually deleted. The report then claimed all items were handled. Always iterate through the full list, run the command for each item, and count actual operations — never report counts that don't match commands run.
 - **When changing a behavior, search for all descriptions of that behavior — not just exact string matches** — Grepping for the specific command or string being changed catches direct references but misses summary sections (like a "Gates" list in docs) that describe the same behavior using different wording. When a behavior changes, scan every file that documents or summarizes it for semantic descriptions, not just textual matches.
 - **Never run `git add -A` in commit Step 4** — Files are already staged from Step 1. Running `git add -A` again in Step 4 stages `.flow-commit-msg` itself (just written by the Write tool), causing it to be tracked in the commit. Run only `git commit -F .flow-commit-msg` in Step 4.
-- **Use `bin/flow ci --if-dirty` inside skills, not `bin/ci`** — Skills specify `bin/flow ci --if-dirty` which includes the skip-if-clean optimization. Running `bin/ci` directly bypasses this and runs the full suite unnecessarily. `bin/ci` is for direct developer use and the final gate before committing; `bin/flow ci --if-dirty` is what skills call.

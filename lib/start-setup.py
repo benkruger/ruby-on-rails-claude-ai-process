@@ -1,7 +1,8 @@
 """Consolidated setup for FLOW Start phase.
 
-Checks /flow:init version gate, runs git pull, creates worktree,
-makes initial commit + push + PR, creates state file, and logs all operations.
+Runs git pull, creates worktree, makes initial commit + push + PR,
+creates state file, and logs all operations. The version gate
+(init-check) runs as a separate step before this script.
 
 Usage: bin/flow start-setup "<feature name>"
 
@@ -189,45 +190,24 @@ def main():
     project_root = Path.cwd()
 
     try:
-        # Version gate — ensure /flow:init has been run
+        # Read framework from .flow.json (version gate already passed)
         flow_json = project_root / ".flow.json"
-        if not flow_json.exists():
-            raise SetupError(
-                "init_check",
-                "FLOW not initialized. Run /flow:init first.",
-            )
         init_data = json.loads(flow_json.read_text())
-        plugin_version = json.loads(
-            (Path(__file__).resolve().parent.parent
-             / ".claude-plugin" / "plugin.json").read_text()
-        )["version"]
-        if init_data.get("flow_version") != plugin_version:
-            raise SetupError(
-                "init_check",
-                f"FLOW version mismatch: initialized for "
-                f"v{init_data.get('flow_version')}, plugin is "
-                f"v{plugin_version}. Run /flow:init to upgrade.",
-            )
-        framework = init_data.get("framework")
-        if framework not in ("rails", "python"):
-            raise SetupError(
-                "init_check",
-                "Missing framework in .flow.json. Run /flow:init to configure.",
-            )
+        framework = init_data.get("framework", "rails")
 
-        # Step 2a — Git pull
+        # Git pull
         _git_pull(project_root)
         _log(project_root, branch, "git pull origin main (exit 0)")
 
-        # Step 2b — Create worktree
+        # Create worktree
         wt_path = _create_worktree(project_root, branch)
         _log(project_root, branch, f"git worktree add .worktrees/{branch} (exit 0)")
 
-        # Step 2e — Commit, push, PR
+        # Commit, push, PR
         pr_url, pr_number = _initial_commit_push_pr(wt_path, branch, feature_title)
         _log(project_root, branch, f"git commit + push + gh pr create (exit 0)")
 
-        # Step 2f — Create state file
+        # Create state file
         _create_state_file(project_root, branch, feature_title, pr_url, pr_number,
                            framework=framework)
         _log(project_root, branch, f"create .flow-states/{branch}.json (exit 0)")

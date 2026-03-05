@@ -219,34 +219,7 @@ def test_git_pull_failure_returns_error(tmp_path):
     assert data["step"] == "git_pull"
 
 
-# --- Version gate (/flow:init check) ---
-
-
-def test_fails_when_flow_json_missing(tmp_path):
-    """start-setup.py returns error JSON with step init_check when flow.json missing."""
-    result = _run(tmp_path, "test feature")
-    assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["status"] == "error"
-    assert data["step"] == "init_check"
-    assert "/flow:init" in data["message"]
-
-
-def test_fails_when_flow_version_mismatch(tmp_path):
-    """start-setup.py returns error when flow.json has wrong version."""
-    _write_flow_json(tmp_path, "0.0.0")
-    result = _run(tmp_path, "test feature")
-    assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["status"] == "error"
-    assert data["step"] == "init_check"
-    assert "mismatch" in data["message"]
-
-
-def test_succeeds_when_flow_version_matches(_default_run):
-    """start-setup.py succeeds when flow.json has the current version."""
-    data, state, log, repo = _default_run
-    assert data["status"] == "ok"
+# --- Version gate now handled by init-check.py (see test_init_check.py) ---
 
 
 # --- Worktree creation (shared run) ---
@@ -431,17 +404,3 @@ def test_state_file_includes_python_framework(git_repo_with_remote):
     state_path = git_repo_with_remote / ".flow-states" / "test-feature.json"
     data = json.loads(state_path.read_text())
     assert data["framework"] == "python"
-
-
-def test_missing_framework_in_flow_json_returns_error(git_repo_with_remote):
-    """start-setup.py returns error when .flow.json has no framework field."""
-    version = _current_plugin_version()
-    (git_repo_with_remote / ".flow.json").write_text(
-        json.dumps({"flow_version": version})
-    )
-    result = _run(git_repo_with_remote, "test feature")
-    assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["status"] == "error"
-    assert data["step"] == "init_check"
-    assert "framework" in data["message"].lower()

@@ -39,7 +39,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Logging
 
-After every Bash command in Steps 4–7, log it to `.flow-states/<branch>.log`. Step 3 handles its own logging internally.
+After every Bash command in Steps 5–8, log it to `.flow-states/<branch>.log`. Step 4 handles its own logging internally.
 
 Run the command directly — do not append any suffix:
 
@@ -73,7 +73,17 @@ If any files are found, use AskUserQuestion:
 > - **Start a new feature anyway** — proceed
 > - **Cancel** — stop here
 
-### Step 2 — Verify main is green
+### Step 2 — Version gate
+
+Run the version check before any slow operations:
+
+```bash
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow init-check
+```
+
+Parse the JSON output. If `"status": "error"`, tell the user to run `/flow:init` and stop. Do not proceed to any further steps.
+
+### Step 3 — Verify main is green
 
 Run `bin/ci` on main before creating any resources:
 
@@ -87,7 +97,7 @@ If it fails, stop immediately:
 
 Do not create a worktree, PR, or state file. Exit the skill entirely.
 
-### Step 3 — Set up workspace
+### Step 4 — Set up workspace
 
 Run the consolidated setup script:
 
@@ -97,11 +107,10 @@ exec ${CLAUDE_PLUGIN_ROOT}/bin/flow start-setup "<feature-name>"
 
 The script performs these operations in a single process:
 
-1. Verify `/flow:init` has been run (version gate)
-2. `git pull origin main`
-3. `git worktree add .worktrees/<branch> -b <branch>`
-4. `git commit --allow-empty` + `git push -u origin` + `gh pr create`
-5. Create `.flow-states/<branch>.json` (initial state, all 7 phases)
+1. `git pull origin main`
+2. `git worktree add .worktrees/<branch> -b <branch>`
+3. `git commit --allow-empty` + `git push -u origin` + `gh pr create`
+4. Create `.flow-states/<branch>.json` (initial state, all 7 phases)
 
 The script logs each operation to `.flow-states/<branch>.log` internally.
 
@@ -127,8 +136,7 @@ in later steps — it would look for a nested `.worktrees/` that doesn't exist.
 {"status": "error", "step": "git_pull", "message": "..."}
 ```
 
-If the error step is `init_check`, tell the user to run `/flow:init` first
-and stop. For all other errors, read the stderr output for details, report
+If the script returns an error, read the stderr output for details, report
 the failure to the user, and stop.
 
 Read the `framework` field from the state file (`.flow-states/<branch>.json`)
@@ -137,27 +145,27 @@ just follow the matching section silently.
 
 #### If Rails
 
-### Step 4 — Upgrade gems
+### Step 5 — Upgrade gems
 
 ```bash
 bundle update --all
 ```
 
-### Step 5 — Post-upgrade `bin/ci`
+### Step 6 — Post-upgrade `bin/ci`
 
 ```bash
 bin/ci
 ```
 
-- **Passes** — continue to Step 7
-- **Fails** — launch the CI fix sub-agent (see Step 6). Pass the full
+- **Passes** — continue to Step 8
+- **Fails** — launch the CI fix sub-agent (see Step 7). Pass the full
   `bin/ci` output. After the sub-agent returns:
-  - **Fixed** — continue to Step 7 (Gemfile.lock + fixes committed together)
+  - **Fixed** — continue to Step 8 (Gemfile.lock + fixes committed together)
   - **Not fixed** — stop and report to the user what is failing
 
-### Step 6 — CI fix sub-agent
+### Step 7 — CI fix sub-agent
 
-When `bin/ci` fails in Step 5, launch a sub-agent to diagnose
+When `bin/ci` fails in Step 6, launch a sub-agent to diagnose
 and fix the failures. Use the Task tool:
 
 - `subagent_type`: `"general-purpose"`
@@ -207,10 +215,10 @@ Provide these instructions (fill in the worktree path and bin/ci output):
 Wait for the sub-agent to return.
 
 <HARD-GATE>
-Do NOT proceed past Step 5 until bin/ci is green.
+Do NOT proceed past Step 6 until bin/ci is green.
 </HARD-GATE>
 
-### Step 7 — Commit and push
+### Step 8 — Commit and push
 
 Use `/flow:commit` to review and commit the changes (`Gemfile.lock` + any gem fixes).
 
@@ -223,7 +231,7 @@ Include in the Done report:
 
 #### If Python
 
-No additional setup needed — Step 2 already verified `bin/ci` on main,
+No additional setup needed — Step 3 already verified `bin/ci` on main,
 and Python has no dependency upgrade step. Proceed silently to Done —
 do not announce the framework or explain why steps were skipped.
 

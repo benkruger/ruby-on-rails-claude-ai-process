@@ -880,7 +880,7 @@ def test_commit_python_auto_approval():
         "skills/commit/SKILL.md missing '.flow.json' reference — "
         "Python projects auto-approve via framework detection"
     )
-    assert re.search(r"[Pp]ython.*auto", content), (
+    assert re.search(r"[Pp]ython.*skip|skip.*[Pp]ython", content), (
         "skills/commit/SKILL.md missing Python auto-approval behavior"
     )
 

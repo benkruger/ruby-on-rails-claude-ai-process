@@ -12,14 +12,16 @@ Review all pending changes as a diff before committing. You must get explicit ap
 
 Determine the operating mode before proceeding:
 
-1. Run `git branch --show-current` to get the current branch.
-2. Use the Read tool to check for `.flow-states/<branch>.json`.
+1. Run both commands in parallel (two Bash calls in one response):
+   - `git worktree list --porcelain` — note the path on the first `worktree` line (this is the project root).
+   - `git branch --show-current` — this is the current branch.
+2. Use the Read tool to check for `<project_root>/.flow-states/<branch>.json`.
 3. **State file exists** → **FLOW** mode
 4. **No state file** → Use Glob to check for `flow-phases.json` in the project root.
    - Exists → **Maintainer** mode (this is the plugin source repo)
    - Does not exist → **Standalone** mode
 
-Keep the detected mode in context for the rest of this skill.
+Keep the project root, branch, and detected mode in context for the rest of this skill.
 
 ## Announce
 
@@ -71,7 +73,7 @@ On completion (whether approved or denied), print the same way:
 
 When the user invokes `/flow:commit --auto`, skip the Step 3 approval prompt and proceed directly to Step 4 (commit and push). Everything else is identical: `bin/ci`, diff display, commit message generation and display, pull-before-push.
 
-**FLOW mode only — Python auto-approval:** When the target project's framework is `python` (check `.flow.json`), `--auto` is always on — skip the approval prompt regardless of whether `--auto` was explicitly passed.
+In FLOW mode, Python projects also skip approval — see Step 3.
 
 `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 
@@ -131,6 +133,8 @@ deleted:    path/to/removed.rb
 The `diff` code block renders red/green in most markdown environments.
 
 #### Docs sync check
+
+**FLOW and Maintainer mode only.** Skip for Standalone.
 
 If the diff includes changes to any of these files:
 

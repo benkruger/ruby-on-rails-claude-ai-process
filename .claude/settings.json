@@ -46,6 +46,7 @@
       "Bash(gh pr list *)",
       "Bash(gh pr view *)",
       "Bash(rm .flow-states/*)",
+      "Bash(rm .claude/settings.local.json)",
       "Bash(gh issue create *)"
     ],
     "deny": [

@@ -60,11 +60,11 @@ Claude decides destinations autonomously using content-type heuristics:
 
 Reflect auto-detects its context and adjusts behavior:
 
-| Mode | Trigger | Sources | Commits | GitHub issues |
-|------|---------|---------|---------|---------------|
-| Phase 6 | State file with Security complete | 4 (state, notes, context, worktree memory) | `/flow:commit --auto` | Yes |
-| Maintainer | No state file, `flow-phases.json` exists | 2 (CLAUDE.md, context) | `/flow:commit --auto` | No |
-| Standalone | No state file, no `flow-phases.json` | 2 (CLAUDE.md, context) | None | No |
+| Mode | Trigger | Sources | Commits | Settings audit | GitHub issues |
+|------|---------|---------|---------|----------------|---------------|
+| Phase 6 | State file with Security complete | 4 (state, notes, context, worktree memory) | `/flow:commit --auto` | No | Yes |
+| Maintainer | No state file, `flow-phases.json` exists | 2 (CLAUDE.md, context) | `/flow:commit --auto` | Yes | No |
+| Standalone | No state file, no `flow-phases.json` | 2 (CLAUDE.md, context) | None | No | No |
 
 All three modes edit the same 5 destinations on disk. Stealth users
 (who exclude `.claude/` from git) are safe — git's own exclusion

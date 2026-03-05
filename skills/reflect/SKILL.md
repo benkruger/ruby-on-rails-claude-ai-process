@@ -244,7 +244,32 @@ leading `-`.
 
 ---
 
-## Step 4 — Commit (conditional)
+## Step 4 — Audit settings.local.json (Maintainer only)
+
+**Skip for Phase 6 and Standalone.**
+
+Check whether `.claude/settings.local.json` exists using the Read tool.
+If it does not exist, skip this step.
+
+If it exists:
+
+1. Read `.claude/settings.local.json`
+2. Read `.claude/settings.json`
+3. Compare the `permissions.allow` lists
+4. For each entry in the local file's allow list that is not in
+   `settings.json`, use AskUserQuestion to ask whether to promote it.
+   Options: **Yes** (add to settings.json) or **No** (skip it).
+5. Apply any approved additions to `.claude/settings.json` using the
+   Edit tool
+6. Delete the file:
+
+```bash
+rm .claude/settings.local.json
+```
+
+---
+
+## Step 5 — Commit (conditional)
 
 **Phase 6:** If any repo-destination changes were made (destinations 2 or
 4), commit once via `/flow:commit --auto`. Only CLAUDE.md and `.claude/`
@@ -261,7 +286,7 @@ If no repo-destination changes were made, skip this step regardless of mode.
 
 ---
 
-## Step 5 — File GitHub issues (Phase 6 only)
+## Step 6 — File GitHub issues (Phase 6 only)
 
 Skip for Maintainer and Standalone.
 
@@ -280,7 +305,7 @@ If there are no process gap items, skip this step.
 
 ---
 
-## Step 6 — Present report
+## Step 7 — Present report
 
 Present the full report to the user:
 
@@ -418,9 +443,9 @@ No phase transition, no transition question.
 - Never commit application code in Reflect — only CLAUDE.md and .claude/
 - Always read CLAUDE.md and conversation context before synthesizing findings
 - In Phase 6, read all four sources before synthesizing findings
-- Follow the reflection process (Steps 1 through 6) exactly — do not skip or reorder steps
+- Follow the reflection process (Steps 1 through 7) exactly — do not skip or reorder steps
 - Decisions on destinations and wording are autonomous — do not ask the user for approval mid-process
-- The report in Step 6 is the user's review point — make it comprehensive
+- The report in Step 7 is the user's review point — make it comprehensive
 - Global writes (`~/.claude/CLAUDE.md`, `~/.claude/rules/`, `~/.claude/projects/`) are direct edits — never committed
 - Repo writes (`CLAUDE.md`, `.claude/rules/`) go through `/flow:commit --auto` (Phase 6 and Maintainer)
 - Plugin improvement notes are filed as GitHub issues on the plugin repo — never committed to the target project

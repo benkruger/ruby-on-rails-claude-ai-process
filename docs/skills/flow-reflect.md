@@ -60,11 +60,11 @@ Destinations 2, 4 are committed to the feature branch via `/flow:commit --auto`.
 
 Reflect auto-detects its context:
 
-| Mode | When | Sources | Commits |
-|------|------|---------|---------|
-| Phase 6 | State file with Security complete | All 4 | `/flow:commit --auto` |
-| Maintainer | No state file, `flow-phases.json` exists | A + B | `/flow:commit --auto` |
-| Standalone | No state file, no `flow-phases.json` | A + B | None |
+| Mode | When | Sources | Commits | Settings audit |
+|------|------|---------|---------|----------------|
+| Phase 6 | State file with Security complete | All 4 | `/flow:commit --auto` | No |
+| Maintainer | No state file, `flow-phases.json` exists | A + B | `/flow:commit --auto` | Yes |
+| Standalone | No state file, no `flow-phases.json` | A + B | None | No |
 
 Standalone mode lets any project use `/flow:reflect` without a FLOW
 feature in progress — just reflect on the current session and apply

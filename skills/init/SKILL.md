@@ -99,6 +99,7 @@ All permissions (universal + both framework sets) for reference:
       "Bash(git branch -D *)",
       "Bash(bin/ci)",
       "Bash(rm .flow-commit-*)",
+      "Bash(rm .claude/settings.local.json)",
       "Bash(*bin/flow *)",
       "Bash(gh pr view *)",
       "Bash(gh issue create *)",

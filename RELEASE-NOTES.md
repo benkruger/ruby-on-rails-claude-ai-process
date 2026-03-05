@@ -1,5 +1,28 @@
 # Release Notes
 
+## v0.16.0 — Add Simplify phase
+
+### New Features
+
+- **Simplify phase (phase 4)** — New phase invokes `/simplify` on committed code,
+  reviews diff, and auto-commits improvements. 8-phase architecture: Start, Plan,
+  Code, Simplify, Review, Security, Reflect, Cleanup.
+
+### Fixes
+
+- Fix permissions, back-navigation, and stale references found during Review
+- Gate release skill on empty commit list — prevents false "nothing to release"
+  when commits exist
+- Make commit mode detection a direct Read command instead of intent description —
+  prevents tool substitution
+
+### Improvements
+
+- All docs, references, phase numbers, and CLAUDE.md updated for 8-phase structure
+- Reflect learnings captured: back-navigation audit and deny-list checks
+
+---
+
 ## v0.15.0 — Post-flow improvements
 
 ### New Features

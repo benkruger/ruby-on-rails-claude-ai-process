@@ -61,27 +61,26 @@ Then check `conclusion`:
 
 ## Step 4 — Show what changed since last release
 
-Run these two commands separately:
+Find the last tag:
 
 ```bash
 git describe --tags --abbrev=0
 ```
 
-If that succeeds, use the tag it returns as `<last_tag>` and run:
+If that fails (no tags exist), set `<last_tag>` to `HEAD~20`.
+
+**Do not stop here.** The tag name matching the current version does NOT
+mean there is nothing to release — the tag may point to an older commit.
+
+Now list commits since the tag:
 
 ```bash
 git log --oneline <last_tag>..HEAD
 ```
 
-If `git describe` fails (no tags exist), run:
-
-```bash
-git log --oneline HEAD~20..HEAD
-```
-
 Display the commit list. This is what goes into the release.
 
-If the commit list is empty (no output), stop:
+**Only if the commit list is empty** (no output from `git log`), stop:
 
 > "Nothing to release — HEAD is already tagged as `<last_tag>`."
 

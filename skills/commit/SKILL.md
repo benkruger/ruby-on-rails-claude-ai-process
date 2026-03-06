@@ -77,7 +77,7 @@ On completion (whether approved or denied), print the same way:
 /flow:commit --manual
 ```
 
-- `/flow:commit` — uses configured mode from `.flow.json` (default: manual)
+- `/flow:commit` — defaults to auto (no approval prompt)
 - `/flow:commit --auto` — skips the approval prompt
 - `/flow:commit --manual` — requires explicit approval
 
@@ -205,9 +205,9 @@ Display the full message under the heading **Commit Message** before asking for 
 
 ### Step 3 — Ask for approval
 
-If mode is **auto** (resolved via Mode Resolution above), skip this step and proceed directly to Step 4.
+**Unless `--manual` was explicitly passed, skip this step entirely — the default is auto.**
 
-Otherwise, use the `AskUserQuestion` tool with exactly these two options:
+If `--manual` was explicitly passed, use the `AskUserQuestion` tool with exactly these two options:
 
 Question: "Approve this commit?"
 - Option 1: **Approve** — "Looks good, commit and push"
@@ -271,7 +271,7 @@ will make fixes and re-invoke the commit skill when ready.
 ### Hard Rules
 
 - Never commit without showing the diff first
-- Never skip the approval step — unless mode is **auto** (via `--auto` flag or `.flow.json` config)
+- The default commit mode is auto — never prompt for approval unless `--manual` was explicitly passed
 - `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 - Never use `--no-verify`
 - Never add Co-Authored-By trailers or attribution lines — commits are authored by the user alone

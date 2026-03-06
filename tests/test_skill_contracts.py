@@ -929,11 +929,11 @@ def test_reset_has_confirmation():
 
 
 def test_commit_mode_resolution():
-    """Commit SKILL.md must reference .flow.json for mode resolution."""
+    """Commit SKILL.md must default to auto and have Mode Resolution."""
     content = (SKILLS_DIR / "commit" / "SKILL.md").read_text()
-    assert ".flow.json" in content, (
-        "skills/commit/SKILL.md missing '.flow.json' reference — "
-        "mode resolution reads skills config from .flow.json"
+    assert "the default is auto" in content, (
+        "skills/commit/SKILL.md missing 'the default is auto' — "
+        "commit mode must default to auto (no approval prompt)"
     )
     assert "Mode Resolution" in content, (
         "skills/commit/SKILL.md missing Mode Resolution section"

@@ -1,5 +1,23 @@
 # Release Notes
 
+## v0.17.0 — Two-axis autonomy and /flow:config
+
+### New Features
+
+- **Two-axis autonomy model** — `commit` and `continue` are now independently configurable per skill. The commit axis controls diff approval during phase work; the continue axis controls phase advancement. Presets: fully autonomous, fully manual, recommended, or customize per skill.
+- **`/flow:config` display skill** — Shows the current autonomy configuration from `.flow.json` in a table with Commit and Continue columns per skill
+- **`/qa --restart` flag** — Refreshes the plugin cache without leaving dev mode, saving two cache rebuilds when iterating on local changes
+
+### Improvements
+
+- `/flow:commit` now defaults to auto — removed from configurable skills since invoking it directly is already a user choice; `--manual` available as opt-in gate
+- Plan skill uses plain text prompt instead of AskUserQuestion for plan approval
+- Auto-continue after ExitPlanMode clears context, so new sessions pick up where they left off
+- Desktop screenshot reading allowed without permission prompts
+- Init skill can re-initialize at any time (no longer blocked by existing `.flow.json`)
+- Init eliminates permission prompts during staged-changes check
+- Removed dead permission entry for `~/.claude/` sensitive path
+
 ## v0.16.4 — Enforce tool restrictions in phase skills
 
 ### Fixes

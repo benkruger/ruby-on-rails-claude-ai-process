@@ -53,7 +53,7 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 ````text
 ```
 ============================================
-  FLOW v0.16.4 — Phase 3: Code — STARTING
+  FLOW v0.17.0 — Phase 3: Code — STARTING
 ============================================
 ```
 ````
@@ -440,7 +440,7 @@ Print inside a fenced code block:
 ````text
 ```
 ============================================
-  FLOW v0.16.4 — Phase 3: Code — COMPLETE (<formatted_time>)
+  FLOW v0.17.0 — Phase 3: Code — COMPLETE (<formatted_time>)
 ============================================
 ```
 ````

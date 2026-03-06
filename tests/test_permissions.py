@@ -126,6 +126,13 @@ AUTO_ALLOWED = {"cd", "cat", "git status", "git diff", "git log", "git branch",
                 "git show", "git blame", "git worktree list",
                 "git rev-parse"}
 
+# Commands that touch ~/.claude/ paths. Claude Code's built-in sensitive-path
+# protection always prompts for these regardless of settings.json entries.
+# Excluded from permission coverage checks because no allow entry can help.
+SENSITIVE_PATH_COMMANDS = {
+    "rm -rf ~/.claude/plugins/cache/flow-marketplace",
+}
+
 
 PLACEHOLDER_SUBS = {
     "<feature-name>": "test-feature",
@@ -591,6 +598,10 @@ def test_maintainer_bash_commands_have_settings_coverage():
                     is_auto = True
                     break
             if is_auto:
+                continue
+
+            # Skip sensitive-path commands (always prompt, can't suppress)
+            if cmd in SENSITIVE_PATH_COMMANDS:
                 continue
 
             # Check against settings.json permission regexes

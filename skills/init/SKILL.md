@@ -84,7 +84,7 @@ All permissions (universal + both framework sets) for reference:
 {
   "permissions": {
     "allow": [
-      "Bash(cd .worktrees/* && *)",
+      "Bash(git -C *)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push)",

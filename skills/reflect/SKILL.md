@@ -83,6 +83,11 @@ Read and synthesise before doing anything else.
 Read the project's `CLAUDE.md`. These are the rules that should have been
 followed. Note every rule, convention, and lesson learned entry.
 
+**Note:** Reading `~/.claude/CLAUDE.md` may trigger a Read permission
+prompt. This is a known limitation — Claude Code prompts for Read access
+to `~/.claude/` paths and this cannot be suppressed via settings.json.
+Approve the prompt to continue.
+
 ### Source B — Conversation context (all modes)
 
 Review the current conversation for:
@@ -125,7 +130,9 @@ worktree. This memory will be lost when Cleanup removes the worktree.
    `Users-ben-code-hh-.worktrees-my-feature`)
 3. Read `~/.claude/projects/<escaped-path>/memory/MEMORY.md`
    Use the Read tool for this — the path is outside the project directory
-   and Bash cat would trigger a permission prompt.
+   and Bash cat would trigger a permission prompt. The Read tool may also
+   prompt for `~/.claude/` paths — this is a known limitation. Approve the
+   prompt to continue.
 4. If it exists, include its contents as evidence alongside Sources A-C
 5. If it does not exist (no auto-memory was written), skip silently
 

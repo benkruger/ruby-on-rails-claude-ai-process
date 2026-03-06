@@ -37,7 +37,7 @@
       "Bash(diff *)",
       "Bash(bin/test *)",
       "Bash(make *)",
-      "Bash(cd .worktrees/* && *)",
+      "Bash(git -C *)",
       "Bash(gh pr close *)",
       "Bash(git push origin --delete *)",
       "Bash(git branch -D *)",

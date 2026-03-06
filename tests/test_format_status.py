@@ -33,32 +33,31 @@ def _run(cwd):
 
 
 def test_no_branch_returns_error(tmp_path):
-    """Running outside a git repo (no branch) returns an error."""
+    """Running outside a git repo (no branch) returns exit 2 with stderr."""
     result = _run(tmp_path)
-    assert result.returncode == 1
-    data = json.loads(result.stdout)
-    assert data["status"] == "error"
-    assert "branch" in data["message"]
+    assert result.returncode == 2
+    assert "branch" in result.stderr
+    assert result.stdout == ""
 
 
-def test_no_state_file_returns_no_state(git_repo):
+def test_no_state_file_returns_exit_1(git_repo):
+    """No state file returns exit 1 with no stdout."""
     result = _run(git_repo)
-    assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["status"] == "no_state"
+    assert result.returncode == 1
+    assert result.stdout == ""
 
 
-def test_corrupt_json_returns_no_state(state_dir, git_repo, branch):
-    """Corrupt state file for current branch is treated as no state."""
+def test_corrupt_json_returns_exit_1(state_dir, git_repo, branch):
+    """Corrupt state file for current branch is treated as no state (exit 1)."""
     bad_file = state_dir / f"{branch}.json"
     bad_file.write_text("{bad json")
     result = _run(git_repo)
-    assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["status"] == "no_state"
+    assert result.returncode == 1
+    assert result.stdout == ""
 
 
-def test_happy_path_returns_ok_with_panel(state_dir, git_repo, branch):
+def test_happy_path_returns_panel_text(state_dir, git_repo, branch):
+    """Valid state file returns exit 0 with panel text on stdout."""
     state = make_state(
         current_phase=2,
         phase_statuses={1: "complete", 2: "in_progress"},
@@ -67,9 +66,8 @@ def test_happy_path_returns_ok_with_panel(state_dir, git_repo, branch):
     write_state(state_dir, branch, state)
     result = _run(git_repo)
     assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["status"] == "ok"
-    assert "panel" in data
+    assert "FLOW v" in result.stdout
+    assert "Phase 1:" in result.stdout
 
 
 # --- Panel formatting (in-process) ---
@@ -275,8 +273,8 @@ def test_wrong_branch_single_feature_returns_ok(tmp_path):
     assert isinstance(panel, str) and len(panel) > 0
 
 
-def test_wrong_branch_multiple_features_returns_multiple(state_dir, git_repo, branch):
-    """When on wrong branch with multiple state files, returns multiple_features."""
+def test_wrong_branch_multiple_features_returns_panel(state_dir, git_repo, branch):
+    """When on wrong branch with multiple state files, returns panel text."""
     for name in ["feature-a", "feature-b"]:
         state = make_state(current_phase=2, phase_statuses={1: "complete", 2: "in_progress"})
         state["feature"] = name
@@ -284,6 +282,4 @@ def test_wrong_branch_multiple_features_returns_multiple(state_dir, git_repo, br
         write_state(state_dir, name, state)
     result = _run(git_repo)
     assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["status"] == "multiple_features"
-    assert "panel" in data
+    assert "Multiple Features Active" in result.stdout

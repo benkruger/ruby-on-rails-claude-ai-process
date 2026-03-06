@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 UNIVERSAL_ALLOW = [
-    "Bash(cd .worktrees/* && *)",
+    "Bash(git -C *)",
     "Bash(git add *)",
     "Bash(git commit *)",
     "Bash(git push)",

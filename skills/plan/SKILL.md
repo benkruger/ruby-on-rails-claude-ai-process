@@ -90,6 +90,8 @@ Use AskUserQuestion:
 >
 > - **I'll describe it now** — user types in Other
 > - **It's in the PR description** — read the PR description for context
+>
+> Provide exactly these options — do not add, remove, or modify them.
 
 Wait for the user's response. This is the input for the planning phase.
 

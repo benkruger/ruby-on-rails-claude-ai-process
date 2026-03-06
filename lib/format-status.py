@@ -5,10 +5,10 @@ Usage: bin/flow format-status
 Derives state file path (via git) and plugin version (via plugin.json)
 internally — no arguments needed.
 
-Output (JSON to stdout):
-  Success: {"status": "ok", "panel": "..."}
-  No state: {"status": "no_state"}
-  Error:   {"status": "error", "message": "..."}
+Output:
+  Exit 0: stdout = panel text (single feature or multiple features)
+  Exit 1: no stdout (no state file found)
+  Exit 2: stderr = error message
 """
 
 import json
@@ -25,8 +25,8 @@ from flow_utils import (
 
 COMMANDS = {
     1: "/flow:start", 2: "/flow:plan", 3: "/flow:code",
-    4: "/flow:review", 5: "/flow:security", 6: "/flow:reflect",
-    7: "/flow:cleanup",
+    4: "/flow:simplify", 5: "/flow:review", 6: "/flow:security",
+    7: "/flow:reflect", 8: "/flow:cleanup",
 }
 
 # Column width for phase name alignment
@@ -202,32 +202,25 @@ def main():
     branch = current_branch()
 
     if not branch:
-        print(json.dumps({
-            "status": "error",
-            "message": "Could not determine current branch",
-        }))
-        sys.exit(1)
+        print("Could not determine current branch", file=sys.stderr)
+        sys.exit(2)
 
     results = find_state_files(root, branch)
 
     if not results:
-        print(json.dumps({"status": "no_state"}))
-        sys.exit(0)
+        sys.exit(1)
 
     version = _read_version()
     dev_mode = (root / ".flow-states" / ".dev-mode").exists()
 
     if len(results) > 1:
         panel = format_multi_panel(results, version, dev_mode=dev_mode)
-        print(json.dumps({
-            "status": "multiple_features",
-            "panel": panel,
-        }))
+        print(panel)
         sys.exit(0)
 
     state_path, state, matched_branch = results[0]
     panel = format_panel(state, version, dev_mode=dev_mode)
-    print(json.dumps({"status": "ok", "panel": panel}))
+    print(panel)
 
 
 if __name__ == "__main__":

@@ -28,9 +28,13 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 exec ${CLAUDE_PLUGIN_ROOT}/bin/flow format-status
 ```
 
-The script outputs JSON:
+Check the exit code:
 
-- `{"status": "no_state"}` — no state file exists. Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
+- **Exit 0** — stdout contains the panel text (single feature or multiple
+  features). Print it inside a fenced code block (triple backticks with
+  `text` language tag) so it renders as plain monospace text.
+
+- **Exit 1** — no state file exists. Print inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading:
 
 ````markdown
 ```text
@@ -41,14 +45,7 @@ Start one with /flow:start <feature name>.
 
 Then stop.
 
-- `{"status": "multiple_features", "panel": "..."}` — multiple active
-  features found, none on the current branch. Print the `panel` value
-  inside a fenced code block (triple backticks with `text` language
-  tag). The panel lists all active features with their branch and phase.
-
-- `{"status": "ok", "panel": "..."}` — print the `panel` value inside a fenced code block (triple backticks) so it renders as plain monospace text and not as a markdown heading.
-
-- `{"status": "error", "message": "..."}` — show the error message and stop.
+- **Exit 2** — error. stderr contains the error message. Show it and stop.
 
 ## Rules
 

@@ -490,7 +490,7 @@ def test_cd_prefixed_commands_have_full_permission_coverage():
                 errors.append(
                     f"{filepath}: cd-prefixed command '{full_cmd}' has no "
                     f"matching permission. Add a pattern like "
-                    f"'Bash(cd .worktrees/* && *)' to cover worktree commands."
+                    f"'Bash(git -C *)' to cover worktree commands."
                 )
 
     assert not errors, (
@@ -716,10 +716,10 @@ def test_permission_to_regex_known_conversions():
     assert not r.match("bin/ci --if-dirty")
     assert not r.match("bin/test")
 
-    # cd prefix with glob
-    r = _permission_to_regex("Bash(cd .worktrees/* && *)")
+    # git -C prefix with glob
+    r = _permission_to_regex("Bash(git -C *)")
     assert r is not None
-    assert r.match("cd .worktrees/my-branch && bin/ci")
+    assert r.match("git -C .worktrees/my-branch status")
 
     # Leading glob
     r = _permission_to_regex("Bash(*bin/flow *)")

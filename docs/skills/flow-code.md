@@ -8,7 +8,7 @@ parent: Skills
 
 **Phase:** 3 — Code
 
-**Usage:** `/flow:code`
+**Usage:** `/flow:code`, `/flow:code --auto`, or `/flow:code --manual`
 
 Executes the approved plan one task at a time. Each task goes through
 a full TDD cycle, user diff review, `bin/flow ci` gate, and commit before
@@ -44,10 +44,16 @@ Architecture checks are defined by the framework instructions in the skill. Each
 
 ---
 
+## Mode
+
+Mode is configurable via `.flow.json` (default: manual). In auto mode, streamline is active from task 1 (skip per-task approval, still show diffs) and the phase transition advances to Simplify without asking.
+
+---
+
 ## Gates
 
 - Test must fail before writing implementation
-- User approves diff before `bin/flow ci` runs
+- Diff is always shown for every task (in both modes)
 - `bin/flow ci` must be green before every commit
 - 100% coverage before transitioning to Simplify
 - Never rebase

@@ -8,7 +8,7 @@ parent: Skills
 
 **Phase:** 7 — Reflect
 
-**Usage:** `/flow:reflect`
+**Usage:** `/flow:reflect`, `/flow:reflect --auto`, or `/flow:reflect --manual`
 
 Autonomously synthesises what went wrong from three sources, routes each
 learning to its correct permanent home, files GitHub issues for plugin
@@ -68,6 +68,12 @@ Reflect auto-detects its context:
 Standalone mode lets any project use `/flow:reflect` without a FLOW
 feature in progress — just reflect on the current session and apply
 learnings.
+
+---
+
+## Mode
+
+Mode is configurable via `.flow.json` (default: auto). In auto mode, permission promotions (Maintainer) are applied automatically and the phase transition advances to Cleanup without asking.
 
 ---
 

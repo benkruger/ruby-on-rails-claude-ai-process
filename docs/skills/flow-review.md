@@ -8,7 +8,7 @@ parent: Skills
 
 **Phase:** 5 — Review
 
-**Usage:** `/flow:review`
+**Usage:** `/flow:review`, `/flow:review --auto`, or `/flow:review --manual`
 
 Systematic review against design, research risks, and framework
 anti-patterns. Fixes findings, runs `bin/flow ci` after every fix, then
@@ -28,10 +28,17 @@ transitions to Security.
 
 ---
 
+## Mode
+
+Mode is configurable via `.flow.json` (default: manual). In auto mode, significant findings are auto-fixed here (no user routing choice) and the phase transition advances to Security without asking.
+
+---
+
 ## Fixing Findings
 
 - Minor → fix directly, commit, re-run `bin/flow ci`
-- Significant → AskUserQuestion: fix here or go back to Code/Plan/Design/Research
+- Significant (manual mode) → AskUserQuestion: fix here or go back to Code/Plan
+- Significant (auto mode) → fix directly here in Review
 
 ---
 

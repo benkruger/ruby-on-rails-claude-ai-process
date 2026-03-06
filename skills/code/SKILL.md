@@ -6,6 +6,18 @@ model: opus
 
 # FLOW Code — Phase 3: Code
 
+## Usage
+
+```text
+/flow:code
+/flow:code --auto
+/flow:code --manual
+```
+
+- `/flow:code` — uses configured mode from `.flow.json` (default: manual)
+- `/flow:code --auto` — streamline mode active from task 1 (skip per-task approval, still show diffs), auto-advance to Simplify
+- `/flow:code --manual` — requires explicit approval for each task
+
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
 stop immediately and show the error to the user.
@@ -26,6 +38,13 @@ use the project root to build Read tool paths (e.g.
 `<project_root>/.flow-states/<branch>.json`). Do not re-read the state
 file or re-run git commands to gather the same information. Do not `cd`
 to the project root — `bin/flow` commands find paths internally.
+
+## Mode Resolution
+
+1. If `--auto` was passed → mode is **auto**
+2. If `--manual` was passed → mode is **manual**
+3. Otherwise, read `.flow.json` from the project root. Use `skills.code` value.
+4. If `.flow.json` has no `skills` key → use built-in default: **manual**
 
 ## Announce
 
@@ -298,8 +317,11 @@ new file:   <path/to/test_file>
 - removed lines
 ```
 
-**If streamline mode is active** (see below), skip the AskUserQuestion
-and proceed directly to `bin/flow ci`.
+**If mode is auto**, streamline is active from task 1 — skip the
+AskUserQuestion and proceed directly to `bin/flow ci`.
+
+**If streamline mode is active** (opted in during a previous task),
+skip the AskUserQuestion and proceed directly to `bin/flow ci`.
 
 Otherwise, use AskUserQuestion:
 
@@ -423,7 +445,11 @@ Print inside a fenced code block:
 ```
 ````
 
-Invoke `flow:status`, then use AskUserQuestion:
+Invoke `flow:status`.
+
+**If mode is auto**, skip the transition question and invoke `flow:simplify` directly.
+
+**If mode is manual**, use AskUserQuestion:
 
 > "Phase 3: Code is complete. Ready to begin Phase 4: Simplify?"
 >
@@ -454,7 +480,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 ## Hard Rules
 
 - **Never skip the TDD cycle** — test must fail before code is written
-- **Never skip the review for the first task** — after the first task, the user may opt into streamline mode which auto-proceeds through remaining tasks
+- **Always show the diff for every task** — in manual mode, the first task requires explicit approval; in auto mode, streamline is active from task 1
 - **Never skip `bin/flow ci`** — must be green before every commit
 - **Never move to the next task** until the current task is committed
 - **Never rebase** — always merge

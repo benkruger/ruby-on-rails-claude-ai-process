@@ -10,11 +10,20 @@ model: haiku
 
 ```text
 /flow:cleanup
+/flow:cleanup --auto
 /flow:cleanup --manual
 ```
 
-- `/flow:cleanup` — default. Skips confirmation and proceeds directly to cleanup.
-- `/flow:cleanup --manual` — prompts for user confirmation before any destructive action.
+- `/flow:cleanup` — uses configured mode from `.flow.json` (default: auto)
+- `/flow:cleanup --auto` — skips confirmation and proceeds directly to cleanup
+- `/flow:cleanup --manual` — prompts for user confirmation before any destructive action
+
+## Mode Resolution
+
+1. If `--auto` was passed → mode is **auto**
+2. If `--manual` was passed → mode is **manual**
+3. Otherwise, read `.flow.json` from the project root. Use `skills.cleanup` value.
+4. If `.flow.json` has no `skills` key → use built-in default: **auto**
 
 <SOFT-GATE>
 Run this entry check as your very first action. This gate never
@@ -35,8 +44,7 @@ or re-run git commands to gather the same information.
 
 Carry any warnings forward to the confirmation step in Step 2.
 
-Parse the skill arguments: if `--manual` was passed, set `manual = true`.
-Otherwise `manual = false`.
+Resolve the mode using the Mode Resolution rules above.
 </SOFT-GATE>
 
 ## Announce
@@ -103,11 +111,11 @@ If both commands fail (no PR found), stop:
 > "Could not find a PR for this branch. Merge your PR first, then run
 > `/flow:cleanup` again."
 
-### Step 3 — Confirm with user (--manual only)
+### Step 3 — Confirm with user (manual mode only)
 
-Skip this step if `manual` is `false` — proceed directly to Step 4.
+Skip this step if mode is **auto** — proceed directly to Step 4.
 
-If `manual` is `true`, this phase is destructive and irreversible. Use AskUserQuestion.
+If mode is **manual**, this phase is destructive and irreversible. Use AskUserQuestion.
 
 If the SOFT-GATE printed warnings, include them in the confirmation so
 the user knows what's off before confirming:
@@ -169,7 +177,7 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 ## Rules
 
 - Never run from inside the worktree — always navigate to project root first
-- Confirm with the user only when `--manual` is passed
+- Confirm with the user only when mode is **manual**
 - State file deletion is what resets the session hook — do not skip it
 - Every step after confirmation is best-effort — if one fails, continue to the next
 - Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep

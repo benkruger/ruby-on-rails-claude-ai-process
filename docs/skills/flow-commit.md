@@ -8,7 +8,7 @@ parent: Skills
 
 **Phase:** Any
 
-**Usage:** `/flow:commit` or `/flow:commit --auto`
+**Usage:** `/flow:commit`, `/flow:commit --auto`, or `/flow:commit --manual`
 
 Reviews all pending changes before committing. You see the full diff and proposed commit message, then approve or deny before anything is pushed. This is the only way commits are made in the FLOW workflow.
 
@@ -45,11 +45,11 @@ Subject starts with an imperative verb — Add, Fix, Update, Remove, Refactor. N
 
 Commit auto-detects its context:
 
-| Mode | When | Banner | Python auto-approval |
-|------|------|--------|---------------------|
-| FLOW | State file exists | Versioned (`FLOW v0.14.0 — flow:commit`) | Yes (via `.flow.json`) |
-| Maintainer | No state file, `flow-phases.json` exists | Plain (`Commit`) | No |
-| Standalone | No state file, no `flow-phases.json` | Plain (`Commit`) | No |
+| Mode | When | Banner |
+|------|------|--------|
+| FLOW | State file exists | Versioned (`FLOW v0.14.0 — flow:commit`) |
+| Maintainer | No state file, `flow-phases.json` exists | Plain (`Commit`) |
+| Standalone | No state file, no `flow-phases.json` | Plain (`Commit`) |
 
 All three modes share the same diff/message/approval/push process.
 
@@ -58,22 +58,21 @@ All three modes share the same diff/message/approval/push process.
 ## Gates
 
 - Never commits without showing the diff first
-- Never skips the approval step — unless `--auto` or Python framework (FLOW mode only)
+- Never skips the approval step — unless mode is **auto** (via `--auto` flag or `.flow.json` config)
 - Never uses `--no-verify`
 - FLOW mode: Warns if `bin/flow ci` has not been run since the last code change
 
 ---
 
-## Auto Mode
+## Auto/Manual Mode
 
-Pass `--auto` to skip the approval prompt when you already know the change is good:
+Mode is resolved in this order:
 
-```text
-/flow:commit --auto
-```
+1. `--auto` flag → auto mode (skip approval)
+2. `--manual` flag → manual mode (require approval)
+3. `.flow.json` `skills.commit` value
+4. Built-in default: **manual**
 
-Everything else stays identical: `bin/flow ci` runs first, the full diff is displayed, the commit message is generated and shown, and pull-before-push happens. The only difference is that Step 3 (approval prompt) is skipped.
-
-**Python projects (FLOW mode only)** automatically use auto mode — when the target project's framework is `python` (per `.flow.json`), the approval prompt is always skipped. This applies only in FLOW mode; Maintainer and Standalone modes always require explicit approval.
+Everything else stays identical: `bin/flow ci` runs first, the full diff is displayed, the commit message is generated and shown, and pull-before-push happens. The only difference is whether Step 3 (approval prompt) is shown.
 
 `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically.

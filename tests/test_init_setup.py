@@ -351,3 +351,35 @@ def test_rerun_preserves_framework(tmp_path):
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
     allow_list = settings["permissions"]["allow"]
     assert len(allow_list) == len(set(allow_list))
+
+
+# --- Skills dict in .flow.json ---
+
+
+def test_version_marker_without_skills_has_no_skills_key(tmp_path):
+    _mod.write_version_marker(tmp_path, _mod._plugin_version(), "python")
+    data = json.loads((tmp_path / ".flow.json").read_text())
+    assert "skills" not in data
+
+
+def test_version_marker_with_skills_dict(tmp_path):
+    skills = {
+        "start": "manual",
+        "code": "manual",
+        "simplify": "manual",
+        "review": "manual",
+        "security": "auto",
+        "reflect": "auto",
+        "commit": "manual",
+        "abort": "auto",
+        "cleanup": "auto",
+    }
+    _mod.write_version_marker(tmp_path, _mod._plugin_version(), "python", skills=skills)
+    data = json.loads((tmp_path / ".flow.json").read_text())
+    assert data["skills"] == skills
+
+
+def test_version_marker_with_empty_skills_dict(tmp_path):
+    _mod.write_version_marker(tmp_path, _mod._plugin_version(), "rails", skills={})
+    data = json.loads((tmp_path / ".flow.json").read_text())
+    assert data["skills"] == {}

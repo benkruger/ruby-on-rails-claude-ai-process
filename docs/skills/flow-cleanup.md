@@ -8,11 +8,11 @@ parent: Skills
 
 **Phase:** 8 — Cleanup
 
-**Usage:** `/flow:cleanup` or `/flow:cleanup --manual`
+**Usage:** `/flow:cleanup`, `/flow:cleanup --auto`, or `/flow:cleanup --manual`
 
 The final phase. Removes the git worktree and deletes the state file.
-By default, skips confirmation and proceeds directly to cleanup.
-Use `--manual` to prompt for confirmation before any destructive action.
+Mode is configurable via `.flow.json` (default: auto, skips confirmation).
+Use `--manual` to prompt for confirmation, or `--auto` to skip it.
 Best-effort — warns if the state file is missing or Phase 7 is incomplete.
 
 ---
@@ -61,6 +61,6 @@ state file doesn't exist, it notes that and finishes.
 - PR must be merged — hard block if not
 - Phase 7 complete is a warning, not a hard block
 - Missing state file is a warning, not a hard block
-- Confirmation only when `--manual` is passed
+- Confirmation only when mode is manual (via `--manual` or `.flow.json`)
 - Must run from the project root — never from inside the worktree
 - Worktree removal is irreversible

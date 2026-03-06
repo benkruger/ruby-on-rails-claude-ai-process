@@ -185,13 +185,15 @@ the Write tool. The result should look like:
 
 ### Step 5 — Commit and push
 
-Stage and commit the settings and version marker:
+Stage the settings and version marker:
 
 ```bash
 git add .claude/settings.json .flow.json
 ```
 
-If `git status` shows nothing staged (re-run, no changes), skip the commit and push — print "Already initialized, no changes needed." and go to Done.
+If `git diff --cached --quiet` shows nothing staged, skip the commit and push — go straight to Done.
+
+Otherwise, commit and push:
 
 ```bash
 git commit -m "Configure FLOW workspace permissions and version marker"

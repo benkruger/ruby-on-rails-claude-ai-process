@@ -191,13 +191,13 @@ Stage the settings and version marker:
 git add .claude/settings.json .flow.json
 ```
 
-Commit (if nothing changed, this exits non-zero with "nothing to commit" — that is fine, skip to Done):
+Check if anything is staged by running `git status`. If the output contains "nothing to commit", skip the commit and push — go straight to Done.
+
+Otherwise, commit and push:
 
 ```bash
 git commit -m "Configure FLOW workspace permissions and version marker"
 ```
-
-If the commit succeeded, push:
 
 ```bash
 git push

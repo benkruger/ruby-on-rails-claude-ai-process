@@ -1029,12 +1029,12 @@ def test_multi_framework_skills_have_both_sections():
 
 CONFIGURABLE_SKILLS = [
     "start", "code", "simplify", "review", "security",
-    "reflect", "commit", "abort", "cleanup",
+    "reflect", "abort", "cleanup",
 ]
 
 
 def test_configurable_skills_support_both_flags():
-    """All 9 configurable skills must mention --auto and --manual in Usage."""
+    """All 8 configurable skills must mention --auto and --manual in Usage."""
     for name in CONFIGURABLE_SKILLS:
         content = _read_skill(name)
         assert "--auto" in content, (
@@ -1046,7 +1046,7 @@ def test_configurable_skills_support_both_flags():
 
 
 def test_configurable_skills_have_mode_resolution():
-    """All 9 configurable skills must contain a Mode Resolution section."""
+    """All 8 configurable skills must contain a Mode Resolution section."""
     for name in CONFIGURABLE_SKILLS:
         content = _read_skill(name)
         assert "## Mode Resolution" in content, (
@@ -1056,11 +1056,11 @@ def test_configurable_skills_have_mode_resolution():
 
 TWO_AXIS_SKILLS = ["code", "simplify", "review", "reflect"]
 CONTINUE_ONLY_SKILLS = ["start", "security"]
-UTILITY_SKILLS = ["commit", "abort", "cleanup"]
+UTILITY_SKILLS = ["abort", "cleanup"]
 
 
 def test_mode_resolution_references_flow_json():
-    """All 9 configurable skills Mode Resolution must reference .flow.json."""
+    """All 8 configurable skills Mode Resolution must reference .flow.json."""
     for name in CONFIGURABLE_SKILLS:
         content = _read_skill(name)
         resolution_match = re.search(

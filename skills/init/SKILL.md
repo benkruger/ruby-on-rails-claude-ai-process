@@ -59,7 +59,7 @@ FLOW has two independent axes for skills that support them:
 - **Commit** — how `/flow:commit` is invoked during phase work (auto = skip diff approval, manual = require approval). Also controls per-task approval in Code and refactoring approval in Simplify.
 - **Continue** — whether to auto-advance to the next phase or prompt first.
 
-Phase skills that commit (code, simplify, review, reflect) have both axes. Phase skills that don't commit (start, security) only have continue. Utility skills (commit, abort, cleanup) have a single mode value.
+Phase skills that commit (code, simplify, review, reflect) have both axes. Phase skills that don't commit (start, security) only have continue. Utility skills (abort, cleanup) have a single mode value. The `/flow:commit` skill is not configurable — it defaults to auto and can be overridden with `--manual`.
 
 Ask the user how much autonomy FLOW should have using AskUserQuestion:
 
@@ -73,13 +73,13 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 **Fully autonomous** — all auto:
 
 ```json
-{"start": {"continue": "auto"}, "code": {"commit": "auto", "continue": "auto"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"continue": "auto"}, "reflect": {"commit": "auto", "continue": "auto"}, "commit": "auto", "abort": "auto", "cleanup": "auto"}
+{"start": {"continue": "auto"}, "code": {"commit": "auto", "continue": "auto"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"continue": "auto"}, "reflect": {"commit": "auto", "continue": "auto"}, "abort": "auto", "cleanup": "auto"}
 ```
 
 **Fully manual** — all manual:
 
 ```json
-{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "manual", "continue": "manual"}, "review": {"commit": "manual", "continue": "manual"}, "security": {"continue": "manual"}, "reflect": {"commit": "manual", "continue": "manual"}, "commit": "manual", "abort": "manual", "cleanup": "manual"}
+{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "manual", "continue": "manual"}, "review": {"commit": "manual", "continue": "manual"}, "security": {"continue": "manual"}, "reflect": {"commit": "manual", "continue": "manual"}, "abort": "manual", "cleanup": "manual"}
 ```
 
 **Recommended** — framework-aware defaults:
@@ -87,16 +87,16 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 For Rails:
 
 ```json
-{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "manual", "continue": "auto"}, "security": {"continue": "auto"}, "reflect": {"commit": "auto", "continue": "auto"}, "commit": "manual", "abort": "auto", "cleanup": "auto"}
+{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "manual", "continue": "auto"}, "security": {"continue": "auto"}, "reflect": {"commit": "auto", "continue": "auto"}, "abort": "auto", "cleanup": "auto"}
 ```
 
 For Python:
 
 ```json
-{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"continue": "auto"}, "reflect": {"commit": "auto", "continue": "auto"}, "commit": "manual", "abort": "auto", "cleanup": "auto"}
+{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"continue": "auto"}, "reflect": {"commit": "auto", "continue": "auto"}, "abort": "auto", "cleanup": "auto"}
 ```
 
-**Customize** — ask per skill, in this order: start, code, simplify, review, security, reflect, commit, abort, cleanup. For each skill, ask about only the applicable axes:
+**Customize** — ask per skill, in this order: start, code, simplify, review, security, reflect, abort, cleanup. For each skill, ask about only the applicable axes:
 
 For skills with both axes (code, simplify, review, reflect), ask two AskUserQuestions:
 
@@ -121,12 +121,12 @@ For skills with continue only (start, security), ask one AskUserQuestion:
 > - **Auto** — "Auto-advance to next phase"
 > - **Manual** — "Prompt before advancing"
 
-For utility skills (commit, abort, cleanup), ask one AskUserQuestion:
+For utility skills (abort, cleanup), ask one AskUserQuestion:
 
 > "Mode for /flow:<skill>?"
 >
-> - **Auto** — "<description of what auto skips>"
-> - **Manual** — "Requires explicit approval"
+> - **Auto** — "Skip confirmation prompt"
+> - **Manual** — "Require confirmation prompt"
 
 Store the result as `skills_dict` for Step 3.
 
@@ -212,7 +212,7 @@ add the `skills` key from `skills_dict` (Step 2), and write the file back with
 the Write tool. The result should look like:
 
 ```json
-{"flow_version": "0.16.4", "framework": "python", "skills": {"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"continue": "auto"}, "reflect": {"commit": "auto", "continue": "auto"}, "commit": "manual", "abort": "auto", "cleanup": "auto"}}
+{"flow_version": "0.16.4", "framework": "python", "skills": {"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"continue": "auto"}, "reflect": {"commit": "auto", "continue": "auto"}, "abort": "auto", "cleanup": "auto"}}
 ```
 
 ### Step 5 — Commit and push
@@ -255,7 +255,7 @@ Report:
 - Git excludes configured for `.flow-states/` and `.worktrees/`
 - Changes committed
 
-Display the skills configuration as a markdown table:
+Display the skills configuration as a pipe-delimited markdown table with exactly this format (not a bullet list):
 
 ```text
 | Skill     | Commit | Continue |
@@ -266,11 +266,10 @@ Display the skills configuration as a markdown table:
 | review    | auto   | auto     |
 | security  | —      | auto     |
 | reflect   | auto   | auto     |
-| commit    | manual | —        |
 | abort     | auto   | —        |
 | cleanup   | auto   | —        |
 ```
 
-Use the actual values from `skills_dict` (Step 2). The table above is just an example. Show `—` for axes that don't apply to a skill.
+Use the actual values from `skills_dict` (Step 2). The table above is just an example. Show `—` for axes that don't apply to a skill. The table must use pipe `|` delimiters — never render as a bullet list.
 
 Tell the user to start a new Claude Code session so the permissions take effect, then run `/flow:start <feature name>`.

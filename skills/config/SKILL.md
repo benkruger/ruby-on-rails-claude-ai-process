@@ -53,7 +53,6 @@ Then display the skills configuration as a markdown table:
 | review    | auto   | auto     |
 | security  | —      | auto     |
 | reflect   | auto   | auto     |
-| commit    | manual | —        |
 | abort     | auto   | —        |
 | cleanup   | auto   | —        |
 ```
@@ -64,7 +63,7 @@ Use the actual values from `.flow.json`. The table above is just an example.
 
 - **Phase skills with both axes** (code, simplify, review, reflect): show both `commit` and `continue` values from the nested object
 - **Phase skills with continue only** (start, security): show `—` for Commit, show the `continue` value
-- **Utility skills** (commit, abort, cleanup): show the single string value under Commit, show `—` for Continue
+- **Utility skills** (abort, cleanup): show the single string value under Commit, show `—` for Continue
 
 **Legacy format handling:** If `.flow.json` has the old single-value format (e.g., `"code": "manual"` instead of `{"commit": "manual", "continue": "manual"}`), display the single value in both columns for phase skills that should have two axes.
 

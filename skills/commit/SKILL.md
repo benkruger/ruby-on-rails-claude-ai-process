@@ -85,8 +85,7 @@ On completion (whether approved or denied), print the same way:
 
 1. If `--auto` was passed → mode is **auto**
 2. If `--manual` was passed → mode is **manual**
-3. Otherwise, read `.flow.json` from the project root. Use `skills.commit` value.
-4. If `.flow.json` has no `skills` key → use built-in default: **manual**
+3. Otherwise → mode is **auto**
 
 `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 

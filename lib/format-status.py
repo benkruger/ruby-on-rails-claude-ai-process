@@ -26,7 +26,7 @@ from flow_utils import (
 COMMANDS = {
     1: "/flow:start", 2: "/flow:plan", 3: "/flow:code",
     4: "/flow:simplify", 5: "/flow:review", 6: "/flow:security",
-    7: "/flow:reflect", 8: "/flow:cleanup",
+    7: "/flow:learning", 8: "/flow:cleanup",
 }
 
 # Column width for phase name alignment

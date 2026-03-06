@@ -119,7 +119,7 @@ def _create_state_file(project_root, branch, feature_title, pr_url, pr_number,
     current_time = now()
     phase_names = {
         1: "Start", 2: "Plan", 3: "Code", 4: "Simplify",
-        5: "Review", 6: "Security", 7: "Reflect", 8: "Cleanup",
+        5: "Review", 6: "Security", 7: "Learning", 8: "Cleanup",
     }
     phases = {}
     for i in range(1, 9):

@@ -68,7 +68,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ````markdown
 ```text
 ============================================
-  Learning —STARTING
+  Learning — STARTING
 ============================================
 ```
 ````
@@ -303,7 +303,7 @@ Present the full report to the user:
 ````markdown
 ```text
 ============================================
-  Learning —Report
+  Learning — Report
 ============================================
 
   Findings
@@ -416,7 +416,7 @@ Output in your response (not via Bash) inside a fenced code block:
 ````markdown
 ```text
 ============================================
-  Learning —COMPLETE
+  Learning — COMPLETE
 ============================================
 ```
 ````

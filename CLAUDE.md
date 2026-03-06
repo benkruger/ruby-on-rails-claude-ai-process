@@ -13,7 +13,7 @@ A Claude Code plugin (`flow:` namespace) implementing an opinionated 8-phase dev
 - `docs/` — GitHub Pages site (main /docs, static HTML)
 - `lib/extract-release-notes.py` — extracts version sections from RELEASE-NOTES.md for GitHub Releases
 - `lib/start-setup.py` — consolidated Start phase setup (git pull, worktree, settings, PR, state file)
-- `lib/flow_utils.py` — shared utilities: `now()` (Pacific Time timestamps), `PACIFIC` timezone, `format_time()`, `current_branch()`, `project_root()`, `PHASE_NAMES`
+- `lib/flow_utils.py` — shared utilities: `now()` (Pacific Time timestamps), `PACIFIC` timezone, `format_time()`, `current_branch()`, `project_root()`, `PHASE_NAMES`, `COMMANDS`
 - `lib/phase-transition.py` — phase entry/completion (timing, counters, status, formatted_time)
 - `lib/set-timestamp.py` — mid-phase timestamp fields via dot-path notation
 - `bin/flow` — dispatcher script routing subcommands to `lib/*.py`

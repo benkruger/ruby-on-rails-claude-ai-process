@@ -8,7 +8,7 @@ parent: Skills
 
 **Phase:** 6 — Security
 
-**Usage:** `/flow:security`
+**Usage:** `/flow:security`, `/flow:security --auto`, or `/flow:security --manual`
 
 Security analysis of the feature diff. Uses an Explore sub-agent
 to run 10 security checks, then fixes every confirmed finding
@@ -31,6 +31,12 @@ Every confirmed finding gets fixed directly:
 3. Commit via `/flow:commit`
 4. Mark finding as fixed in state
 5. Next finding
+
+---
+
+## Mode
+
+Mode is configurable via `.flow.json` (default: auto). In auto mode, the phase transition advances to Reflect without asking. Security analysis and fixing behavior is the same in both modes.
 
 ---
 

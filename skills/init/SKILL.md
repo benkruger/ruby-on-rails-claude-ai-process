@@ -52,7 +52,53 @@ If no framework files detected, or both detected, fall back to asking:
 
 Store the answer as `framework` (lowercase: `rails` or `python`).
 
-### Step 2 — Run init setup script
+### Step 2 — Choose autonomy level
+
+Ask the user how much autonomy FLOW should have using AskUserQuestion:
+
+> "How much autonomy should FLOW have?"
+>
+> - **Fully autonomous** — "All 9 configurable skills run in auto mode"
+> - **Fully manual** — "All 9 configurable skills run in manual mode"
+> - **Recommended** — "Auto where safe, manual where judgment matters (default)"
+> - **Customize** — "Choose per skill"
+
+**Fully autonomous** — set all 9 skills to `auto`:
+
+```json
+{"start": "auto", "code": "auto", "simplify": "auto", "review": "auto", "security": "auto", "reflect": "auto", "commit": "auto", "abort": "auto", "cleanup": "auto"}
+```
+
+**Fully manual** — set all 9 skills to `manual`:
+
+```json
+{"start": "manual", "code": "manual", "simplify": "manual", "review": "manual", "security": "manual", "reflect": "manual", "commit": "manual", "abort": "manual", "cleanup": "manual"}
+```
+
+**Recommended** — framework-aware defaults:
+
+For Rails:
+
+```json
+{"start": "manual", "code": "manual", "simplify": "manual", "review": "manual", "security": "auto", "reflect": "auto", "commit": "manual", "abort": "auto", "cleanup": "auto"}
+```
+
+For Python:
+
+```json
+{"start": "manual", "code": "manual", "simplify": "manual", "review": "manual", "security": "auto", "reflect": "auto", "commit": "auto", "abort": "auto", "cleanup": "auto"}
+```
+
+**Customize** — ask one AskUserQuestion per skill (9 total), in this order: start, code, simplify, review, security, reflect, commit, abort, cleanup. For each:
+
+> "Mode for /flow:<skill>?"
+>
+> - **Auto** — "<description of what auto skips>"
+> - **Manual** — "Requires explicit approval"
+
+Store the result as `skills_dict` for Step 3.
+
+### Step 3 — Run init setup script
 
 ```bash
 exec ${CLAUDE_PLUGIN_ROOT}/bin/flow init-setup <project_root> --framework <framework>
@@ -127,15 +173,27 @@ All permissions (universal + both framework sets) for reference:
 }
 ```
 
-### Step 3 — Commit and push
+### Step 4 — Write skills config to .flow.json
 
-Stage and commit the settings and version marker:
+After the init-setup script writes `.flow.json`, read it back with the Read tool,
+add the `skills` key from `skills_dict` (Step 2), and write the file back with
+the Write tool. The result should look like:
+
+```json
+{"flow_version": "0.16.4", "framework": "python", "skills": {"start": "manual", "code": "manual", "simplify": "manual", "review": "manual", "security": "auto", "reflect": "auto", "commit": "auto", "abort": "auto", "cleanup": "auto"}}
+```
+
+### Step 5 — Commit and push
+
+Stage the settings and version marker:
 
 ```bash
 git add .claude/settings.json .flow.json
 ```
 
-If `git status` shows nothing staged (re-run, no changes), skip the commit and push — print "Already initialized, no changes needed." and go to Done.
+Check if anything is staged by running `git status`. If the output contains "nothing to commit", skip the commit and push — go straight to Done.
+
+Otherwise, commit and push:
 
 ```bash
 git commit -m "Configure FLOW workspace permissions and version marker"
@@ -164,5 +222,23 @@ Report:
 - Version marker written to `.flow.json`
 - Git excludes configured for `.flow-states/` and `.worktrees/`
 - Changes committed
+
+Display the skills configuration as a markdown table:
+
+```text
+| Skill     | Mode   |
+|-----------|--------|
+| start     | manual |
+| code      | manual |
+| simplify  | auto   |
+| review    | auto   |
+| security  | auto   |
+| reflect   | auto   |
+| commit    | auto   |
+| abort     | auto   |
+| cleanup   | auto   |
+```
+
+Use the actual values from `skills_dict` (Step 2). The table above is just an example.
 
 Tell the user to start a new Claude Code session so the permissions take effect, then run `/flow:start <feature name>`.

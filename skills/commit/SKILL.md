@@ -69,11 +69,24 @@ On completion (whether approved or denied), print the same way:
 ```
 ````
 
-## Flag: --auto
+## Usage
 
-When the user invokes `/flow:commit --auto`, skip the Step 3 approval prompt and proceed directly to Step 4 (commit and push). Everything else is identical: `bin/flow ci`, diff display, commit message generation and display, pull-before-push.
+```text
+/flow:commit
+/flow:commit --auto
+/flow:commit --manual
+```
 
-In FLOW mode, Python projects also skip approval — see Step 3.
+- `/flow:commit` — uses configured mode from `.flow.json` (default: manual)
+- `/flow:commit --auto` — skips the approval prompt
+- `/flow:commit --manual` — requires explicit approval
+
+## Mode Resolution
+
+1. If `--auto` was passed → mode is **auto**
+2. If `--manual` was passed → mode is **manual**
+3. Otherwise, read `.flow.json` from the project root. Use `skills.commit` value.
+4. If `.flow.json` has no `skills` key → use built-in default: **manual**
 
 `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 
@@ -193,9 +206,7 @@ Display the full message under the heading **Commit Message** before asking for 
 
 ### Step 3 — Ask for approval
 
-If `--auto` was passed, skip this step and proceed directly to Step 4.
-
-**FLOW mode only:** If the project framework is `python` (read `.flow.json`), also skip this step.
+If mode is **auto** (resolved via Mode Resolution above), skip this step and proceed directly to Step 4.
 
 Otherwise, use the `AskUserQuestion` tool with exactly these two options:
 
@@ -261,7 +272,7 @@ will make fixes and re-invoke the commit skill when ready.
 ### Hard Rules
 
 - Never commit without showing the diff first
-- Never skip the approval step — unless `--auto` was passed by the user or the project framework is `python` (FLOW mode only)
+- Never skip the approval step — unless mode is **auto** (via `--auto` flag or `.flow.json` config)
 - `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:reflect`, which is fully autonomous and commits without mid-process approval.
 - Never use `--no-verify`
 - Never add Co-Authored-By trailers or attribution lines — commits are authored by the user alone

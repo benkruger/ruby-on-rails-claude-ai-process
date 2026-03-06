@@ -12,11 +12,20 @@ from any phase, no prerequisites.
 
 ```text
 /flow:abort
+/flow:abort --auto
 /flow:abort --manual
 ```
 
-- `/flow:abort` — default. Skips confirmation and proceeds directly to cleanup.
-- `/flow:abort --manual` — prompts for user confirmation before any destructive action.
+- `/flow:abort` — uses configured mode from `.flow.json` (default: auto)
+- `/flow:abort --auto` — skips confirmation and proceeds directly to cleanup
+- `/flow:abort --manual` — prompts for user confirmation before any destructive action
+
+## Mode Resolution
+
+1. If `--auto` was passed → mode is **auto**
+2. If `--manual` was passed → mode is **manual**
+3. Otherwise, read `.flow.json` from the project root. Use `skills.abort` value.
+4. If `.flow.json` has no `skills` key → use built-in default: **auto**
 
 ## Entry Check
 
@@ -43,8 +52,7 @@ If the Read tool fails for any other reason, stop and show the error.
 Use these values for all subsequent steps — do not re-read the state file
 or re-run git commands to gather the same information.
 
-Parse the skill arguments: if `--manual` was passed, set `manual = true`.
-Otherwise `manual = false`.
+Resolve the mode using the Mode Resolution rules above.
 
 ## Announce
 
@@ -60,11 +68,11 @@ At the very start, print inside a fenced code block (triple backticks) so it ren
 
 ## Steps
 
-### Step 1 — Confirm with user (--manual only)
+### Step 1 — Confirm with user (manual mode only)
 
-Skip this step if `manual` is `false` — proceed directly to Steps 2–7.
+Skip this step if mode is **auto** — proceed directly to Steps 2–7.
 
-If `manual` is `true`, this is destructive and irreversible. Use AskUserQuestion.
+If mode is **manual**, this is destructive and irreversible. Use AskUserQuestion.
 
 If the entry check printed warnings, include them in the confirmation:
 
@@ -110,6 +118,6 @@ Report which steps succeeded and which were already cleaned up.
 
 - Available from ANY phase — no phase gate
 - Never run from inside the worktree — always navigate to project root first
-- Confirm with the user only when `--manual` is passed
+- Confirm with the user only when mode is **manual**
 - Every step after confirmation is best-effort — if one fails, continue to the next
 - Never rebase, never force push — just close and delete

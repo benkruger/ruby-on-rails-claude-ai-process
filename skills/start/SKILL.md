@@ -10,9 +10,11 @@ model: haiku
 
 ```text
 /flow:start invoice pdf export
+/flow:start --auto invoice pdf export
+/flow:start --manual invoice pdf export
 ```
 
-Arguments become the feature name. Words are joined with hyphens:
+Arguments become the feature name (flags are not included in the name). Words are joined with hyphens:
 
 - Branch: `invoice-pdf-export`
 - Worktree: `.worktrees/invoice-pdf-export`
@@ -24,6 +26,13 @@ Branch names are capped at **32 characters**. If the hyphenated name exceeds 32 
 Do NOT proceed if the feature name is missing. Ask the user:
 "What is the feature name? e.g. /flow:start invoice pdf export"
 </HARD-GATE>
+
+## Mode Resolution
+
+1. If `--auto` was passed → mode is **auto**
+2. If `--manual` was passed → mode is **manual**
+3. Otherwise, read `.flow.json` from the project root. Use `skills.start` value.
+4. If `.flow.json` has no `skills` key → use built-in default: **manual**
 
 ## Announce
 
@@ -80,7 +89,9 @@ Use the Glob tool to check for existing state files matching `.flow-states/*.jso
 
 If any files are found, list their names (the branch names from the filenames).
 
-If any files are found, use AskUserQuestion:
+If any files are found and mode is **auto**, print a warning and proceed automatically.
+
+If any files are found and mode is **manual**, use AskUserQuestion:
 
 > "An active FLOW feature already exists. What would you like to do?"
 >
@@ -265,7 +276,11 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 ```
 ````
 
-Invoke the `flow:status` skill to show the current state, then use AskUserQuestion:
+Invoke the `flow:status` skill to show the current state.
+
+**If mode is auto**, skip the transition question and invoke `flow:plan` directly.
+
+**If mode is manual**, use AskUserQuestion:
 
 > "Phase 1: Start is complete. Ready to begin Phase 2: Plan?"
 >

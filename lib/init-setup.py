@@ -120,10 +120,16 @@ def merge_settings(project_root, framework):
     return settings
 
 
-def write_version_marker(project_root, version, framework):
-    """Write .flow.json with the plugin version and framework."""
+def write_version_marker(project_root, version, framework, skills=None):
+    """Write .flow.json with the plugin version, framework, and optional skills.
+
+    If skills is provided, it is included as a top-level key mapping skill
+    names to "auto" or "manual".
+    """
     flow_json = project_root / ".flow.json"
     data = {"flow_version": version, "framework": framework}
+    if skills is not None:
+        data["skills"] = skills
     flow_json.write_text(json.dumps(data) + "\n")
 
 

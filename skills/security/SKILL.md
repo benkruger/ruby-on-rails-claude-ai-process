@@ -6,6 +6,18 @@ model: opus
 
 # FLOW Security — Phase 6: Security
 
+## Usage
+
+```text
+/flow:security
+/flow:security --auto
+/flow:security --manual
+```
+
+- `/flow:security` — uses configured mode from `.flow.json` (default: auto)
+- `/flow:security --auto` — auto-advance to Reflect on completion
+- `/flow:security --manual` — prompt before advancing to Reflect
+
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
 stop immediately and show the error to the user.
@@ -26,6 +38,13 @@ use the project root to build Read tool paths (e.g.
 `<project_root>/.flow-states/<branch>.json`). Do not re-read the state
 file or re-run git commands to gather the same information. Do not `cd`
 to the project root — `bin/flow` commands find paths internally.
+
+## Mode Resolution
+
+1. If `--auto` was passed → mode is **auto**
+2. If `--manual` was passed → mode is **manual**
+3. Otherwise, read `.flow.json` from the project root. Use `skills.security` value.
+4. If `.flow.json` has no `skills` key → use built-in default: **auto**
 
 ## Announce
 
@@ -437,7 +456,11 @@ Print inside a fenced code block:
 ```
 ````
 
-Invoke `flow:status`, then use AskUserQuestion:
+Invoke `flow:status`.
+
+**If mode is auto**, skip the transition question and invoke `flow:reflect` directly.
+
+**If mode is manual**, use AskUserQuestion:
 
 > "Phase 6: Security is complete. Ready to begin Phase 7: Reflect?"
 >

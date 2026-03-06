@@ -6,6 +6,18 @@ model: sonnet
 
 # Reflect
 
+## Usage
+
+```text
+/flow:reflect
+/flow:reflect --auto
+/flow:reflect --manual
+```
+
+- `/flow:reflect` — uses configured mode from `.flow.json` (default: auto)
+- `/flow:reflect --auto` — skip permission promotion prompts, auto-advance to Cleanup
+- `/flow:reflect --manual` — prompt for permission promotion and phase transition
+
 <HARD-GATE>
 Run this entry check as your very first action. If any check fails,
 stop immediately and show the error to the user.
@@ -29,6 +41,13 @@ Use the project root to build Read tool paths (e.g.
 `<project_root>/.flow-states/<branch>.json`). Do not re-read the state
 file or re-run git commands to gather the same information. Do not `cd`
 to the project root — `bin/flow` commands find paths internally.
+
+## Mode Resolution
+
+1. If `--auto` was passed → mode is **auto**
+2. If `--manual` was passed → mode is **manual**
+3. Otherwise, read `.flow.json` from the project root. Use `skills.reflect` value.
+4. If `.flow.json` has no `skills` key → use built-in default: **auto**
 
 ## Announce
 
@@ -227,8 +246,10 @@ If it exists:
 2. Read `.claude/settings.json`
 3. Compare the `permissions.allow` lists
 4. For each entry in the local file's allow list that is not in
-   `settings.json`, use AskUserQuestion to ask whether to promote it.
-   Options: **Yes** (add to settings.json) or **No** (skip it).
+   `settings.json`:
+   - If mode is **auto**, promote it automatically (add to settings.json).
+   - If mode is **manual**, use AskUserQuestion to ask whether to promote it.
+     Options: **Yes** (add to settings.json) or **No** (skip it).
 5. Apply any approved additions to `.claude/settings.json` using the
    Edit tool
 6. Delete the file:
@@ -358,7 +379,11 @@ Print inside a fenced code block:
 ```
 ````
 
-Invoke `flow:status`, then use AskUserQuestion:
+Invoke `flow:status`.
+
+**If mode is auto**, skip the transition question and invoke `flow:cleanup` directly.
+
+**If mode is manual**, use AskUserQuestion:
 
 > "Phase 7: Reflect is complete. The PR now includes CLAUDE.md improvements. Ready to begin Phase 8: Cleanup?"
 >

@@ -6,6 +6,18 @@ model: sonnet
 
 # FLOW Review — Phase 5: Review
 
+## Usage
+
+```text
+/flow:review
+/flow:review --auto
+/flow:review --manual
+```
+
+- `/flow:review` — uses configured mode from `.flow.json` (default: manual)
+- `/flow:review --auto` — significant findings auto-fixed here (no user routing choice), auto-advance to Security
+- `/flow:review --manual` — significant findings prompt user for fix/go-back choice
+
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
 stop immediately and show the error to the user.
@@ -20,6 +32,13 @@ stop immediately and show the error to the user.
    - If not `"complete"`: STOP. "BLOCKED: Phase 4: Simplify must be
      complete. Run /flow:simplify first."
 </HARD-GATE>
+
+## Mode Resolution
+
+1. If `--auto` was passed → mode is **auto**
+2. If `--manual` was passed → mode is **manual**
+3. Otherwise, read `.flow.json` from the project root. Use `skills.review` value.
+4. If `.flow.json` has no `skills` key → use built-in default: **manual**
 
 ## Announce
 
@@ -246,7 +265,10 @@ For each finding:
 - Describe what was fixed and why
 
 **Significant finding** (logic error, missing risk coverage, plan mismatch):
-- Use AskUserQuestion:
+
+If mode is **auto**, fix it directly here in Review without asking.
+
+If mode is **manual**, use AskUserQuestion:
   > "Found a significant issue: <description>. How would you like to proceed?"
   >
   > - **Fix it here in Review**
@@ -328,7 +350,11 @@ Print inside a fenced code block:
 ```
 ````
 
-Invoke `flow:status`, then use AskUserQuestion:
+Invoke `flow:status`.
+
+**If mode is auto**, skip the transition question and invoke `flow:security` directly.
+
+**If mode is manual**, use AskUserQuestion:
 
 > "Phase 5: Review is complete. Ready to begin Phase 6: Security?"
 >

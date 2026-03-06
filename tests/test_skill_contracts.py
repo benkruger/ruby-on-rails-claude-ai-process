@@ -928,15 +928,15 @@ def test_reset_has_confirmation():
     )
 
 
-def test_commit_python_auto_approval():
-    """Commit SKILL.md must reference .flow.json for Python auto-approval."""
+def test_commit_mode_resolution():
+    """Commit SKILL.md must reference .flow.json for mode resolution."""
     content = (SKILLS_DIR / "commit" / "SKILL.md").read_text()
     assert ".flow.json" in content, (
         "skills/commit/SKILL.md missing '.flow.json' reference — "
-        "Python projects auto-approve via framework detection"
+        "mode resolution reads skills config from .flow.json"
     )
-    assert re.search(r"[Pp]ython.*skip|skip.*[Pp]ython", content), (
-        "skills/commit/SKILL.md missing Python auto-approval behavior"
+    assert "Mode Resolution" in content, (
+        "skills/commit/SKILL.md missing Mode Resolution section"
     )
 
 
@@ -1020,4 +1020,54 @@ def test_multi_framework_skills_have_both_sections():
         )
         assert re.search(r"(?i)python", content), (
             f"skills/{name}/SKILL.md missing Python framework section"
+        )
+
+
+# --- Configurable auto/manual mode ---
+
+CONFIGURABLE_SKILLS = [
+    "start", "code", "simplify", "review", "security",
+    "reflect", "commit", "abort", "cleanup",
+]
+
+
+def test_configurable_skills_support_both_flags():
+    """All 9 configurable skills must mention --auto and --manual in Usage."""
+    for name in CONFIGURABLE_SKILLS:
+        content = _read_skill(name)
+        assert "--auto" in content, (
+            f"skills/{name}/SKILL.md missing '--auto' flag in Usage"
+        )
+        assert "--manual" in content, (
+            f"skills/{name}/SKILL.md missing '--manual' flag in Usage"
+        )
+
+
+def test_configurable_skills_have_mode_resolution():
+    """All 9 configurable skills must contain a Mode Resolution section."""
+    for name in CONFIGURABLE_SKILLS:
+        content = _read_skill(name)
+        assert "## Mode Resolution" in content, (
+            f"skills/{name}/SKILL.md missing '## Mode Resolution' section"
+        )
+
+
+def test_mode_resolution_references_flow_json():
+    """All 9 configurable skills Mode Resolution must reference .flow.json."""
+    for name in CONFIGURABLE_SKILLS:
+        content = _read_skill(name)
+        resolution_match = re.search(
+            r"## Mode Resolution\n(.*?)(?:\n## |\Z)", content, re.DOTALL
+        )
+        assert resolution_match, (
+            f"skills/{name}/SKILL.md has no Mode Resolution section"
+        )
+        resolution_text = resolution_match.group(1)
+        assert ".flow.json" in resolution_text, (
+            f"skills/{name}/SKILL.md Mode Resolution does not reference "
+            f".flow.json for config lookup"
+        )
+        assert f"skills.{name}" in resolution_text, (
+            f"skills/{name}/SKILL.md Mode Resolution does not reference "
+            f"'skills.{name}' key"
         )

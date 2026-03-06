@@ -8,7 +8,7 @@ parent: Skills
 
 **Phase:** 4 — Simplify
 
-**Usage:** `/flow:simplify`
+**Usage:** `/flow:simplify`, `/flow:simplify --auto`, or `/flow:simplify --manual`
 
 Invokes Claude Code's built-in `/simplify` skill on the feature diff.
 Refactors for clarity, reduces complexity, and improves naming while
@@ -26,8 +26,14 @@ transitioning to Review.
 
 ---
 
+## Mode
+
+Mode is configurable via `.flow.json` (default: manual). In auto mode, refactoring is accepted without approval (diff is still shown) and the phase transition advances to Review without asking.
+
+---
+
 ## Gates
 
 - Code phase must be complete before Simplify can start
-- User must approve or reject the simplifications before proceeding
+- Diff is always shown (in both modes)
 - Can return to Code phase

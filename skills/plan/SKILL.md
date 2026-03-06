@@ -216,3 +216,5 @@ Invoke `flow:status`, then use AskUserQuestion:
 - Always ask the user what they're building before entering plan mode
 - The plan file lives in `~/.claude/plans/` — Claude Code's native location
 - Store the plan file path in state before completing the phase
+- Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
+- Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories

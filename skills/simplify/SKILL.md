@@ -193,3 +193,5 @@ Invoke `flow:status`, then use AskUserQuestion:
 - Do not narrate or skip — run /simplify immediately, show the diff, get approval
 - `/simplify` is invoked, not optional — if it can't run, report the error and stop
 - Do not commit changes without showing the diff from Step 2
+- Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
+- Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories

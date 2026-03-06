@@ -459,3 +459,5 @@ Invoke `flow:status`, then use AskUserQuestion:
 - **Never move to the next task** until the current task is committed
 - **Never rebase** — always merge
 - Plus the **Framework-Specific Hard Rules** from the framework section above
+- Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
+- Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories

@@ -278,6 +278,61 @@ def test_subagent_prompts_include_tool_restriction():
         )
 
 
+def test_subagent_prompts_allow_git_show():
+    """Review/Security sub-agent prompts must allow git show.
+
+    Sub-agents need git show to compare files against origin/main.
+    Without it, sub-agents improvise with git show piped through sed,
+    which triggers permission prompts."""
+    subagent_skills = ["review", "security"]
+    for name in subagent_skills:
+        content = _read_skill(name)
+        assert "git show" in content, (
+            f"skills/{name}/SKILL.md sub-agent prompt missing 'git show' "
+            f"in allowed git commands — sub-agents need it to compare "
+            f"against origin/main"
+        )
+
+
+def test_subagent_prompts_ban_piping():
+    """Review/Security sub-agent prompts must ban piping git output
+    through sed, grep, or awk.
+
+    Sub-agents pipe git show through sed to extract line ranges, which
+    triggers permission prompts. The prompt must explicitly ban this."""
+    subagent_skills = ["review", "security"]
+    for name in subagent_skills:
+        content = _read_skill(name)
+        assert re.search(r"[Nn]ever pipe", content), (
+            f"skills/{name}/SKILL.md sub-agent prompt missing pipe "
+            f"restriction — sub-agents pipe git output through sed/grep "
+            f"which triggers permission prompts"
+        )
+
+
+def test_phase_skills_have_tool_restriction_in_hard_rules():
+    """Every phase skill must have tool restriction language in its
+    Hard Rules section.
+
+    Rules in .claude/rules/ are passive context that Claude ignores under
+    task pressure. Putting tool restrictions in the skill's Hard Rules
+    makes them co-located with the active instructions Claude follows."""
+    phase_skills = _phase_skills()
+    for phase_num, skill_name in phase_skills.items():
+        content = _read_skill(skill_name)
+        hard_rules_match = re.search(
+            r"## (?:Hard )?Rules\n(.*?)(?:\n## |\Z)", content, re.DOTALL
+        )
+        assert hard_rules_match, (
+            f"Phase {phase_num} ({skill_name}) has no Hard Rules section"
+        )
+        rules_text = hard_rules_match.group(1)
+        assert "Bash" in rules_text and ("Glob" in rules_text or "Read" in rules_text), (
+            f"Phase {phase_num} ({skill_name}) Hard Rules missing tool "
+            f"restriction — must restrict Bash and reference Glob/Read"
+        )
+
+
 def test_subagent_types_match_requirements():
     """Review/Security and Start use general-purpose."""
     subagent_skills = ["review", "security"]

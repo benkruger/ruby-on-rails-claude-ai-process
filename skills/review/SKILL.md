@@ -81,7 +81,9 @@ Provide these instructions to the Step 1 sub-agent (fill in the details):
 >
 > **Tool rules:** Use Glob and Read tools for all file and directory
 > operations. Use Grep for searching code. Only use Bash for git commands
-> (git diff, git log, git blame). Never use Bash for any other purpose —
+> (git diff, git log, git blame, git show). Never pipe git output through
+> sed, grep, awk, or any other command — read the full output and extract
+> what you need in your response. Never use Bash for any other purpose —
 > no find, ls, cat, wc, test -f, stat, or running project tooling.
 >
 > Plan file:
@@ -145,7 +147,9 @@ Provide these instructions to the Step 1 sub-agent (fill in the details):
 >
 > **Tool rules:** Use Glob and Read tools for all file and directory
 > operations. Use Grep for searching code. Only use Bash for git commands
-> (git diff, git log, git blame). Never use Bash for any other purpose —
+> (git diff, git log, git blame, git show). Never pipe git output through
+> sed, grep, awk, or any other command — read the full output and extract
+> what you need in your response. Never use Bash for any other purpose —
 > no find, ls, cat, wc, test -f, stat, or running project tooling.
 >
 > Plan file:
@@ -360,3 +364,5 @@ Invoke `flow:status`, then use AskUserQuestion:
 - Never skip the risk coverage check
 - Read the full diff before starting — no partial reviews
 - Plus the **Framework-Specific Hard Rules** from the framework section above
+- Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
+- Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories

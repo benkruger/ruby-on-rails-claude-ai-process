@@ -172,3 +172,5 @@ Print inside a fenced code block (triple backticks) so it renders as plain monos
 - Confirm with the user only when `--manual` is passed
 - State file deletion is what resets the session hook — do not skip it
 - Every step after confirmation is best-effort — if one fails, continue to the next
+- Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
+- Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories

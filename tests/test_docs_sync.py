@@ -239,26 +239,24 @@ def test_schema_doc_covers_top_level_fields():
 # --- Key feature coverage ---
 
 
-def test_readme_covers_key_features():
-    """README.md must mention all key features by keyword."""
-    readme = (REPO_ROOT / "README.md").read_text().lower()
+def _assert_covers_key_features(content, source_label):
+    """Assert content mentions every feature in REQUIRED_FEATURES."""
     for feature, keywords in REQUIRED_FEATURES.items():
-        found = any(kw.lower() in readme for kw in keywords)
+        found = any(kw.lower() in content for kw in keywords)
         assert found, (
-            f"README.md does not mention feature '{feature}' "
+            f"{source_label} does not mention feature '{feature}' "
             f"(looked for: {keywords})"
         )
+
+
+def test_readme_covers_key_features():
+    """README.md must mention all key features by keyword."""
+    _assert_covers_key_features((REPO_ROOT / "README.md").read_text().lower(), "README.md")
 
 
 def test_landing_page_covers_key_features():
     """docs/index.html must mention all key features by keyword."""
-    html = (DOCS_DIR / "index.html").read_text().lower()
-    for feature, keywords in REQUIRED_FEATURES.items():
-        found = any(kw.lower() in html for kw in keywords)
-        assert found, (
-            f"docs/index.html does not mention feature '{feature}' "
-            f"(looked for: {keywords})"
-        )
+    _assert_covers_key_features((DOCS_DIR / "index.html").read_text().lower(), "docs/index.html")
 
 
 def test_landing_page_mentions_all_phase_commands():

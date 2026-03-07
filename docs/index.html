@@ -507,46 +507,46 @@
       <div class="pipeline-step">
         <div class="step-num">1</div>
         <span class="step-label">Start</span>
-        <span class="step-detail">Worktree &middot; push branch &middot; PR &middot; bin/ci baseline &middot; dependency upgrade &middot; bin/ci green</span>
+        <span class="step-detail"><code>/flow:flow-start</code> &mdash; Worktree &middot; push branch &middot; PR &middot; bin/ci baseline &middot; dependency upgrade &middot; bin/ci green</span>
         <span class="sub-agent-badge">sub-agent</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">2</div>
         <span class="step-label">Plan</span>
-        <span class="step-detail">Explore codebase &middot; design approach &middot; identify risks &middot; ordered tasks</span>
+        <span class="step-detail"><code>/flow:flow-plan</code> &mdash; Explore codebase &middot; design approach &middot; identify risks &middot; ordered tasks</span>
         <span class="plan-mode-badge">plan mode</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">3</div>
         <span class="step-label">Code</span>
-        <span class="step-detail">Test-first per task &middot; diff review &middot; bin/ci gate &middot; commit per task</span>
+        <span class="step-detail"><code>/flow:flow-code</code> &mdash; Test-first per task &middot; diff review &middot; bin/ci gate &middot; commit per task</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">4</div>
         <span class="step-label">Simplify</span>
-        <span class="step-detail">Invoke /simplify &middot; refactor for clarity &middot; auto-commit</span>
+        <span class="step-detail"><code>/flow:flow-simplify</code> &mdash; Invoke /simplify &middot; refactor for clarity &middot; auto-commit</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">5</div>
         <span class="step-label">Review</span>
-        <span class="step-detail">Plan alignment &middot; risk coverage &middot; framework anti-patterns</span>
+        <span class="step-detail"><code>/flow:flow-review</code> &mdash; Plan alignment &middot; risk coverage &middot; framework anti-patterns</span>
         <span class="sub-agent-badge">sub-agent</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">6</div>
         <span class="step-label">Security</span>
-        <span class="step-detail">Vulnerability scan &middot; auth gaps &middot; data exposure &middot; injection risks</span>
+        <span class="step-detail"><code>/flow:flow-security</code> &mdash; Vulnerability scan &middot; auth gaps &middot; data exposure &middot; injection risks</span>
         <span class="sub-agent-badge">sub-agent</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">7</div>
         <span class="step-label">Learning</span>
-        <span class="step-detail">Learnings routed to 5 destinations &middot; plugin gaps filed as issues</span>
+        <span class="step-detail"><code>/flow:flow-learning</code> &mdash; Learnings routed to 5 destinations &middot; plugin gaps filed as issues</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">8</div>
         <span class="step-label">Cleanup</span>
-        <span class="step-detail">Worktree removed &middot; state file deleted &middot; feature done</span>
+        <span class="step-detail"><code>/flow:flow-cleanup</code> &mdash; Worktree removed &middot; state file deleted &middot; feature done</span>
       </div>
     </div>
 
@@ -584,7 +584,7 @@
       </div>
       <div class="feature">
         <h4>Minimal Project Footprint</h4>
-        <p>FLOW configures workspace permissions in <code>.claude/settings.json</code> (via <code>/flow:flow-init</code>, committed once). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature exists. Cleanup deletes even that. No scripts, no build tools, no runtime dependencies.</p>
+        <p>FLOW configures workspace permissions in <code>.claude/settings.json</code> (via <code>/flow:flow-init</code>, committed once). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature exists. Cleanup deletes even that. Zero dependencies, no build tools, no scripts to maintain.</p>
       </div>
     </div>
 
@@ -845,7 +845,7 @@
     <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px; margin-bottom: 28px;">FLOW creates a git worktree, opens a GitHub PR, runs <code>bin/ci</code> to establish a baseline, upgrades dependencies, runs <code>bin/ci</code> again to confirm green, and lands you in Phase 2: Plan.</p>
 
     <div class="callout" style="margin-bottom: 32px;">
-      <p>The plugin installs into Claude Code&rsquo;s managed plugin directory. <code>/flow:flow-init</code> commits workspace permissions in <code>.claude/settings.json</code> and a version marker in <code>.flow.json</code> (once per project). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature tracks state. Cleanup deletes even that. <strong>Three commands to set up. One file while you work. Zero when you&rsquo;re done.</strong></p>
+      <p>The plugin installs into Claude Code&rsquo;s managed plugin directory. <code>/flow:flow-init</code> commits workspace permissions in <code>.claude/settings.json</code> and a version marker in <code>.flow.json</code> (once per project). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature tracks state. Cleanup deletes even that. <strong>Three commands to set up. One file while you work. Zero when you&rsquo;re done.</strong> To stay current, run <code>/plugin marketplace update flow-marketplace</code>.</p>
     </div>
 
     <a href="https://github.com/benkruger/flow" class="cta">View on GitHub</a>

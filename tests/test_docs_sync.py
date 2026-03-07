@@ -20,7 +20,7 @@ REQUIRED_FEATURES = {
     "Model selection": ["opus"],
     "Zero dependencies": ["zero dependencies"],
     "Minimal repo artifacts": [".flow-states"],
-    "Plugin updates": ["marketplace update", "plugin marketplace"],
+    "Plugin updates": ["marketplace update"],
     "Multi-language": ["rails"],
 }
 

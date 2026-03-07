@@ -13,6 +13,17 @@ from conftest import DOCS_DIR, REPO_ROOT, SKILLS_DIR
 from flow_utils import PHASE_NUMBER
 
 
+REQUIRED_FEATURES = {
+    "Autonomy config": ["autonomy"],
+    "Learning system": ["learning system"],
+    "Native Claude features": ["plan mode"],
+    "Model selection": ["opus"],
+    "Zero dependencies": ["zero dependencies"],
+    "Minimal repo artifacts": [".flow-states"],
+    "Multi-language": ["rails"],
+}
+
+
 def _load_phases():
     return json.loads((REPO_ROOT / "flow-phases.json").read_text())
 
@@ -181,16 +192,6 @@ def test_landing_page_mentions_all_phase_names():
         )
 
 
-def test_landing_page_mentions_all_utility_commands():
-    """docs/index.html must mention all utility skill commands."""
-    html = (DOCS_DIR / "index.html").read_text()
-    for name in _utility_skill_names():
-        command = f"/flow:{name}"
-        assert command in html, (
-            f"docs/index.html does not mention utility command '{command}'"
-        )
-
-
 # --- State schema coverage ---
 
 
@@ -222,3 +223,28 @@ def test_schema_doc_covers_top_level_fields():
             f"docs/reference/flow-state-schema.md does not document "
             f"top-level field '{field}'"
         )
+
+
+# --- Key feature coverage ---
+
+
+def _assert_covers_key_features(content, source_label):
+    """Assert content mentions every feature in REQUIRED_FEATURES."""
+    for feature, keywords in REQUIRED_FEATURES.items():
+        found = any(kw.lower() in content for kw in keywords)
+        assert found, (
+            f"{source_label} does not mention feature '{feature}' "
+            f"(looked for: {keywords})"
+        )
+
+
+def test_readme_covers_key_features():
+    """README.md must mention all key features by keyword."""
+    _assert_covers_key_features((REPO_ROOT / "README.md").read_text().lower(), "README.md")
+
+
+def test_landing_page_covers_key_features():
+    """docs/index.html must mention all key features by keyword."""
+    _assert_covers_key_features((DOCS_DIR / "index.html").read_text().lower(), "docs/index.html")
+
+

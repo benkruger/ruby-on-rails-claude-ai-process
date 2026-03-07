@@ -16,6 +16,18 @@ FLOW imposes structure. Not bureaucracy — discipline.
 
 ---
 
+## Why FLOW
+
+- **Plan mode** exploration, then TDD execution — every feature, same order
+- **Zero dependencies** — pure Markdown skills with a thin Python dispatcher
+- **Learning system** that routes corrections to CLAUDE.md, rules, and memory
+- **Autonomy** on your terms — fully manual to fully autonomous, per skill
+- **Opus** for planning and security, Sonnet for review and simplify, Haiku for setup
+- **Rails** and Python today, more frameworks ahead
+- **Minimal footprint** — `.flow-states` is the only artifact while you work, and Cleanup deletes even that
+
+---
+
 ## The Workflow
 
 ```text

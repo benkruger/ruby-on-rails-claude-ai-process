@@ -1,5 +1,5 @@
 ---
-name: continue
+name: flow-continue
 description: "Resume the current FLOW feature. Mid-session: re-asks the last phase transition question. New session: reads state file, shows status, then asks."
 ---
 
@@ -27,14 +27,14 @@ The Skill to invoke maps directly to the current phase:
 
 | Current phase | Skill to invoke |
 |--------------|----------------|
-| 1 — Start | `flow:start` |
-| 2 — Plan | `flow:plan` |
-| 3 — Code | `flow:code` |
-| 4 — Simplify | `flow:simplify` |
-| 5 — Review | `flow:review` |
-| 6 — Security | `flow:security` |
-| 7 — Learning | `flow:learning` |
-| 8 — Cleanup | `flow:cleanup` |
+| 1 — Start | `flow:flow-start` |
+| 2 — Plan | `flow:flow-plan` |
+| 3 — Code | `flow:flow-code` |
+| 4 — Simplify | `flow:flow-simplify` |
+| 5 — Review | `flow:flow-review` |
+| 6 — Security | `flow:flow-security` |
+| 7 — Learning | `flow:flow-learning` |
+| 8 — Cleanup | `flow:flow-cleanup` |
 
 ---
 
@@ -88,7 +88,7 @@ When the user selects "Not yet", always output the following banner in your resp
 ```text
 ============================================
   FLOW — Paused
-  Run /flow:continue when ready to continue.
+  Run /flow:flow-continue when ready to continue.
 ============================================
 ```
 ````

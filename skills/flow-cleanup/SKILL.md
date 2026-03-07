@@ -1,5 +1,5 @@
 ---
-name: cleanup
+name: flow-cleanup
 description: "Phase 8: Cleanup — remove the worktree and delete the state file. Final phase. Requires Phase 7: Learning to be complete."
 model: haiku
 ---
@@ -9,20 +9,20 @@ model: haiku
 ## Usage
 
 ```text
-/flow:cleanup
-/flow:cleanup --auto
-/flow:cleanup --manual
+/flow:flow-cleanup
+/flow:flow-cleanup --auto
+/flow:flow-cleanup --manual
 ```
 
-- `/flow:cleanup` — uses configured mode from `.flow.json` (default: auto)
-- `/flow:cleanup --auto` — skips confirmation and proceeds directly to cleanup
-- `/flow:cleanup --manual` — prompts for user confirmation before any destructive action
+- `/flow:flow-cleanup` — uses configured mode from `.flow.json` (default: auto)
+- `/flow:flow-cleanup --auto` — skips confirmation and proceeds directly to cleanup
+- `/flow:flow-cleanup --manual` — prompts for user confirmation before any destructive action
 
 ## Mode Resolution
 
 1. If `--auto` was passed → mode is **auto**
 2. If `--manual` was passed → mode is **manual**
-3. Otherwise, read `.flow.json` from the project root. Use `skills.cleanup` value.
+3. Otherwise, read `.flow.json` from the project root. Use `skills.flow-cleanup` value.
 4. If `.flow.json` has no `skills` key → use built-in default: **auto**
 
 <SOFT-GATE>
@@ -34,7 +34,7 @@ blocks — it records warnings for the confirmation step.
 2. Get the current branch: run `git branch --show-current`.
 3. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
    - If the file exists: extract `feature`, `worktree`, and
-     `cumulative_seconds`. Check `phases.learning.status` — if not `"complete"`,
+     `cumulative_seconds`. Check `phases.flow-learning.status` — if not `"complete"`,
      record warning "Phase 7 not complete (status: <actual status>)."
    - If the file does not exist: record warning "No state file found for
      branch '<branch>'."
@@ -104,12 +104,12 @@ If the result is `MERGED`, continue to Step 3.
 If the result is anything else (e.g., `OPEN`, `CLOSED`), stop:
 
 > "Your PR must be merged before cleanup. Current PR status: **<state>**.
-> Merge the PR first, then run `/flow:cleanup` again."
+> Merge the PR first, then run `/flow:flow-cleanup` again."
 
 If both commands fail (no PR found), stop:
 
 > "Could not find a PR for this branch. Merge your PR first, then run
-> `/flow:cleanup` again."
+> `/flow:flow-cleanup` again."
 
 ### Step 3 — Confirm with user (manual mode only)
 

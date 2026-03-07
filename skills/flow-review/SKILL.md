@@ -1,5 +1,5 @@
 ---
-name: review
+name: flow-review
 description: "Phase 5: Review — systematic code review against the plan, identified risks, and framework anti-patterns. Fixes issues found, runs bin/flow ci after any fix, then transitions to Security."
 model: sonnet
 ---
@@ -9,14 +9,14 @@ model: sonnet
 ## Usage
 
 ```text
-/flow:review
-/flow:review --auto
-/flow:review --manual
+/flow:flow-review
+/flow:flow-review --auto
+/flow:flow-review --manual
 ```
 
-- `/flow:review` — uses configured mode from `.flow.json` (default: manual)
-- `/flow:review --auto` — significant findings auto-fixed here (no user routing choice), auto-advance to Security
-- `/flow:review --manual` — significant findings prompt user for fix/go-back choice
+- `/flow:flow-review` — uses configured mode from `.flow.json` (default: manual)
+- `/flow:flow-review --auto` — significant findings auto-fixed here (no user routing choice), auto-advance to Security
+- `/flow:flow-review --manual` — significant findings prompt user for fix/go-back choice
 
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
@@ -27,17 +27,17 @@ stop immediately and show the error to the user.
 2. Get the current branch: run `git branch --show-current`.
 3. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
    - If the file does not exist: STOP. "BLOCKED: No FLOW feature in progress.
-     Run /flow:start first."
-4. Check `phases.simplify.status` in the JSON.
+     Run /flow:flow-start first."
+4. Check `phases.flow-simplify.status` in the JSON.
    - If not `"complete"`: STOP. "BLOCKED: Phase 4: Simplify must be
-     complete. Run /flow:simplify first."
+     complete. Run /flow:flow-simplify first."
 </HARD-GATE>
 
 ## Mode Resolution
 
 1. If `--auto` was passed → commit=auto, continue=auto
 2. If `--manual` was passed → commit=manual, continue=manual
-3. Otherwise, read `.flow.json` from the project root. Use `skills.review.commit` and `skills.review.continue`.
+3. Otherwise, read `.flow.json` from the project root. Use `skills.flow-review.commit` and `skills.flow-review.continue`.
 4. If `.flow.json` has no `skills` key → use built-in defaults: commit=manual, continue=manual
 
 ## Announce
@@ -57,7 +57,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase review --action enter
+bin/flow phase-transition --phase flow-review --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -277,7 +277,7 @@ If commit=manual, use AskUserQuestion:
   > - **Go back to Code**
   > - **Go back to Plan**
 
-After fixing any findings, if commit=auto use `/flow:commit --auto`, otherwise use `/flow:commit` for the Review fixes.
+After fixing any findings, if commit=auto use `/flow:flow-commit --auto`, otherwise use `/flow:flow-commit` for the Review fixes.
 
 Then run `bin/flow ci --if-dirty` — required before any state transition.
 
@@ -323,10 +323,10 @@ Use AskUserQuestion if a finding is too significant to fix in Review:
 > - **Go back to Plan** — plan was missing something
 
 **Go back to Code:** update Phases 5 and 4 to `pending`, Phase 3 to
-`in_progress`, then invoke `flow:code`.
+`in_progress`, then invoke `flow:flow-code`.
 
 **Go back to Plan:** update Phases 5, 4, and 3 to `pending`, Phase 2 to
-`in_progress`, then invoke `flow:plan`.
+`in_progress`, then invoke `flow:flow-plan`.
 
 ---
 
@@ -335,7 +335,7 @@ Use AskUserQuestion if a finding is too significant to fix in Review:
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase review --action complete
+bin/flow phase-transition --phase flow-review --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.
@@ -352,24 +352,24 @@ Output in your response (not via Bash) inside a fenced code block:
 ```
 ````
 
-Invoke `flow:status`.
+Invoke `flow:flow-status`.
 
-**If continue=auto**, skip the transition question and invoke `flow:security` directly.
+**If continue=auto**, skip the transition question and invoke `flow:flow-security` directly.
 
 **If continue=manual**, use AskUserQuestion:
 
 > "Phase 5: Review is complete. Ready to begin Phase 6: Security?"
 >
-> - **Yes, start Phase 6 now** — invoke `flow:security`
+> - **Yes, start Phase 6 now** — invoke `flow:flow-security`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
 
 **If "I have a correction or learning to capture":**
 1. Ask the user what they want to capture
-2. Invoke `/flow:note` with their message
+2. Invoke `/flow:flow-note` with their message
 3. Re-ask with only "Yes, start Phase 6 now" and "Not yet"
 
-**If Yes** — invoke `flow:security` using the Skill tool.
+**If Yes** — invoke `flow:flow-security` using the Skill tool.
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 
@@ -377,7 +377,7 @@ Invoke `flow:status`.
 ```text
 ============================================
   FLOW — Paused
-  Run /flow:continue when ready to continue.
+  Run /flow:flow-continue when ready to continue.
 ============================================
 ```
 ````

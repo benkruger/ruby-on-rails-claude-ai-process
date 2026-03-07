@@ -41,7 +41,7 @@ def _setup_feature(git_repo, branch="test-feature"):
     # Create state file
     state_dir = git_repo / ".flow-states"
     state_dir.mkdir(exist_ok=True)
-    state = make_state(current_phase="cleanup", phase_statuses={
+    state = make_state(current_phase="flow-cleanup", phase_statuses={
         k: "complete" for k in PHASE_ORDER
     })
     state["branch"] = branch

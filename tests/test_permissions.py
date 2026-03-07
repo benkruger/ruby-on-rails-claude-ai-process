@@ -69,7 +69,7 @@ def _logging_skills():
 
 def _extract_init_permissions_block():
     """Extract the full permissions dict from init/SKILL.md reference JSON."""
-    content = _read_skill("init")
+    content = _read_skill("flow-init")
     blocks = re.findall(r"```json\s*\n(.*?)```", content, re.DOTALL)
     for block in blocks:
         if '"permissions"' in block and '"allow"' in block:
@@ -145,8 +145,8 @@ PLACEHOLDER_SUBS = {
     "<current-branch>": "test-branch",
     "<test/path/to/file_test.rb>": "test/models/user_test.rb",
     "<tests/path/to/test_file.py>": "tests/test_foo.py",
-    "<N>": "code",
-    "<name>": "code",
+    "<N>": "flow-code",
+    "<name>": "flow-code",
     "<path>": "design.approved_at",
     "<plan_file_path>": ".claude/plans/test-plan.md",
     "<issue_title>": "Test issue title",
@@ -573,7 +573,7 @@ def test_worktree_cd_persists_no_repeated_cd():
     cd .worktrees/ in compound commands. The Bash tool persists working
     directory, so repeated cd .worktrees/ breaks — the second cd looks for
     a nested .worktrees/ inside the worktree that doesn't exist."""
-    content = _read_skill("start")
+    content = _read_skill("flow-start")
 
     # Find all bash blocks across all steps
     bare_cd_count = 0

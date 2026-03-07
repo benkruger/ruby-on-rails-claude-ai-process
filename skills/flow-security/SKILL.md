@@ -1,5 +1,5 @@
 ---
-name: security
+name: flow-security
 description: "Phase 6: Security — scan for security issues in the feature diff. In-flow: diff-only after Review. Standalone: full repo, report-only, no state file required."
 model: opus
 ---
@@ -9,14 +9,14 @@ model: opus
 ## Usage
 
 ```text
-/flow:security
-/flow:security --auto
-/flow:security --manual
+/flow:flow-security
+/flow:flow-security --auto
+/flow:flow-security --manual
 ```
 
-- `/flow:security` — uses configured mode from `.flow.json` (default: auto)
-- `/flow:security --auto` — auto-advance to Learning on completion
-- `/flow:security --manual` — prompt before advancing to Learning
+- `/flow:flow-security` — uses configured mode from `.flow.json` (default: auto)
+- `/flow:flow-security --auto` — auto-advance to Learning on completion
+- `/flow:flow-security --manual` — prompt before advancing to Learning
 
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
@@ -27,10 +27,10 @@ stop immediately and show the error to the user.
    - `git branch --show-current` — this is the current branch.
 2. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
    - If the file does not exist: STOP. "BLOCKED: No FLOW feature in progress.
-     Run /flow:start first."
-3. Check `phases.review.status` in the JSON.
+     Run /flow:flow-start first."
+3. Check `phases.flow-review.status` in the JSON.
    - If not `"complete"`: STOP. "BLOCKED: Phase 5: Review must be
-     complete. Run /flow:review first."
+     complete. Run /flow:flow-review first."
 </HARD-GATE>
 
 Keep the project root, branch, and state data from the gate in context —
@@ -43,7 +43,7 @@ to the project root — `bin/flow` commands find paths internally.
 
 1. If `--auto` was passed → commit=auto, continue=auto
 2. If `--manual` was passed → commit=manual, continue=manual
-3. Otherwise, read `.flow.json` from the project root. Use `skills.security.commit` and `skills.security.continue`.
+3. Otherwise, read `.flow.json` from the project root. Use `skills.flow-security.commit` and `skills.flow-security.continue`.
 4. If `.flow.json` has no `skills` key → use built-in defaults: commit=auto, continue=auto
 
 ## Announce
@@ -63,7 +63,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase security --action enter
+bin/flow phase-transition --phase flow-security --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -386,7 +386,7 @@ Fix each confirmed finding one at a time, in order:
 
 1. Fix the issue in code
 2. Run `bin/flow ci --if-dirty`
-3. If commit=auto, invoke `/flow:commit --auto` for the fix. Otherwise invoke `/flow:commit`.
+3. If commit=auto, invoke `/flow:flow-commit --auto` for the fix. Otherwise invoke `/flow:flow-commit`.
 4. Update the finding's `status` to `"fixed"` in the state file
 5. Move to the next finding
 
@@ -441,7 +441,7 @@ Show a summary of what was found and fixed inside a fenced code block:
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase security --action complete
+bin/flow phase-transition --phase flow-security --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.
@@ -458,24 +458,24 @@ Output in your response (not via Bash) inside a fenced code block:
 ```
 ````
 
-Invoke `flow:status`.
+Invoke `flow:flow-status`.
 
-**If continue=auto**, skip the transition question and invoke `flow:learning` directly.
+**If continue=auto**, skip the transition question and invoke `flow:flow-learning` directly.
 
 **If continue=manual**, use AskUserQuestion:
 
 > "Phase 6: Security is complete. Ready to begin Phase 7: Learning?"
 >
-> - **Yes, start Phase 7 now** — invoke `flow:learning`
+> - **Yes, start Phase 7 now** — invoke `flow:flow-learning`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
 
 **If "I have a correction or learning to capture":**
 1. Ask the user what they want to capture
-2. Invoke `/flow:note` with their message
+2. Invoke `/flow:flow-note` with their message
 3. Re-ask with only "Yes, start Phase 7 now" and "Not yet"
 
-**If Yes** — invoke `flow:learning` using the Skill tool.
+**If Yes** — invoke `flow:flow-learning` using the Skill tool.
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 
@@ -483,7 +483,7 @@ Invoke `flow:status`.
 ```text
 ============================================
   FLOW — Paused
-  Run /flow:continue when ready to continue.
+  Run /flow:flow-continue when ready to continue.
 ============================================
 ```
 ````

@@ -32,7 +32,7 @@ if not files:
 
 
 def reset_interrupted(path, state):
-    cp = state.get("current_phase", "start")
+    cp = state.get("current_phase", "flow-start")
     phase = state.get("phases", {}).get(cp, {})
     if phase.get("session_started_at") is not None:
         state["phases"][cp]["session_started_at"] = None
@@ -64,22 +64,22 @@ if dev_mode:
 
 if len(states) == 1:
     s = states[0]
-    cp = s.get("current_phase", "start")
+    cp = s.get("current_phase", "flow-start")
     phase_name = s.get("phases", {}).get(cp, {}).get("name", "")
     feature = s.get("feature", "")
     plan_file = s.get("plan_file")
-    plan_approved = cp == "plan" and plan_file is not None
+    plan_approved = cp == "flow-plan" and plan_file is not None
 
     if plan_approved:
         resume_instruction = (
             "The plan was approved and ExitPlanMode cleared context.\n"
-            "Invoke flow:continue immediately to complete Phase 2 and "
+            "Invoke flow:flow-continue immediately to complete Phase 2 and "
             "transition to Phase 3: Code.\n"
         )
     else:
         resume_instruction = (
-            "Do NOT invoke flow:continue or ask about this feature unprompted.\n"
-            "The user will type /flow:continue when ready to resume.\n"
+            "Do NOT invoke flow:flow-continue or ask about this feature unprompted.\n"
+            "The user will type /flow:flow-continue when ready to resume.\n"
         )
 
     context = (
@@ -90,7 +90,7 @@ if len(states) == 1:
         f"{resume_instruction}"
         "\n"
         "Throughout this session: whenever the user corrects you, disagrees\n"
-        "with your response, or says something was wrong, invoke flow:note\n"
+        "with your response, or says something was wrong, invoke flow:flow-note\n"
         "immediately before replying to capture the correction.\n"
         "</flow-session-context>"
     )
@@ -98,7 +98,7 @@ if len(states) == 1:
 else:
     features = []
     for s in states:
-        cp = s.get("current_phase", "start")
+        cp = s.get("current_phase", "flow-start")
         phase_name = s.get("phases", {}).get(cp, {}).get("name", "")
         features.append(f"{s.get('feature')} — {phase_name}")
 
@@ -110,11 +110,11 @@ else:
         "Multiple FLOW features are in progress:\n"
         f"{feature_list}\n"
         "\n"
-        "Do NOT invoke flow:continue or ask about these features unprompted.\n"
-        "The user will type /flow:continue when ready to resume.\n"
+        "Do NOT invoke flow:flow-continue or ask about these features unprompted.\n"
+        "The user will type /flow:flow-continue when ready to resume.\n"
         "\n"
         "Throughout this session: whenever the user corrects you, disagrees\n"
-        "with your response, or says something was wrong, invoke flow:note\n"
+        "with your response, or says something was wrong, invoke flow:flow-note\n"
         "immediately before replying to capture the correction.\n"
         "</flow-session-context>"
     )

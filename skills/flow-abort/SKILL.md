@@ -1,5 +1,5 @@
 ---
-name: abort
+name: flow-abort
 description: "Abort the current FLOW feature. Closes the PR, deletes the remote branch, removes the worktree, and deletes the state file. Available from any phase. Use --manual for confirmation prompt."
 ---
 
@@ -11,20 +11,20 @@ from any phase, no prerequisites.
 ## Usage
 
 ```text
-/flow:abort
-/flow:abort --auto
-/flow:abort --manual
+/flow:flow-abort
+/flow:flow-abort --auto
+/flow:flow-abort --manual
 ```
 
-- `/flow:abort` — uses configured mode from `.flow.json` (default: auto)
-- `/flow:abort --auto` — skips confirmation and proceeds directly to cleanup
-- `/flow:abort --manual` — prompts for user confirmation before any destructive action
+- `/flow:flow-abort` — uses configured mode from `.flow.json` (default: auto)
+- `/flow:flow-abort --auto` — skips confirmation and proceeds directly to cleanup
+- `/flow:flow-abort --manual` — prompts for user confirmation before any destructive action
 
 ## Mode Resolution
 
 1. If `--auto` was passed → mode is **auto**
 2. If `--manual` was passed → mode is **manual**
-3. Otherwise, read `.flow.json` from the project root. Use `skills.abort` value.
+3. Otherwise, read `.flow.json` from the project root. Use `skills.flow-abort` value.
 4. If `.flow.json` has no `skills` key → use built-in default: **auto**
 
 ## Entry Check

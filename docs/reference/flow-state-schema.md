@@ -13,7 +13,7 @@ State files live in `.flow-states/` at the project root, named after the branch:
 .flow-states/user-profile-redesign.json
 ```
 
-One file per active feature. Multiple features can run simultaneously with no conflicts. The directory is added to `.git/info/exclude` by `/flow:start` (per-repo, not committed). Created by `/flow:start`, deleted by `/flow:cleanup`.
+One file per active feature. Multiple features can run simultaneously with no conflicts. The directory is added to `.git/info/exclude` by `/flow:flow-start` (per-repo, not committed). Created by `/flow:flow-start`, deleted by `/flow:flow-cleanup`.
 
 ---
 
@@ -27,11 +27,11 @@ One file per active feature. Multiple features can run simultaneously with no co
   "pr_number": 42,
   "pr_url": "https://github.com/org/repo/pull/42",
   "started_at": "2026-02-20T10:00:00-08:00",
-  "current_phase": "plan",
+  "current_phase": "flow-plan",
   "framework": "rails",
   "plan_file": null,
   "phases": {
-    "start": {
+    "flow-start": {
       "name": "Start",
       "status": "complete",
       "started_at": "2026-02-20T10:00:00-08:00",
@@ -40,7 +40,7 @@ One file per active feature. Multiple features can run simultaneously with no co
       "cumulative_seconds": 300,
       "visit_count": 1
     },
-    "plan": {
+    "flow-plan": {
       "name": "Plan",
       "status": "in_progress",
       "started_at": "2026-02-20T10:05:00-08:00",
@@ -49,7 +49,7 @@ One file per active feature. Multiple features can run simultaneously with no co
       "cumulative_seconds": 1800,
       "visit_count": 2
     },
-    "code": {
+    "flow-code": {
       "name": "Code",
       "status": "pending",
       "started_at": null,
@@ -74,10 +74,10 @@ One file per active feature. Multiple features can run simultaneously with no co
 | `pr_number` | integer | GitHub PR number |
 | `pr_url` | string | Full GitHub PR URL |
 | `started_at` | ISO 8601 | When the feature was started (Phase 1 entry) |
-| `current_phase` | string | The currently active phase key (e.g. `"code"`) |
-| `framework` | string | `"rails"` or `"python"` — set during `/flow:init`, copied to state by `/flow:start` |
+| `current_phase` | string | The currently active phase key (e.g. `"flow-code"`) |
+| `framework` | string | `"rails"` or `"python"` — set during `/flow:flow-init`, copied to state by `/flow:flow-start` |
 | `plan_file` | string / null | Absolute path to the plan file at `~/.claude/plans/<name>.md` — set by Phase 2: Plan |
-| `notes` | array | Corrections captured via `/flow:note` — see [Notes Array](#notes-array) |
+| `notes` | array | Corrections captured via `/flow:flow-note` — see [Notes Array](#notes-array) |
 
 ---
 
@@ -109,13 +109,13 @@ Each phase entry has identical fields regardless of status.
 
 ## Notes Array
 
-Populated throughout the session by `/flow:note`. Survives compaction
+Populated throughout the session by `/flow:flow-note`. Survives compaction
 and session restarts. Read by Learning as a primary source.
 
 ```json
 "notes": [
   {
-    "phase": "code",
+    "phase": "flow-code",
     "phase_name": "Code",
     "timestamp": "2026-02-20T14:23:00-08:00",
     "type": "correction",

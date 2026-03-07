@@ -81,7 +81,7 @@ def main():
 
     if not state_file.exists():
         print(f'BLOCKED: No FLOW feature in progress on branch "{branch}".')
-        print("Run /flow:start to begin a new feature.")
+        print("Run /flow:flow-start to begin a new feature.")
         sys.exit(1)
 
     try:

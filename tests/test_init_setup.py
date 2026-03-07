@@ -364,15 +364,15 @@ def test_version_marker_without_skills_has_no_skills_key(tmp_path):
 
 def test_version_marker_with_skills_dict(tmp_path):
     skills = {
-        "start": "manual",
-        "code": "manual",
-        "simplify": "manual",
-        "review": "manual",
-        "security": "auto",
-        "learning": "auto",
-        "commit": "manual",
-        "abort": "auto",
-        "cleanup": "auto",
+        "flow-start": "manual",
+        "flow-code": "manual",
+        "flow-simplify": "manual",
+        "flow-review": "manual",
+        "flow-security": "auto",
+        "flow-learning": "auto",
+        "flow-commit": "manual",
+        "flow-abort": "auto",
+        "flow-cleanup": "auto",
     }
     _mod.write_version_marker(tmp_path, _mod._plugin_version(), "python", skills=skills)
     data = json.loads((tmp_path / ".flow.json").read_text())

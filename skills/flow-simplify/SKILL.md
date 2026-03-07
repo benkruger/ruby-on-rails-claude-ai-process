@@ -1,5 +1,5 @@
 ---
-name: simplify
+name: flow-simplify
 description: "Phase 4: Simplify — invoke /simplify to refactor code for clarity, then auto-commit. Safe because tests already passed in Code phase."
 model: sonnet
 ---
@@ -9,14 +9,14 @@ model: sonnet
 ## Usage
 
 ```text
-/flow:simplify
-/flow:simplify --auto
-/flow:simplify --manual
+/flow:flow-simplify
+/flow:flow-simplify --auto
+/flow:flow-simplify --manual
 ```
 
-- `/flow:simplify` — uses configured mode from `.flow.json` (default: manual)
-- `/flow:simplify --auto` — accept refactoring without approval (still show diff), auto-advance to Review
-- `/flow:simplify --manual` — requires explicit approval of refactoring changes
+- `/flow:flow-simplify` — uses configured mode from `.flow.json` (default: manual)
+- `/flow:flow-simplify --auto` — accept refactoring without approval (still show diff), auto-advance to Review
+- `/flow:flow-simplify --manual` — requires explicit approval of refactoring changes
 
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
@@ -27,10 +27,10 @@ stop immediately and show the error to the user.
    - `git branch --show-current` — this is the current branch.
 2. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
    - If the file does not exist: STOP. "BLOCKED: No FLOW feature in progress.
-     Run /flow:start first."
-3. Check `phases.code.status` in the JSON.
+     Run /flow:flow-start first."
+3. Check `phases.flow-code.status` in the JSON.
    - If not `"complete"`: STOP. "BLOCKED: Phase 3: Code must be
-     complete. Run /flow:code first."
+     complete. Run /flow:flow-code first."
 </HARD-GATE>
 
 Keep the project root, branch, and state data from the gate in context —
@@ -43,7 +43,7 @@ to the project root — `bin/flow` commands find paths internally.
 
 1. If `--auto` was passed → commit=auto, continue=auto
 2. If `--manual` was passed → commit=manual, continue=manual
-3. Otherwise, read `.flow.json` from the project root. Use `skills.simplify.commit` and `skills.simplify.continue`.
+3. Otherwise, read `.flow.json` from the project root. Use `skills.flow-simplify.commit` and `skills.flow-simplify.continue`.
 4. If `.flow.json` has no `skills` key → use built-in defaults: commit=manual, continue=manual
 
 ## Announce
@@ -63,7 +63,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase simplify --action enter
+bin/flow phase-transition --phase flow-simplify --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -147,7 +147,7 @@ then proceed directly to Done.
 
 **If "Go back to Code"**: Run `git restore .` to discard changes,
 update Phase 4 to `pending`, Phase 3 to `in_progress`, then invoke
-`flow:code`.
+`flow:flow-code`.
 
 ---
 
@@ -156,7 +156,7 @@ update Phase 4 to `pending`, Phase 3 to `in_progress`, then invoke
 Automatically commit the `/simplify` changes without additional approval
 (the user already approved in Step 2):
 
-If commit=auto, use `/flow:commit --auto`. Otherwise, use `/flow:commit`.
+If commit=auto, use `/flow:flow-commit --auto`. Otherwise, use `/flow:flow-commit`.
 
 ---
 
@@ -165,7 +165,7 @@ If commit=auto, use `/flow:commit --auto`. Otherwise, use `/flow:commit`.
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase simplify --action complete
+bin/flow phase-transition --phase flow-simplify --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.
@@ -182,24 +182,24 @@ Output in your response (not via Bash) inside a fenced code block:
 ```
 ````
 
-Invoke `flow:status`.
+Invoke `flow:flow-status`.
 
-**If continue=auto**, skip the transition question and invoke `flow:review` directly.
+**If continue=auto**, skip the transition question and invoke `flow:flow-review` directly.
 
 **If continue=manual**, use AskUserQuestion:
 
 > "Phase 4: Simplify is complete. Ready to begin Phase 5: Review?"
 >
-> - **Yes, start Phase 5 now** — invoke `flow:review`
+> - **Yes, start Phase 5 now** — invoke `flow:flow-review`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
 
 **If "I have a correction or learning to capture":**
 1. Ask the user what they want to capture
-2. Invoke `/flow:note` with their message
+2. Invoke `/flow:flow-note` with their message
 3. Re-ask with only "Yes, start Phase 5 now" and "Not yet"
 
-**If Yes** — invoke `flow:review` using the Skill tool.
+**If Yes** — invoke `flow:flow-review` using the Skill tool.
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 
@@ -207,7 +207,7 @@ Invoke `flow:status`.
 ```
 ============================================
   FLOW — Paused
-  Run /flow:continue when ready to continue.
+  Run /flow:flow-continue when ready to continue.
 ============================================
 ```
 ````

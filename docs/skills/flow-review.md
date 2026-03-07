@@ -1,14 +1,14 @@
 ---
-title: /flow:review
+title: /flow:flow-review
 nav_order: 8
 parent: Skills
 ---
 
-# /flow:review
+# /flow:flow-review
 
 **Phase:** 5 — Review
 
-**Usage:** `/flow:review`, `/flow:review --auto`, or `/flow:review --manual`
+**Usage:** `/flow:flow-review`, `/flow:flow-review --auto`, or `/flow:flow-review --manual`
 
 Systematic review against design, research risks, and framework
 anti-patterns. Fixes findings, runs `bin/flow ci` after every fix, then

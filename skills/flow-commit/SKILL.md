@@ -1,5 +1,5 @@
 ---
-name: commit
+name: flow-commit
 description: "Review the full diff, approve or deny, then git add + commit + push. Use at every commit checkpoint in the FLOW workflow."
 model: sonnet
 ---
@@ -32,7 +32,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ````text
 ```
 ============================================
-  FLOW v0.18.0 — flow:commit — STARTING
+  FLOW v0.18.0 — flow:flow-commit — STARTING
 ============================================
 ```
 ````
@@ -54,7 +54,7 @@ On completion (whether approved or denied), print the same way:
 ````text
 ```
 ============================================
-  FLOW v0.18.0 — flow:commit — COMPLETE
+  FLOW v0.18.0 — flow:flow-commit — COMPLETE
 ============================================
 ```
 ````
@@ -72,14 +72,14 @@ On completion (whether approved or denied), print the same way:
 ## Usage
 
 ```text
-/flow:commit
-/flow:commit --auto
-/flow:commit --manual
+/flow:flow-commit
+/flow:flow-commit --auto
+/flow:flow-commit --manual
 ```
 
-- `/flow:commit` — defaults to auto (no approval prompt)
-- `/flow:commit --auto` — skips the approval prompt
-- `/flow:commit --manual` — requires explicit approval
+- `/flow:flow-commit` — defaults to auto (no approval prompt)
+- `/flow:flow-commit --auto` — skips the approval prompt
+- `/flow:flow-commit --manual` — requires explicit approval
 
 ## Mode Resolution
 
@@ -87,7 +87,7 @@ On completion (whether approved or denied), print the same way:
 2. If `--manual` was passed → mode is **manual**
 3. Otherwise → mode is **auto**
 
-`--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:learning`, which is fully autonomous and commits without mid-process approval.
+`--auto` is user-invoked only. Claude must never call `/flow:flow-commit --auto` programmatically — except in `/flow:flow-learning`, which is fully autonomous and commits without mid-process approval.
 
 ---
 
@@ -274,7 +274,7 @@ will make fixes and re-invoke the commit skill when ready.
 
 - Never commit without showing the diff first
 - The default commit mode is auto — never prompt for approval unless `--manual` was explicitly passed
-- `--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically — except in `/flow:learning`, which is fully autonomous and commits without mid-process approval.
+- `--auto` is user-invoked only. Claude must never call `/flow:flow-commit --auto` programmatically — except in `/flow:flow-learning`, which is fully autonomous and commits without mid-process approval.
 - Never use `--no-verify`
 - Never add Co-Authored-By trailers or attribution lines — commits are authored by the user alone
 - Always pull before pushing — other sessions may have merged changes

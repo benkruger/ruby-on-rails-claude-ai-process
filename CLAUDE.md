@@ -51,14 +51,14 @@ Three phase skills launch mandatory sub-agents: Review and Security (general-pur
 
 Since Claude Code 2.1.63, auto-memory is shared across git worktrees of the same repository. Memory written during feature work persists at the repo-root path and survives worktree cleanup — no rescue needed.
 
-Learning is a unified tri-modal skill. It auto-detects Phase 7 (state file with Security complete), Maintainer (no state file, `flow-phases.json` exists), or Standalone (no state file, no `flow-phases.json`). All three modes route learnings to 5 destinations. Phase 7 adds GitHub issues and phase transitions. Maintainer commits via `/flow:commit --auto`. Standalone never commits.
+Learning is a unified tri-modal skill. It auto-detects Phase 7 (state file with Security complete), Maintainer (no state file, `flow-phases.json` exists), or Standalone (no state file, no `flow-phases.json`). All three modes route learnings to 5 destinations. Phase 7 adds GitHub issues and phase transitions. Maintainer commits via `/flow:flow-commit --auto`. Standalone never commits.
 
 The 5 destinations split into two types — **instructions** (always loaded, authoritative) and **context** (informational):
 
 - **Instructions (destinations 1-4):** global CLAUDE.md (`~/.claude/CLAUDE.md`), project CLAUDE.md (`CLAUDE.md` in project), global rules (`~/.claude/rules/`), project rules (`.claude/rules/` in project). These tell Claude what to do and not do.
 - **Context (destination 5):** project memory (`~/.claude/projects/<repo-root>/memory/MEMORY.md`). This tells Claude what exists, what was decided, and what the user prefers.
 
-Private destinations (1, 3, 5) are written directly outside the repo. Repo destinations (2, 4) are committed via PR (Phase 7) or `/flow:commit --auto` (Maintainer). Notes captured by `/flow:note` feed into the same routing mechanism.
+Private destinations (1, 3, 5) are written directly outside the repo. Repo destinations (2, 4) are committed via PR (Phase 7) or `/flow:flow-commit --auto` (Maintainer). Notes captured by `/flow:flow-note` feed into the same routing mechanism.
 
 Commit is also tri-modal. It auto-detects FLOW (state file exists), Maintainer (no state file, `flow-phases.json` exists), or Standalone (neither). FLOW mode adds version banners and Python auto-approval. All three modes share the same diff/message/approval/push process.
 
@@ -89,7 +89,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 | `test_check_phase.py` | Phase guard: blocks on incomplete prerequisites, allows on complete, handles worktrees, re-entry notes |
 | `test_session_start.py` | Session hook: feature detection, timing reset, awareness injection, multi-feature handling |
 | `test_docs_sync.py` | Docs completeness: every skill has a docs page, every phase has a docs page, index and README mention all commands |
-| `test_permissions.py` | Permission simulation: allow/deny coverage, placeholder validation, source-of-truth sync between init-setup.py and init/SKILL.md, regex unit tests. Unrecognized placeholders fail loudly |
+| `test_permissions.py` | Permission simulation: allow/deny coverage, placeholder validation, source-of-truth sync between init-setup.py and flow-init/SKILL.md, regex unit tests. Unrecognized placeholders fail loudly |
 | `test_bin_ci.py` | CI runner: venv detection, pass/fail behavior |
 | `test_bin_test.py` | Test runner: venv detection, pass/fail, argument passthrough |
 | `test_start_setup.py` | Start setup script: branch naming, settings merge, worktree, state file, logging, error paths |
@@ -105,12 +105,12 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 
 ## Conventions
 
-- All commits via `/flow:commit` skill — no exceptions, no shortcuts, no "just this once"
+- All commits via `/flow:flow-commit` skill — no exceptions, no shortcuts, no "just this once"
 - All changes require `bin/flow ci` green before committing — tests are the gate
 - New skills are automatically covered by test_skill_contracts.py (glob-based discovery)
 - Namespace is `flow:` — plugin.json name is `"flow"`
 - Never rebase — merge only (denied in `.claude/settings.json`)
-- CLAUDE.md changes only through `/flow:learning` — never edit CLAUDE.md directly. The `/flow:learning` skill exists to review mistakes, propose additions, get individual approval for each change, and commit. Editing CLAUDE.md outside of `/flow:learning` bypasses all of that.
+- CLAUDE.md changes only through `/flow:flow-learning` — never edit CLAUDE.md directly. The `/flow:flow-learning` skill exists to review mistakes, propose additions, get individual approval for each change, and commit. Editing CLAUDE.md outside of `/flow:flow-learning` bypasses all of that.
 - **Never add pymarkdown exclusions** — The `.pymarkdown.yml` disables MD013 (line length), MD025 (multiple H1 with frontmatter), MD033 (inline HTML), and MD036 (emphasis as heading) because those conflict with this repo's intentional patterns. No further rule disablements or path exclusions may be added. If a markdown file triggers a lint error, fix the file — do not suppress the rule. If a rule genuinely cannot be satisfied, surface it to the user for a decision.
 - **Skills must never instruct Claude to compute values** — no timestamp generation, no time arithmetic, no counter increments, no `date -u`. All computation goes through `bin/flow` subcommands. Skills say "run this command", never "calculate this value". `test_skill_contracts.py` enforces this: `test_phase_skills_no_inline_time_computation` fails if any phase skill contains computational instruction patterns.
 - **All timestamps use Pacific Time** — `lib/flow_utils.py` provides `now()` which returns `datetime.now(ZoneInfo("America/Los_Angeles")).isoformat(timespec="seconds")`. All scripts import `now` from `flow_utils` — never generate timestamps locally. Existing state files with UTC timestamps (`Z` suffix) are handled by `datetime.fromisoformat()` which parses both formats.

@@ -241,7 +241,7 @@ def test_state_file_created(_default_run):
     assert state["feature"] == "Test Feature"
     assert state["branch"] == "test-feature"
     assert state["worktree"] == ".worktrees/test-feature"
-    assert state["current_phase"] == "start"
+    assert state["current_phase"] == "flow-start"
     assert state["notes"] == []
 
 
@@ -250,8 +250,8 @@ def test_state_file_has_all_8_phases(_default_run):
     data, state, log, repo = _default_run
 
     expected_names = {
-        "start": "Start", "plan": "Plan", "code": "Code", "simplify": "Simplify",
-        "review": "Review", "security": "Security", "learning": "Learning", "cleanup": "Cleanup",
+        "flow-start": "Start", "flow-plan": "Plan", "flow-code": "Code", "flow-simplify": "Simplify",
+        "flow-review": "Review", "flow-security": "Security", "flow-learning": "Learning", "flow-cleanup": "Cleanup",
     }
     assert len(state["phases"]) == 8
     for key, name in expected_names.items():
@@ -276,7 +276,7 @@ def test_state_file_phase_1_in_progress(_default_run):
     """Phase 1 should be in_progress with timestamps set."""
     data, state, log, repo = _default_run
 
-    start_phase = state["phases"]["start"]
+    start_phase = state["phases"]["flow-start"]
     assert start_phase["status"] == "in_progress"
     assert start_phase["started_at"] is not None
     assert start_phase["session_started_at"] is not None
@@ -288,7 +288,7 @@ def test_state_file_other_phases_pending(_default_run):
     data, state, log, repo = _default_run
 
     for key in PHASE_ORDER:
-        if key == "start":
+        if key == "flow-start":
             continue
         phase = state["phases"][key]
         assert phase["status"] == "pending"

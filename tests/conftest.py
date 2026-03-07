@@ -92,10 +92,10 @@ def state_dir(git_repo):
     return d
 
 
-def make_state(current_phase="start", phase_statuses=None, framework="rails"):
+def make_state(current_phase="flow-start", phase_statuses=None, framework="rails"):
     """Build a minimal state dict.
 
-    phase_statuses is a dict like {"start": "complete", "plan": "in_progress"}.
+    phase_statuses is a dict like {"flow-start": "complete", "flow-plan": "in_progress"}.
     Unspecified phases default to "pending".
     framework is "rails" or "python" (default "rails").
     """

@@ -1,5 +1,5 @@
 ---
-name: status
+name: flow-status
 description: "Show current SDLC phase, PR link, timing, and what comes next. Reads .flow-states/<branch>.json. Use any time you want to know where you are in the workflow."
 ---
 
@@ -15,7 +15,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ````markdown
 ```text
 ============================================
-  FLOW v0.18.0 — flow:status — STARTING
+  FLOW v0.18.0 — flow:flow-status — STARTING
 ============================================
 ```
 ````
@@ -39,7 +39,7 @@ Check the exit code:
 ````markdown
 ```text
 No FLOW feature in progress on this branch.
-Start one with /flow:start <feature name>.
+Start one with /flow:flow-start <feature name>.
 ```
 ````
 

@@ -1,14 +1,14 @@
 ---
-title: /flow:commit
+title: /flow:flow-commit
 nav_order: 2
 parent: Skills
 ---
 
-# /flow:commit
+# /flow:flow-commit
 
 **Phase:** Any
 
-**Usage:** `/flow:commit`, `/flow:commit --auto`, or `/flow:commit --manual`
+**Usage:** `/flow:flow-commit`, `/flow:flow-commit --auto`, or `/flow:flow-commit --manual`
 
 Reviews all pending changes before committing. You see the full diff and proposed commit message, then approve or deny before anything is pushed. This is the only way commits are made in the FLOW workflow.
 
@@ -47,7 +47,7 @@ Commit auto-detects its context:
 
 | Mode | When | Banner |
 |------|------|--------|
-| FLOW | State file exists | Versioned (`FLOW v0.14.0 — flow:commit`) |
+| FLOW | State file exists | Versioned (`FLOW v0.14.0 — flow:flow-commit`) |
 | Maintainer | No state file, `flow-phases.json` exists | Plain (`Commit`) |
 | Standalone | No state file, no `flow-phases.json` | Plain (`Commit`) |
 
@@ -71,9 +71,9 @@ Mode is resolved in this order:
 
 1. `--auto` flag → auto mode (skip approval)
 2. `--manual` flag → manual mode (require approval)
-3. `.flow.json` `skills.commit` value
+3. `.flow.json` `skills.flow-commit` value
 4. Built-in default: **manual**
 
 Everything else stays identical: `bin/flow ci` runs first (FLOW and Maintainer mode only), the full diff is displayed, the commit message is generated and shown, and pull-before-push happens. The only difference is whether Step 3 (approval prompt) is shown.
 
-`--auto` is user-invoked only. Claude must never call `/flow:commit --auto` programmatically.
+`--auto` is user-invoked only. Claude must never call `/flow:flow-commit --auto` programmatically.

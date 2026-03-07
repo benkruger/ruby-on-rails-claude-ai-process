@@ -5,6 +5,7 @@
 ### Breaking Changes
 
 - **Phase 7 renamed:** `flow:reflect` is now `flow:learning` across all skills, docs, state files, and phase definitions. Existing state files referencing "reflect" will need manual update.
+- **All skills renamed with `flow-` prefix:** Skill directories, phase keys, state file keys, and commands now use `flow-` prefix (`/flow:flow-start`, `/flow:flow-plan`, etc.) to avoid namespace collisions with Claude Code's built-in autocomplete. Existing state files with bare phase keys (`"start"`, `"plan"`) will need manual update.
 
 ### New Features
 

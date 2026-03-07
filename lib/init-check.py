@@ -1,4 +1,4 @@
-"""Version gate — verify /flow:init has been run with matching version.
+"""Version gate — verify /flow:flow-init has been run with matching version.
 
 Usage: bin/flow init-check
 
@@ -19,7 +19,7 @@ def main():
     if not flow_json.exists():
         print(json.dumps({
             "status": "error",
-            "message": "FLOW not initialized. Run /flow:init first.",
+            "message": "FLOW not initialized. Run /flow:flow-init first.",
         }))
         return
 
@@ -36,7 +36,7 @@ def main():
             "message": (
                 f"FLOW version mismatch: initialized for "
                 f"v{init_data.get('flow_version')}, plugin is "
-                f"v{plugin_version}. Run /flow:init to upgrade."
+                f"v{plugin_version}. Run /flow:flow-init to upgrade."
             ),
         }))
         return
@@ -45,7 +45,7 @@ def main():
     if framework not in ("rails", "python"):
         print(json.dumps({
             "status": "error",
-            "message": "Missing framework in .flow.json. Run /flow:init to configure.",
+            "message": "Missing framework in .flow.json. Run /flow:flow-init to configure.",
         }))
         return
 

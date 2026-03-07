@@ -1,14 +1,14 @@
 ---
-title: /flow:init
+title: /flow:flow-init
 nav_order: 7
 parent: Skills
 ---
 
-# /flow:init
+# /flow:flow-init
 
 **Phase:** Any (run once per install/upgrade)
 
-**Usage:** `/flow:init`
+**Usage:** `/flow:flow-init`
 
 One-time project setup. Configures workspace permissions in `.claude/settings.json`, sets up git excludes, and writes a version marker. Run once after installing FLOW and again after each upgrade.
 
@@ -31,7 +31,7 @@ One-time project setup. Configures workspace permissions in `.claude/settings.js
 
 FLOW has two independent axes for skills that support them:
 
-- **Commit** — how `/flow:commit` is invoked during phase work (auto = skip diff approval, manual = require approval). Also controls per-task approval in Code and refactoring approval in Simplify.
+- **Commit** — how `/flow:flow-commit` is invoked during phase work (auto = skip diff approval, manual = require approval). Also controls per-task approval in Code and refactoring approval in Simplify.
 - **Continue** — whether to auto-advance to the next phase or prompt first.
 
 The chosen configuration is stored in `.flow.json` under a `skills` key:
@@ -41,19 +41,19 @@ The chosen configuration is stored in `.flow.json` under a `skills` key:
   "flow_version": "0.16.4",
   "framework": "python",
   "skills": {
-    "start": {"continue": "manual"},
-    "code": {"commit": "manual", "continue": "manual"},
-    "simplify": {"commit": "auto", "continue": "auto"},
-    "review": {"commit": "auto", "continue": "auto"},
-    "security": {"commit": "auto", "continue": "auto"},
-    "learning": {"commit": "auto", "continue": "auto"},
-    "abort": "auto",
-    "cleanup": "auto"
+    "flow-start": {"continue": "manual"},
+    "flow-code": {"commit": "manual", "continue": "manual"},
+    "flow-simplify": {"commit": "auto", "continue": "auto"},
+    "flow-review": {"commit": "auto", "continue": "auto"},
+    "flow-security": {"commit": "auto", "continue": "auto"},
+    "flow-learning": {"commit": "auto", "continue": "auto"},
+    "flow-abort": "auto",
+    "flow-cleanup": "auto"
   }
 }
 ```
 
-Phase skills that commit (Code, Simplify, Review, Security, Learning) have both axes as a nested object. Phase skills that don't commit (Start) have only the continue axis. Utility skills (Abort, Cleanup) have a single string value. The `/flow:commit` skill is not configurable — it defaults to auto and can be overridden with `--manual`.
+Phase skills that commit (Code, Simplify, Review, Security, Learning) have both axes as a nested object. Phase skills that don't commit (Start) have only the continue axis. Utility skills (Abort, Cleanup) have a single string value. The `/flow:flow-commit` skill is not configurable — it defaults to auto and can be overridden with `--manual`.
 
 Individual skills can always be overridden at invocation time with `--auto` or `--manual` flags, regardless of the `.flow.json` configuration.
 
@@ -68,4 +68,4 @@ Individual skills can always be overridden at invocation time with `--auto` or `
 
 ## See Also
 
-- [/flow:start](flow-start.md) — requires `/flow:init` to have been run for the current FLOW version
+- [/flow:flow-start](flow-start.md) — requires `/flow:flow-init` to have been run for the current FLOW version

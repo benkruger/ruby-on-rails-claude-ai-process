@@ -68,7 +68,7 @@ def main():
 
     try:
         state_data = json.loads(state_path.read_text())
-        phase = state_data.get("current_phase", "start")
+        phase = state_data.get("current_phase", "flow-start")
     except Exception as e:
         print(json.dumps({
             "status": "error",

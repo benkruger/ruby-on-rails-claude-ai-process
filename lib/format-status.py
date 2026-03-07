@@ -117,7 +117,7 @@ def format_panel(state, version, now=None, dev_mode=False):
     # Continue (in_progress) vs Next (pending)
     # current_phase already points to the next phase after phase-transition
     # --action complete, so COMMANDS[current] is always the right command.
-    current = state.get("current_phase", "start")
+    current = state.get("current_phase", "flow-start")
     current_status = phases.get(current, {}).get("status", "pending")
     if current_status == "in_progress":
         cmd = COMMANDS.get(current, f"/flow:{current}")
@@ -177,7 +177,7 @@ def format_multi_panel(results, version, dev_mode=False):
     lines.append("")
 
     for i, (path, state, matched_branch) in enumerate(results, 1):
-        phase_key = state.get("current_phase", "start")
+        phase_key = state.get("current_phase", "flow-start")
         phase_name = PHASE_NAMES.get(phase_key, phase_key)
         phase_num = PHASE_NUMBER.get(phase_key, "?")
         phase_status = state.get("phases", {}).get(

@@ -1,5 +1,5 @@
 ---
-name: learning
+name: flow-learning
 description: "Phase 7: Learning — review what went wrong, capture learnings, route each to its correct permanent home. Runs before the PR is merged. The only commits are CLAUDE.md and .claude/ changes."
 model: sonnet
 ---
@@ -9,14 +9,14 @@ model: sonnet
 ## Usage
 
 ```text
-/flow:learning
-/flow:learning --auto
-/flow:learning --manual
+/flow:flow-learning
+/flow:flow-learning --auto
+/flow:flow-learning --manual
 ```
 
-- `/flow:learning` — uses configured mode from `.flow.json` (default: auto)
-- `/flow:learning --auto` — skip permission promotion prompts, auto-advance to Cleanup
-- `/flow:learning --manual` — prompt for permission promotion and phase transition
+- `/flow:flow-learning` — uses configured mode from `.flow.json` (default: auto)
+- `/flow:flow-learning --auto` — skip permission promotion prompts, auto-advance to Cleanup
+- `/flow:flow-learning --manual` — prompt for permission promotion and phase transition
 
 <HARD-GATE>
 Run this entry check as your very first action. If any check fails,
@@ -27,9 +27,9 @@ stop immediately and show the error to the user.
    - `git branch --show-current` — this is the current branch.
 2. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
 3. **Determine mode:**
-   - **State file exists + `phases.security.status` == `"complete"`** → **Phase 7** mode
+   - **State file exists + `phases.flow-security.status` == `"complete"`** → **Phase 7** mode
    - **State file exists + phase 6 incomplete** → STOP. "BLOCKED: Phase 6:
-     Security must be complete. Run /flow:security first."
+     Security must be complete. Run /flow:flow-security first."
    - **No state file** → Use Glob to check for `flow-phases.json` in the
      project root.
      - Exists → **Maintainer** mode (this is the plugin source repo)
@@ -46,7 +46,7 @@ to the project root — `bin/flow` commands find paths internally.
 
 1. If `--auto` was passed → commit=auto, continue=auto
 2. If `--manual` was passed → commit=manual, continue=manual
-3. Otherwise, read `.flow.json` from the project root. Use `skills.learning.commit` and `skills.learning.continue`.
+3. Otherwise, read `.flow.json` from the project root. Use `skills.flow-learning.commit` and `skills.flow-learning.continue`.
 4. If `.flow.json` has no `skills` key → use built-in defaults: commit=auto, continue=auto
 
 ## Announce
@@ -80,7 +80,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase learning --action enter
+bin/flow phase-transition --phase flow-learning --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -133,7 +133,7 @@ Read tool to read the plan file. Note:
 - Review findings that were caught late
 
 Read `state["notes"]` in full. These are corrections and learnings
-captured during the session via `/flow:note`. They are the most direct
+captured during the session via `/flow:flow-note`. They are the most direct
 signal of what went wrong.
 
 ---
@@ -263,13 +263,13 @@ rm .claude/settings.local.json
 ## Step 5 — Commit (conditional)
 
 **Phase 6:** If any repo-destination changes were made (destinations 2 or
-4), commit once via `/flow:commit --auto`. Only CLAUDE.md and `.claude/`
+4), commit once via `/flow:flow-commit --auto`. Only CLAUDE.md and `.claude/`
 files are committed — never application code. If `git add -A` results in
 nothing staged (stealth user with excluded files), skip the commit
 gracefully — do not error.
 
 **Maintainer:** If any repo-destination changes were made, commit once via
-`/flow:commit --auto`.
+`/flow:flow-commit --auto`.
 
 **Standalone:** Skip entirely — no commit.
 
@@ -328,7 +328,7 @@ Present the full report to the user:
 
   Process gaps
   ------------
-  - /flow:commit should warn when branch is behind
+  - /flow:flow-commit should warn when branch is behind
   - ...
 
   Changes applied
@@ -361,7 +361,7 @@ next to each repo-destination file to indicate whether Step 4 committed it.
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase learning --action complete
+bin/flow phase-transition --phase flow-learning --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.
@@ -374,29 +374,29 @@ Output in your response (not via Bash) inside a fenced code block:
 ```text
 ============================================
   FLOW v0.18.0 — Phase 7: Learning — COMPLETE (<formatted_time>)
-  Merge the PR, then run /flow:cleanup.
+  Merge the PR, then run /flow:flow-cleanup.
 ============================================
 ```
 ````
 
-Invoke `flow:status`.
+Invoke `flow:flow-status`.
 
-**If continue=auto**, skip the transition question and invoke `flow:cleanup` directly.
+**If continue=auto**, skip the transition question and invoke `flow:flow-cleanup` directly.
 
 **If continue=manual**, use AskUserQuestion:
 
 > "Phase 7: Learning is complete. The PR now includes CLAUDE.md improvements. Ready to begin Phase 8: Cleanup?"
 >
-> - **Yes, start Phase 8 now** — invoke `flow:cleanup`
+> - **Yes, start Phase 8 now** — invoke `flow:flow-cleanup`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
 
 **If "I have a correction or learning to capture":**
 1. Ask the user what they want to capture
-2. Invoke `/flow:note` with their message
+2. Invoke `/flow:flow-note` with their message
 3. Re-ask with only "Yes, start Phase 8 now" and "Not yet"
 
-**If Yes** — invoke `flow:cleanup` using the Skill tool.
+**If Yes** — invoke `flow:flow-cleanup` using the Skill tool.
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 
@@ -404,7 +404,7 @@ Invoke `flow:status`.
 ```text
 ============================================
   FLOW — Paused
-  Run /flow:continue when ready to continue.
+  Run /flow:flow-continue when ready to continue.
 ============================================
 ```
 ````
@@ -434,7 +434,7 @@ No phase transition, no transition question.
 - Decisions on destinations and wording are autonomous — do not ask the user for approval mid-process
 - The report in Step 7 is the user's review point — make it comprehensive
 - Global writes (`~/.claude/CLAUDE.md`, `~/.claude/rules/`, `~/.claude/projects/`) are direct edits — never committed
-- Repo writes (`CLAUDE.md`, `.claude/rules/`) go through `/flow:commit --auto` (Phase 6 and Maintainer)
+- Repo writes (`CLAUDE.md`, `.claude/rules/`) go through `/flow:flow-commit --auto` (Phase 6 and Maintainer)
 - Plugin improvement notes are filed as GitHub issues on the plugin repo — never committed to the target project
 - Only CLAUDE.md and `.claude/` files are modified — never application code
 - Never use Bash to print banners — output them as text in your response

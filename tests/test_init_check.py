@@ -34,7 +34,7 @@ def test_fails_when_flow_json_missing(tmp_path):
     assert result.returncode == 0
     data = json.loads(result.stdout)
     assert data["status"] == "error"
-    assert "/flow:init" in data["message"]
+    assert "/flow:flow-init" in data["message"]
 
 
 def test_fails_when_flow_version_mismatch(tmp_path):

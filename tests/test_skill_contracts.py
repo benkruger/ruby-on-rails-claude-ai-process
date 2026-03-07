@@ -30,7 +30,7 @@ def _phase_skills():
     result = {}
     for key in data["order"]:
         phase = data["phases"][key]
-        # /flow:start -> start, /flow:research -> research, etc.
+        # /flow:flow-start -> flow-start, /flow:flow-plan -> flow-plan, etc.
         skill_name = phase["command"].split(":")[1]
         result[key] = skill_name
     return result
@@ -77,7 +77,7 @@ def test_utility_skills_have_no_phase_gate():
         content = _read_skill(name)
         # They should not have the structured phase entry HARD-GATE
         # (checking phases.<key>.status)
-        assert not re.search(r"phases\.\w+\.status", content), (
+        assert not re.search(r"phases\.[\w-]+\.status", content), (
             f"Utility skill '{name}' has a phase status check — "
             f"utility skills should not gate on phase status"
         )
@@ -85,9 +85,9 @@ def test_utility_skills_have_no_phase_gate():
 
 def test_phase_1_has_no_previous_phase_gate():
     """Phase 1 (Start) should not check a previous phase's status."""
-    content = _read_skill("start")
+    content = _read_skill("flow-start")
     # Start has HARD-GATE but for feature name, not for previous phase
-    assert not re.search(r"phases\.\w+\.status", content), (
+    assert not re.search(r"phases\.[\w-]+\.status", content), (
         "Phase 1 (start) should not gate on any phase status"
     )
 
@@ -211,8 +211,10 @@ def test_flow_references_point_to_existing_skills():
         for md_file in sorted(d.glob("*.md")):
             content = md_file.read_text()
             rel = md_file.relative_to(REPO_ROOT)
-            refs = re.findall(r"/flow:(\w+)", content)
+            refs = re.findall(r"/flow:([\w-]+)", content)
             for ref in refs:
+                if ref.endswith("-"):
+                    continue  # placeholder like /flow:flow-<skill>
                 assert (SKILLS_DIR / ref).is_dir(), (
                     f"{rel} references /flow:{ref} "
                     f"but skills/{ref}/ does not exist"
@@ -245,7 +247,7 @@ def test_phase_transitions_follow_sequence():
 def test_subagent_prompts_include_tool_restriction():
     """Review, Security sub-agent prompts must include
     the tool restriction rule in SKILL.md."""
-    subagent_skills = ["review", "security"]
+    subagent_skills = ["flow-review", "flow-security"]
     for name in subagent_skills:
         skill_dir = SKILLS_DIR / name
         combined = ""
@@ -263,7 +265,7 @@ def test_subagent_prompts_allow_git_show():
     Sub-agents need git show to compare files against origin/main.
     Without it, sub-agents improvise with git show piped through sed,
     which triggers permission prompts."""
-    subagent_skills = ["review", "security"]
+    subagent_skills = ["flow-review", "flow-security"]
     for name in subagent_skills:
         content = _read_skill(name)
         assert "git show" in content, (
@@ -279,7 +281,7 @@ def test_subagent_prompts_ban_piping():
 
     Sub-agents pipe git show through sed to extract line ranges, which
     triggers permission prompts. The prompt must explicitly ban this."""
-    subagent_skills = ["review", "security"]
+    subagent_skills = ["flow-review", "flow-security"]
     for name in subagent_skills:
         content = _read_skill(name)
         assert re.search(r"[Nn]ever pipe", content), (
@@ -314,7 +316,7 @@ def test_phase_skills_have_tool_restriction_in_hard_rules():
 
 def test_subagent_types_match_requirements():
     """Review/Security and Start use general-purpose."""
-    subagent_skills = ["review", "security"]
+    subagent_skills = ["flow-review", "flow-security"]
     for name in subagent_skills:
         content = _read_skill(name)
         assert '"general-purpose"' in content, (
@@ -322,9 +324,9 @@ def test_subagent_types_match_requirements():
         )
 
     # Start's general-purpose sub-agent is in SKILL.md (framework sections merged)
-    start_content = _read_skill("start")
+    start_content = _read_skill("flow-start")
     assert '"general-purpose"' in start_content, (
-        "skills/start/SKILL.md should use general-purpose subagent_type"
+        "skills/flow-start/SKILL.md should use general-purpose subagent_type"
     )
 
 
@@ -359,7 +361,7 @@ def test_phase_skills_have_update_state_section():
     phase_skills = _phase_skills()
 
     for key, skill_name in phase_skills.items():
-        if key == "cleanup":
+        if key == "flow-cleanup":
             continue  # Cleanup deletes state, doesn't update it
         content = _read_skill(skill_name)
 
@@ -383,7 +385,7 @@ def test_phase_skills_with_content_writes_have_state_write_instruction():
     Skills that only use bin/flow commands for state mutations (start, code,
     review, learning) do not need this instruction."""
     phase_skills = _phase_skills()
-    content_write_phases = {"security"}
+    content_write_phases = {"flow-security"}
     for key in content_write_phases:
         skill_name = phase_skills[key]
         content = _read_skill(skill_name)
@@ -464,14 +466,14 @@ def test_model_frontmatter_matches_documented_table():
     """Model frontmatter must match: opus for Plan/Code/Security, sonnet for
     Review/Learning/Commit, haiku for Start/Cleanup."""
     expected = {
-        "start": "haiku",
-        "plan": "opus",
-        "code": "opus",
-        "review": "sonnet",
-        "security": "opus",
-        "learning": "sonnet",
-        "cleanup": "haiku",
-        "commit": "sonnet",
+        "flow-start": "haiku",
+        "flow-plan": "opus",
+        "flow-code": "opus",
+        "flow-review": "sonnet",
+        "flow-security": "opus",
+        "flow-learning": "sonnet",
+        "flow-cleanup": "haiku",
+        "flow-commit": "sonnet",
     }
     for skill_name, expected_model in expected.items():
         content = _read_skill(skill_name)
@@ -491,7 +493,7 @@ def test_model_frontmatter_matches_documented_table():
 def test_cleanup_and_abort_mention_log_in_user_facing_text():
     """If cleanup/abort skills delete .log files, their user-facing
     text must mention 'state file and log' (not just 'state file')."""
-    for skill_name in ("abort", "cleanup"):
+    for skill_name in ("flow-abort", "flow-cleanup"):
         content = _read_skill(skill_name)
         if ".log" not in content:
             continue  # Conditional contract — skill doesn't mention .log yet
@@ -533,7 +535,7 @@ def test_phase_transition_names_current_phase():
 def test_phase_8_has_soft_gate_not_hard_gate():
     """Phase 8 (cleanup) should have a SOFT-GATE, not a HARD-GATE.
     Cleanup warns but never blocks — it's the final escape hatch."""
-    content = _read_skill("cleanup")
+    content = _read_skill("flow-cleanup")
     assert "<SOFT-GATE>" in content, (
         "Phase 8 (cleanup) should have <SOFT-GATE> — cleanup warns but never blocks"
     )
@@ -558,16 +560,16 @@ def test_phase_transitions_have_note_capture_option():
 def test_phase_1_hard_gate_checks_feature_name():
     """Phase 1 (start) should have a HARD-GATE that checks for feature name,
     not for a previous phase status."""
-    content = _read_skill("start")
-    assert "<HARD-GATE>" in content, "start/SKILL.md has no <HARD-GATE>"
+    content = _read_skill("flow-start")
+    assert "<HARD-GATE>" in content, "flow-start/SKILL.md has no <HARD-GATE>"
     # Gate should mention feature name requirement
     gate_match = re.search(
         r"<HARD-GATE>(.*?)</HARD-GATE>", content, re.DOTALL
     )
-    assert gate_match, "Could not extract HARD-GATE content from start/SKILL.md"
+    assert gate_match, "Could not extract HARD-GATE content from flow-start/SKILL.md"
     gate_text = gate_match.group(1)
     assert "feature" in gate_text.lower(), (
-        "start/SKILL.md HARD-GATE should check for feature name"
+        "flow-start/SKILL.md HARD-GATE should check for feature name"
     )
 
 
@@ -584,7 +586,7 @@ def test_phase_skills_have_logging_section():
 def test_phase_8_has_delete_state_instructions():
     """Phase 8 (cleanup) should have instructions to delete the state file,
     not update it."""
-    content = _read_skill("cleanup")
+    content = _read_skill("flow-cleanup")
     has_delete = (
         "delete" in content.lower()
         or "remove" in content.lower()
@@ -667,7 +669,7 @@ def test_status_formatter_phase_names_match_flow_phases():
 
     from conftest import make_state
     data = _load_phases()
-    state = make_state(current_phase="start", phase_statuses={"start": "in_progress"})
+    state = make_state(current_phase="flow-start", phase_statuses={"flow-start": "in_progress"})
     panel = mod.format_panel(state, _plugin_version())
 
     for key, phase in data["phases"].items():
@@ -717,10 +719,10 @@ def test_status_formatter_shows_timing_for_completed_phases():
 
     from conftest import make_state
     state = make_state(
-        current_phase="plan",
-        phase_statuses={"start": "complete", "plan": "in_progress"},
+        current_phase="flow-plan",
+        phase_statuses={"flow-start": "complete", "flow-plan": "in_progress"},
     )
-    state["phases"]["start"]["cumulative_seconds"] = 300
+    state["phases"]["flow-start"]["cumulative_seconds"] = 300
     panel = mod.format_panel(state, _plugin_version())
     match = re.search(r"\[x\].*Phase.*\(", panel)
     assert match, (
@@ -739,26 +741,26 @@ def test_start_logging_uses_read_write():
     triggers Claude Code's security prompt. settings.json cannot suppress $()
     prompts. The Read+Write pattern avoids this by generating the timestamp
     in Claude's tool layer."""
-    content = _read_skill("start")
+    content = _read_skill("flow-start")
     logging_match = re.search(
         r"## Logging\n(.*?)(?=\n## |\n---|\Z)", content, re.DOTALL
     )
-    assert logging_match, "start/SKILL.md has no ## Logging section"
+    assert logging_match, "flow-start/SKILL.md has no ## Logging section"
     logging_section = logging_match.group(1)
 
     assert "Read" in logging_section and "Write" in logging_section, (
-        "start/SKILL.md ## Logging section must use Read+Write pattern — "
+        "flow-start/SKILL.md ## Logging section must use Read+Write pattern — "
         "Bash >> with $(date) triggers permission prompts"
     )
     assert ">>" not in logging_section, (
-        "start/SKILL.md ## Logging section must NOT use >> (Bash append) — "
+        "flow-start/SKILL.md ## Logging section must NOT use >> (Bash append) — "
         "it requires $(date) which triggers Claude Code's security prompt"
     )
 
 
 def test_start_references_setup_script():
     """Start SKILL.md must reference start-setup.py for consolidated setup."""
-    content = _read_skill("start")
+    content = _read_skill("flow-start")
     assert "start-setup" in content, (
         "start/SKILL.md must reference start-setup — "
         "Steps 2-7 are consolidated into a single Python script"
@@ -784,11 +786,12 @@ def test_release_complete_banner_confirms_marketplace_update():
 def test_utility_skill_banners_include_version():
     """Utility skill STARTING and COMPLETE banners must include the version."""
     version = _plugin_version()
-    utility_with_banners = ["commit", "abort", "status"]
+    utility_with_banners = ["flow-commit", "flow-abort", "flow-status"]
 
     for name in utility_with_banners:
         content = _read_skill(name)
-        starting_pattern = rf"FLOW v{re.escape(version)}\s*—\s*flow:{name}|FLOW v{re.escape(version)}\s*—\s*{name.capitalize()}"
+        short_name = name.removeprefix("flow-").capitalize()
+        starting_pattern = rf"FLOW v{re.escape(version)}\s*—\s*(?:flow:{name}|{short_name})"
         assert re.search(starting_pattern, content, re.IGNORECASE), (
             f"skills/{name}/SKILL.md STARTING banner missing version — "
             f"expected 'FLOW v{version}'"
@@ -847,29 +850,29 @@ def test_phase_skills_have_time_format_instruction():
 
 def test_commit_auto_flag_restriction():
     """Commit SKILL.md must document that --auto is user-invoked only."""
-    content = (SKILLS_DIR / "commit" / "SKILL.md").read_text()
+    content = (SKILLS_DIR / "flow-commit" / "SKILL.md").read_text()
 
     restriction = "`--auto` is user-invoked only"
     assert restriction in content, (
-        "skills/commit/SKILL.md missing '--auto is user-invoked only' restriction"
+        "skills/flow-commit/SKILL.md missing '--auto is user-invoked only' restriction"
     )
 
 
 def test_commit_tri_modal_detection():
     """Commit SKILL.md must have tri-modal detection (FLOW/Maintainer/Standalone)."""
-    content = (SKILLS_DIR / "commit" / "SKILL.md").read_text()
+    content = (SKILLS_DIR / "flow-commit" / "SKILL.md").read_text()
 
     assert "flow-phases.json" in content, (
-        "skills/commit/SKILL.md missing 'flow-phases.json' for mode detection"
+        "skills/flow-commit/SKILL.md missing 'flow-phases.json' for mode detection"
     )
     assert "Maintainer" in content, (
-        "skills/commit/SKILL.md missing 'Maintainer' mode reference"
+        "skills/flow-commit/SKILL.md missing 'Maintainer' mode reference"
     )
     assert "Standalone" in content, (
-        "skills/commit/SKILL.md missing 'Standalone' mode reference"
+        "skills/flow-commit/SKILL.md missing 'Standalone' mode reference"
     )
     assert ".flow-states" in content, (
-        "skills/commit/SKILL.md missing '.flow-states' for FLOW mode detection"
+        "skills/flow-commit/SKILL.md missing '.flow-states' for FLOW mode detection"
     )
 
 
@@ -911,18 +914,18 @@ def test_reset_has_confirmation():
 
 def test_commit_mode_resolution():
     """Commit SKILL.md must default to auto and have Mode Resolution."""
-    content = (SKILLS_DIR / "commit" / "SKILL.md").read_text()
+    content = (SKILLS_DIR / "flow-commit" / "SKILL.md").read_text()
     assert "the default is auto" in content, (
-        "skills/commit/SKILL.md missing 'the default is auto' — "
+        "skills/flow-commit/SKILL.md missing 'the default is auto' — "
         "commit mode must default to auto (no approval prompt)"
     )
     assert "Mode Resolution" in content, (
-        "skills/commit/SKILL.md missing Mode Resolution section"
+        "skills/flow-commit/SKILL.md missing Mode Resolution section"
     )
 
 
 def test_no_skill_invokes_commit_with_auto():
-    """Skills that use /flow:commit --auto must be in the allow list.
+    """Skills that use /flow:flow-commit --auto must be in the allow list.
 
     Learning uses --auto because the phase is fully autonomous. Simplify
     uses --auto because the user already approved changes in Step 2. Code,
@@ -930,12 +933,12 @@ def test_no_skill_invokes_commit_with_auto():
     setting."""
     for d in sorted(SKILLS_DIR.iterdir()):
         if not d.is_dir() or d.name in (
-            "commit", "learning", "simplify", "code", "review", "security",
+            "flow-commit", "flow-learning", "flow-simplify", "flow-code", "flow-review", "flow-security",
         ):
             continue
         content = (d / "SKILL.md").read_text()
-        assert "/flow:commit --auto" not in content, (
-            f"skills/{d.name}/SKILL.md references '/flow:commit --auto' — "
+        assert "/flow:flow-commit --auto" not in content, (
+            f"skills/{d.name}/SKILL.md references '/flow:flow-commit --auto' — "
             f"--auto is user-invoked only, skills must not invoke it programmatically"
         )
 
@@ -977,7 +980,7 @@ def test_learning_has_no_worktree_memory_rescue():
     Since Claude Code 2.1.63, auto-memory is shared across git worktrees
     of the same repository. Worktree-specific memory paths no longer exist,
     so Source D rescue is obsolete."""
-    content = _read_skill("learning")
+    content = _read_skill("flow-learning")
     obsolete_terms = [
         "Source D",
         "worktree auto-memory",
@@ -986,7 +989,7 @@ def test_learning_has_no_worktree_memory_rescue():
     ]
     found = [term for term in obsolete_terms if term in content]
     assert not found, (
-        f"skills/learning/SKILL.md still contains obsolete terms: {found} — "
+        f"skills/flow-learning/SKILL.md still contains obsolete terms: {found} — "
         f"worktree memory rescue is obsolete since Claude Code 2.1.63"
     )
 
@@ -995,7 +998,7 @@ def test_multi_framework_skills_have_both_sections():
     """Skills that had framework fragments must have both Rails and Python
     content inline in SKILL.md."""
     multi_framework_skills = [
-        "start", "plan", "code", "review", "security",
+        "flow-start", "flow-plan", "flow-code", "flow-review", "flow-security",
     ]
     for name in multi_framework_skills:
         content = _read_skill(name)
@@ -1010,8 +1013,8 @@ def test_multi_framework_skills_have_both_sections():
 # --- Configurable auto/manual mode ---
 
 CONFIGURABLE_SKILLS = [
-    "start", "code", "simplify", "review", "security",
-    "learning", "abort", "cleanup",
+    "flow-start", "flow-code", "flow-simplify", "flow-review", "flow-security",
+    "flow-learning", "flow-abort", "flow-cleanup",
 ]
 
 
@@ -1036,9 +1039,9 @@ def test_configurable_skills_have_mode_resolution():
         )
 
 
-TWO_AXIS_SKILLS = ["code", "simplify", "review", "security", "learning"]
-CONTINUE_ONLY_SKILLS = ["start"]
-UTILITY_SKILLS = ["abort", "cleanup"]
+TWO_AXIS_SKILLS = ["flow-code", "flow-simplify", "flow-review", "flow-security", "flow-learning"]
+CONTINUE_ONLY_SKILLS = ["flow-start"]
+UTILITY_SKILLS = ["flow-abort", "flow-cleanup"]
 
 
 def test_mode_resolution_references_flow_json():

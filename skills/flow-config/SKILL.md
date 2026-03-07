@@ -1,5 +1,5 @@
 ---
-name: config
+name: flow-config
 description: "Display the current FLOW configuration from .flow.json — version, framework, and per-skill autonomy settings."
 model: haiku
 ---
@@ -9,7 +9,7 @@ model: haiku
 ## Usage
 
 ```text
-/flow:config
+/flow:flow-config
 ```
 
 Display-only skill. Reads `.flow.json` from the project root and shows the current configuration.
@@ -22,7 +22,7 @@ Use the Glob tool to check for `.flow.json` at the project root.
 
 If `.flow.json` does not exist, tell the user:
 
-> "No `.flow.json` found. Run `/flow:init` to configure this project."
+> "No `.flow.json` found. Run `/flow:flow-init` to configure this project."
 
 Stop here.
 

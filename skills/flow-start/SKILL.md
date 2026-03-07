@@ -1,6 +1,6 @@
 ---
-name: start
-description: "Phase 1: Start — begin a new feature. Creates a worktree, upgrades dependencies, opens a PR, creates .flow-states/<branch>.json, and configures the workspace. Usage: /flow:start <feature name words>"
+name: flow-start
+description: "Phase 1: Start — begin a new feature. Creates a worktree, upgrades dependencies, opens a PR, creates .flow-states/<branch>.json, and configures the workspace. Usage: /flow:flow-start <feature name words>"
 model: haiku
 ---
 
@@ -9,9 +9,9 @@ model: haiku
 ## Usage
 
 ```text
-/flow:start invoice pdf export
-/flow:start --auto invoice pdf export
-/flow:start --manual invoice pdf export
+/flow:flow-start invoice pdf export
+/flow:flow-start --auto invoice pdf export
+/flow:flow-start --manual invoice pdf export
 ```
 
 Arguments become the feature name (flags are not included in the name). Words are joined with hyphens:
@@ -24,14 +24,14 @@ Branch names are capped at **32 characters**. If the hyphenated name exceeds 32 
 
 <HARD-GATE>
 Do NOT proceed if the feature name is missing. Ask the user:
-"What is the feature name? e.g. /flow:start invoice pdf export"
+"What is the feature name? e.g. /flow:flow-start invoice pdf export"
 </HARD-GATE>
 
 ## Mode Resolution
 
 1. If `--auto` was passed → continue=auto
 2. If `--manual` was passed → continue=manual
-3. Otherwise, read `.flow.json` from the project root. Use `skills.start.continue`.
+3. Otherwise, read `.flow.json` from the project root. Use `skills.flow-start.continue`.
 4. If `.flow.json` has no `skills` key → use built-in default: continue=manual
 
 ## Announce
@@ -77,10 +77,10 @@ Run the version check before anything else:
 exec ${CLAUDE_PLUGIN_ROOT}/bin/flow init-check
 ```
 
-Parse the JSON output. If `"status": "error"`, tell the user to run `/flow:init` and stop. Do not proceed to any further steps.
+Parse the JSON output. If `"status": "error"`, tell the user to run `/flow:flow-init` and stop. Do not proceed to any further steps.
 
 <HARD-GATE>
-Do NOT proceed if version check fails. Tell the user to run `/flow:init` and stop.
+Do NOT proceed if version check fails. Tell the user to run `/flow:flow-init` and stop.
 </HARD-GATE>
 
 After init-check passes, check for a newer release:
@@ -103,7 +103,7 @@ Parse the JSON output:
 ║    1. claude plugin marketplace update
 ║         flow-marketplace
 ║    2. Start a new Claude Code session
-║    3. Run /flow:init
+║    3. Run /flow:flow-init
 ╚══════════════════════════════════════════════╝
 ```
 ````
@@ -266,7 +266,7 @@ Do NOT proceed past Step 6 until `bin/flow ci` is green.
 
 ### Step 8 — Commit and push
 
-Use `/flow:commit` to review and commit the changes (`Gemfile.lock` + any gem fixes).
+Use `/flow:flow-commit` to review and commit the changes (`Gemfile.lock` + any gem fixes).
 
 #### Rails report additions
 
@@ -286,7 +286,7 @@ do not announce the framework or explain why steps were skipped.
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase start --action complete
+bin/flow phase-transition --phase flow-start --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.
@@ -303,9 +303,9 @@ Output the following banner in your response (not via Bash) inside a fenced code
 ```
 ````
 
-Invoke the `flow:status` skill to show the current state.
+Invoke the `flow:flow-status` skill to show the current state.
 
-**If continue=auto**, skip the transition question and invoke `flow:plan` directly.
+**If continue=auto**, skip the transition question and invoke `flow:flow-plan` directly.
 
 **If continue=manual**, use AskUserQuestion:
 
@@ -317,10 +317,10 @@ Invoke the `flow:status` skill to show the current state.
 
 **If "I have a correction or learning to capture":**
 1. Ask the user what they want to capture
-2. Invoke `/flow:note` with their message
+2. Invoke `/flow:flow-note` with their message
 3. Re-ask with only "Yes, start Phase 2 now" and "Not yet"
 
-**If Yes** — invoke the `flow:plan` skill using the Skill tool.
+**If Yes** — invoke the `flow:flow-plan` skill using the Skill tool.
 
 **If Not yet** — output the following banner in your response (not via Bash) inside a fenced code block:
 
@@ -328,7 +328,7 @@ Invoke the `flow:status` skill to show the current state.
 ```
 ============================================
   FLOW — Paused
-  Run /flow:continue when ready to continue.
+  Run /flow:flow-continue when ready to continue.
 ============================================
 ```
 ````

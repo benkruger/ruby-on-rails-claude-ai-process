@@ -1,6 +1,6 @@
 ---
-name: note
-description: "Invoke automatically whenever the user corrects Claude, disagrees with a response, or says something was wrong. Also invoke explicitly with /flow:note to capture any learning mid-session. Fast — captures and continues without interrupting flow."
+name: flow-note
+description: "Invoke automatically whenever the user corrects Claude, disagrees with a response, or says something was wrong. Also invoke explicitly with /flow:flow-note to capture any learning mid-session. Fast — captures and continues without interrupting flow."
 ---
 
 # FLOW Note
@@ -59,7 +59,7 @@ Then continue with the response immediately.
 
 ## For explicit invocation
 
-When the user types `/flow:note <message>`:
+When the user types `/flow:flow-note <message>`:
 - Use their message as the note text directly
 - Still write to `state["notes"]` with current phase and timestamp
 - Print `[note captured]` and stop

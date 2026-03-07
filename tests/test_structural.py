@@ -26,7 +26,7 @@ def test_commands_match_flow_pattern():
     data = _load_phases()
     for key, phase in data["phases"].items():
         cmd = phase["command"]
-        assert re.match(r"^/flow:\w+$", cmd), (
+        assert re.match(r"^/flow:[\w-]+$", cmd), (
             f"Phase '{key}' command '{cmd}' doesn't match /flow:<name> pattern"
         )
 

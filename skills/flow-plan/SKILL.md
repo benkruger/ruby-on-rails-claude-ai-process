@@ -1,5 +1,5 @@
 ---
-name: plan
+name: flow-plan
 description: "Phase 2: Plan — explore the codebase, design the approach, and create an implementation plan using Claude Code's native plan mode."
 model: opus
 ---
@@ -15,10 +15,10 @@ stop immediately and show the error to the user.
    - `git branch --show-current` — this is the current branch.
 2. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
    - If the file does not exist: STOP. "BLOCKED: No FLOW feature in progress.
-     Run /flow:start first."
-3. Check `phases.start.status` in the JSON.
+     Run /flow:flow-start first."
+3. Check `phases.flow-start.status` in the JSON.
    - If not `"complete"`: STOP. "BLOCKED: Phase 1: Start must be
-     complete. Run /flow:start first."
+     complete. Run /flow:flow-start first."
 </HARD-GATE>
 
 Keep the project root, branch, and state data from the gate in context —
@@ -44,7 +44,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase plan --action enter
+bin/flow phase-transition --phase flow-plan --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -164,7 +164,7 @@ was written during plan mode.
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase plan --action complete
+bin/flow phase-transition --phase flow-plan --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.
@@ -181,20 +181,20 @@ Output in your response (not via Bash) inside a fenced code block:
 ```
 ````
 
-Invoke `flow:status`, then use AskUserQuestion:
+Invoke `flow:flow-status`, then use AskUserQuestion:
 
 > "Phase 2: Plan is complete. Ready to begin Phase 3: Code?"
 >
-> - **Yes, start Phase 3 now** — invoke `flow:code`
+> - **Yes, start Phase 3 now** — invoke `flow:flow-code`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
 
 **If "I have a correction or learning to capture":**
 1. Ask the user what they want to capture
-2. Invoke `/flow:note` with their message
+2. Invoke `/flow:flow-note` with their message
 3. Re-ask with only "Yes, start Phase 3 now" and "Not yet"
 
-**If Yes** — invoke `flow:code` using the Skill tool.
+**If Yes** — invoke `flow:flow-code` using the Skill tool.
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 
@@ -202,7 +202,7 @@ Invoke `flow:status`, then use AskUserQuestion:
 ```
 ============================================
   FLOW — Paused
-  Run /flow:continue when ready to continue.
+  Run /flow:flow-continue when ready to continue.
 ============================================
 ```
 ````

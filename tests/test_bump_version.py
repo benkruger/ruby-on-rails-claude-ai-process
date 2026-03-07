@@ -44,7 +44,7 @@ def fake_repo(tmp_path):
     }, indent=2))
 
     skills_dir = tmp_path / "skills"
-    for name in ("start", "code"):
+    for name in ("flow-start", "flow-code"):
         skill_dir = skills_dir / name
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(

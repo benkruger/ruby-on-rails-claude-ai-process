@@ -1,6 +1,6 @@
 ---
-name: init
-description: "One-time project setup — configure workspace permissions, git excludes, and version marker. Run once after installing or upgrading FLOW. Usage: /flow:init"
+name: flow-init
+description: "One-time project setup — configure workspace permissions, git excludes, and version marker. Run once after installing or upgrading FLOW. Usage: /flow:flow-init"
 ---
 
 # FLOW Init — One-Time Project Setup
@@ -8,10 +8,10 @@ description: "One-time project setup — configure workspace permissions, git ex
 ## Usage
 
 ```text
-/flow:init
+/flow:flow-init
 ```
 
-Run once after installing FLOW, and again after each FLOW upgrade. Configures workspace permissions, git excludes, and writes a version marker so `/flow:start` knows the project is initialized.
+Run once after installing FLOW, and again after each FLOW upgrade. Configures workspace permissions, git excludes, and writes a version marker so `/flow:flow-start` knows the project is initialized.
 
 ## Announce
 
@@ -56,10 +56,10 @@ Store the answer as `framework` (lowercase: `rails` or `python`).
 
 FLOW has two independent axes for skills that support them:
 
-- **Commit** — how `/flow:commit` is invoked during phase work (auto = skip diff approval, manual = require approval). Also controls per-task approval in Code and refactoring approval in Simplify.
+- **Commit** — how `/flow:flow-commit` is invoked during phase work (auto = skip diff approval, manual = require approval). Also controls per-task approval in Code and refactoring approval in Simplify.
 - **Continue** — whether to auto-advance to the next phase or prompt first.
 
-Phase skills that commit (code, simplify, review, security, learning) have both axes. Phase skills that don't commit (start) only have continue. Utility skills (abort, cleanup) have a single mode value. The `/flow:commit` skill is not configurable — it defaults to auto and can be overridden with `--manual`.
+Phase skills that commit (code, simplify, review, security, learning) have both axes. Phase skills that don't commit (start) only have continue. Utility skills (abort, cleanup) have a single mode value. The `/flow:flow-commit` skill is not configurable — it defaults to auto and can be overridden with `--manual`.
 
 Ask the user how much autonomy FLOW should have using AskUserQuestion:
 
@@ -73,13 +73,13 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 **Fully autonomous** — all auto:
 
 ```json
-{"start": {"continue": "auto"}, "code": {"commit": "auto", "continue": "auto"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"commit": "auto", "continue": "auto"}, "learning": {"commit": "auto", "continue": "auto"}, "abort": "auto", "cleanup": "auto"}
+{"flow-start": {"continue": "auto"}, "flow-code": {"commit": "auto", "continue": "auto"}, "flow-simplify": {"commit": "auto", "continue": "auto"}, "flow-review": {"commit": "auto", "continue": "auto"}, "flow-security": {"commit": "auto", "continue": "auto"}, "flow-learning": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-cleanup": "auto"}
 ```
 
 **Fully manual** — all manual:
 
 ```json
-{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "manual", "continue": "manual"}, "review": {"commit": "manual", "continue": "manual"}, "security": {"commit": "manual", "continue": "manual"}, "learning": {"commit": "manual", "continue": "manual"}, "abort": "manual", "cleanup": "manual"}
+{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-simplify": {"commit": "manual", "continue": "manual"}, "flow-review": {"commit": "manual", "continue": "manual"}, "flow-security": {"commit": "manual", "continue": "manual"}, "flow-learning": {"commit": "manual", "continue": "manual"}, "flow-abort": "manual", "flow-cleanup": "manual"}
 ```
 
 **Recommended** — framework-aware defaults:
@@ -87,13 +87,13 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 For Rails:
 
 ```json
-{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "manual", "continue": "auto"}, "security": {"commit": "auto", "continue": "auto"}, "learning": {"commit": "auto", "continue": "auto"}, "abort": "auto", "cleanup": "auto"}
+{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-simplify": {"commit": "auto", "continue": "auto"}, "flow-review": {"commit": "manual", "continue": "auto"}, "flow-security": {"commit": "auto", "continue": "auto"}, "flow-learning": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-cleanup": "auto"}
 ```
 
 For Python:
 
 ```json
-{"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"commit": "auto", "continue": "auto"}, "learning": {"commit": "auto", "continue": "auto"}, "abort": "auto", "cleanup": "auto"}
+{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-simplify": {"commit": "auto", "continue": "auto"}, "flow-review": {"commit": "auto", "continue": "auto"}, "flow-security": {"commit": "auto", "continue": "auto"}, "flow-learning": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-cleanup": "auto"}
 ```
 
 **Customize** — ask per skill, in this order: start, code, simplify, review, security, learning, abort, cleanup. For each skill, ask about only the applicable axes:
@@ -102,28 +102,28 @@ For skills with both axes (code, simplify, review, security, learning), ask two 
 
 First question:
 
-> "Commit mode for /flow:<skill>? (controls diff approval and per-task approval)"
+> "Commit mode for /flow:flow-<skill>? (controls diff approval and per-task approval)"
 >
 > - **Auto** — "Skip approval prompts"
 > - **Manual** — "Require explicit approval"
 
 Second question:
 
-> "Continue mode for /flow:<skill>? (controls phase advancement)"
+> "Continue mode for /flow:flow-<skill>? (controls phase advancement)"
 >
 > - **Auto** — "Auto-advance to next phase"
 > - **Manual** — "Prompt before advancing"
 
 For skills with continue only (start), ask one AskUserQuestion:
 
-> "Continue mode for /flow:<skill>?"
+> "Continue mode for /flow:flow-<skill>?"
 >
 > - **Auto** — "Auto-advance to next phase"
 > - **Manual** — "Prompt before advancing"
 
 For utility skills (abort, cleanup), ask one AskUserQuestion:
 
-> "Mode for /flow:<skill>?"
+> "Mode for /flow:flow-<skill>?"
 >
 > - **Auto** — "Skip confirmation prompt"
 > - **Manual** — "Require confirmation prompt"
@@ -212,7 +212,7 @@ add the `skills` key from `skills_dict` (Step 2), and write the file back with
 the Write tool. The result should look like:
 
 ```json
-{"flow_version": "0.16.4", "framework": "python", "skills": {"start": {"continue": "manual"}, "code": {"commit": "manual", "continue": "manual"}, "simplify": {"commit": "auto", "continue": "auto"}, "review": {"commit": "auto", "continue": "auto"}, "security": {"commit": "auto", "continue": "auto"}, "learning": {"commit": "auto", "continue": "auto"}, "abort": "auto", "cleanup": "auto"}}
+{"flow_version": "0.16.4", "framework": "python", "skills": {"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-simplify": {"commit": "auto", "continue": "auto"}, "flow-review": {"commit": "auto", "continue": "auto"}, "flow-security": {"commit": "auto", "continue": "auto"}, "flow-learning": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-cleanup": "auto"}}
 ```
 
 ### Step 5 — Commit and push
@@ -272,4 +272,4 @@ Display the skills configuration as a pipe-delimited markdown table with exactly
 
 Use the actual values from `skills_dict` (Step 2). The table above is just an example. Show `—` for axes that don't apply to a skill. The table must use pipe `|` delimiters — never render as a bullet list.
 
-Tell the user to start a new Claude Code session so the permissions take effect, then run `/flow:start <feature name>`.
+Tell the user to start a new Claude Code session so the permissions take effect, then run `/flow:flow-start <feature name>`.

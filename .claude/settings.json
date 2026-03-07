@@ -43,6 +43,7 @@
       "Bash(rm .claude/settings.local.json)",
       "Bash(gh issue create *)",
       "Bash(git restore *)",
+      "Bash(git mv *)",
       "Read(~/Desktop/*.png)",
       "Read(~/Desktop/*.jpg)",
       "Read(~/Desktop/*.jpeg)"

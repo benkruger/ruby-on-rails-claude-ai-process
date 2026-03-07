@@ -1,14 +1,14 @@
 ---
-title: /flow:security
+title: /flow:flow-security
 nav_order: 9
 parent: Skills
 ---
 
-# /flow:security
+# /flow:flow-security
 
 **Phase:** 6 — Security
 
-**Usage:** `/flow:security`, `/flow:security --auto`, or `/flow:security --manual`
+**Usage:** `/flow:flow-security`, `/flow:flow-security --auto`, or `/flow:flow-security --manual`
 
 Security analysis of the feature diff. Uses an Explore sub-agent
 to run 10 security checks, then fixes every confirmed finding
@@ -28,7 +28,7 @@ Every confirmed finding gets fixed directly:
 
 1. Fix one finding
 2. Run `bin/flow ci`
-3. Commit via `/flow:commit`
+3. Commit via `/flow:flow-commit`
 4. Mark finding as fixed in state
 5. Next finding
 

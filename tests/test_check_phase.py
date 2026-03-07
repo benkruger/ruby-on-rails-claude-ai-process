@@ -33,7 +33,7 @@ def _run(git_repo, phase, state_dir=None):
 
 def test_phase_1_always_exits_0(git_repo):
     """Phase 1 has no prerequisites — always allowed."""
-    result = _run(git_repo, "start")
+    result = _run(git_repo, "flow-start")
     assert result.returncode == 0
 
 
@@ -44,16 +44,16 @@ def test_detached_head_exits_1(git_repo):
         ["git", "checkout", "--detach", "HEAD"],
         cwd=str(git_repo), capture_output=True, check=True,
     )
-    result = _run(git_repo, "plan")
+    result = _run(git_repo, "flow-plan")
     assert result.returncode == 1
     assert "Could not determine current git branch" in result.stdout
 
 
 def test_no_state_file_exits_1(git_repo):
     """No state file for the current branch should block."""
-    result = _run(git_repo, "plan")
+    result = _run(git_repo, "flow-plan")
     assert result.returncode == 1
-    assert "/flow:start" in result.stdout
+    assert "/flow:flow-start" in result.stdout
 
 
 def test_corrupt_json_exits_1(tmp_path, monkeypatch):
@@ -65,7 +65,7 @@ def test_corrupt_json_exits_1(tmp_path, monkeypatch):
     captured = io.StringIO()
     monkeypatch.setattr(_mod, "current_branch", lambda: "test-branch")
     monkeypatch.setattr(_mod, "project_root", lambda: tmp_path)
-    monkeypatch.setattr(sys, "argv", [SCRIPT, "--required", "plan"])
+    monkeypatch.setattr(sys, "argv", [SCRIPT, "--required", "flow-plan"])
     monkeypatch.setattr(sys, "stdout", captured)
 
     with pytest.raises(SystemExit) as exc_info:
@@ -76,9 +76,9 @@ def test_corrupt_json_exits_1(tmp_path, monkeypatch):
 
 def test_previous_phase_pending_blocks(git_repo, state_dir, branch):
     """Previous phase 'pending' blocks entry (covers print+exit path in main)."""
-    state = make_state(current_phase="plan", phase_statuses={"start": "pending"})
+    state = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "pending"})
     write_state(state_dir, branch, state)
-    result = _run(git_repo, "plan")
+    result = _run(git_repo, "flow-plan")
     assert result.returncode == 1
     assert "BLOCKED" in result.stdout
     assert "pending" in result.stdout
@@ -88,25 +88,25 @@ def test_previous_phase_pending_blocks(git_repo, state_dir, branch):
 
 
 def test_previous_phase_in_progress_blocks():
-    state = make_state(current_phase="plan", phase_statuses={"start": "in_progress"})
-    allowed, output = _mod.check_phase(state, "plan")
+    state = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "in_progress"})
+    allowed, output = _mod.check_phase(state, "flow-plan")
     assert not allowed
     assert "BLOCKED" in output
     assert "in_progress" in output
 
 
 def test_previous_phase_complete_allows():
-    state = make_state(current_phase="plan", phase_statuses={"start": "complete"})
-    allowed, output = _mod.check_phase(state, "plan")
+    state = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "complete"})
+    allowed, output = _mod.check_phase(state, "flow-plan")
     assert allowed
 
 
 def test_sequential_chain_phase_4_with_1_to_3_complete():
     state = make_state(
-        current_phase="simplify",
-        phase_statuses={"start": "complete", "plan": "complete", "code": "complete"},
+        current_phase="flow-simplify",
+        phase_statuses={"flow-start": "complete", "flow-plan": "complete", "flow-code": "complete"},
     )
-    allowed, output = _mod.check_phase(state, "simplify")
+    allowed, output = _mod.check_phase(state, "flow-simplify")
     assert allowed
 
 
@@ -116,11 +116,11 @@ def test_sequential_chain_phase_4_with_1_to_3_complete():
 def test_re_entering_completed_phase_shows_note():
     """Re-entering a completed phase should return allowed=True with a note."""
     state = make_state(
-        current_phase="plan",
-        phase_statuses={"start": "complete", "plan": "complete"},
+        current_phase="flow-plan",
+        phase_statuses={"flow-start": "complete", "flow-plan": "complete"},
     )
-    state["phases"]["plan"]["visit_count"] = 2
-    allowed, output = _mod.check_phase(state, "plan")
+    state["phases"]["flow-plan"]["visit_count"] = 2
+    allowed, output = _mod.check_phase(state, "flow-plan")
     assert allowed
     assert "previously completed" in output
     assert "2 visit(s)" in output
@@ -128,8 +128,8 @@ def test_re_entering_completed_phase_shows_note():
 
 def test_first_visit_no_previously_completed_message():
     """First visit to a pending phase should not show 'previously completed'."""
-    state = make_state(current_phase="plan", phase_statuses={"start": "complete"})
-    allowed, output = _mod.check_phase(state, "plan")
+    state = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "complete"})
+    allowed, output = _mod.check_phase(state, "flow-plan")
     assert allowed
     assert "previously completed" not in output
 
@@ -137,13 +137,13 @@ def test_first_visit_no_previously_completed_message():
 def test_phase_6_requires_phase_5_complete():
     """Phase 6 (Security) requires phase 5 (Review) to be complete."""
     state = make_state(
-        current_phase="security",
+        current_phase="flow-security",
         phase_statuses={
-            "start": "complete", "plan": "complete", "code": "complete",
-            "simplify": "complete", "review": "pending",
+            "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
+            "flow-simplify": "complete", "flow-review": "pending",
         },
     )
-    allowed, output = _mod.check_phase(state, "security")
+    allowed, output = _mod.check_phase(state, "flow-security")
     assert not allowed
     assert "Phase 5" in output
 
@@ -151,13 +151,13 @@ def test_phase_6_requires_phase_5_complete():
 def test_phase_7_requires_phase_6_complete():
     """Phase 7 (Learning) requires phase 6 (Security) to be complete."""
     state = make_state(
-        current_phase="learning",
+        current_phase="flow-learning",
         phase_statuses={
-            "start": "complete", "plan": "complete", "code": "complete",
-            "simplify": "complete", "review": "complete", "security": "pending",
+            "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
+            "flow-simplify": "complete", "flow-review": "complete", "flow-security": "pending",
         },
     )
-    allowed, output = _mod.check_phase(state, "learning")
+    allowed, output = _mod.check_phase(state, "flow-learning")
     assert not allowed
     assert "Phase 6" in output
 
@@ -165,39 +165,39 @@ def test_phase_7_requires_phase_6_complete():
 def test_phase_8_requires_phase_7_complete():
     """Phase 8 (Cleanup) requires phase 7 (Learning) to be complete."""
     state = make_state(
-        current_phase="cleanup",
+        current_phase="flow-cleanup",
         phase_statuses={
-            "start": "complete", "plan": "complete", "code": "complete",
-            "simplify": "complete", "review": "complete", "security": "complete",
-            "learning": "pending",
+            "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
+            "flow-simplify": "complete", "flow-review": "complete", "flow-security": "complete",
+            "flow-learning": "pending",
         },
     )
-    allowed, output = _mod.check_phase(state, "cleanup")
+    allowed, output = _mod.check_phase(state, "flow-cleanup")
     assert not allowed
     assert "Phase 7" in output
 
 
 def test_missing_phases_key_blocks():
     """State file with no 'phases' key should block (defaults to pending)."""
-    state = {"feature": "Test", "branch": "test", "current_phase": "plan"}
-    allowed, output = _mod.check_phase(state, "plan")
+    state = {"feature": "Test", "branch": "test", "current_phase": "flow-plan"}
+    allowed, output = _mod.check_phase(state, "flow-plan")
     assert not allowed
     assert "BLOCKED" in output
 
 
 def test_blocked_message_includes_correct_command():
     """Blocked message should include the correct /flow:X command."""
-    state = make_state(current_phase="simplify", phase_statuses={
-        "start": "complete", "plan": "complete", "code": "pending",
+    state = make_state(current_phase="flow-simplify", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "pending",
     })
-    allowed, output = _mod.check_phase(state, "simplify")
+    allowed, output = _mod.check_phase(state, "flow-simplify")
     assert not allowed
-    assert "/flow:code" in output
+    assert "/flow:flow-code" in output
 
 
 def test_invalid_phase_name_raises():
     """An unrecognized phase name should raise ValueError."""
-    state = make_state(current_phase="start", phase_statuses={"start": "complete"})
+    state = make_state(current_phase="flow-start", phase_statuses={"flow-start": "complete"})
     with pytest.raises(ValueError):
         _mod.check_phase(state, "nonexistent")
 
@@ -219,8 +219,8 @@ def test_worktree_finds_state_in_main_repo(git_repo, state_dir):
         cwd=str(git_repo), capture_output=True, check=True,
     )
     # Write state file in main repo for the feature-branch
-    state = make_state(current_phase="plan", phase_statuses={"start": "complete"})
+    state = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "complete"})
     write_state(state_dir, "feature-branch", state)
 
-    result = _run(wt_path, "plan")
+    result = _run(wt_path, "flow-plan")
     assert result.returncode == 0

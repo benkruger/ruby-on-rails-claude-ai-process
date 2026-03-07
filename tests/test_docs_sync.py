@@ -40,9 +40,9 @@ def _utility_skill_names():
 def test_every_skill_has_a_docs_page():
     """Every skills/<name>/ must have a docs/skills/flow-<name>.md."""
     for name in _skill_names():
-        doc = DOCS_DIR / "skills" / f"flow-{name}.md"
+        doc = DOCS_DIR / "skills" / f"{name}.md"
         assert doc.exists(), (
-            f"skills/{name}/ exists but docs/skills/flow-{name}.md is missing"
+            f"skills/{name}/ exists but docs/skills/{name}.md is missing"
         )
 
 
@@ -51,10 +51,8 @@ def test_every_docs_skill_page_has_a_skill_dir():
     for path in sorted((DOCS_DIR / "skills").iterdir()):
         if path.name == "index.md" or not path.suffix == ".md":
             continue
-        # flow-commit.md -> commit
-        match = re.match(r"^flow-(.+)\.md$", path.name)
-        assert match, f"Unexpected filename pattern: {path.name}"
-        skill_name = match.group(1)
+        # flow-commit.md -> flow-commit
+        skill_name = path.stem
         assert (SKILLS_DIR / skill_name).is_dir(), (
             f"docs/skills/{path.name} exists but skills/{skill_name}/ is missing"
         )

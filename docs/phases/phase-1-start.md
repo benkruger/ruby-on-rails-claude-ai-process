@@ -19,6 +19,8 @@ This is always the first phase, for every feature without exception. It establis
 
 Run `bin/flow init-check` to verify `/flow:init` has been run with the current plugin version. Cheapest check — runs first so a missing init doesn't waste time on slower steps.
 
+Also checks GitHub for newer FLOW releases and displays upgrade instructions if one is available. This check is informational — it never blocks.
+
 ### 2. Check for existing features
 
 Scans for active `.flow-states/*.json` files. If any exist, asks whether to proceed or cancel.

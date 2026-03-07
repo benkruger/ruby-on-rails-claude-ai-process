@@ -22,11 +22,12 @@ Begins a new feature. This is always the first command run for any piece of work
 
 ## What It Does
 
-1. Checks for existing active FLOW features
-2. Runs `bin/flow ci` on main to verify the codebase is healthy
-3. Runs `lib/start-setup.py` — verifies `/flow:init` version gate, git pull, worktree creation, empty commit + push + PR, and state file creation
-4. Framework-specific setup (Rails: gem upgrade, post-upgrade `bin/flow ci`, CI fixes via a Sonnet sub-agent, commit. Python: no additional setup)
-5. Marks Phase 1 complete and transitions to Phase 2: Research
+1. Checks the version gate and notifies if a newer FLOW release is available on GitHub
+2. Checks for existing active FLOW features
+3. Runs `bin/flow ci` on main to verify the codebase is healthy
+4. Runs `lib/start-setup.py` — verifies `/flow:init` version gate, git pull, worktree creation, empty commit + push + PR, and state file creation
+5. Framework-specific setup (Rails: gem upgrade, post-upgrade `bin/flow ci`, CI fixes via a Sonnet sub-agent, commit. Python: no additional setup)
+6. Marks Phase 1 complete and transitions to Phase 2: Research
 
 ---
 

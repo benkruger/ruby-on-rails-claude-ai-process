@@ -83,6 +83,31 @@ Parse the JSON output. If `"status": "error"`, tell the user to run `/flow:init`
 Do NOT proceed if version check fails. Tell the user to run `/flow:init` and stop.
 </HARD-GATE>
 
+After init-check passes, check for a newer release:
+
+```bash
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow upgrade-check
+```
+
+Parse the JSON output:
+- `"status": "current"` — proceed silently
+- `"status": "unknown"` — proceed silently (best-effort check)
+- `"status": "upgrade_available"` — show this notice, then continue:
+
+````text
+```
+╔══════════════════════════════════════════════╗
+║  FLOW update available: v{installed} → v{latest}
+║
+║  To upgrade:
+║    1. claude plugin marketplace update
+║         flow-marketplace
+║    2. Start a new Claude Code session
+║    3. Run /flow:init
+╚══════════════════════════════════════════════╝
+```
+````
+
 ### Step 2 — Check for existing feature
 
 Use the Glob tool to check for existing state files matching `.flow-states/*.json`.

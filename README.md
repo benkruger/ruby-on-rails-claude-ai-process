@@ -24,7 +24,7 @@ FLOW imposes structure. Not bureaucracy — discipline.
 - **Autonomy** on your terms — fully manual to fully autonomous, per skill
 - **Opus** for planning and security, Sonnet for review and simplify, Haiku for setup
 - **Rails** and Python today, more frameworks ahead
-- **Marketplace update** keeps you current — `.flow-states` is the only artifact while you work
+- **Minimal footprint** — `.flow-states` is the only artifact while you work, and Cleanup deletes even that
 
 ---
 

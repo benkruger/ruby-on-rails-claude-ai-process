@@ -487,151 +487,67 @@
 
   <header>
     <h1><a href="https://github.com/benkruger/flow" style="color: inherit; text-decoration: none;"><span>FLOW</span></a></h1>
-    <p class="tagline">An opinionated 8-phase software development lifecycle for Claude Code. Every feature follows the same phases in the same order. No shortcuts. Supports Rails and Python.</p>
+    <p class="tagline">An opinionated 8-phase software development lifecycle for Claude Code. Every feature follows the same phases in the same order. No shortcuts. Supports <span class="highlight-phrase">Rails</span> and <span class="highlight-phrase">Python</span>.</p>
   </header>
 
   <!-- WHY -->
   <section>
     <h2>Why</h2>
     <p>Claude Code is powerful, but undisciplined by default. Left to itself, it writes code, skips tests, misses edge cases, and moves on. <strong>FLOW imposes structure. Not bureaucracy &mdash; discipline.</strong></p>
-    <p>But there&rsquo;s a second problem. Engineers, managers, and tech leads are watching AI transform software development and trying to figure out where they fit. One-shot &ldquo;vibe coding&rdquo; &mdash; describe the feature, let Claude do everything, merge what comes out &mdash; feels like giving up control. But manually reviewing every line of AI-generated code doesn&rsquo;t scale either.</p>
-    <p>FLOW is for the engineer who wants to stay in the driver&rsquo;s seat: who decides what gets built, approves the design, reviews the plan, and merges the result &mdash; without writing the code themselves. Every phase requires your approval before the next one starts. <strong>You remain the engineer. Claude does the work.</strong></p>
+    <p>FLOW is for the engineer who wants to stay in the driver&rsquo;s seat: who decides what gets built, approves the design, reviews the plan, and merges the result. You control the autonomy &mdash; <span class="highlight-phrase">fully manual</span>, <span class="highlight-phrase">fully autonomous</span>, or anywhere in between, per skill. <strong>You remain the engineer. Claude does the work.</strong></p>
   </section>
 
   <!-- HOW -->
   <section>
     <h2>How</h2>
-    <p>Every feature goes through a <span class="highlight-phrase">8-phase orchestration</span>. Each phase has mandatory entry guards, structured outputs written to a persistent state file, and back-navigation when something was missed.</p>
+    <p>Every feature goes through <span class="highlight-phrase">8 phases</span>. Each phase must complete before the next one starts. If something was missed, go back.</p>
 
     <div class="pipeline">
       <div class="pipeline-step">
         <div class="step-num">1</div>
         <span class="step-label">Start</span>
-        <span class="step-detail"><code>/flow:flow-start</code> &mdash; Worktree &middot; push branch &middot; PR &middot; bin/ci baseline &middot; dependency upgrade &middot; bin/ci green</span>
-        <span class="sub-agent-badge">sub-agent</span>
+        <span class="step-detail">Branch, PR, green CI baseline, dependencies upgraded</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">2</div>
         <span class="step-label">Plan</span>
-        <span class="step-detail"><code>/flow:flow-plan</code> &mdash; Explore codebase &middot; design approach &middot; identify risks &middot; ordered tasks</span>
-        <span class="plan-mode-badge">plan mode</span>
+        <span class="step-detail">Explore the codebase, design the approach, identify risks, write tasks</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">3</div>
         <span class="step-label">Code</span>
-        <span class="step-detail"><code>/flow:flow-code</code> &mdash; Test-first per task &middot; diff review &middot; bin/ci gate &middot; commit per task</span>
+        <span class="step-detail">Test first, then implement, review every diff, commit per task</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">4</div>
         <span class="step-label">Simplify</span>
-        <span class="step-detail"><code>/flow:flow-simplify</code> &mdash; Invoke /simplify &middot; refactor for clarity &middot; auto-commit</span>
+        <span class="step-detail">Refactor for clarity, auto-commit</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">5</div>
         <span class="step-label">Review</span>
-        <span class="step-detail"><code>/flow:flow-review</code> &mdash; Plan alignment &middot; risk coverage &middot; framework anti-patterns</span>
-        <span class="sub-agent-badge">sub-agent</span>
+        <span class="step-detail">Check plan alignment, verify risk coverage, catch bad patterns</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">6</div>
         <span class="step-label">Security</span>
-        <span class="step-detail"><code>/flow:flow-security</code> &mdash; Vulnerability scan &middot; auth gaps &middot; data exposure &middot; injection risks</span>
-        <span class="sub-agent-badge">sub-agent</span>
+        <span class="step-detail">Scan for vulnerabilities, auth gaps, data exposure, injection</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">7</div>
         <span class="step-label">Learning</span>
-        <span class="step-detail"><code>/flow:flow-learning</code> &mdash; Learnings routed to 5 destinations &middot; plugin gaps filed as issues</span>
+        <span class="step-detail">Capture what went wrong, route corrections to permanent homes</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">8</div>
         <span class="step-label">Cleanup</span>
-        <span class="step-detail"><code>/flow:flow-cleanup</code> &mdash; Worktree removed &middot; state file deleted &middot; feature done</span>
+        <span class="step-detail">Clean up, delete state, done</span>
       </div>
     </div>
 
-    <p>Review and Security use mandatory general-purpose sub-agents to analyze the diff. Start uses a Sonnet sub-agent to fix CI failures automatically. Plan uses Claude Code&rsquo;s native plan mode &mdash; Claude explores, designs, and plans in one integrated flow, then the user approves the whole plan before Code begins.</p>
+    <p style="font-size: 13px; margin-bottom: 24px;">Each phase is a single command: <code>/flow-start</code>, <code>/flow-plan</code>, <code>/flow-code</code>, <code>/flow-simplify</code>, <code>/flow-review</code>, <code>/flow-security</code>, <code>/flow-learning</code>, <code>/flow-cleanup</code>.</p>
 
-    <h3>Architecture</h3>
-    <div class="features">
-      <div class="feature">
-        <h4>Native Plan Mode</h4>
-        <p>Plan uses Claude Code&rsquo;s built-in plan mode (<code>EnterPlanMode</code>/<code>ExitPlanMode</code>). Claude explores the codebase, designs the approach, identifies risks, and produces ordered tasks &mdash; all in one context. The user iterates directly until the plan is right.</p>
-      </div>
-      <div class="feature">
-        <h4>Smart Model Selection</h4>
-        <p>Each phase automatically selects the right model via skill frontmatter. Opus for Plan, Code, and Security where reasoning matters most. Sonnet for structured phases. Haiku for mechanical steps. CI failures in Start are delegated to a Sonnet sub-agent.</p>
-      </div>
-      <div class="feature">
-        <h4>State File Persistence</h4>
-        <p>Every feature has a <code>.flow-states/&lt;branch&gt;.json</code> file tracking the plan file path, captured notes, security findings, and per-phase timing. State survives session breaks and compaction.</p>
-      </div>
-      <div class="feature">
-        <h4>Session Hook &mdash; Feature Awareness</h4>
-        <p>Every session start &mdash; new terminal, <code>/clear</code>, <code>/compact</code> &mdash; triggers a hook that scans for in-progress features. Claude knows the feature name, current phase, and worktree &mdash; but waits for you to type <code>/flow:flow-continue</code>. No auto-prompting, no interruptions.</p>
-      </div>
-      <div class="feature">
-        <h4>The Learning System</h4>
-        <p>User corrects Claude &rarr; <code>/flow:flow-note</code> captures it &rarr; Learning reads three sources (CLAUDE.md rules, conversation context, state/plan data) &rarr; each learning routed to the right destination: instructions (global CLAUDE.md, project CLAUDE.md, global rules, project rules) or context (project memory). Auto-memory is shared across worktrees &mdash; nothing is lost.</p>
-      </div>
-      <div class="feature">
-        <h4>Phase Back-Navigation</h4>
-        <p>Not a linear checklist. If Code reveals a flaw in the Plan, go back. If Review finds a missed risk, go back to Code or Plan. Prior findings are preserved and extended &mdash; never discarded.</p>
-      </div>
-      <div class="feature">
-        <h4>100% Coverage Enforced</h4>
-        <p>Code cannot transition to Simplify until <code>coverage/uncovered.txt</code> is empty. <code>bin/ci</code> must be green before every commit and every phase transition. Technical debt is blocked at the source.</p>
-      </div>
-      <div class="feature">
-        <h4>Minimal Project Footprint</h4>
-        <p>FLOW configures workspace permissions in <code>.claude/settings.json</code> (via <code>/flow:flow-init</code>, committed once). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature exists. Cleanup deletes even that. Zero dependencies, no build tools, no scripts to maintain.</p>
-      </div>
-    </div>
-
-    <h3>Instructions Are Advisory. Gates Aren&rsquo;t.</h3>
-    <p>Most agent workflows put enforcement in instructions: &ldquo;always run bin/ci&rdquo;, &ldquo;never skip Plan&rdquo;. Instructions work until they don&rsquo;t. FLOW&rsquo;s phase enforcement is layered and deterministic. There is no instruction path from an incomplete phase to the next one running.</p>
-    <div class="features">
-      <div class="feature">
-        <h4>Inline Phase Guard</h4>
-        <p>Every phase skill opens with a Python gate that reads the state file and exits immediately with <code>BLOCKED</code> if the previous phase isn&rsquo;t complete. The skill doesn&rsquo;t run &mdash; there&rsquo;s nothing for Claude to interpret or override.</p>
-      </div>
-      <div class="feature">
-        <h4>check-phase.py</h4>
-        <p>A standalone verification script callable from anywhere in the workflow. One source of truth for phase state, shared by skills, hooks, and utility commands alike. No duplication, no drift.</p>
-      </div>
-      <div class="feature">
-        <h4>SessionStart Hook</h4>
-        <p>Fires on every session start &mdash; new terminal, <code>/clear</code>, <code>/compact</code>. Reads the state file and injects the current phase directly into Claude&rsquo;s context. After a week away, Claude opens knowing exactly where it is and cannot proceed as if it doesn&rsquo;t.</p>
-      </div>
-    </div>
-
-    <h3>What It Enforces</h3>
-    <ul>
-      <li><strong>Worktree isolation</strong> &mdash; main is never touched directly; multiple features run in parallel</li>
-      <li><strong>Plan before code</strong> &mdash; codebase explored, risks identified, approach approved before any implementation</li>
-      <li><strong>TDD always</strong> &mdash; test must fail before implementation is written; test must pass before commit</li>
-      <li><strong>bin/ci gate</strong> &mdash; must be green before every commit and every phase transition</li>
-      <li><strong>100% test coverage</strong> &mdash; Code cannot transition to Simplify until coverage is complete</li>
-      <li><strong>No disabling linters</strong> &mdash; fix the code, not the linter; no lint suppression comments</li>
-      <li><strong>Commit discipline</strong> &mdash; imperative verb + tl;dr + per-file breakdown, every commit</li>
-    </ul>
-
-    <h3>Utility Commands</h3>
-    <p>Available at any point in the workflow, regardless of phase.</p>
-    <table>
-      <thead>
-        <tr><th>Command</th><th>What it does</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>/flow:flow-init</code></td><td>One-time project setup — permissions, git excludes, version marker</td></tr>
-        <tr><td><code>/flow:flow-commit</code></td><td>Full diff review, approved commit message, pull before push</td></tr>
-        <tr><td><code>/flow:flow-status</code></td><td>Current phase, PR link, cumulative time per phase, next step</td></tr>
-        <tr><td><code>/flow:flow-continue</code></td><td>Re-asks last transition question; rebuilds full context on new session</td></tr>
-        <tr><td><code>/flow:flow-note</code></td><td>Captures corrections to state file &mdash; auto-invoked when Claude is wrong</td></tr>
-        <tr><td><code>/flow:flow-abort</code></td><td>Abandon feature &mdash; close PR, delete remote branch, remove worktree, delete state</td></tr>
-        <tr><td><code>/flow:flow-config</code></td><td>Display current configuration &mdash; version, framework, per-skill autonomy</td></tr>
-      </tbody>
-    </table>
+    <p>Zero dependencies &mdash; pure Markdown skills with a thin Python dispatcher. Opus for planning, code, and security. Sonnet for review. Haiku for setup. Plan mode for codebase exploration. <code>.flow-states/&lt;branch&gt;.json</code> tracks everything &mdash; state survives session breaks and compaction.</p>
   </section>
 
   <!-- THE LEARNING SYSTEM -->
@@ -643,7 +559,7 @@
       <div class="pipeline-step">
         <div class="step-num">1</div>
         <span class="step-label">Capture</span>
-        <span class="step-detail">User corrects Claude &rarr; <code>/flow:flow-note</code> captures it automatically</span>
+        <span class="step-detail">User corrects Claude &rarr; <code>/flow-note</code> captures it automatically</span>
       </div>
       <div class="pipeline-step">
         <div class="step-num">2</div>
@@ -767,7 +683,7 @@
           <div class="cool-card-back">
             <span class="cool-icon">🎯</span>
             <div class="cool-headline">Corrections capture themselves</div>
-            <p class="cool-desc">Correct Claude and <code>/flow:flow-note</code> captures it automatically. Survives compaction, then Learning routes it to the right permanent home &mdash; CLAUDE.md, rules, or project memory.</p>
+            <p class="cool-desc">Correct Claude and <code>/flow-note</code> captures it automatically. Survives compaction, then Learning routes it to the right permanent home &mdash; CLAUDE.md, rules, or project memory.</p>
           </div>
         </div>
       </div>
@@ -830,25 +746,19 @@
     </div>
     <p style="color: var(--text-muted); font-size: 15px; margin-top: 20px; margin-bottom: 12px;">Step 2: Initialize in your project (once per project)</p>
     <div style="position: relative;">
-      <pre style="font-size: 15px; padding: 20px 24px; margin: 0;"><code>/flow:flow-init</code></pre>
+      <pre style="font-size: 15px; padding: 20px 24px; margin: 0;"><code>/flow-init</code></pre>
       <button onclick="copyInit()" style="position: absolute; top: 12px; right: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; cursor: pointer; color: var(--text-muted); line-height: 1; transition: color 0.15s, border-color 0.15s;" aria-label="Copy" id="copy-btn-init">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>
       </button>
     </div>
     <p style="color: var(--text-muted); font-size: 15px; margin-top: 20px; margin-bottom: 12px;">Step 3: Start a feature</p>
     <div style="position: relative;">
-      <pre style="font-size: 15px; padding: 20px 24px; margin: 0;"><code>/flow:flow-start invoice pdf export</code></pre>
+      <pre style="font-size: 15px; padding: 20px 24px; margin: 0;"><code>/flow-start invoice pdf export</code></pre>
       <button onclick="copyStart()" style="position: absolute; top: 12px; right: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; cursor: pointer; color: var(--text-muted); line-height: 1; transition: color 0.15s, border-color 0.15s;" aria-label="Copy" id="copy-btn-start">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>
       </button>
     </div>
-    <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px; margin-bottom: 28px;">FLOW creates a git worktree, opens a GitHub PR, runs <code>bin/ci</code> to establish a baseline, upgrades dependencies, runs <code>bin/ci</code> again to confirm green, and lands you in Phase 2: Plan.</p>
-
-    <div class="callout" style="margin-bottom: 32px;">
-      <p>The plugin installs into Claude Code&rsquo;s managed plugin directory. <code>/flow:flow-init</code> commits workspace permissions in <code>.claude/settings.json</code> and a version marker in <code>.flow.json</code> (once per project). During active development, a single gitignored <code>.flow-states/&lt;branch&gt;.json</code> per feature tracks state. Cleanup deletes even that. <strong>Three commands to set up. One file while you work. Zero when you&rsquo;re done.</strong> To stay current, run <code>/plugin marketplace update flow-marketplace</code>.</p>
-    </div>
-
-    <a href="https://github.com/benkruger/flow" class="cta">View on GitHub</a>
+    <a href="https://github.com/benkruger/flow" class="cta" style="margin-top: 28px;">View on GitHub</a>
   </section>
 
 </div>
@@ -879,11 +789,11 @@
   }
 
   function copyInit() {
-    copyText('/flow:flow-init', 'copy-btn-init');
+    copyText('/flow-init', 'copy-btn-init');
   }
 
   function copyStart() {
-    copyText('/flow:flow-start invoice pdf export', 'copy-btn-start');
+    copyText('/flow-start invoice pdf export', 'copy-btn-start');
   }
 
   function setIcon(theme) {

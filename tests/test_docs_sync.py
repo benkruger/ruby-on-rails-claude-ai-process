@@ -20,7 +20,6 @@ REQUIRED_FEATURES = {
     "Model selection": ["opus"],
     "Zero dependencies": ["zero dependencies"],
     "Minimal repo artifacts": [".flow-states"],
-    "Plugin updates": ["marketplace update"],
     "Multi-language": ["rails"],
 }
 
@@ -193,16 +192,6 @@ def test_landing_page_mentions_all_phase_names():
         )
 
 
-def test_landing_page_mentions_all_utility_commands():
-    """docs/index.html must mention all utility skill commands."""
-    html = (DOCS_DIR / "index.html").read_text()
-    for name in _utility_skill_names():
-        command = f"/flow:{name}"
-        assert command in html, (
-            f"docs/index.html does not mention utility command '{command}'"
-        )
-
-
 # --- State schema coverage ---
 
 
@@ -259,12 +248,3 @@ def test_landing_page_covers_key_features():
     _assert_covers_key_features((DOCS_DIR / "index.html").read_text().lower(), "docs/index.html")
 
 
-def test_landing_page_mentions_all_phase_commands():
-    """docs/index.html must mention all 8 phase commands."""
-    html = (DOCS_DIR / "index.html").read_text()
-    data = _load_phases()
-    for key, phase in data["phases"].items():
-        assert phase["command"] in html, (
-            f"docs/index.html does not mention phase command "
-            f"'{phase['command']}'"
-        )

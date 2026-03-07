@@ -80,7 +80,7 @@ Then print:
 
 Use the Read tool to check if `.flow-states/.dev-mode` exists.
 
-If it does not exist, print "Not in dev mode. Use `/qa --start` first." and stop.
+If it does not exist, run the `--start` flow instead (skip to the `--start` section above).
 
 ### Step 2 — Nuke cache and re-register local source
 

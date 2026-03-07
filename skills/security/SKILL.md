@@ -108,8 +108,9 @@ Provide these instructions to the Step 1 sub-agent (fill in the details):
 > operations. Use Grep for searching code. Only use Bash for git commands
 > (git diff, git log, git blame, git show). Never pipe git output through
 > sed, grep, awk, or any other command — read the full output and extract
-> what you need in your response. Never use Bash for any other purpose —
-> no find, ls, cat, wc, test -f, stat, or running project tooling.
+> what you need in your response. Never use `cd <path> && git` — run git
+> commands from the current directory. Never use Bash for any other
+> purpose — no find, ls, cat, wc, test -f, stat, or running project tooling.
 >
 > Plan file:
 > <paste the plan file contents — includes approach and risks>
@@ -222,8 +223,9 @@ Provide these instructions to the Step 1 sub-agent (fill in the details):
 > operations. Use Grep for searching code. Only use Bash for git commands
 > (git diff, git log, git blame, git show). Never pipe git output through
 > sed, grep, awk, or any other command — read the full output and extract
-> what you need in your response. Never use Bash for any other purpose —
-> no find, ls, cat, wc, test -f, stat, or running project tooling.
+> what you need in your response. Never use `cd <path> && git` — run git
+> commands from the current directory. Never use Bash for any other
+> purpose — no find, ls, cat, wc, test -f, stat, or running project tooling.
 >
 > Plan file:
 > <paste the plan file contents — includes approach and risks>
@@ -496,3 +498,4 @@ Invoke `flow:status`.
 - Never use Bash to print banners — output them as text in your response
 - Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
 - Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories
+- Never cd before running `bin/flow` — it detects the project root internally

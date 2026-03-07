@@ -76,3 +76,5 @@ Tell the user they can override any setting at invocation time with `--auto` or 
 - Display only — never modify `.flow.json`
 - Never use Bash to print banners — output them as text in your response
 - Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
+- Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories
+- Never cd before running `bin/flow` — it detects the project root internally

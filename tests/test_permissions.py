@@ -447,6 +447,36 @@ def test_no_heredoc_in_bash_blocks():
     )
 
 
+def test_no_cd_compound_in_bash_blocks():
+    """No ```bash``` block in any SKILL.md or docs/*.md should contain cd && compound commands.
+
+    Claude Code's "bare repository attacks" heuristic fires on any `cd <path> && git`
+    compound command, causing permission prompts that settings.json cannot suppress.
+    Use `git -C <path>` instead, or run commands from the current directory."""
+    errors = []
+
+    files_to_check = _all_plugin_skill_files()
+    for rel, content in _all_docs_files():
+        files_to_check.append((rel, content))
+
+    for filepath, content in files_to_check:
+        bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in bash_blocks:
+            if re.search(r'\bcd\s+\S+\s*&&', block):
+                cmd = block.strip().split("\n")[0]
+                errors.append(
+                    f"{filepath}: bash block contains cd && compound: '{cmd}'"
+                )
+
+    assert not errors, (
+        f"Found {len(errors)} bash block(s) containing cd && compound commands. "
+        f"Claude Code's 'bare repository attacks' heuristic fires on cd <path> && "
+        f"git commands, causing permission prompts that settings.json cannot "
+        f"suppress. Use git -C <path> instead.\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
 def test_all_bash_commands_have_permission_coverage():
     """Every ```bash``` block in all SKILL.md and docs/*.md files must match
     at least one permission from init/SKILL.md or be in the auto-allowed set."""

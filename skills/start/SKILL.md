@@ -203,8 +203,10 @@ Provide these instructions (fill in the worktree path and bin/flow ci output):
 > **Tool rules:** Use Glob and Read tools for all file and directory
 > operations. Use Grep for searching code. Only use Bash for commands
 > explicitly listed in these instructions (bin/flow ci, bin/rails test,
-> rubocop -A, rubocop). Never use Bash for any other purpose — no find,
-> ls, cat, wc, test -f, stat, or running project tooling not listed here.
+> rubocop -A, rubocop). Never use `cd <path> && git` — if you need git
+> info, use `git -C <worktree_path>`. Never use Bash for any other
+> purpose — no find, ls, cat, wc, test -f, stat, or running project
+> tooling not listed here.
 >
 > Fix the failures in this order:
 >
@@ -317,3 +319,4 @@ Then report:
 - Never use Bash to print banners — output them as text in your response
 - Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
 - Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories
+- Never cd before running `bin/flow` — it detects the project root internally

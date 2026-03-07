@@ -145,10 +145,11 @@ The plan file should include these sections:
 
 ---
 
-## Step 3 — Exit plan mode and store plan file
+## Step 3 — Store plan file and exit plan mode
 
-After `ExitPlanMode` returns (user has approved the plan), store the
-plan file path in the state file:
+Store the plan file path in the state file BEFORE exiting plan mode.
+`ExitPlanMode` may clear context, so nothing after it is guaranteed
+to run.
 
 ```bash
 bin/flow set-timestamp --set plan_file=<plan_file_path>
@@ -156,6 +157,8 @@ bin/flow set-timestamp --set plan_file=<plan_file_path>
 
 Replace `<plan_file_path>` with the actual path to the plan file that
 was written during plan mode.
+
+After the plan file path is stored, call `ExitPlanMode`.
 
 ---
 

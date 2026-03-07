@@ -21,8 +21,8 @@ approves it as a whole.
 3. In plan mode: Claude explores the codebase, identifies risks,
    designs the approach, and writes the plan to a plan file
 4. The user reviews and iterates directly with the plan
-5. On approval (`ExitPlanMode`), the plan file path is stored in the
-   state file and the phase completes
+5. The plan file path is stored in the state file, then `ExitPlanMode`
+   is called and the phase completes
 
 ---
 

@@ -11,6 +11,7 @@ Output (JSON to stdout):
   Failure: {"status": "error", "message": "..."}
 """
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -68,6 +69,22 @@ def _load_framework_permissions(framework):
 def _allow_list(framework):
     """Build the merged allow list for the given framework."""
     return UNIVERSAL_ALLOW + _load_framework_permissions(framework)
+
+
+def compute_config_hash(framework):
+    """Compute a deterministic hash of all structural config inputs.
+
+    Hashes the canonical JSON of sorted allow list, deny list, exclude
+    entries, and defaultMode. Returns a 12-char hex digest.
+    """
+    canonical = {
+        "allow": sorted(_allow_list(framework)),
+        "defaultMode": "acceptEdits",
+        "deny": sorted(FLOW_DENY),
+        "exclude": sorted(EXCLUDE_ENTRIES),
+    }
+    raw = json.dumps(canonical, sort_keys=True)
+    return hashlib.sha256(raw.encode()).hexdigest()[:12]
 
 
 def merge_settings(project_root, framework):

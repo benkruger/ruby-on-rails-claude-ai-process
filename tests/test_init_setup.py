@@ -402,3 +402,25 @@ def test_permissions_loaded_from_framework_directory(tmp_path):
 def test_load_framework_permissions_returns_empty_for_unknown():
     result = _mod._load_framework_permissions("nonexistent")
     assert result == []
+
+
+# --- Config hash ---
+
+
+def test_compute_config_hash_returns_12_hex_chars():
+    result = _mod.compute_config_hash("rails")
+    assert isinstance(result, str)
+    assert len(result) == 12
+    assert all(c in "0123456789abcdef" for c in result)
+
+
+def test_compute_config_hash_is_deterministic():
+    hash1 = _mod.compute_config_hash("rails")
+    hash2 = _mod.compute_config_hash("rails")
+    assert hash1 == hash2
+
+
+def test_compute_config_hash_differs_by_framework():
+    rails_hash = _mod.compute_config_hash("rails")
+    python_hash = _mod.compute_config_hash("python")
+    assert rails_hash != python_hash

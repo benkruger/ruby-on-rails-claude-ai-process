@@ -898,17 +898,12 @@ def test_flow_qa_has_plugin_install_commands():
     )
 
 
-def test_flow_qa_no_ask_user_in_bare_invocation():
-    """Bare /flow-qa must not prompt — it auto-starts or auto-restarts."""
+def test_flow_qa_no_ask_user():
+    """flow-qa must not prompt — all paths are automatic."""
     content = (REPO_ROOT / ".claude" / "skills" / "flow-qa" / "SKILL.md").read_text()
-    # Extract the bare invocation section
-    bare_marker = "## No flag"
-    bare_idx = content.find(bare_marker)
-    assert bare_idx != -1, "flow-qa/SKILL.md must have a '## No flag' section"
-    bare_section = content[bare_idx:]
-    assert "AskUserQuestion" not in bare_section, (
-        "flow-qa/SKILL.md bare invocation must not use AskUserQuestion — "
-        "it should auto-start or auto-restart without prompting"
+    assert "AskUserQuestion" not in content, (
+        "flow-qa/SKILL.md must not use AskUserQuestion — "
+        "all paths should run without prompting"
     )
 
 

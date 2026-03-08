@@ -27,6 +27,7 @@
       "Bash(claude plugin marketplace update *)",
       "Bash(claude plugin uninstall *)",
       "Bash(claude plugin install *)",
+      "Bash(claude plugin list)",
       "Bash(cut *)",
       "Bash(wc *)",
       "Bash(sort *)",

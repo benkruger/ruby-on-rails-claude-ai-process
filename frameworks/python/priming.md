@@ -1,7 +1,5 @@
 # Python Conventions
 
-<!-- FLOW:PRIMED -->
-
 ## Architecture Patterns
 
 - **Module structure** — Read the full module and its imports before modifying.

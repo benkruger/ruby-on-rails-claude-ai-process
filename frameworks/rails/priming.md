@@ -1,7 +1,5 @@
 # Rails Conventions
 
-<!-- FLOW:PRIMED -->
-
 ## Architecture Patterns
 
 - **Model hierarchy** — Models use a Base/Create split. Always read the full

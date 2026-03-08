@@ -15,10 +15,39 @@ Test the FLOW plugin locally before releasing. Maintainer-only — requires the 
 /flow-qa --stop
 ```
 
-- `/flow-qa` or `/flow-qa --start` — uninstall marketplace plugin (if installed), nuke cache, create `.dev-mode` marker, tell user to use `--plugin-dir`
+- `/flow-qa` — show current mode (dev or marketplace)
+- `/flow-qa --start` — uninstall marketplace plugin (if installed), nuke cache, create `.dev-mode` marker, tell user to use `--plugin-dir`
 - `/flow-qa --stop` — nuke cache, reinstall marketplace plugin, remove `.dev-mode` marker
 
-## Flag: `--start` (also bare `/flow-qa`)
+## Bare `/flow-qa` (no flags)
+
+### Step 1 — Check dev mode marker
+
+Use the Read tool to check if `.flow-states/.dev-mode` exists.
+
+### Step 2 — Report
+
+If `.flow-states/.dev-mode` exists, print:
+
+````markdown
+```text
+============================================
+  FLOW QA — DEV MODE (local)
+============================================
+```
+````
+
+If `.flow-states/.dev-mode` does not exist, print:
+
+````markdown
+```text
+============================================
+  FLOW QA — MARKETPLACE (remote)
+============================================
+```
+````
+
+## Flag: `--start`
 
 ### Step 1 — Check if marketplace plugin is installed
 
@@ -68,6 +97,10 @@ Then print:
 >
 > Run `/flow-qa --stop` when done to reinstall the marketplace plugin.
 
+Then tell the user:
+
+> Run `/reload-plugins` now to update the skill list for this session.
+
 ## Flag: `--stop`
 
 ### Step 1 — Check dev mode
@@ -109,3 +142,7 @@ Print inside a fenced code block:
 ============================================
 ```
 ````
+
+Then tell the user:
+
+> Run `/reload-plugins` now to update the skill list for this session.

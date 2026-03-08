@@ -302,7 +302,7 @@ These skills and scripts live in the FLOW repo itself (`.claude/skills/` and `li
 | Command | What it does |
 |---------|-------------|
 | `/release` | Bump version in plugin.json and marketplace.json, tag, push, create GitHub Release |
-| `/flow-qa` | Dev mode — uninstalls marketplace plugin for local `--plugin-dir` testing, `--stop` reinstalls |
+| `/flow-qa` | QA mode — bare shows status, `--start` switches to local `--plugin-dir` testing, `--stop` reinstalls marketplace |
 | `/reset` | Remove all FLOW artifacts — close PRs, delete worktrees/branches/state files |
 
 ### Local QA Workflow
@@ -310,22 +310,18 @@ These skills and scripts live in the FLOW repo itself (`.claude/skills/` and `li
 Every plugin change can be tested locally before releasing:
 
 ```bash
-/flow-qa
+/flow-qa              # check current mode (dev or marketplace)
+/flow-qa --start      # switch to local dev mode
+/flow-qa --stop       # switch back to marketplace
 ```
 
-This uninstalls the marketplace plugin (if installed), nukes the plugin cache, and creates a `.dev-mode` marker. Then start Claude Code with `--plugin-dir` to load local source:
+`--start` uninstalls the marketplace plugin (if installed), nukes the plugin cache, and creates a `.dev-mode` marker. Then start Claude Code with `--plugin-dir` to load local source:
 
 ```bash
 claude --plugin-dir=$HOME/code/flow
 ```
 
-When done:
-
-```bash
-/flow-qa --stop
-```
-
-This nukes the cache, reinstalls the marketplace plugin, and removes the `.dev-mode` marker.
+`--stop` nukes the cache, reinstalls the marketplace plugin, and removes the `.dev-mode` marker. Both flags prompt you to run `/reload-plugins` afterward.
 
 The underlying commands can also be run directly:
 

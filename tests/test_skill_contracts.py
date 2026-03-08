@@ -898,6 +898,29 @@ def test_flow_qa_has_plugin_install_commands():
     )
 
 
+def test_flow_qa_has_reload_plugins():
+    """flow-qa must reload plugins after install/uninstall changes."""
+    content = (REPO_ROOT / ".claude" / "skills" / "flow-qa" / "SKILL.md").read_text()
+    assert "/reload-plugins" in content, (
+        "flow-qa/SKILL.md must include /reload-plugins — "
+        "skill list is stale until plugins are reloaded"
+    )
+
+
+def test_flow_qa_bare_is_status():
+    """Bare /flow-qa must be a status check, not an alias for --start."""
+    content = (REPO_ROOT / ".claude" / "skills" / "flow-qa" / "SKILL.md").read_text()
+    assert "Bare `/flow-qa` (no flags)" in content, (
+        "flow-qa/SKILL.md must have a 'Bare /flow-qa (no flags)' section"
+    )
+    assert "DEV MODE (local)" in content, (
+        "flow-qa/SKILL.md must show DEV MODE (local) status"
+    )
+    assert "MARKETPLACE (remote)" in content, (
+        "flow-qa/SKILL.md must show MARKETPLACE (remote) status"
+    )
+
+
 def test_flow_qa_no_ask_user():
     """flow-qa must not prompt — all paths are automatic."""
     content = (REPO_ROOT / ".claude" / "skills" / "flow-qa" / "SKILL.md").read_text()

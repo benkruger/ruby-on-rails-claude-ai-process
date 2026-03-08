@@ -70,7 +70,7 @@ Any skill invocation accepts `--auto` or `--manual` to override the configured s
 
 ```text
 /flow-code --auto        # skip per-task approval for this session
-/flow-security --manual  # prompt before advancing, just this once
+/flow-code-review --manual  # prompt before advancing, just this once
 ```
 
 ### Configuration lives in `.flow.json`

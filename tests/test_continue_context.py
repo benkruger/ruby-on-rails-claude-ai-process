@@ -74,8 +74,8 @@ def test_happy_path_returns_ok_with_all_fields(state_dir, git_repo, branch):
     assert data["worktree"] == ".worktrees/test-feature"
 
 
-def test_all_complete_returns_ok_with_phase_8():
-    """Phase 8 maps to Cleanup with /flow:flow-cleanup command."""
+def test_all_complete_returns_ok_with_phase_6():
+    """Phase 6 maps to Cleanup with /flow:flow-cleanup command."""
     assert _mod.PHASE_NAMES["flow-cleanup"] == "Cleanup"
     assert _mod.COMMANDS["flow-cleanup"] == "/flow:flow-cleanup"
 

@@ -332,8 +332,8 @@ def test_phase_skills_have_announce_banner():
 
 
 def test_phase_skills_have_update_state_section():
-    """Phases 1-7 should have state update instructions.
-    Phase 8 (cleanup) deletes the state file instead of updating it."""
+    """Phases 1-5 should have state update instructions.
+    Phase 6 (cleanup) deletes the state file instead of updating it."""
     phase_skills = _phase_skills()
 
     for key, skill_name in phase_skills.items():
@@ -548,12 +548,12 @@ def test_phase_6_has_delete_state_instructions():
         or "rm " in content
     )
     assert has_delete, (
-        "Phase 7 (cleanup) should have delete/remove instructions for state file"
+        "Phase 6 (cleanup) should have delete/remove instructions for state file"
     )
     # Should NOT have "Update State" section like other phases
     has_update_state = bool(re.search(r"##.*Update State", content, re.IGNORECASE))
     assert not has_update_state, (
-        "Phase 7 (cleanup) should NOT have an 'Update State' section — "
+        "Phase 6 (cleanup) should NOT have an 'Update State' section — "
         "it deletes the state file instead"
     )
 

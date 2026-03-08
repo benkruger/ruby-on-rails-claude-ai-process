@@ -17,8 +17,8 @@ Run once after installing FLOW, and again after each FLOW upgrade. Configures wo
 
 At the very start, output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Init — STARTING
 ============================================
@@ -255,8 +255,8 @@ git push
 
 Output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Init — COMPLETE
 ============================================

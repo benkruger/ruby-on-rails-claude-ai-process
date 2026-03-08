@@ -75,7 +75,8 @@ Check if `.flow-states/.dev-mode` exists using the Read tool.
 
 Print the full inventory inside a fenced code block:
 
-````text
+````markdown
+```text
 ============================================
   FLOW Reset — Artifact Inventory
 ============================================
@@ -87,6 +88,7 @@ Remote branches: <count>
 Open PRs: <count>
 Dev mode: active / inactive
 ============================================
+```
 ````
 
 List each item under its category.
@@ -156,7 +158,8 @@ rm .flow-states/.dev-mode
 
 Print results inside a fenced code block:
 
-````text
+````markdown
+```text
 ============================================
   FLOW Reset — Complete
 ============================================
@@ -169,6 +172,7 @@ State files deleted: <count>
 Dev mode: restored / was inactive
 Errors: <count or "none">
 ============================================
+```
 ````
 
 If any step failed, list the error details below the summary.

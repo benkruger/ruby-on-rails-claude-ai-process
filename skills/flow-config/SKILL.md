@@ -32,8 +32,8 @@ If `.flow.json` exists, read it with the Read tool.
 
 Output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v<version> — Config
 ============================================

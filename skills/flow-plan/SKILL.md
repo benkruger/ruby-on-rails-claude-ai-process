@@ -31,8 +31,8 @@ to the project root — `bin/flow` commands find paths internally.
 
 At the very start, output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Phase 2: Plan — STARTING
 ============================================
@@ -68,8 +68,8 @@ there are no Bash commands to log beyond the entry gate.
 If `plan_file` in the state file is already set (not null), the plan was
 previously written and approved. Output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW — Plan already approved
 ============================================
@@ -158,8 +158,8 @@ the timing calculation.
 
 Output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Phase 2: Plan — COMPLETE (<formatted_time>)
 ============================================
@@ -183,8 +183,8 @@ Invoke `flow:flow-status`, then use AskUserQuestion:
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:flow-continue when ready to continue.

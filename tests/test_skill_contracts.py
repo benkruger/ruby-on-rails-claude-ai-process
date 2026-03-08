@@ -1130,6 +1130,68 @@ def test_local_permission_skill_uses_read_and_edit_tools():
     )
 
 
+def test_quadruple_fenced_blocks_use_markdown_and_text():
+    """All ````-fenced blocks in skills must use ````markdown as the outer
+    fence and ```text as the inner fence.
+
+    Pattern 1 (correct):  ````markdown + ```text
+    Pattern 2 (wrong):    ````text + bare ```
+    Pattern 3 (wrong):    ````text with no inner fences
+    Pattern 4 (wrong):    bare ``` for banners (no quadruple wrapper)
+    """
+    # Collect all skill files: public (skills/) and maintainer (.claude/skills/)
+    skill_dirs = [
+        d for d in sorted(SKILLS_DIR.iterdir()) if d.is_dir()
+    ]
+    maintainer_dir = REPO_ROOT / ".claude" / "skills"
+    if maintainer_dir.is_dir():
+        skill_dirs.extend(
+            d for d in sorted(maintainer_dir.iterdir()) if d.is_dir()
+        )
+
+    errors = []
+    for skill_dir in skill_dirs:
+        skill_file = skill_dir / "SKILL.md"
+        if not skill_file.exists():
+            continue
+        content = skill_file.read_text()
+        name = skill_dir.name
+
+        # Find all ````-fenced blocks (4+ backticks)
+        # Pattern: ````<lang>\n...\n```` (matching closing fence)
+        quad_blocks = re.finditer(
+            r"^(`{4,})(\w*)\n(.*?)\n\1\s*$", content, re.MULTILINE | re.DOTALL
+        )
+        for match in quad_blocks:
+            lang = match.group(2)
+            inner = match.group(3)
+            line_num = content[:match.start()].count("\n") + 1
+
+            # Outer fence must be ````markdown, not ````text
+            if lang != "markdown":
+                errors.append(
+                    f"{name}/SKILL.md:{line_num} — outer fence is "
+                    f"````{lang}, should be ````markdown"
+                )
+
+            # Inner fences come in pairs: opening (```text) + closing (```)
+            # Only validate opening fences (even indices: 0, 2, 4, ...)
+            inner_fences = re.findall(r"^```(\w*)$", inner, re.MULTILINE)
+            for i in range(0, len(inner_fences), 2):
+                inner_lang = inner_fences[i]
+                if inner_lang not in ("text", "diff"):
+                    tag_desc = f"```{inner_lang}" if inner_lang else "bare ```"
+                    errors.append(
+                        f"{name}/SKILL.md:{line_num} — inner fence is "
+                        f"{tag_desc}, should be ```text"
+                    )
+
+    assert not errors, (
+        f"Quadruple-fenced blocks with wrong pattern:\n"
+        + "\n".join(f"  - {e}" for e in errors)
+    )
+
+
 def test_learning_step_4_invokes_local_permission():
     """Learning SKILL.md Step 4 must invoke /flow:flow-local-permission."""
     content = _read_skill("flow-learning")

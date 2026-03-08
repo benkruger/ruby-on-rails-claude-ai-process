@@ -29,8 +29,8 @@ At the very start, output the following banner in your response (not via Bash) i
 
 **FLOW mode:**
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — flow:flow-commit — STARTING
 ============================================
@@ -39,8 +39,8 @@ At the very start, output the following banner in your response (not via Bash) i
 
 **Maintainer and Standalone mode:**
 
-````text
-```
+````markdown
+```text
 ============================================
   Commit — STARTING
 ============================================
@@ -51,8 +51,8 @@ On completion (whether approved or denied), print the same way:
 
 **FLOW mode:**
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — flow:flow-commit — COMPLETE
 ============================================
@@ -61,8 +61,8 @@ On completion (whether approved or denied), print the same way:
 
 **Maintainer and Standalone mode:**
 
-````text
-```
+````markdown
+```text
 ============================================
   Commit — COMPLETE
 ============================================
@@ -137,7 +137,7 @@ deleted:    path/to/removed.rb
 
 **Format the diff as a fenced diff code block:**
 
-````text
+````markdown
 ```diff
 - removed line
 + added line

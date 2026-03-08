@@ -11,11 +11,13 @@ Release a new version of the FLOW plugin. Maintainer-only — requires push acce
 
 Print:
 
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — release — STARTING
 ============================================
 ```
+````
 
 ## Flags
 
@@ -101,12 +103,14 @@ these rules (apply the highest that matches):
 
 Then draft the release notes section:
 
-```
+````markdown
+```text
 ## v<new_version> — <short description>
 
 <Summary of what changed — written from the commit list in Step 4.
 Group by: new features, fixes, improvements. Be concise.>
 ```
+````
 
 Present the recommendation and the draft release notes in your response.
 
@@ -197,7 +201,8 @@ If this fails, print the command for the user to run manually.
 
 Print:
 
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — release — COMPLETE
   Released v<new_version>
@@ -207,6 +212,7 @@ Print:
   claude plugin marketplace update flow-marketplace
 ============================================
 ```
+````
 
 ## Rules
 

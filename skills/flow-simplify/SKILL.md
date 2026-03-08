@@ -50,8 +50,8 @@ to the project root — `bin/flow` commands find paths internally.
 
 At the very start, output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Phase 4: Simplify — STARTING
 ============================================
@@ -174,8 +174,8 @@ the timing calculation.
 
 Output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Phase 4: Simplify — COMPLETE (<formatted_time>)
 ============================================
@@ -203,8 +203,8 @@ Invoke `flow:flow-status`.
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:flow-continue when ready to continue.

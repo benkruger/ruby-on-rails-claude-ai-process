@@ -38,8 +38,8 @@ Do NOT proceed if the feature name is missing. Ask the user:
 
 At the very start, output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Phase 1: Start — STARTING
 ============================================
@@ -94,8 +94,8 @@ Parse the JSON output:
 - `"status": "unknown"` — proceed silently (best-effort check)
 - `"status": "upgrade_available"` — show this notice, then continue:
 
-````text
-```
+````markdown
+```text
 ╔══════════════════════════════════════════════╗
 ║  FLOW update available: v{installed} → v{latest}
 ║
@@ -269,8 +269,8 @@ the timing calculation.
 
 Output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Phase 1: Start — COMPLETE (<formatted_time>)
 ============================================
@@ -298,8 +298,8 @@ Invoke the `flow:flow-status` skill to show the current state.
 
 **If Not yet** — output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:flow-continue when ready to continue.

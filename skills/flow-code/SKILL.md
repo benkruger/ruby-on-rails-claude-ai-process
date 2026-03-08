@@ -50,8 +50,8 @@ to the project root — `bin/flow` commands find paths internally.
 
 At the very start, output the following banner in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Phase 3: Code — STARTING
 ============================================
@@ -122,8 +122,8 @@ git log --oneline origin/main..HEAD
 Compare commit messages to the tasks in the plan file. Continue from the
 first task that doesn't have a matching commit. Output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW — Resuming Code
 ============================================
@@ -143,8 +143,8 @@ Work through each task from the plan file in order. For each task:
 
 Output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   Task <n> of <total>
   <description>
@@ -266,8 +266,8 @@ Add <what was built> — Task <n> of <total>
 
 Output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 Task <n> complete. <completed> of <total> done.
 ```
 ````
@@ -325,8 +325,8 @@ the timing calculation.
 
 Output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW v0.19.1 — Phase 3: Code — COMPLETE (<formatted_time>)
 ============================================
@@ -354,8 +354,8 @@ Invoke `flow:flow-status`.
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 
-````text
-```
+````markdown
+```text
 ============================================
   FLOW — Paused
   Run /flow:flow-continue when ready to continue.

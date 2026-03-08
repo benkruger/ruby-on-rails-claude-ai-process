@@ -1,5 +1,5 @@
 ---
-name: qa
+name: flow-qa
 description: "QA the FLOW plugin locally. Switch marketplace to local source, test in a live session, restore when done."
 ---
 
@@ -10,16 +10,14 @@ Test the FLOW plugin locally before releasing. Maintainer-only — requires the 
 ## Usage
 
 ```text
-/qa
-/qa --start
-/qa --stop
-/qa --restart
+/flow-qa
+/flow-qa --start
+/flow-qa --stop
 ```
 
-- `/qa` — show dev mode status, then prompt for next action
-- `/qa --start` — nuke cache, switch marketplace to local source, create `.dev-mode` marker
-- `/qa --stop` — nuke cache, restore production marketplace, remove `.dev-mode` marker
-- `/qa --restart` — nuke cache, re-register local source, refresh cache (must already be in dev mode)
+- `/flow-qa` — auto-start if inactive, auto-restart if active
+- `/flow-qa --start` — nuke cache, switch marketplace to local source, create `.dev-mode` marker
+- `/flow-qa --stop` — nuke cache, restore production marketplace, remove `.dev-mode` marker
 
 ## Flag: `--start`
 
@@ -27,11 +25,11 @@ Test the FLOW plugin locally before releasing. Maintainer-only — requires the 
 
 Use the Read tool to check if `.flow-states/.dev-mode` exists.
 
-If it exists, print "Already in dev mode. Use `/qa --stop` to exit." and stop.
+If it exists, print "Already in dev mode. Use `/flow-qa --stop` to exit." and stop.
 
 ### Step 2 — Nuke cache and switch to local source
 
-Get the project root from `git worktree list --porcelain` (first `worktree` line).
+Run `git worktree list --porcelain` and read the output. The project root is the path on the first line that starts with `worktree `.
 
 Run:
 
@@ -72,7 +70,7 @@ Then print:
 > Plugin cache now contains local source.
 >
 > Open a **new** Claude Code session in a target project to test.
-> Run `/qa --stop` when done.
+> Run `/flow-qa --stop` when done.
 
 ## Flag: `--restart`
 
@@ -84,7 +82,7 @@ If it does not exist, run the `--start` flow instead (skip to the `--start` sect
 
 ### Step 2 — Nuke cache and re-register local source
 
-Get the project root from `git worktree list --porcelain` (first `worktree` line).
+Run `git worktree list --porcelain` and read the output. The project root is the path on the first line that starts with `worktree `.
 
 Run:
 
@@ -170,46 +168,9 @@ Print inside a fenced code block:
 ```
 ````
 
-## No flag (bare `/qa`)
+## No flag (bare `/flow-qa`)
 
 Check if `.flow-states/.dev-mode` exists using the Read tool.
 
-If dev mode is **active**, print inside a fenced code block:
-
-````markdown
-```text
-============================================
-  FLOW QA — Dev mode: ACTIVE
-  Plugin cache is using local source.
-============================================
-```
-````
-
-Then use AskUserQuestion:
-
-> "What would you like to do?"
->
-> - **Restart QA** — refresh cache from local source
-> - **Stop QA** — restore production marketplace
-
-Then invoke the chosen flag (`--restart` or `--stop`).
-
-If dev mode is **not active**, print inside a fenced code block:
-
-````markdown
-```text
-============================================
-  FLOW QA — Dev mode: INACTIVE
-  Plugin cache is using production source.
-============================================
-```
-````
-
-Then use AskUserQuestion:
-
-> "Start QA dev mode?"
->
-> - **Yes, start** — runs `/qa --start`
-> - **No, cancel** — stop
-
-Then invoke `--start` if chosen.
+- If dev mode is **active** → run the `--restart` flow above.
+- If dev mode is **not active** → run the `--start` flow above.

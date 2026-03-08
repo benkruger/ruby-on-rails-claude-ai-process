@@ -27,7 +27,7 @@ Reviews all pending changes before committing. You see the full diff and propose
 ## Commit Message Format
 
 ```text
-Short subject line (imperative verb, under 72 characters)
+Full-sentence subject line (imperative verb + what + why, ends with a period.)
 
 tl;dr
 
@@ -37,7 +37,7 @@ One or two sentences explaining the WHY.
 - path/to/other.rb: What changed and why
 ```
 
-Subject starts with an imperative verb — Add, Fix, Update, Remove, Refactor. No prefix jargon.
+Subject starts with an imperative verb — Add, Fix, Update, Remove, Refactor. Includes the business reason. Ends with a period. No prefix jargon.
 
 ---
 

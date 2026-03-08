@@ -165,7 +165,7 @@ Write a commit message that a developer reading `git log` six months from now wo
 **Structure:**
 
 ```text
-Short subject line (imperative verb, under 72 characters)
+Full-sentence subject line (imperative verb + what + why, ends with a period.)
 
 tl;dr
 
@@ -179,7 +179,7 @@ what behaviour changes, or what was wrong before.
 
 **Before displaying your draft, verify it contains all of these in order:**
 
-1. Subject line — imperative verb, ≤72 chars, no period
+1. Subject line — imperative verb, what + why in one sentence, ends with a period
 2. Blank line
 3. The literal word `tl;dr` on its own line — no colon, no elaboration, just `tl;dr`
 4. Blank line
@@ -191,10 +191,10 @@ If any element is missing or out of order, rewrite before displaying.
 
 **Subject line rules:**
 - Start with an imperative verb: Add, Fix, Update, Remove, Refactor, Extract
-- Describe the goal, not the mechanism — when a change has both, the subject says why it matters. "Consolidate 7 permission entries into 1" (goal) not "Move scripts from hooks/ to lib/" (mechanism)
+- Include the business reason — why this change matters, not just what changed. "Remove /flow-qa skill and dev-mode plumbing because Claude Code's --plugin-dir flag makes QA testing trivial."
+- Describe the goal, not the mechanism — when a change has both, the subject says why it matters
 - No prefix jargon (no `feat:`, `chore:`, `fix:` — just the verb)
-- Under 72 characters
-- No period at the end
+- Ends with a period (it is a full sentence)
 
 **Body rules:**
 - Blank line between subject and body

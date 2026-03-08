@@ -887,14 +887,14 @@ def test_flow_qa_has_cache_nuke():
     )
 
 
-def test_flow_qa_has_marketplace_commands():
-    """QA SKILL.md must contain both marketplace add and update commands."""
+def test_flow_qa_has_plugin_install_commands():
+    """QA SKILL.md must contain both plugin uninstall and install commands."""
     content = (REPO_ROOT / ".claude" / "skills" / "flow-qa" / "SKILL.md").read_text()
-    assert "claude plugin marketplace add" in content, (
-        "flow-qa/SKILL.md must contain 'claude plugin marketplace add'"
+    assert "claude plugin uninstall flow@flow-marketplace" in content, (
+        "flow-qa/SKILL.md must contain 'claude plugin uninstall flow@flow-marketplace'"
     )
-    assert "claude plugin marketplace update" in content, (
-        "flow-qa/SKILL.md must contain 'claude plugin marketplace update'"
+    assert "claude plugin install flow@flow-marketplace" in content, (
+        "flow-qa/SKILL.md must contain 'claude plugin install flow@flow-marketplace'"
     )
 
 

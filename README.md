@@ -302,7 +302,7 @@ These skills and scripts live in the FLOW repo itself (`.claude/skills/` and `li
 | Command | What it does |
 |---------|-------------|
 | `/release` | Bump version in plugin.json and marketplace.json, tag, push, create GitHub Release |
-| `/flow-qa` | `--start`/`--stop` dev mode — nukes plugin cache, swaps marketplace source, tracks via `.dev-mode` marker |
+| `/flow-qa` | `--start`/`--stop` dev mode — uninstalls marketplace plugin for local `--plugin-dir` testing, reinstalls when done |
 | `/reset` | Remove all FLOW artifacts — close PRs, delete worktrees/branches/state files |
 
 ### Local QA Workflow
@@ -313,20 +313,27 @@ Every plugin change can be tested locally before releasing:
 /flow-qa --start
 ```
 
-This nukes the plugin cache directory, re-registers the marketplace to point at the local source, and updates the cache. Open a new Claude Code session in a target project to test. When done:
+This uninstalls the marketplace plugin, nukes the plugin cache, and creates a `.dev-mode` marker. Then start Claude Code with `--plugin-dir` to load local source:
+
+```bash
+claude --plugin-dir=$HOME/code/flow
+```
+
+When done:
 
 ```bash
 /flow-qa --stop
 ```
 
-This nukes the cache again, restores the marketplace to the GitHub source, and updates. A `.flow-states/.dev-mode` marker tracks whether dev mode is active.
+This nukes the cache, reinstalls the marketplace plugin, and removes the `.dev-mode` marker.
 
 The underlying commands can also be run directly:
 
 ```bash
-rm -rf ~/.claude/plugins/cache/flow-marketplace
-claude plugin marketplace add /path/to/flow    # point cache at local source
-claude plugin marketplace update flow-marketplace
+claude plugin uninstall flow@flow-marketplace   # remove marketplace plugin
+rm -rf ~/.claude/plugins/cache/flow-marketplace  # nuke cache
+claude --plugin-dir=$HOME/code/flow              # test with local source
+claude plugin install flow@flow-marketplace      # reinstall when done
 ```
 
 ---

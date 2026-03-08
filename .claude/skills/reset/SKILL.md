@@ -137,13 +137,13 @@ For each file in `.flow-states/` (JSON, log, and any other files except `.dev-mo
 If `.flow-states/.dev-mode` existed, run:
 
 ```bash
-claude plugin marketplace add benkruger/flow
+rm -rf ~/.claude/plugins/cache/flow-marketplace
 ```
 
 Then:
 
 ```bash
-claude plugin marketplace update flow-marketplace
+claude plugin install flow@flow-marketplace
 ```
 
 Then remove the marker:

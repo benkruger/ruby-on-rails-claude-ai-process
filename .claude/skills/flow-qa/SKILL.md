@@ -1,6 +1,6 @@
 ---
 name: flow-qa
-description: "QA the FLOW plugin locally. Switch marketplace to local source, test in a live session, restore when done."
+description: "QA the FLOW plugin locally. Uninstall marketplace plugin for local testing, reinstall when done."
 ---
 
 # FLOW QA
@@ -16,8 +16,8 @@ Test the FLOW plugin locally before releasing. Maintainer-only — requires the 
 ```
 
 - `/flow-qa` — auto-start if inactive, auto-restart if active
-- `/flow-qa --start` — nuke cache, switch marketplace to local source, create `.dev-mode` marker
-- `/flow-qa --stop` — nuke cache, restore production marketplace, remove `.dev-mode` marker
+- `/flow-qa --start` — uninstall marketplace plugin, nuke cache, create `.dev-mode` marker, tell user to use `--plugin-dir`
+- `/flow-qa --stop` — nuke cache, reinstall marketplace plugin, remove `.dev-mode` marker
 
 ## Flag: `--start`
 
@@ -27,26 +27,18 @@ Use the Read tool to check if `.flow-states/.dev-mode` exists.
 
 If it exists, print "Already in dev mode. Use `/flow-qa --stop` to exit." and stop.
 
-### Step 2 — Nuke cache and switch to local source
-
-Run `git worktree list --porcelain` and read the output. The project root is the path on the first line that starts with `worktree `.
+### Step 2 — Uninstall marketplace plugin and nuke cache
 
 Run:
 
 ```bash
+claude plugin uninstall flow@flow-marketplace
+```
+
+Then:
+
+```bash
 rm -rf ~/.claude/plugins/cache/flow-marketplace
-```
-
-Then:
-
-```bash
-claude plugin marketplace add <project_root>
-```
-
-Then:
-
-```bash
-claude plugin marketplace update flow-marketplace
 ```
 
 ### Step 3 — Create dev mode marker
@@ -67,10 +59,11 @@ Print inside a fenced code block:
 
 Then print:
 
-> Plugin cache now contains local source.
+> Marketplace plugin uninstalled. To test local source, start Claude Code with:
 >
-> Open a **new** Claude Code session in a target project to test.
-> Run `/flow-qa --stop` when done.
+> `claude --plugin-dir=$HOME/code/flow`
+>
+> Run `/flow-qa --stop` when done to reinstall the marketplace plugin.
 
 ## Flag: `--restart`
 
@@ -80,26 +73,12 @@ Use the Read tool to check if `.flow-states/.dev-mode` exists.
 
 If it does not exist, run the `--start` flow instead (skip to the `--start` section above).
 
-### Step 2 — Nuke cache and re-register local source
-
-Run `git worktree list --porcelain` and read the output. The project root is the path on the first line that starts with `worktree `.
+### Step 2 — Nuke cache
 
 Run:
 
 ```bash
 rm -rf ~/.claude/plugins/cache/flow-marketplace
-```
-
-Then:
-
-```bash
-claude plugin marketplace add <project_root>
-```
-
-Then:
-
-```bash
-claude plugin marketplace update flow-marketplace
 ```
 
 ### Step 3 — Announce
@@ -116,9 +95,9 @@ Print inside a fenced code block:
 
 Then print:
 
-> Plugin cache updated from local source.
+> Plugin cache cleared. Start Claude Code with:
 >
-> Open a **new** Claude Code session in a target project to test.
+> `claude --plugin-dir=$HOME/code/flow`
 
 ## Flag: `--stop`
 
@@ -128,7 +107,7 @@ Use the Read tool to check if `.flow-states/.dev-mode` exists.
 
 If it does not exist, print "Not in dev mode. Nothing to stop." and stop.
 
-### Step 2 — Nuke cache and restore production marketplace
+### Step 2 — Nuke cache and reinstall marketplace plugin
 
 Run:
 
@@ -139,13 +118,7 @@ rm -rf ~/.claude/plugins/cache/flow-marketplace
 Then:
 
 ```bash
-claude plugin marketplace add benkruger/flow
-```
-
-Then:
-
-```bash
-claude plugin marketplace update flow-marketplace
+claude plugin install flow@flow-marketplace
 ```
 
 ### Step 3 — Remove dev mode marker

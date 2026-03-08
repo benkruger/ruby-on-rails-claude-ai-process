@@ -25,6 +25,8 @@
       "Bash(bin/ci)",
       "Bash(claude plugin marketplace add *)",
       "Bash(claude plugin marketplace update *)",
+      "Bash(claude plugin uninstall *)",
+      "Bash(claude plugin install *)",
       "Bash(cut *)",
       "Bash(wc *)",
       "Bash(sort *)",

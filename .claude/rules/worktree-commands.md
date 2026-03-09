@@ -16,3 +16,9 @@ Never use `grep`, `cat`, `head`, `tail`, or `find` via the Bash tool.
 Use the Grep tool for content search, the Read tool for file contents,
 and the Glob tool for file discovery. Dedicated tools never trigger
 permission prompts.
+
+## Never invoke Python directly
+
+Never run `python3` or `.venv/bin/python3` via the Bash tool.
+Use `bin/flow`, `bin/ci`, or `bin/test` — they handle the venv
+automatically and match existing permission patterns.

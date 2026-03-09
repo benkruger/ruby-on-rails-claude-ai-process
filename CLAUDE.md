@@ -123,3 +123,41 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 - **Skills must never instruct Claude to compute values** — no timestamp generation, no time arithmetic, no counter increments, no `date -u`. All computation goes through `bin/flow` subcommands. Skills say "run this command", never "calculate this value". `test_skill_contracts.py` enforces this: `test_phase_skills_no_inline_time_computation` fails if any phase skill contains computational instruction patterns.
 - **All timestamps use Pacific Time** — `lib/flow_utils.py` provides `now()` which returns `datetime.now(ZoneInfo("America/Los_Angeles")).isoformat(timespec="seconds")`. All scripts import `now` from `flow_utils` — never generate timestamps locally. Existing state files with UTC timestamps (`Z` suffix) are handled by `datetime.fromisoformat()` which parses both formats.
 - **Prefer dedicated tools over Bash for all non-execution tasks** — Read files with the Read tool, search with Glob and Grep, create with Write, modify with Edit. Bash should only be used for commands that genuinely require shell execution: `bin/ci`, `bin/test`, `bin/flow`, `make`, and `git`. In this project's strict permission environment (`defaultMode: "plan"`), every Bash command not in the allow list triggers a permission prompt. When you need to explore, understand, or modify files, use dedicated tools — they never prompt.
+
+<!-- FLOW:BEGIN -->
+
+# Python Conventions
+
+## Architecture Patterns
+
+- **Module structure** — Read the full module and its imports before modifying.
+  Check for circular import risks and module-level state.
+- **Function signatures** — If modifying a function signature, grep for all
+  callers to ensure compatibility.
+- **Scripts** — Check argument parsing, error handling, and exit codes. Verify
+  the script is registered in any entry points or `bin/` wrappers.
+
+## Test Conventions
+
+- Check `conftest.py` for existing fixtures before creating new ones.
+- Never duplicate fixture logic — reuse existing fixtures.
+- Follow existing test patterns in the project.
+- Targeted test command: `bin/test <tests/path/to/test_file.py>`
+
+## CI Failure Fix Order
+
+1. Lint violations — read the lint output carefully, fix the code
+2. Test failures — understand the root cause, fix the code not the test
+3. Coverage gaps — write the missing test
+
+## Hard Rules
+
+- Always read module imports before modifying any module.
+- Always check `conftest.py` for existing fixtures before creating new ones.
+- Never add lint exclusions — fix the code, not the linter configuration.
+
+## Dependency Management
+
+- Run `bin/dependencies` to update packages.
+
+<!-- FLOW:END -->

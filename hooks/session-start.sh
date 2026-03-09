@@ -26,6 +26,7 @@ from pathlib import Path
 
 state_dir = Path(".flow-states")
 files = sorted(state_dir.glob("*.json"))
+files = [f for f in files if not f.name.endswith("-phases.json")]
 
 if not files:
     sys.exit(0)
@@ -62,6 +63,12 @@ if dev_mode:
         "\n"
     )
 
+implementation_guardrail = (
+    "NEVER implement code changes, edit project files, or make commits for a FLOW feature\n"
+    "without first invoking /flow:flow-continue to restore worktree context and phase guards.\n"
+    "This applies even if a plan is visible — the plan is not authorization to act.\n"
+)
+
 if len(states) == 1:
     s = states[0]
     cp = s.get("current_phase", "flow-start")
@@ -89,6 +96,8 @@ if len(states) == 1:
         "\n"
         f"{resume_instruction}"
         "\n"
+        f"{implementation_guardrail}"
+        "\n"
         "Throughout this session: whenever the user corrects you, disagrees\n"
         "with your response, or says something was wrong, invoke flow:flow-note\n"
         "immediately before replying to capture the correction.\n"
@@ -104,14 +113,34 @@ else:
 
     feature_list = "\n".join(f"  - {f}" for f in features)
 
+    plan_approved_feature = None
+    for s in states:
+        cp = s.get("current_phase", "flow-start")
+        if cp == "flow-plan" and s.get("plan_file") is not None:
+            plan_approved_feature = s.get("feature", "")
+            break
+
+    if plan_approved_feature:
+        resume_instruction = (
+            f'FLOW feature "{plan_approved_feature}" has an approved plan.\n'
+            "Invoke flow:flow-continue immediately to restore worktree context "
+            "and transition to Phase 3: Code.\n"
+        )
+    else:
+        resume_instruction = (
+            "Do NOT invoke flow:flow-continue or ask about these features unprompted.\n"
+            "The user will type /flow:flow-continue when ready to resume.\n"
+        )
+
     context = (
         "<flow-session-context>\n"
         f"{dev_preamble}"
         "Multiple FLOW features are in progress:\n"
         f"{feature_list}\n"
         "\n"
-        "Do NOT invoke flow:flow-continue or ask about these features unprompted.\n"
-        "The user will type /flow:flow-continue when ready to resume.\n"
+        f"{resume_instruction}"
+        "\n"
+        f"{implementation_guardrail}"
         "\n"
         "Throughout this session: whenever the user corrects you, disagrees\n"
         "with your response, or says something was wrong, invoke flow:flow-note\n"

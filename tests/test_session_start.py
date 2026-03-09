@@ -278,6 +278,104 @@ def test_phase_2_no_plan_file_does_not_auto_continue(git_repo):
     assert "Do NOT invoke flow:flow-continue" in ctx
 
 
+def test_phases_json_files_are_ignored(git_repo):
+    """-phases.json files (copies of flow-phases.json) must not appear as features."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+
+    # Real state file
+    state = make_state(current_phase="flow-code", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "in_progress",
+    })
+    state["feature"] = "Real Feature"
+    write_state(state_dir, "real-feature", state)
+
+    # Ghost: a -phases.json file (copied flow-phases.json)
+    (state_dir / "real-feature-phases.json").write_text(json.dumps({"phases": []}))
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "Real Feature" in ctx
+    assert "None" not in ctx
+    assert "Multiple" not in ctx
+
+
+def test_multiple_features_plan_approved_instructs_auto_continue(git_repo):
+    """Multi-feature: one at flow-plan with plan_file → auto-continue for that feature."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+
+    s1 = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "complete", "flow-plan": "in_progress"})
+    s1["feature"] = "Plan Ready"
+    s1["plan_file"] = "/Users/test/.claude/plans/test-plan.md"
+    write_state(state_dir, "plan-ready", s1)
+
+    s2 = make_state(current_phase="flow-code", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "in_progress",
+    })
+    s2["feature"] = "Other Work"
+    write_state(state_dir, "other-work", s2)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "flow:flow-continue" in ctx
+    assert "Plan Ready" in ctx
+    assert "Do NOT invoke flow:flow-continue" not in ctx
+
+
+def test_single_feature_no_plan_includes_implementation_guardrail(git_repo):
+    """Single feature without plan approved must include implementation guardrail."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+    state = make_state(current_phase="flow-code", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "in_progress",
+    })
+    write_state(state_dir, "my-feature", state)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "NEVER implement" in ctx
+
+
+def test_multiple_features_includes_implementation_guardrail(git_repo):
+    """Multiple features context must include implementation guardrail."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+
+    s1 = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "complete", "flow-plan": "in_progress"})
+    s1["feature"] = "Feature A"
+    write_state(state_dir, "feature-a", s1)
+
+    s2 = make_state(current_phase="flow-code", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "in_progress",
+    })
+    s2["feature"] = "Feature B"
+    write_state(state_dir, "feature-b", s2)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "NEVER implement" in ctx
+
+
+def test_single_feature_plan_approved_includes_implementation_guardrail(git_repo):
+    """Single feature with plan approved must still include implementation guardrail."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+    state = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "complete", "flow-plan": "in_progress"})
+    state["feature"] = "My Feature"
+    state["plan_file"] = "/Users/test/.claude/plans/test-plan.md"
+    write_state(state_dir, "my-feature", state)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "NEVER implement" in ctx
+
+
 def test_output_has_both_context_fields(git_repo):
     """Output must have both additional_context and hookSpecificOutput.additionalContext."""
     state_dir = git_repo / ".flow-states"

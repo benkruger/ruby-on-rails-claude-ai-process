@@ -74,7 +74,7 @@ def test_skips_when_no_requirements_or_pyproject(tmp_path):
 
 def test_uses_venv_pip_when_available(dep_project):
     result = _run_dep(dep_project)
-    assert "VENV_MARKER" in result.stdout
+    assert result.stdout.count("VENV_MARKER") == 2, "pip should be called twice (self-update + install)"
 
 
 def test_falls_back_to_system_pip_when_no_venv(dep_project):
@@ -85,4 +85,4 @@ def test_falls_back_to_system_pip_when_no_venv(dep_project):
     fake_pip.write_text("#!/usr/bin/env bash\necho SYSTEM_PIP_MARKER\n")
     fake_pip.chmod(0o755)
     result = _run_dep(dep_project, extra_env={"PATH": f"{local_bin}:{os.environ['PATH']}"})
-    assert "SYSTEM_PIP_MARKER" in result.stdout
+    assert result.stdout.count("SYSTEM_PIP_MARKER") == 2, "pip should be called twice (self-update + install)"

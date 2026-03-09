@@ -12,7 +12,9 @@ else
 fi
 
 if [ -f "requirements.txt" ]; then
-    "$PIP" install -r requirements.txt --upgrade
+    "$PIP" install --upgrade pip -q
+    "$PIP" install -r requirements.txt --upgrade -q
 elif [ -f "pyproject.toml" ]; then
-    "$PIP" install -e ".[dev]" --upgrade
+    "$PIP" install --upgrade pip -q
+    "$PIP" install -e ".[dev]" --upgrade -q
 fi

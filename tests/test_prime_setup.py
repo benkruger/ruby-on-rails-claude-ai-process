@@ -376,7 +376,7 @@ def test_version_marker_with_skills_dict(tmp_path):
         "flow-learn": "auto",
         "flow-commit": "manual",
         "flow-abort": "auto",
-        "flow-cleanup": "auto",
+        "flow-complete": "auto",
     }
     _mod.write_version_marker(tmp_path, _mod._plugin_version(), "python", skills=skills)
     data = json.loads((tmp_path / ".flow.json").read_text())

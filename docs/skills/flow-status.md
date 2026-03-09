@@ -42,7 +42,7 @@ Shows where you are in the FLOW workflow at any moment. Reads `.flow-states/<bra
   [>] Phase 3:  Code           <-- YOU ARE HERE
   [ ] Phase 4:  Code Review
   [ ] Phase 5:  Learn
-  [ ] Phase 6:  Cleanup
+  [ ] Phase 6:  Complete
 
   Time in current phase : 32m
   Times visited         : 1

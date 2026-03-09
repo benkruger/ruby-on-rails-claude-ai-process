@@ -149,15 +149,15 @@ def test_phase_5_requires_phase_4_complete():
 
 
 def test_phase_6_requires_phase_5_complete():
-    """Phase 6 (Cleanup) requires phase 5 (Learn) to be complete."""
+    """Phase 6 (Complete) requires phase 5 (Learn) to be complete."""
     state = make_state(
-        current_phase="flow-cleanup",
+        current_phase="flow-complete",
         phase_statuses={
             "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
             "flow-code-review": "complete", "flow-learn": "pending",
         },
     )
-    allowed, output = _mod.check_phase(state, "flow-cleanup")
+    allowed, output = _mod.check_phase(state, "flow-complete")
     assert not allowed
     assert "Phase 5" in output
 

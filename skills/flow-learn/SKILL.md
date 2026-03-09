@@ -15,7 +15,7 @@ model: sonnet
 ```
 
 - `/flow:flow-learn` — uses configured mode from the state file (default: auto)
-- `/flow:flow-learn --auto` — skip permission promotion prompts, auto-advance to Cleanup
+- `/flow:flow-learn --auto` — skip permission promotion prompts, auto-advance to Complete
 - `/flow:flow-learn --manual` — prompt for permission promotion and phase transition
 
 <HARD-GATE>
@@ -358,20 +358,20 @@ Output in your response (not via Bash) inside a fenced code block:
 ```text
 ============================================
   FLOW v0.22.0 — Phase 5: Learn — COMPLETE (<formatted_time>)
-  Merge the PR, then run /flow:flow-cleanup.
+  Run /flow:flow-complete to merge the PR and clean up.
 ============================================
 ```
 ````
 
 Invoke `flow:flow-status`.
 
-**If continue=auto**, skip the transition question and invoke `flow:flow-cleanup` directly.
+**If continue=auto**, skip the transition question and invoke `flow:flow-complete` directly.
 
 **If continue=manual**, use AskUserQuestion:
 
-> "Phase 5: Learn is complete. The PR now includes CLAUDE.md improvements. Ready to begin Phase 6: Cleanup?"
+> "Phase 5: Learn is complete. The PR now includes CLAUDE.md improvements. Ready to begin Phase 6: Complete?"
 >
-> - **Yes, start Phase 6 now** — invoke `flow:flow-cleanup`
+> - **Yes, start Phase 6 now** — invoke `flow:flow-complete`
 > - **Not yet** — print paused banner
 > - **I have a correction or learning to capture**
 
@@ -380,7 +380,7 @@ Invoke `flow:flow-status`.
 2. Invoke `/flow:flow-note` with their message
 3. Re-ask with only "Yes, start Phase 6 now" and "Not yet"
 
-**If Yes** — invoke `flow:flow-cleanup` using the Skill tool.
+**If Yes** — invoke `flow:flow-complete` using the Skill tool.
 
 **If Not yet**, output in your response (not via Bash) inside a fenced code block:
 

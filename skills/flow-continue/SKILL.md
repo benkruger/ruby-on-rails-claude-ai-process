@@ -32,7 +32,7 @@ The Skill to invoke maps directly to the current phase:
 | 3 — Code | `flow:flow-code` |
 | 4 — Code Review | `flow:flow-code-review` |
 | 5 — Learn | `flow:flow-learn` |
-| 6 — Cleanup | `flow:flow-cleanup` |
+| 6 — Complete | `flow:flow-complete` |
 
 ---
 

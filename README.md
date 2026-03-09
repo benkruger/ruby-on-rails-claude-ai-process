@@ -24,14 +24,14 @@ FLOW imposes structure. Not bureaucracy — discipline.
 - **Autonomy** on your terms — fully manual to fully autonomous, per skill
 - **Opus** for planning, code, and code review, Haiku for setup
 - **Rails** and Python today, more frameworks ahead
-- **Minimal footprint** — `.flow-states` is the only artifact while you work, and Cleanup deletes even that
+- **Minimal footprint** — `.flow-states` is the only artifact while you work, and Complete deletes even that
 
 ---
 
 ## The Workflow
 
 ```text
-Start → Plan → Code → Code Review → Learn → Cleanup
+Start → Plan → Code → Code Review → Learn → Complete
   1       2      3         4            5          6
 ```
 
@@ -42,7 +42,7 @@ Start → Plan → Code → Code Review → Learn → Cleanup
 | **3: Code** | `/flow-code` | **Opus** | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
 | **4: Code Review** | `/flow-code-review` | **Opus** | Three lenses — clarity (`/simplify`), correctness (`/review`), and safety (`/security-review`) |
 | **5: Learn** | `/flow-learn` | Sonnet | Learnings routed to CLAUDE.md, rules, and memory — plugin gaps noted |
-| **6: Cleanup** | `/flow-cleanup` | Haiku | Worktree removed, state file deleted, feature done |
+| **6: Complete** | `/flow-complete` | Haiku | PR merged, worktree removed, state file deleted, feature done |
 
 ---
 
@@ -83,7 +83,7 @@ Any skill invocation accepts `--auto` or `--manual` to override the configured s
     "flow-code-review": {"commit": "auto", "continue": "auto"},
     "flow-learn": {"commit": "auto", "continue": "auto"},
     "flow-abort": "auto",
-    "flow-cleanup": "auto"
+    "flow-complete": "auto"
   }
 }
 ```
@@ -121,7 +121,7 @@ This creates branch `invoice-pdf-export`, a worktree at `.worktrees/invoice-pdf-
 
 The plugin itself installs into Claude Code's managed plugin directory — one place, fully managed by Claude Code.
 
-FLOW configures workspace permissions in `.claude/settings.json` and a version marker in `.flow.json` (via `/flow-prime`, committed once). During active development, a single gitignored JSON state file per feature exists at `.flow-states/<branch>.json`. When the feature is done and Cleanup runs, that file is deleted too.
+FLOW configures workspace permissions in `.claude/settings.json` and a version marker in `.flow.json` (via `/flow-prime`, committed once). During active development, a single gitignored JSON state file per feature exists at `.flow-states/<branch>.json`. When the feature is done and Complete runs, that file is deleted too.
 
 **Three commands to set up. One file while you work. Zero when you're done.**
 
@@ -178,7 +178,7 @@ FLOW automatically selects the right model for each phase — Opus for hard thin
 | 3: Code | **Opus** | Writing correct code against complex codebase |
 | 4: Code Review | **Opus** | Clarity (`/simplify`), correctness (`/review`), and safety (`/security-review`) — three review lenses |
 | 5: Learn | Sonnet | Synthesizing learnings into reusable patterns |
-| 6: Cleanup | Haiku | Delete worktree and state file |
+| 6: Complete | Haiku | Merge PR, delete worktree and state file |
 | Commit | Sonnet | Writing clear, well-structured commit messages |
 
 ### State File Persistence
@@ -260,7 +260,7 @@ Every completed feature produces:
 - 100% test coverage maintained
 - All identified risks addressed (verified by Review phase)
 - New CLAUDE.md patterns from corrections and learnings
-- A clean state file (deleted at Cleanup)
+- A clean state file (deleted at Complete)
 
 ---
 

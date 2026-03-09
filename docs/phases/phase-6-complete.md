@@ -1,0 +1,120 @@
+---
+title: "Phase 6: Complete"
+nav_order: 7
+---
+
+# Phase 6: Complete
+
+**Command:** `/flow-complete` or `/flow-complete --manual`
+
+The final phase. Merges the PR into main, removes the git worktree,
+and deletes the state file and log file. This is what fully closes out
+a feature and resets the environment for the next one.
+
+By default, skips confirmation and proceeds directly to merge and cleanup.
+Use `--manual` to prompt for confirmation before the irreversible merge.
+Best-effort on cleanup steps — warns if the state file is missing or
+Phase 5 is incomplete.
+
+---
+
+## Steps
+
+### 1. Read state
+
+Read `.flow-states/<branch>.json` for the worktree path, feature name,
+and PR number. If the state file is missing, infer from git state
+(branch name, worktree list).
+
+### 2. Check PR status
+
+Check whether the PR is already merged. If merged, skip directly to
+cleanup (step 7). If open, continue to merge flow. If closed but not
+merged, stop with an error.
+
+### 3. Merge main into branch
+
+Fetch the latest main and merge it into the feature branch. If there
+are merge conflicts, resolve them inline and push the resolution.
+
+### 4. Check CI status
+
+Check the PR's CI checks. If all pass, continue to merge. If any are
+pending, stop and suggest `/loop 15s /flow:flow-complete` to auto-retry.
+If any have failed, launch the ci-fixer sub-agent to diagnose and fix.
+
+### 5. Confirm with user (--manual only)
+
+When `--manual` is passed, explicit confirmation is required before
+the irreversible squash merge. Any warnings from the entry check are
+included in the confirmation message. Skipped by default.
+
+### 6. Merge PR
+
+Squash-merge the PR via `gh pr merge --squash --delete-branch`. The
+remote branch is deleted as part of the merge.
+
+### 7. Run cleanup
+
+`bin/flow cleanup` handles all three resources from the project root:
+worktree removal, state file deletion, and log file deletion. Each step
+is best-effort — if one fails, the rest still run.
+
+This resets the SessionStart hook — the next session starts clean.
+
+### 8. Pull merged changes
+
+Pulls `origin main` so local main has the merged feature code. If the
+pull fails, a warning is shown but cleanup is still considered complete.
+
+---
+
+## What You Get
+
+By the end of Phase 6:
+
+- PR squash-merged into main
+- Remote branch deleted
+- Worktree and all its contents removed
+- State file deleted — no more session hook injection for this feature
+- Log file deleted — no stale logs left behind
+- Local main pulled up to date with the merged feature code
+- Local environment clean and ready for the next feature
+
+---
+
+## Idempotent Design
+
+The skill is safe to re-invoke (e.g., via `/loop 15s /flow:flow-complete`):
+
+| State | Behavior |
+|---|---|
+| PR already merged | Skips to cleanup steps |
+| Main already merged into branch | No-op merge |
+| CI already passing | Skips to merge |
+| State file already deleted | Exits cleanly |
+
+---
+
+## Best-Effort Behavior
+
+| Scenario | Behavior |
+|---|---|
+| State file exists, Phase 5 complete | Normal merge and cleanup — no warnings |
+| State file exists, Phase 5 incomplete | Warns, proceeds (confirms if `--manual`) |
+| State file missing | Warns, infers from git, proceeds (confirms if `--manual`) |
+| PR not open or merged | Hard block, does not proceed |
+
+Every step after the merge (Steps 7-8) is best-effort — if one fails,
+continue to the next.
+
+---
+
+## Gates
+
+- PR must be open or already merged — hard block if closed
+- Phase 5 complete is a warning, not a hard block
+- Missing state file is a warning, not a hard block
+- CI must pass before merge
+- Confirmation only when `--manual` is passed
+- Must run from project root

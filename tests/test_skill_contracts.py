@@ -256,6 +256,18 @@ def test_start_uses_ci_fixer_subagent():
     )
 
 
+def test_complete_uses_ci_fixer_subagent():
+    """Complete skill must reference the ci-fixer sub-agent for CI failures."""
+    content = _read_skill("flow-complete")
+    assert '"ci-fixer"' in content, (
+        "skills/flow-complete/SKILL.md must reference ci-fixer sub-agent"
+    )
+    assert '"general-purpose"' not in content, (
+        "skills/flow-complete/SKILL.md must not reference general-purpose "
+        "sub-agent — use ci-fixer instead"
+    )
+
+
 def test_ci_fixer_agent_exists():
     """agents/ci-fixer.md must exist with required frontmatter fields."""
     agent_file = REPO_ROOT / "agents" / "ci-fixer.md"
@@ -345,8 +357,8 @@ def test_phase_skills_have_update_state_section():
     phase_skills = _phase_skills()
 
     for key, skill_name in phase_skills.items():
-        if key == "flow-cleanup":
-            continue  # Cleanup deletes state, doesn't update it
+        if key == "flow-complete":
+            continue  # Complete deletes state, doesn't update it
         content = _read_skill(skill_name)
 
         has_update = (
@@ -428,14 +440,14 @@ def test_model_frontmatter_is_valid():
 
 def test_model_frontmatter_matches_documented_table():
     """Model frontmatter must match: opus for Plan/Code/Code Review, sonnet for
-    Learn/Commit, haiku for Start/Cleanup."""
+    Learn/Commit, haiku for Start/Complete."""
     expected = {
         "flow-start": "haiku",
         "flow-plan": "opus",
         "flow-code": "opus",
         "flow-code-review": "opus",
         "flow-learn": "sonnet",
-        "flow-cleanup": "haiku",
+        "flow-complete": "haiku",
         "flow-commit": "sonnet",
     }
     for skill_name, expected_model in expected.items():
@@ -456,7 +468,7 @@ def test_model_frontmatter_matches_documented_table():
 def test_cleanup_and_abort_mention_log_in_user_facing_text():
     """If cleanup/abort skills delete .log files, their user-facing
     text must mention 'state file and log' (not just 'state file')."""
-    for skill_name in ("flow-abort", "flow-cleanup"):
+    for skill_name in ("flow-abort", "flow-complete"):
         content = _read_skill(skill_name)
         if ".log" not in content:
             continue  # Conditional contract — skill doesn't mention .log yet
@@ -496,14 +508,14 @@ def test_phase_transition_names_current_phase():
 
 
 def test_phase_6_has_soft_gate_not_hard_gate():
-    """Phase 6 (cleanup) should have a SOFT-GATE, not a HARD-GATE.
-    Cleanup warns but never blocks — it's the final escape hatch."""
-    content = _read_skill("flow-cleanup")
+    """Phase 6 (complete) should have a SOFT-GATE, not a HARD-GATE.
+    Complete warns but never blocks — it's the final escape hatch."""
+    content = _read_skill("flow-complete")
     assert "<SOFT-GATE>" in content, (
-        "Phase 6 (cleanup) should have <SOFT-GATE> — cleanup warns but never blocks"
+        "Phase 6 (complete) should have <SOFT-GATE> — complete warns but never blocks"
     )
     assert "<HARD-GATE>" not in content, (
-        "Phase 6 (cleanup) should NOT have <HARD-GATE> — cleanup must never block"
+        "Phase 6 (complete) should NOT have <HARD-GATE> — complete must never block"
     )
 
 
@@ -556,16 +568,16 @@ def test_phase_skills_have_logging_section():
 
 
 def test_phase_6_has_delete_state_instructions():
-    """Phase 6 (cleanup) should have instructions to delete the state file,
+    """Phase 6 (complete) should have instructions to delete the state file,
     not update it."""
-    content = _read_skill("flow-cleanup")
+    content = _read_skill("flow-complete")
     has_delete = (
         "delete" in content.lower()
         or "remove" in content.lower()
         or "rm " in content
     )
     assert has_delete, (
-        "Phase 6 (cleanup) should have delete/remove instructions for state file"
+        "Phase 6 (complete) should have delete/remove instructions for state file"
     )
     # Should NOT have "Update State" section like other phases
     has_update_state = bool(re.search(r"##.*Update State", content, re.IGNORECASE))
@@ -1054,7 +1066,7 @@ def test_generic_skills_have_no_framework_conditionals():
 
 CONFIGURABLE_SKILLS = [
     "flow-start", "flow-code", "flow-code-review",
-    "flow-learn", "flow-abort", "flow-cleanup",
+    "flow-learn", "flow-abort", "flow-complete",
 ]
 
 
@@ -1081,7 +1093,7 @@ def test_configurable_skills_have_mode_resolution():
 
 TWO_AXIS_SKILLS = ["flow-code", "flow-code-review", "flow-learn"]
 CONTINUE_ONLY_SKILLS = ["flow-start"]
-UTILITY_SKILLS = ["flow-abort", "flow-cleanup"]
+UTILITY_SKILLS = ["flow-abort", "flow-complete"]
 
 
 def test_mode_resolution_references_config_source():

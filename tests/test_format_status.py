@@ -200,7 +200,7 @@ def test_panel_next_label_when_phase_pending():
 
 def test_panel_all_complete_shows_timing():
     state = make_state(
-        current_phase="flow-cleanup",
+        current_phase="flow-complete",
         phase_statuses={k: "complete" for k in PHASE_ORDER},
     )
     state["phases"]["flow-start"]["cumulative_seconds"] = 30
@@ -208,7 +208,7 @@ def test_panel_all_complete_shows_timing():
     state["phases"]["flow-code"]["cumulative_seconds"] = 3600
     state["phases"]["flow-code-review"]["cumulative_seconds"] = 870
     state["phases"]["flow-learn"]["cumulative_seconds"] = 300
-    state["phases"]["flow-cleanup"]["cumulative_seconds"] = 20
+    state["phases"]["flow-complete"]["cumulative_seconds"] = 20
     panel = _mod.format_panel(state, VERSION)
     assert f"FLOW v{VERSION} — All Phases Complete!" in panel
     assert "Feature : Test Feature" in panel

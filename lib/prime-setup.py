@@ -41,6 +41,10 @@ UNIVERSAL_ALLOW = [
     "Bash(gh pr view *)",
     "Bash(gh issue create *)",
     "Bash(git restore *)",
+    "Bash(git fetch origin *)",
+    "Bash(git merge *)",
+    "Bash(gh pr checks *)",
+    "Bash(gh pr merge *)",
 ]
 
 FLOW_DENY = [

@@ -80,7 +80,7 @@ def _create_worktree(project_root, branch):
     return wt_path
 
 
-def _initial_commit_push_pr(wt_path, branch, feature_title, project_root):
+def _initial_commit_push_pr(wt_path, branch, feature_title, session_log=None):
     """Make empty commit, push, and create PR. Returns (pr_url, pr_number)."""
     _run_cmd(
         ["git", "commit", "--allow-empty", "-m", f"Start {branch} branch"],
@@ -91,7 +91,6 @@ def _initial_commit_push_pr(wt_path, branch, feature_title, project_root):
         wt_path, "push",
     )
 
-    session_log = _session_log_path(project_root)
     if session_log:
         pr_body = (
             f"## What\\n\\n{feature_title}."
@@ -238,7 +237,8 @@ def main():
         _log(project_root, branch, f"git worktree add .worktrees/{branch} (exit 0)")
 
         # Commit, push, PR
-        pr_url, pr_number = _initial_commit_push_pr(wt_path, branch, feature_title, project_root)
+        session_log = _session_log_path(project_root)
+        pr_url, pr_number = _initial_commit_push_pr(wt_path, branch, feature_title, session_log)
         _log(project_root, branch, f"git commit + push + gh pr create (exit 0)")
 
         # Create state file

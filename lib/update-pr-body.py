@@ -18,6 +18,7 @@ import json
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 
 def _build_artifact_line(label, value):
@@ -137,7 +138,6 @@ def main():
                 print(json.dumps({"status": "error", "message": "Missing --content-file"}))
                 return
 
-            from pathlib import Path
             path = Path(content_path)
             if not path.exists():
                 print(json.dumps({"status": "error", "message": f"File not found: {content_path}"}))

@@ -121,6 +121,8 @@ def test_auto_upgrades_when_config_hash_matches(tmp_path):
     data = json.loads(result.stdout)
     assert data["status"] == "ok"
     assert data["auto_upgraded"] is True
+    assert data["old_version"] == "0.0.1"
+    assert data["new_version"] == _current_plugin_version()
     assert data["framework"] == "rails"
 
 

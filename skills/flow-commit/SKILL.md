@@ -47,7 +47,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ```
 ````
 
-On completion (whether approved or denied), print the same way:
+On completion (whether approved, denied, or nothing to commit), print the same way:
 
 **FLOW mode:**
 
@@ -103,7 +103,7 @@ Do not proceed to diff review until tests pass.
 
 ### Step 1 — Show the diff
 
-First run `git status` to see what changed. If nothing to commit, tell the user and stop.
+First run `git status` to see what changed. If nothing to commit, tell the user "Nothing to commit", print the COMPLETE banner, and return to the caller.
 
 Then stage everything and diff the staged changes:
 

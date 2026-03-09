@@ -85,11 +85,11 @@ exec ${CLAUDE_PLUGIN_ROOT}/bin/flow prime-check
 Parse the JSON output:
 
 - If `"status": "error"` — tell the user to run `/flow:flow-prime` and stop. Do not proceed to any further steps.
-- If `"status": "ok"` and `"auto_upgraded": true` — show this notice, then continue:
+- If `"status": "ok"` and `"auto_upgraded": true` — show this notice using the `old_version` and `new_version` fields from the JSON, then continue:
 
 ````markdown
 ```text
-FLOW auto-upgraded from v{old} to v{new} (config unchanged).
+FLOW auto-upgraded from v{old_version} to v{new_version} (config unchanged).
 ```
 ````
 
@@ -243,7 +243,9 @@ If `bin/dependencies` does not exist, skip to Done silently.
 
 ### Step 6 — Commit and push
 
-Use `/flow:flow-commit` to review and commit any dependency changes. No exceptions. Never use `git commit` directly.
+Run `git status` to check for uncommitted changes. If there are no changes, skip directly to Done.
+
+Otherwise, use `/flow:flow-commit` to review and commit any dependency changes. No exceptions. Never use `git commit` directly.
 
 ### Done — Update state and complete phase
 

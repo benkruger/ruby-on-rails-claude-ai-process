@@ -4,7 +4,7 @@ Usage: bin/flow prime-check
 
 Output (JSON to stdout):
   Success: {"status": "ok", "framework": "rails|python"}
-  Auto-upgrade: {"status": "ok", "framework": "...", "auto_upgraded": true}
+  Auto-upgrade: {"status": "ok", "framework": "...", "auto_upgraded": true, "old_version": "...", "new_version": "..."}
   Failure: {"status": "error", "message": "..."}
 """
 
@@ -54,6 +54,7 @@ def main():
         plugin_hash = _compute_config_hash(framework)
 
         if stored_hash and plugin_hash and stored_hash == plugin_hash:
+            old_version = init_data["flow_version"]
             init_data["flow_version"] = plugin_version
             flow_json.write_text(json.dumps(init_data) + "\n")
 
@@ -61,6 +62,8 @@ def main():
                 "status": "ok",
                 "framework": framework,
                 "auto_upgraded": True,
+                "old_version": old_version,
+                "new_version": plugin_version,
             }))
             return
 

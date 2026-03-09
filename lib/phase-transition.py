@@ -92,7 +92,7 @@ def phase_complete(state, phase, next_phase=None, phase_order=None):
     }
 
 
-# Phases that support entry/completion via this script (all except cleanup)
+# Phases that support entry/completion via this script (all except complete)
 _VALID_PHASES = PHASE_ORDER[:-1]
 
 

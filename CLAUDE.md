@@ -98,9 +98,9 @@ The state file (`.flow-states/<branch>.json`) is the backbone. Schema reference:
 
 ### Sub-Agents
 
-FLOW uses one custom plugin sub-agent: `ci-fixer` (`agents/ci-fixer.md`) for Start phase CI failures (Steps 3 and 5). Prompt-level tool restrictions are unreliable — sub-agents ignore them. The ci-fixer uses a `PreToolUse` hook (`lib/validate-ci-bash.py`) to enforce tool restrictions at the system level, blocking compound commands and file-read commands with helpful error messages.
+FLOW uses one custom plugin sub-agent: `ci-fixer` (`agents/ci-fixer.md`) for CI failure diagnosis and fix in Start (Steps 3 and 5) and Complete (Step 4). Prompt-level tool restrictions are unreliable — sub-agents ignore them. The ci-fixer uses a `PreToolUse` hook (`lib/validate-ci-bash.py`) to enforce tool restrictions at the system level, blocking compound commands and file-read commands with helpful error messages.
 
-Plan uses Claude Code's native plan mode (`EnterPlanMode`/`ExitPlanMode`). Code Review delegates to built-in `/simplify`, `/review`, and `/security-review`. Code has no sub-agent.
+Plan uses Claude Code's native plan mode (`EnterPlanMode`/`ExitPlanMode`). Code Review delegates to built-in `/simplify`, `/review`, and `/security-review`. Code and Learn have no sub-agents. Complete uses ci-fixer for CI failures.
 
 ### Memory and Learning System
 

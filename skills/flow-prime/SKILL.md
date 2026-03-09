@@ -265,15 +265,7 @@ git add .claude/settings.json
 
 Check if anything is staged by running `git status`. If the output contains "nothing to commit", skip the commit and push — go straight to Done.
 
-Otherwise, commit and push:
-
-```bash
-git commit -m "Configure FLOW workspace permissions"
-```
-
-```bash
-git push
-```
+Otherwise, commit via `/flow:flow-commit`.
 
 ### Done — Complete
 

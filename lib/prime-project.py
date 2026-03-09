@@ -46,7 +46,7 @@ def prime(project_root, framework, frameworks_dir=None):
     priming_content = priming_path.read_text()
     existing_content = claude_md.read_text()
 
-    block = f"{MARKER_BEGIN}\n{priming_content}\n{MARKER_END}\n"
+    block = f"{MARKER_BEGIN}\n\n{priming_content}\n{MARKER_END}\n"
 
     begin_index = existing_content.find(MARKER_BEGIN)
     end_index = existing_content.find(MARKER_END)

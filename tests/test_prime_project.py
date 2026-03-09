@@ -74,6 +74,17 @@ def test_preserves_content_before_and_after_markers(tmp_path):
     assert MARKER_END in content
 
 
+def test_blank_line_after_begin_marker(tmp_path):
+    """FLOW:BEGIN marker must be followed by a blank line (MD022 compliance)."""
+    claude_md = tmp_path / "CLAUDE.md"
+    claude_md.write_text("# My Project\n")
+    _mod.prime(str(tmp_path), "rails", str(FRAMEWORKS_DIR))
+    content = claude_md.read_text()
+    assert f"{MARKER_BEGIN}\n\n" in content, (
+        "Expected blank line after <!-- FLOW:BEGIN --> for MD022 compliance"
+    )
+
+
 def test_main_success(tmp_path, capsys, monkeypatch):
     claude_md = tmp_path / "CLAUDE.md"
     claude_md.write_text("# My Project\n")

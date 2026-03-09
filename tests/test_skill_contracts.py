@@ -1365,3 +1365,22 @@ def test_start_step_6_enforces_flow_commit_exclusively():
                 f"flow-start Step 6 mentions 'git commit' outside a "
                 f"prohibition: {line.strip()}"
             )
+
+
+def test_prime_step_7_enforces_flow_commit_exclusively():
+    """flow-prime Step 7 must use /flow:flow-commit and not suggest git commit."""
+    content = _read_skill("flow-prime")
+    step7_match = re.search(
+        r"### Step 7.*?\n(.*?)(?=\n### Done)", content, re.DOTALL
+    )
+    assert step7_match, "Could not find Step 7 in flow-prime/SKILL.md"
+    step7_text = step7_match.group(1)
+    assert "/flow:flow-commit" in step7_text, (
+        "flow-prime Step 7 must reference /flow:flow-commit"
+    )
+    for line in step7_text.splitlines():
+        if "git commit" in line:
+            assert re.search(r"[Nn]ever", line), (
+                f"flow-prime Step 7 mentions 'git commit' outside a "
+                f"prohibition: {line.strip()}"
+            )

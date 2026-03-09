@@ -51,7 +51,11 @@
       "Read(~/Desktop/*.png)",
       "Read(~/Desktop/*.jpg)",
       "Read(~/Desktop/*.jpeg)",
-      "Bash(bin/dependencies)"
+      "Bash(bin/dependencies)",
+      "Bash(git fetch origin *)",
+      "Bash(git merge *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr merge *)"
     ],
     "deny": [
       "Bash(git rebase *)",

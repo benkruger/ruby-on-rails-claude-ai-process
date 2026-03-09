@@ -114,7 +114,7 @@ sub-agents ignore them.
 
 Plan uses Claude Code's native plan mode (`EnterPlanMode`/`ExitPlanMode`).
 Code Review delegates to built-in `/simplify`, `/review`, and
-`/security-review`. Code, Learn, and Cleanup have no sub-agents.
+`/security-review`. Code and Learn have no sub-agents. Complete uses ci-fixer for CI failures.
 
 **Code phase rationale:** By the time Code starts, the plan file contains
 thorough exploration, a validated approach, identified risks, and ordered

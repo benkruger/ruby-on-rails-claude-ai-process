@@ -75,5 +75,5 @@ files from being staged.
 
 ## What Comes Next
 
-Merge the PR manually (which now includes CLAUDE.md improvements),
-then run Phase 6: Cleanup (`/flow-cleanup`).
+Run Phase 6: Complete (`/flow-complete`) to merge the PR (which now
+includes CLAUDE.md improvements) and clean up.

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-FLOW is a Claude Code plugin (`flow:` namespace) that enforces an opinionated 6-phase development lifecycle: Start, Plan, Code, Code Review, Learn, Cleanup. Each phase is a skill that Claude reads and follows. Phase gates prevent skipping ahead — you must complete each phase before entering the next.
+FLOW is a Claude Code plugin (`flow:` namespace) that enforces an opinionated 6-phase development lifecycle: Start, Plan, Code, Code Review, Learn, Complete. Each phase is a skill that Claude reads and follows. Phase gates prevent skipping ahead — you must complete each phase before entering the next.
 
 This repo is the plugin source code. When installed in a target project, skills and hooks run in the target project's working directory, not here. State files, worktrees, and logs all live in the target project. If you are developing FLOW itself, you are modifying the plugin — not using it.
 
@@ -9,8 +9,8 @@ This repo is the plugin source code. When installed in a target project, skills 
 FLOW is unobtrusive by design. In the target project:
 
 - Only `.claude/settings.json` and `.flow.json` are committed (permissions and config)
-- `.flow-states/` is gitignored and deleted at Cleanup
-- After Cleanup, the only permanent artifacts are the merged PR and any CLAUDE.md learnings
+- `.flow-states/` is gitignored and deleted at Complete
+- After Complete, the only permanent artifacts are the merged PR and any CLAUDE.md learnings
 - Skills are pure Markdown instructions, not executable code
 - Framework support is data-driven via `frameworks/<name>/` directories — adding a language means adding a directory, not editing skills
 
@@ -23,7 +23,7 @@ FLOW is unobtrusive by design. In the target project:
 | 3 | Code | `/flow:flow-code` | opus | Execute plan tasks one at a time with TDD |
 | 4 | Code Review | `/flow:flow-code-review` | opus | Three lenses: clarity, correctness, safety |
 | 5 | Learn | `/flow:flow-learn` | sonnet | Review mistakes, capture learnings, route to permanent homes |
-| 6 | Cleanup | `/flow:flow-cleanup` | haiku | Remove worktree, delete state file |
+| 6 | Complete | `/flow:flow-complete` | haiku | Merge PR, remove worktree, delete state file |
 
 Phase gates are enforced by `lib/check-phase.py` — there is no instruction path to skip a phase. Back-transitions (e.g., Code Review can return to Code or Plan) are defined in `flow-phases.json`.
 

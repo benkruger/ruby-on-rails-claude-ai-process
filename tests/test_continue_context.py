@@ -75,9 +75,9 @@ def test_happy_path_returns_ok_with_all_fields(state_dir, git_repo, branch):
 
 
 def test_all_complete_returns_ok_with_phase_6():
-    """Phase 6 maps to Cleanup with /flow:flow-cleanup command."""
-    assert _mod.PHASE_NAMES["flow-cleanup"] == "Cleanup"
-    assert _mod.COMMANDS["flow-cleanup"] == "/flow:flow-cleanup"
+    """Phase 6 maps to Complete with /flow:flow-complete command."""
+    assert _mod.PHASE_NAMES["flow-complete"] == "Complete"
+    assert _mod.COMMANDS["flow-complete"] == "/flow:flow-complete"
 
 
 def test_missing_worktree_still_returns_ok(state_dir, git_repo, branch):

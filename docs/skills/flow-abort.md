@@ -49,18 +49,18 @@ already closed, worktree already removed), it continues to the next.
 
 ---
 
-## vs /flow-cleanup
+## vs /flow-complete
 
-| | `/flow-cleanup` | `/flow-abort` |
+| | `/flow-complete` | `/flow-abort` |
 |---|---|---|
 | **When** | After Learn (Phase 5) | Any phase |
-| **PR** | Left open (merge it yourself) | Closed |
-| **Remote branch** | Left intact | Deleted |
+| **PR** | Squash-merged into main | Closed |
+| **Remote branch** | Deleted (via merge) | Deleted |
 | **Worktree** | Removed | Removed |
 | **State file** | Deleted | Deleted |
 | **Missing state** | Warns, proceeds | Warns, proceeds |
 
-Use `/flow-cleanup` for the happy path after a completed feature.
+Use `/flow-complete` for the happy path after a completed feature.
 Use `/flow-abort` to walk away from a feature entirely.
 
 ---

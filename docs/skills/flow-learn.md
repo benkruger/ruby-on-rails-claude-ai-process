@@ -73,7 +73,7 @@ learnings.
 
 ## Mode
 
-Mode is configurable via `.flow.json` (default: auto). In auto mode, permission promotions (Maintainer) are applied automatically and the phase transition advances to Cleanup without asking.
+Mode is configurable via `.flow.json` (default: auto). In auto mode, permission promotions (Maintainer) are applied automatically and the phase transition advances to Complete without asking.
 
 ---
 

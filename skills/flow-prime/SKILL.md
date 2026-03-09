@@ -58,7 +58,7 @@ FLOW has two independent axes for skills that support them:
 - **Commit** — how `/flow:flow-commit` is invoked during phase work (auto = skip diff approval, manual = require approval). Also controls per-task approval in Code.
 - **Continue** — whether to auto-advance to the next phase or prompt first.
 
-Phase skills that commit (code, code-review, learning) have both axes. Phase skills that don't commit (start) only have continue. Utility skills (abort, cleanup) have a single mode value. The `/flow:flow-commit` skill is not configurable — it defaults to auto and can be overridden with `--manual`.
+Phase skills that commit (code, code-review, learning) have both axes. Phase skills that don't commit (start) only have continue. Utility skills (abort, complete) have a single mode value. The `/flow:flow-commit` skill is not configurable — it defaults to auto and can be overridden with `--manual`.
 
 Ask the user how much autonomy FLOW should have using AskUserQuestion:
 
@@ -72,22 +72,22 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 **Fully autonomous** — all auto:
 
 ```json
-{"flow-start": {"continue": "auto"}, "flow-code": {"commit": "auto", "continue": "auto"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-cleanup": "auto"}
+{"flow-start": {"continue": "auto"}, "flow-code": {"commit": "auto", "continue": "auto"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}
 ```
 
 **Fully manual** — all manual:
 
 ```json
-{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "manual", "continue": "manual"}, "flow-learn": {"commit": "manual", "continue": "manual"}, "flow-abort": "manual", "flow-cleanup": "manual"}
+{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "manual", "continue": "manual"}, "flow-learn": {"commit": "manual", "continue": "manual"}, "flow-abort": "manual", "flow-complete": "manual"}
 ```
 
 **Recommended** — safe defaults for all frameworks:
 
 ```json
-{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-cleanup": "auto"}
+{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}
 ```
 
-**Customize** — ask per skill, in this order: start, code, code-review, learn, abort, cleanup. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
+**Customize** — ask per skill, in this order: start, code, code-review, learn, abort, complete. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
 
 For **code** (commit and continue), ask two AskUserQuestions:
 
@@ -128,7 +128,7 @@ For **start** (continue only), ask one AskUserQuestion:
 > - **Manual (Recommended)** — "Prompt before advancing"
 > - **Auto** — "Auto-advance to next phase"
 
-For **abort** and **cleanup** (single mode), ask one AskUserQuestion each:
+For **abort** and **complete** (single mode), ask one AskUserQuestion each:
 
 > "Mode for /flow:flow-<skill>?"
 >
@@ -193,7 +193,11 @@ All permissions (universal + all framework sets) for reference:
       "Bash(psql *)",
       "Bash(bin/test *)",
       "Bash(.venv/bin/pip install *)",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(git fetch origin *)",
+      "Bash(git merge *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr merge *)"
     ],
     "deny": [
       "Bash(git rebase *)",
@@ -218,7 +222,7 @@ add the `skills` key from `skills_dict` (Step 2), and write the file back with
 the Write tool. The result should look like:
 
 ```json
-{"flow_version": "0.16.4", "framework": "python", "config_hash": "2c54c5cd6972", "skills": {"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-cleanup": "auto"}}
+{"flow_version": "0.16.4", "framework": "python", "config_hash": "2c54c5cd6972", "skills": {"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}}
 ```
 
 The `config_hash` field is a 12-character hex digest stored by `prime-setup`. When the plugin version changes, `/flow-start` recomputes the hash and compares against the stored value to decide whether re-prime is needed. If the config hasn't changed, the version is auto-upgraded without re-running `/flow-prime`.
@@ -301,7 +305,7 @@ Display the skills configuration as a pipe-delimited markdown table with exactly
 | code-review | auto   | auto     |
 | learning    | auto   | auto     |
 | abort       | auto   | —        |
-| cleanup     | auto   | —        |
+| complete    | auto   | —        |
 ```
 
 Use the actual values from `skills_dict` (Step 2). The table above is just an example. Show `—` for axes that don't apply to a skill. The table must use pipe `|` delimiters — never render as a bullet list.

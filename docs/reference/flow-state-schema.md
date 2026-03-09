@@ -17,7 +17,7 @@ State files live in `.flow-states/` at the project root, named after the branch:
 .flow-states/user-profile-redesign-phases.json
 ```
 
-Each feature has up to three files: the state file (`.json`), the log file (`.log`), and a frozen copy of `flow-phases.json` (`-phases.json`). Multiple features can run simultaneously with no conflicts. The directory is added to `.git/info/exclude` by `/flow-start` (per-repo, not committed). Created by `/flow-start`, deleted by `/flow-cleanup`.
+Each feature has up to three files: the state file (`.json`), the log file (`.log`), and a frozen copy of `flow-phases.json` (`-phases.json`). Multiple features can run simultaneously with no conflicts. The directory is added to `.git/info/exclude` by `/flow-start` (per-repo, not committed). Created by `/flow-start`, deleted by `/flow-complete`.
 
 The frozen phases file is a snapshot of `flow-phases.json` taken at start time. Scripts use it instead of the live plugin source so that phase config changes during FLOW development don't break in-progress features.
 
@@ -42,7 +42,7 @@ The frozen phases file is a snapshot of `flow-phases.json` taken at start time. 
     "flow-code-review": {"commit": "auto", "continue": "auto"},
     "flow-learn": {"commit": "auto", "continue": "auto"},
     "flow-abort": "auto",
-    "flow-cleanup": "auto"
+    "flow-complete": "auto"
   },
   "phases": {
     "flow-start": {
@@ -135,7 +135,7 @@ Present only when `.flow.json` contains a `skills` key (i.e., after running `/fl
   "flow-code-review": {"commit": "auto", "continue": "auto"},
   "flow-learn": {"commit": "auto", "continue": "auto"},
   "flow-abort": "auto",
-  "flow-cleanup": "auto"
+  "flow-complete": "auto"
 }
 ```
 

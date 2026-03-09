@@ -1,5 +1,22 @@
 # Release Notes
 
+## v0.21.4 — Fix auto-upgrade display and Start phase halt on empty commit
+
+### Fixes
+
+- `lib/prime-check.py` now emits `old_version` and `new_version` in the
+  auto-upgrade JSON output. Previously both fields were missing, causing
+  the Start phase to display "v0.21.3 to v0.21.3" in the upgrade notice.
+- `skills/flow-commit/SKILL.md`: nothing-to-commit path now prints the
+  COMPLETE banner and returns to the caller instead of halting. Previously
+  "stop" caused the entire Start phase to halt when there were no dependency
+  changes to commit.
+- `skills/flow-start/SKILL.md`: Step 1 upgrade notice references
+  `old_version`/`new_version` fields by name. Step 6 adds a `git status`
+  pre-check to skip `flow-commit` when there is nothing to stage.
+- `tests/test_prime_check.py`: added assertions for `old_version` and
+  `new_version` in `test_auto_upgrades_when_config_hash_matches`.
+
 ## v0.21.3 — CI fixer sub-agent, Code Review fix, docs improvements
 
 ### Fixes

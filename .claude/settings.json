@@ -50,7 +50,8 @@
       "Bash(git mv *)",
       "Read(~/Desktop/*.png)",
       "Read(~/Desktop/*.jpg)",
-      "Read(~/Desktop/*.jpeg)"
+      "Read(~/Desktop/*.jpeg)",
+      "Bash(bin/dependencies)"
     ],
     "deny": [
       "Bash(git rebase *)",

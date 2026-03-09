@@ -1,5 +1,24 @@
 # Release Notes
 
+## v0.21.3 — CI fixer sub-agent, Code Review fix, docs improvements
+
+### Fixes
+
+- Replace general-purpose sub-agent with custom `ci-fixer` plugin sub-agent
+  (`agents/ci-fixer.md`) to eliminate permission prompts during autonomous Start
+  phase CI fixes. Uses a `PreToolUse` hook (`lib/validate-ci-bash.py`) to enforce
+  tool restrictions at the system level instead of unreliable prompt-level rules.
+  Closes #35 and #44.
+- Fix Code Review stopping after a no-findings sub-skill returns a blank prompt
+  instead of continuing to the next review lens. Closes #43.
+
+### Improvements
+
+- Restructure CLAUDE.md to give Claude a better mental model of FLOW from the
+  first 30 lines — design philosophy and phase table moved up front.
+- Make `bin/dependencies` quiet and self-updating so it runs clean every time
+  without noisy output.
+
 ## v0.21.2 — Fix bin/dependencies venv detection and worktree file visibility
 
 ### Fixes

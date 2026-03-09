@@ -1,5 +1,14 @@
 # Release Notes
 
+## v0.20.1 — Fix plugin loading
+
+### Fixes
+
+- Remove `config_hash` from plugin.json — Claude Code's manifest
+  validator rejects unrecognized keys, preventing the plugin from
+  loading. The hash is now computed dynamically at runtime instead
+  of stored.
+
 ## v0.20.0 — Init versioning and collapsed phases
 
 ### New

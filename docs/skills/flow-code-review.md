@@ -10,9 +10,10 @@ parent: Skills
 
 **Usage:** `/flow-code-review`, `/flow-code-review --auto`, or `/flow-code-review --manual`
 
-Three lenses on the same diff — clarity, correctness, and safety. Combines
-simplification, code review, and security review into a single phase with
-three ordered steps, each with its own commit checkpoint.
+Four lenses on the same diff — clarity, correctness, safety, and CLAUDE.md
+compliance. Combines simplification, code review, security review, and
+multi-agent plugin validation into a single phase with four ordered steps,
+each with its own commit checkpoint.
 
 ---
 
@@ -36,6 +37,14 @@ and changes are committed via `/flow-commit`.
 Invokes Claude Code's built-in `/security-review` against the PR diff.
 If no findings, skips to the next step. Every finding is fixed,
 `bin/flow ci` is run, and changes are committed via `/flow-commit`.
+
+### Step 4 — Code Review Plugin (CLAUDE.md compliance)
+
+Invokes the `code-review:code-review` plugin for multi-agent validation.
+Four parallel agents (2x CLAUDE.md compliance, 1x bug scan, 1x
+security/logic scan) with a validation layer that filters false positives.
+If no findings, skips to Done. Every finding is fixed, `bin/flow ci` is
+run, and changes are committed via `/flow-commit`.
 
 ---
 

@@ -21,7 +21,7 @@ FLOW is unobtrusive by design. In the target project:
 | 1 | Start | `/flow:flow-start` | haiku | Create worktree, PR, state file, configure workspace |
 | 2 | Plan | `/flow:flow-plan` | opus | Explore codebase, design approach, create implementation plan |
 | 3 | Code | `/flow:flow-code` | opus | Execute plan tasks one at a time with TDD |
-| 4 | Code Review | `/flow:flow-code-review` | opus | Three lenses: clarity, correctness, safety |
+| 4 | Code Review | `/flow:flow-code-review` | opus | Four lenses: clarity, correctness, safety, CLAUDE.md compliance |
 | 5 | Learn | `/flow:flow-learn` | sonnet | Review mistakes, capture learnings, route to permanent homes |
 | 6 | Complete | `/flow:flow-complete` | haiku | Merge PR, remove worktree, delete state file |
 
@@ -100,7 +100,7 @@ The state file (`.flow-states/<branch>.json`) is the backbone. Schema reference:
 
 FLOW uses one custom plugin sub-agent: `ci-fixer` (`agents/ci-fixer.md`) for CI failure diagnosis and fix in Start (Steps 3 and 5) and Complete (Step 4). Prompt-level tool restrictions are unreliable — sub-agents ignore them. The `PreToolUse` hook (`lib/validate-ci-bash.py`) is registered globally in `hooks/hooks.json`, blocking compound commands and file-read commands in all Bash calls — including those from built-in skills' sub-agents. The ci-fixer also retains its own hook declaration for defense in depth.
 
-Plan uses Claude Code's native plan mode (`EnterPlanMode`/`ExitPlanMode`). Code Review delegates to built-in `/simplify`, `/review`, and `/security-review`. Code and Learn have no sub-agents. Complete uses ci-fixer for CI failures.
+Plan uses Claude Code's native plan mode (`EnterPlanMode`/`ExitPlanMode`). Code Review delegates to built-in `/simplify`, `/review`, `/security-review`, and the `code-review:code-review` plugin for multi-agent validation. Code and Learn have no sub-agents. Complete uses ci-fixer for CI failures.
 
 ### Memory and Learning System
 

@@ -1,18 +1,37 @@
 ---
 name: flow-issues
 description: "Fetch open issues, categorize, prioritize, and display a dashboard."
+model: haiku
 ---
 
 # FLOW Issues
 
-Fetch all open issues for the FLOW repo, categorize them, prioritize within each category, and display a dashboard. Read-only — never create, edit, or close issues.
+Fetch all open issues for the current repository, categorize them, prioritize within each category, and display a dashboard. Read-only — never create, edit, or close issues.
+
+## Usage
+
+```text
+/flow:flow-issues
+```
+
+## Announce
+
+At the very start, output the following banner in your response (not via Bash) inside a fenced code block:
+
+````markdown
+```text
+============================================
+  FLOW v0.24.1 — flow:flow-issues — STARTING
+============================================
+```
+````
 
 ## Step 1 — Fetch
 
 Run:
 
 ```bash
-gh issue list --repo benkruger/flow --state open --json number,title,labels,createdAt,body --limit 100
+gh issue list --state open --json number,title,labels,createdAt,body --limit 100
 ```
 
 Parse the JSON output. If there are no open issues, print the COMPLETE banner and stop.
@@ -38,32 +57,23 @@ Within each category, assign High, Medium, or Low priority based on:
 
 ## Step 4 — Display
 
-Print the announce banner:
-
-````markdown
-```text
-============================================
-  Issues — STARTING
-============================================
-```
-````
-
 Print a summary line with total count and per-category counts.
 
 Then for each non-empty category, print a markdown table with columns: `#`, `Title`, `Age`, `Priority`. Sort by priority (High first), then by age (oldest first).
 
-After all categories are displayed, print:
+After all categories are displayed, output the following banner in your response (not via Bash) inside a fenced code block:
 
 ````markdown
 ```text
 ============================================
-  Issues — COMPLETE
+  FLOW v0.24.1 — flow:flow-issues — COMPLETE
 ============================================
 ```
 ````
 
-## Rules
+## Hard Rules
 
 - Read-only — never create, edit, or close issues
 - Display all open issues — never filter or hide
 - No AskUserQuestion — this is a display-only skill
+- Never use Bash to print banners — output them as text in your response

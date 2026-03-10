@@ -39,4 +39,5 @@ These skills are available at any point in the workflow, regardless of phase.
 | [`/flow-note`](flow-note.md) | Capture a correction or learning — invoked automatically on corrections |
 | [`/flow-abort`](flow-abort.md) | Abandon the current feature — close PR, delete branch, remove worktree |
 | [`/flow-config`](flow-config.md) | Display current configuration — version, framework, per-skill autonomy |
+| [`/flow-issues`](flow-issues.md) | Fetch open issues, categorize, prioritize, and display a dashboard |
 | [`/flow-local-permission`](flow-local-permission.md) | Promote permissions from settings.local.json into settings.json |

@@ -1,5 +1,16 @@
 # Release Notes
 
+## v0.24.3 — Bug fixes for Code Review and Plan phases
+
+### Fixes
+
+- Fix Code Review step stalling when sub-agents encounter errors (#64, #65, #66, #67).
+- Fix PR body rendering literal `\n` instead of newlines (#71).
+
+### Improvements
+
+- Port `bin/flow issue` command from maintainer to plugin for consistent permission handling (#73).
+
 ## v0.24.2 — Permission promotion and issue filing fixes
 
 ### Fixes

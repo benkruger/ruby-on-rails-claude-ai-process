@@ -61,9 +61,9 @@ Learn auto-detects its context:
 
 | Mode | When | Sources | Commits | Settings audit |
 |------|------|---------|---------|----------------|
-| Phase 5 | State file with Code Review complete | All 3 (CLAUDE.md, context, state/plan) | `/flow-commit --auto` | No |
+| Phase 5 | State file with Code Review complete | All 3 (CLAUDE.md, context, state/plan) | `/flow-commit --auto` | Yes |
 | Maintainer | No state file, `flow-phases.json` exists | 2 (CLAUDE.md, context) | `/flow-commit --auto` | Yes |
-| Standalone | No state file, no `flow-phases.json` | 2 (CLAUDE.md, context) | None | No |
+| Standalone | No state file, no `flow-phases.json` | 2 (CLAUDE.md, context) | None | Yes |
 
 Standalone mode lets any project use `/flow-learn` without a FLOW
 feature in progress — just review the current session and apply

@@ -54,7 +54,9 @@
       "Bash(git fetch origin *)",
       "Bash(git merge *)",
       "Bash(gh pr checks *)",
-      "Bash(gh pr merge *)"
+      "Bash(gh pr merge *)",
+      "Bash(gh pr:*)",
+      "Skill(code-review:code-review)"
     ],
     "deny": [
       "Bash(git rebase *)",

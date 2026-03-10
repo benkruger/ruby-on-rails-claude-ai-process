@@ -240,9 +240,7 @@ subsequent destinations, steps, or the phase completion.
 
 ---
 
-## Step 4 — Promote local permissions (Maintainer only)
-
-**Skip for Phase 5 and Standalone.**
+## Step 4 — Promote local permissions (all modes)
 
 Invoke `/flow:flow-local-permission`.
 

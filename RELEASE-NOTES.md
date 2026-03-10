@@ -1,5 +1,16 @@
 # Release Notes
 
+## v0.24.2 — Permission promotion and issue filing fixes
+
+### Fixes
+
+- Learn phase now promotes settings.local.json into settings.json in all modes (Phase 5, Maintainer, and Standalone), not just Maintainer — prevents accumulated session permissions from being left behind as uncommitted changes.
+
+### Improvements
+
+- Ported `bin/flow issue` command from maintainer-only to the plugin, so all projects can file GitHub issues through the permission-safe wrapper.
+- Skills no longer write files to `/tmp/` — all file operations stay within the project root to avoid permission prompts.
+
 ## v0.24.1 — Bug fixes and resilience improvements
 
 ### Fixes

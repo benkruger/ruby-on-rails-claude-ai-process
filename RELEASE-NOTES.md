@@ -1,5 +1,20 @@
 # Release Notes
 
+## v0.24.1 — Bug fixes and resilience improvements
+
+### Fixes
+
+- Fix bin/flow commands failing when run from the main repo root instead of a worktree (#53).
+- Fix Start pausing for confirmation after branch name truncation instead of proceeding automatically.
+- Fix Learn phase hanging when an Edit tool call is denied — rejected learnings now skip gracefully (#54).
+- Fix Code Review losing step progress after context compaction — completed steps are now tracked and skipped on resume (#50).
+- Block pipe operators in PreToolUse hook to prevent sub-agent piped commands from bypassing permission matching (#55).
+
+### Improvements
+
+- Route GitHub issue creation through bin/flow issue for consistent permission matching.
+- Enforce /flow:flow-commit routing in flow-prime and exclude bin/dependencies from bin/ci.
+
 ## v0.24.0 — Code Review plugin integration
 
 ### New features

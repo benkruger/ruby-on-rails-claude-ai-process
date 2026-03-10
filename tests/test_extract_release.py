@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import LIB_DIR
+from conftest import LIB_DIR, REPO_ROOT
 
 # Import the hyphenated module directly
 _spec = importlib.util.spec_from_file_location(
@@ -85,7 +85,7 @@ def test_cli_writes_output_file(tmp_path):
         capture_output=True, text=True,
     )
     assert result.returncode == 0
-    out_file = Path("/tmp/release-notes-v0.5.1.md")
+    out_file = REPO_ROOT / "tmp" / "release-notes-v0.5.1.md"
     assert out_file.exists()
     content = out_file.read_text()
     assert "v0.5.1" in content

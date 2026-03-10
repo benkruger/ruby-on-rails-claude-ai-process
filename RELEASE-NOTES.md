@@ -1,5 +1,27 @@
 # Release Notes
 
+## v0.24.0 — Code Review plugin integration
+
+### New features
+
+- **Code Review Step 4** — Phase 4 now includes a 4th step that invokes
+  the `code-review:code-review` plugin for multi-agent validation with
+  CLAUDE.md compliance checking. Four parallel agents with a confidence
+  threshold filter for high-signal findings only.
+- **flow-prime installs code-review plugin** — New projects get the
+  code-review plugin installed automatically during `/flow-prime`.
+
+### Fixes
+
+- Fix flow-prime blank line after FLOW:BEGIN marker
+- Fix flow-prime Step 7 commit convention
+
+### Improvements
+
+- Phase skills now log completion events to `.flow-states/<branch>.log`
+- Add project rule prohibiting direct Python invocation (use bin/flow wrappers)
+- Configure FLOW workspace permissions
+
 ## v0.23.1 — Global Bash validator and CI sentinel fixes
 
 - **Global PreToolUse hook** — `validate-ci-bash.py` is now registered

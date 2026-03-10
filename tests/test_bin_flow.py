@@ -58,10 +58,10 @@ def test_passes_arguments_through():
     assert "invalid version format" in result.stdout
 
 
-def test_exit_code_passes_through():
+def test_exit_code_passes_through(tmp_path):
     """Exit code from the Python script is preserved."""
     # check-phase with --required plan and no state file exits non-zero
-    result = _run("check-phase", "--required", "flow-plan", cwd="/tmp")
+    result = _run("check-phase", "--required", "flow-plan", cwd=str(tmp_path))
     assert result.returncode != 0
 
 

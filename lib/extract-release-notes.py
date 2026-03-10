@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Extract release notes for a specific version from RELEASE-NOTES.md.
-Writes the extracted section to /tmp/release-notes-<version>.md.
+Writes the extracted section to tmp/release-notes-<version>.md (project-relative).
 
 Usage: bin/flow extract-release-notes <version>
 Example: bin/flow extract-release-notes v0.2.0
@@ -51,7 +51,9 @@ def main():
         print(f"Error: no section found for version {version}")
         sys.exit(1)
 
-    out = Path(f"/tmp/release-notes-{version}.md")
+    project_root = Path(__file__).resolve().parent.parent
+    out = project_root / "tmp" / f"release-notes-{version}.md"
+    out.parent.mkdir(exist_ok=True)
     out.write_text(content + "\n")
     print(f"Written to {out}")
 

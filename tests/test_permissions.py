@@ -261,6 +261,8 @@ def test_no_bash_commands_reference_tmp():
     files_to_check = _all_plugin_skill_files()
     for rel, content in _all_docs_files():
         files_to_check.append((rel, content))
+    for rel, content in _maintainer_files():
+        files_to_check.append((rel, content))
 
     for filepath, content in files_to_check:
         bash_blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)

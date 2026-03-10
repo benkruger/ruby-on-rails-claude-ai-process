@@ -188,10 +188,10 @@ First extract just this version's section from RELEASE-NOTES.md:
 bin/flow extract-release-notes v<new_version>
 ```
 
-This writes `/tmp/release-notes-v<new_version>.md`. Then create the release:
+This writes `tmp/release-notes-v<new_version>.md`. Then create the release:
 
 ```bash
-gh release create v<new_version> --title "v<new_version>" --notes-file /tmp/release-notes-v<new_version>.md
+gh release create v<new_version> --title "v<new_version>" --notes-file tmp/release-notes-v<new_version>.md
 ```
 
 ## Step 11 — Update local marketplace

@@ -7,13 +7,13 @@ nav_order: 5
 
 **Command:** `/flow-code-review`
 
-Three lenses on the same diff — clarity, correctness, and safety. Combines
-what were previously separate passes into a single phase with three ordered
-steps, each with its own commit checkpoint.
+Four lenses on the same diff — clarity, correctness, safety, and CLAUDE.md
+compliance. Combines what were previously separate passes into a single phase
+with four ordered steps, each with its own commit checkpoint.
 
 ---
 
-## The Three Steps
+## The Four Steps
 
 ### Step 1 — Simplify (clarity)
 
@@ -39,6 +39,16 @@ via `/flow-commit`.
 Invokes Claude Code's built-in `/security-review` against the PR diff.
 Scans for vulnerabilities, authentication gaps, data exposure, and
 injection risks.
+
+Every finding is fixed, `bin/flow ci` is run, and changes are committed
+via `/flow-commit`.
+
+### Step 4 — Code Review Plugin (CLAUDE.md compliance)
+
+Invokes the `code-review:code-review` plugin for multi-agent validation.
+Four parallel agents (2x CLAUDE.md compliance, 1x bug scan, 1x
+security/logic scan) with a validation layer that re-validates each finding
+at 80+ confidence. Produces high-signal findings only.
 
 Every finding is fixed, `bin/flow ci` is run, and changes are committed
 via `/flow-commit`.

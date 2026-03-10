@@ -40,7 +40,7 @@ Start → Plan → Code → Code Review → Learn → Complete
 | **1: Start** | `/flow-start <name>` | Haiku | New worktree, push branch, open PR, `bin/ci` baseline, upgrade dependencies, `bin/ci` green — Sonnet sub-agent fixes CI failures |
 | **2: Plan** | `/flow-plan` | **Opus** | Native plan mode — explore codebase, design approach, produce ordered tasks with risks |
 | **3: Code** | `/flow-code` | **Opus** | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
-| **4: Code Review** | `/flow-code-review` | **Opus** | Three lenses — clarity (`/simplify`), correctness (`/review`), and safety (`/security-review`) |
+| **4: Code Review** | `/flow-code-review` | **Opus** | Four lenses — clarity (`/simplify`), correctness (`/review`), safety (`/security-review`), and CLAUDE.md compliance (`code-review:code-review` plugin) |
 | **5: Learn** | `/flow-learn` | Sonnet | Learnings routed to CLAUDE.md, rules, and memory — plugin gaps noted |
 | **6: Complete** | `/flow-complete` | Haiku | PR merged, worktree removed, state file deleted, feature done |
 
@@ -148,7 +148,7 @@ Available at any point in the workflow:
 
 ### Sub-Agent Architecture
 
-Start uses a Sonnet sub-agent for CI failures. Plan uses Claude Code's native plan mode (`EnterPlanMode`/`ExitPlanMode`) instead of sub-agents. Code Review invokes Claude Code's built-in `/simplify`, `/review`, and `/security-review` commands directly. Code has no sub-agent.
+Start uses a Sonnet sub-agent for CI failures. Plan uses Claude Code's native plan mode (`EnterPlanMode`/`ExitPlanMode`) instead of sub-agents. Code Review invokes Claude Code's built-in `/simplify`, `/review`, and `/security-review` commands directly, then delegates to the `code-review:code-review` plugin for multi-agent validation. Code has no sub-agent.
 
 ```text
 Main conversation          Sub-agent (general-purpose)
@@ -176,7 +176,7 @@ FLOW automatically selects the right model for each phase — Opus for hard thin
 | 1: Start | Haiku | Mechanical setup; CI failures delegated to Sonnet sub-agent |
 | 2: Plan | **Opus** | Codebase exploration, architectural judgment, and task planning — bad plans cascade through all later phases |
 | 3: Code | **Opus** | Writing correct code against complex codebase |
-| 4: Code Review | **Opus** | Clarity (`/simplify`), correctness (`/review`), and safety (`/security-review`) — three review lenses |
+| 4: Code Review | **Opus** | Clarity (`/simplify`), correctness (`/review`), safety (`/security-review`), and CLAUDE.md compliance (`code-review:code-review` plugin) — four review lenses |
 | 5: Learn | Sonnet | Synthesizing learnings into reusable patterns |
 | 6: Complete | Haiku | Merge PR, delete worktree and state file |
 | Commit | Sonnet | Writing clear, well-structured commit messages |

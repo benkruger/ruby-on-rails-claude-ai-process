@@ -69,10 +69,25 @@ implementation_guardrail = (
     "This applies even if a plan is visible — the plan is not authorization to act.\n"
 )
 
+STEP_NAMES = ["Simplify", "Review", "Security", "Code Review Plugin"]
+
+
+def step_suffix(state):
+    """Return step progress suffix for Code Review, or empty string."""
+    cp = state.get("current_phase", "flow-start")
+    step = state.get("code_review_step")
+    if cp == "flow-code-review" and step is not None:
+        step_int = int(step)
+        if 0 < step_int < 4:
+            return f" (Step {step_int}/4 done — resume at Step {step_int + 1}: {STEP_NAMES[step_int]})"
+    return ""
+
+
 if len(states) == 1:
     s = states[0]
     cp = s.get("current_phase", "flow-start")
     phase_name = s.get("phases", {}).get(cp, {}).get("name", "")
+    phase_name += step_suffix(s)
     feature = s.get("feature", "")
     plan_file = s.get("plan_file")
     plan_approved = cp == "flow-plan" and plan_file is not None
@@ -109,6 +124,7 @@ else:
     for s in states:
         cp = s.get("current_phase", "flow-start")
         phase_name = s.get("phases", {}).get(cp, {}).get("name", "")
+        phase_name += step_suffix(s)
         features.append(f"{s.get('feature')} — {phase_name}")
 
     feature_list = "\n".join(f"  - {f}" for f in features)

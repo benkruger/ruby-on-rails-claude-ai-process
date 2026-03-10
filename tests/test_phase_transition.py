@@ -299,6 +299,40 @@ def test_cli_falls_back_without_frozen_phases(git_repo, state_dir, branch):
     assert data["next_phase"] == "flow-code"
 
 
+def test_enter_code_review_sets_code_review_step():
+    """Entering flow-code-review sets code_review_step to 0 (integer)."""
+    state = make_state(current_phase="flow-code", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
+    })
+
+    updated, result = _mod.phase_enter(state, "flow-code-review")
+
+    assert updated["code_review_step"] == 0
+    assert isinstance(updated["code_review_step"], int)
+
+
+def test_enter_non_code_review_does_not_set_code_review_step():
+    """Entering flow-plan does NOT set code_review_step."""
+    state = make_state(current_phase="flow-start", phase_statuses={"flow-start": "complete"})
+
+    updated, result = _mod.phase_enter(state, "flow-plan")
+
+    assert "code_review_step" not in updated
+
+
+def test_reenter_code_review_resets_code_review_step():
+    """Re-entering flow-code-review resets code_review_step to 0."""
+    state = make_state(current_phase="flow-code", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
+        "flow-code-review": "complete",
+    })
+    state["code_review_step"] = 3
+
+    updated, result = _mod.phase_enter(state, "flow-code-review")
+
+    assert updated["code_review_step"] == 0
+
+
 def test_complete_future_session_started_clamps_to_zero():
     """If session_started_at is in the future, elapsed clamps to 0."""
     state = make_state(current_phase="flow-plan", phase_statuses={"flow-start": "complete", "flow-plan": "in_progress"})

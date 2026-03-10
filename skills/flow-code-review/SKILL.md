@@ -88,6 +88,15 @@ YYYY-MM-DDTHH:MM:SSZ [Phase 4] Step X — desc (exit EC)
 
 Get `<branch>` from the state file.
 
+## Resume Check
+
+Read `code_review_step` from the state file (default `0` if absent).
+
+- If `1` — Step 1 is done. Skip to Step 2.
+- If `2` — Steps 1-2 are done. Skip to Step 3.
+- If `3` — Steps 1-3 are done. Skip to Step 4.
+- If `4` — All steps are done. Skip to Done.
+
 ## Framework Conventions
 
 Read the project's CLAUDE.md for framework-specific conventions. The
@@ -142,6 +151,12 @@ follow the back-navigation instructions below.
 
 **Commit**: Run `bin/flow ci` first. If green: if commit=auto, use
 `/flow:flow-commit --auto`; otherwise use `/flow:flow-commit`.
+
+Record step completion:
+
+```bash
+bin/flow set-timestamp --set code_review_step=1
+```
 
 Without pausing or asking for confirmation, continue to Step 2.
 
@@ -220,6 +235,12 @@ Show a summary of what was found and fixed inside a fenced code block:
 ```
 ````
 
+Record step completion:
+
+```bash
+bin/flow set-timestamp --set code_review_step=2
+```
+
 Without pausing or asking for confirmation, continue to Step 3.
 
 ---
@@ -277,6 +298,12 @@ Show a summary of what was found and fixed inside a fenced code block:
 ============================================
 ```
 ````
+
+Record step completion:
+
+```bash
+bin/flow set-timestamp --set code_review_step=3
+```
 
 Without pausing or asking for confirmation, continue to Step 4.
 
@@ -337,6 +364,12 @@ Show a summary of what was found and fixed inside a fenced code block:
 ============================================
 ```
 ````
+
+Record step completion:
+
+```bash
+bin/flow set-timestamp --set code_review_step=4
+```
 
 Without pausing or asking for confirmation, continue to Done.
 

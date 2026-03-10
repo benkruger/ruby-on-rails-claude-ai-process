@@ -43,6 +43,9 @@ def phase_enter(state, phase):
     phase_data["visit_count"] = phase_data.get("visit_count", 0) + 1
     state["current_phase"] = phase
 
+    if phase == "flow-code-review":
+        state["code_review_step"] = 0
+
     first_visit = phase_data["visit_count"] == 1
 
     return state, {

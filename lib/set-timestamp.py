@@ -79,6 +79,8 @@ def apply_updates(state, set_args):
 
         if value == "NOW":
             value = now()
+        elif value.isdigit():
+            value = int(value)
 
         _set_nested(state, path_parts, value)
         updates.append({"path": path, "value": value})

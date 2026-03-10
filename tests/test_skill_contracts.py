@@ -1395,6 +1395,40 @@ def test_code_review_step_4_handles_no_findings():
     )
 
 
+def test_code_review_has_resume_check():
+    """Code Review SKILL.md must have a Resume Check section that reads code_review_step."""
+    content = _read_skill("flow-code-review")
+    resume_match = re.search(
+        r"## Resume Check\n(.*?)(?=\n## Step 1)", content, re.DOTALL
+    )
+    assert resume_match, (
+        "flow-code-review must have a Resume Check section before Step 1"
+    )
+    resume_text = resume_match.group(1)
+    assert "code_review_step" in resume_text, (
+        "Resume Check must reference code_review_step field"
+    )
+
+
+def test_code_review_steps_record_completion():
+    """Each Code Review step must record completion via set-timestamp --set code_review_step=N."""
+    content = _read_skill("flow-code-review")
+
+    for step_num in range(1, 5):
+        if step_num < 4:
+            next_header = f"## Step {step_num + 1}"
+        else:
+            next_header = "## Back Navigation|## Done"
+        step_match = re.search(
+            rf"## Step {step_num}.*?\n(.*?)(?=\n(?:{next_header}))",
+            content, re.DOTALL,
+        )
+        assert step_match, f"Could not find Step {step_num} in flow-code-review/SKILL.md"
+        assert f"code_review_step={step_num}" in step_match.group(1), (
+            f"Step {step_num} must contain 'code_review_step={step_num}' marker"
+        )
+
+
 def test_start_step_6_enforces_flow_commit_exclusively():
     """Step 6 must use /flow:flow-commit and not suggest git commit."""
     content = _read_skill("flow-start")

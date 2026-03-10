@@ -94,6 +94,7 @@ The frozen phases file is a snapshot of `flow-phases.json` taken at start time. 
 | `framework` | string | `"rails"` or `"python"` — set during `/flow-prime`, copied to state by `/flow-start` |
 | `plan_file` | string / null | Absolute path to the plan file at `~/.claude/plans/<name>.md` — set by Phase 2: Plan |
 | `skills` | object / absent | Per-skill autonomy settings copied from `.flow.json` by `/flow-start` — see [Skills Object](#skills-object) |
+| `code_review_step` | integer | Last completed Code Review step (0-4). Set to 0 on phase entry, incremented after each step. Used for resume after context compaction. |
 | `notes` | array | Corrections captured via `/flow-note` — see [Notes Array](#notes-array) |
 
 ---

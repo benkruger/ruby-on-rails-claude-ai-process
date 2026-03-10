@@ -376,6 +376,70 @@ def test_single_feature_plan_approved_includes_implementation_guardrail(git_repo
     assert "NEVER implement" in ctx
 
 
+def test_code_review_with_step_tracking_shows_progress(git_repo):
+    """Code Review at step 2 → context mentions step progress."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+    state = make_state(current_phase="flow-code-review", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete",
+        "flow-code": "complete", "flow-code-review": "in_progress",
+    })
+    state["feature"] = "Step Tracking"
+    state["code_review_step"] = 2
+    write_state(state_dir, "step-tracking", state)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "Step 2/4 done" in ctx
+    assert "Security" in ctx
+
+
+def test_code_review_without_step_tracking_still_works(git_repo):
+    """Code Review without code_review_step → normal phase display, no step info."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+    state = make_state(current_phase="flow-code-review", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete",
+        "flow-code": "complete", "flow-code-review": "in_progress",
+    })
+    state["feature"] = "No Steps"
+    write_state(state_dir, "no-steps", state)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "No Steps" in ctx
+    assert "Code Review" in ctx
+    assert "Step" not in ctx or "Step 0" not in ctx
+
+
+def test_multi_feature_code_review_step_tracking(git_repo):
+    """Multi-feature with one at Code Review with step tracking → feature line includes step info."""
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(parents=True)
+
+    s1 = make_state(current_phase="flow-code-review", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete",
+        "flow-code": "complete", "flow-code-review": "in_progress",
+    })
+    s1["feature"] = "Review Feature"
+    s1["code_review_step"] = 3
+    write_state(state_dir, "review-feature", s1)
+
+    s2 = make_state(current_phase="flow-code", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "in_progress",
+    })
+    s2["feature"] = "Other Feature"
+    write_state(state_dir, "other-feature", s2)
+
+    result = _run(git_repo)
+    output = json.loads(result.stdout)
+    ctx = output["additional_context"]
+    assert "Step 3/4 done" in ctx
+    assert "Code Review Plugin" in ctx
+
+
 def test_output_has_both_context_fields(git_repo):
     """Output must have both additional_context and hookSpecificOutput.additionalContext."""
     state_dir = git_repo / ".flow-states"

@@ -315,6 +315,48 @@ def test_set_nested_list_final_sets_value():
     assert obj["items"][1] == 99
 
 
+def test_integer_coercion_for_digit_values():
+    """Pure-digit values are stored as int, not str."""
+    state = make_state(current_phase="flow-code-review", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
+        "flow-code-review": "in_progress",
+    })
+    state["code_review_step"] = 0
+
+    updated, updates = _mod.apply_updates(state, ["code_review_step=1"])
+
+    assert updated["code_review_step"] == 1
+    assert isinstance(updated["code_review_step"], int)
+
+
+def test_non_digit_values_remain_strings():
+    """Non-digit values stay as strings."""
+    state = make_state(current_phase="flow-code-review", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
+        "flow-code-review": "in_progress",
+    })
+    state["some_field"] = "old"
+
+    updated, updates = _mod.apply_updates(state, ["some_field=in_progress"])
+
+    assert updated["some_field"] == "in_progress"
+    assert isinstance(updated["some_field"], str)
+
+
+def test_now_values_remain_timestamp_strings():
+    """NOW values are still stored as timestamp strings, not coerced."""
+    state = make_state(current_phase="flow-code-review", phase_statuses={
+        "flow-start": "complete", "flow-plan": "complete", "flow-code": "complete",
+        "flow-code-review": "in_progress",
+    })
+    state["design"] = {"approved_at": None}
+
+    updated, updates = _mod.apply_updates(state, ["design.approved_at=NOW"])
+
+    assert isinstance(updated["design"]["approved_at"], str)
+    assert ISO_PATTERN.match(updated["design"]["approved_at"])
+
+
 def test_set_nested_dict_key_not_found_intermediate():
     """Missing key in intermediate dict raises KeyError."""
     import pytest

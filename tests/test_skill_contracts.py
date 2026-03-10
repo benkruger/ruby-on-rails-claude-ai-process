@@ -763,7 +763,7 @@ def test_release_complete_banner_confirms_marketplace_update():
 def test_utility_skill_banners_include_version():
     """Utility skill STARTING and COMPLETE banners must include the version."""
     version = _plugin_version()
-    utility_with_banners = ["flow-commit", "flow-abort", "flow-status"]
+    utility_with_banners = ["flow-commit", "flow-abort", "flow-status", "flow-issues"]
 
     for name in utility_with_banners:
         content = _read_skill(name)

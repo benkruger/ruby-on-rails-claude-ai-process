@@ -140,6 +140,7 @@ Available at any point in the workflow:
 | `/flow-note` | Captures corrections to state file — auto-invoked when Claude is wrong |
 | `/flow-abort` | Abandon feature — close PR, delete remote branch, remove worktree, delete state |
 | `/flow-config` | Display current configuration — version, framework, per-skill autonomy |
+| `/flow-issues` | Fetch open issues, categorize, prioritize, and display a dashboard |
 | `/flow-local-permission` | Promote permissions from settings.local.json into settings.json |
 
 ---
@@ -287,7 +288,6 @@ These skills and scripts live in the FLOW repo itself (`.claude/skills/` and `li
 | `/flow-release` | Bump version in plugin.json and marketplace.json, tag, push, create GitHub Release |
 | `/flow-qa` | QA mode — bare shows status, `--start` switches to local `--plugin-dir` testing, `--stop` reinstalls marketplace |
 | `/flow-reset` | Remove all FLOW artifacts — close PRs, delete worktrees/branches/state files |
-| `/flow-issues` | Fetch open issues, categorize, prioritize, display dashboard |
 
 ### Local QA Workflow
 

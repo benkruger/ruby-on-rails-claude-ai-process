@@ -199,7 +199,8 @@ All permissions (universal + all framework sets) for reference:
       "Bash(gh pr merge *)",
       "Bash(claude plugin list)",
       "Bash(claude plugin marketplace add *)",
-      "Bash(claude plugin install *)"
+      "Bash(claude plugin install *)",
+      "Bash(gh issue list *)"
     ],
     "deny": [
       "Bash(git rebase *)",

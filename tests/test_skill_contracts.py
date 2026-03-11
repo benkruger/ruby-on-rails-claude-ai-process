@@ -1080,6 +1080,45 @@ def test_learning_repo_destinations_use_worktree_path():
     )
 
 
+def test_learning_has_no_private_destination_paths():
+    """Learn skill must not route to paths outside the repo.
+
+    All learnings go to repo-local destinations only (project CLAUDE.md
+    and project rules). No writes to user-private paths."""
+    content = _read_skill("flow-learn")
+    private_paths = [
+        "~/.claude/CLAUDE.md",
+        "~/.claude/rules/",
+        "~/.claude/projects/",
+    ]
+    found = [p for p in private_paths if p in content]
+    assert not found, (
+        f"skills/flow-learn/SKILL.md still references private paths: {found} — "
+        f"all destinations must be repo-local"
+    )
+    assert "5 destinations" not in content.lower(), (
+        "skills/flow-learn/SKILL.md still references '5 destinations' — "
+        "should be 2 repo-local destinations"
+    )
+
+
+def test_learning_destinations_are_repo_only():
+    """Learn skill must define exactly 2 repo-local destinations.
+
+    Destinations are Project CLAUDE.md and project rules. Both are
+    committed to the repo via flow-commit."""
+    content = _read_skill("flow-learn")
+    assert "2 destinations" in content.lower(), (
+        "Learn skill must reference '2 destinations' (repo-local only)"
+    )
+    assert "Project CLAUDE.md" in content, (
+        "Learn skill must include 'Project CLAUDE.md' as a destination"
+    )
+    assert "Project rules" in content, (
+        "Learn skill must include 'Project rules' as a destination"
+    )
+
+
 def test_generic_skills_have_no_framework_conditionals():
     """Skills that were made generic must not contain framework conditionals.
 

@@ -448,6 +448,20 @@ def test_version_marker_without_config_hash_has_no_key(tmp_path):
     assert "config_hash" not in data
 
 
+def test_config_hash_includes_setup_epoch():
+    """Changing SETUP_EPOCH changes the config hash."""
+    original_epoch = _mod.SETUP_EPOCH
+    hash_before = _mod.compute_config_hash("rails")
+
+    _mod.SETUP_EPOCH = original_epoch + 1
+    try:
+        hash_after = _mod.compute_config_hash("rails")
+    finally:
+        _mod.SETUP_EPOCH = original_epoch
+
+    assert hash_before != hash_after
+
+
 def test_happy_path_stores_config_hash(git_repo):
     """main() computes and stores config_hash in .flow.json."""
     result = _run(git_repo)

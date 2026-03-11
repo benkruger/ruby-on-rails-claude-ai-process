@@ -65,6 +65,8 @@ FLOW_DENY = [
 
 EXCLUDE_ENTRIES = [".flow-states/", ".worktrees/", ".flow.json", "bin/dependencies"]
 
+SETUP_EPOCH = 1
+
 
 def _load_framework_permissions(framework):
     """Load permissions from frameworks/<name>/permissions.json."""
@@ -90,6 +92,7 @@ def compute_config_hash(framework):
         "defaultMode": "acceptEdits",
         "deny": sorted(FLOW_DENY),
         "exclude": sorted(EXCLUDE_ENTRIES),
+        "setup_epoch": SETUP_EPOCH,
     }
     raw = json.dumps(canonical, sort_keys=True)
     return hashlib.sha256(raw.encode()).hexdigest()[:12]

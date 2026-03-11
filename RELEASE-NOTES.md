@@ -1,5 +1,14 @@
 # Release Notes
 
+## v0.28.4 — ExitPlanMode safety hook
+
+### Fixes
+
+- Add PreToolUse hook on ExitPlanMode that blocks exiting plan mode until
+  `plan_file` is stored in the state file. Prevents context compaction from
+  losing the plan location, which caused worktree confusion and bad commits
+  to main during #107.
+
 ## v0.28.3 — Fix start phase blockers
 
 ### Fixes

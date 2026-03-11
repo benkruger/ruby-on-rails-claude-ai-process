@@ -68,7 +68,7 @@ CI will fail if these are missing:
 - `lib/prime-project.py` — inserts framework conventions into target CLAUDE.md between markers
 - `lib/create-dependencies.py` — copies framework dependency template to `bin/dependencies`
 - `agents/ci-fixer.md` — custom plugin sub-agent for CI failure diagnosis and fix
-- `lib/issue.py` — creates GitHub issues via `gh` subprocess (wraps `gh issue create` for consistent permission matching)
+- `lib/issue.py` — creates GitHub issues via `gh` subprocess (wraps `gh issue create`; auto-detects repo from git remote when `--repo` is omitted)
 - `lib/validate-ci-bash.py` — global PreToolUse hook validator (blocks compound commands and file-read commands in all Bash calls)
 - `bin/flow` — dispatcher script routing subcommands to `lib/*.py`
 - `docs/reference/flow-state-schema.md` — state file schema reference
@@ -175,7 +175,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 - **Skills must never instruct Claude to compute values** — no timestamp generation, no time arithmetic, no counter increments, no `date -u`. All computation goes through `bin/flow` subcommands. Skills say "run this command", never "calculate this value". `test_skill_contracts.py` enforces this: `test_phase_skills_no_inline_time_computation` fails if any phase skill contains computational instruction patterns.
 - **All timestamps use Pacific Time** — `lib/flow_utils.py` provides `now()` which returns `datetime.now(ZoneInfo("America/Los_Angeles")).isoformat(timespec="seconds")`. All scripts import `now` from `flow_utils` — never generate timestamps locally. Existing state files with UTC timestamps (`Z` suffix) are handled by `datetime.fromisoformat()` which parses both formats.
 - **Prefer dedicated tools over Bash for all non-execution tasks** — Read files with the Read tool, search with Glob and Grep, create with Write, modify with Edit. Bash should only be used for commands that genuinely require shell execution: `bin/ci`, `bin/test`, `bin/flow`, `make`, and `git`. In this project's strict permission environment (`defaultMode: "plan"`), every Bash command not in the allow list triggers a permission prompt. When you need to explore, understand, or modify files, use dedicated tools — they never prompt.
-- **Always use `bin/flow issue` to file GitHub issues** — never use `gh issue create` directly. `bin/flow issue` wraps `gh` with `--repo` and `--label` flags that match the project's permission patterns. Direct `gh` calls trigger permission prompts.
+- **Always use `bin/flow issue` to file GitHub issues** — never use `gh issue create` directly. `bin/flow issue` auto-detects the repo from git remote when `--repo` is omitted; pass `--repo` only when filing against a different repo. Direct `gh` calls trigger permission prompts.
 
 <!-- FLOW:BEGIN -->
 

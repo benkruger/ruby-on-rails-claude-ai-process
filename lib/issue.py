@@ -1,7 +1,7 @@
 """Create a GitHub issue via gh CLI.
 
 Usage:
-  bin/flow issue --repo <repo> --title <title> [--label <label>] [--body <body>]
+  bin/flow issue --title <title> [--repo <repo>] [--label <label>] [--body <body>]
 
 Wraps `gh issue create` so Claude's Bash command is always a clean
 one-liner matching `Bash(bin/flow *)` — no heredocs, no long inline
@@ -14,8 +14,32 @@ Output (JSON to stdout):
 
 import argparse
 import json
+import re
 import subprocess
 import sys
+
+
+def detect_repo():
+    """Auto-detect GitHub repo from git remote origin URL.
+
+    Returns 'owner/repo' string or None if detection fails.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            return None
+        url = result.stdout.strip()
+        if not url:
+            return None
+        match = re.search(r"github\.com[:/]([^/]+/[^/]+?)(?:\.git)?$", url)
+        if match:
+            return match.group(1)
+        return None
+    except Exception:
+        return None
 
 
 def create_issue(repo, title, label=None, body=None):
@@ -38,13 +62,23 @@ def create_issue(repo, title, label=None, body=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Create a GitHub issue")
-    parser.add_argument("--repo", required=True, help="Repository (owner/name)")
+    parser.add_argument("--repo", default=None, help="Repository (owner/name)")
     parser.add_argument("--title", required=True, help="Issue title")
     parser.add_argument("--label", default=None, help="Issue label")
     parser.add_argument("--body", default=None, help="Issue body")
     args = parser.parse_args()
 
-    url, error = create_issue(args.repo, args.title, args.label, args.body)
+    repo = args.repo
+    if repo is None:
+        repo = detect_repo()
+        if repo is None:
+            print(json.dumps({
+                "status": "error",
+                "message": "Could not detect repo from git remote. Use --repo owner/name.",
+            }))
+            sys.exit(1)
+
+    url, error = create_issue(repo, args.title, args.label, args.body)
 
     if error:
         print(json.dumps({"status": "error", "message": error}))

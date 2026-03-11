@@ -16,6 +16,88 @@ issue_mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(issue_mod)
 
 
+class TestDetectRepo:
+    """Tests for the detect_repo function."""
+
+    def test_ssh_url_with_dotgit(self):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="git@github.com:owner/repo.git\n",
+            stderr="",
+        )
+        with patch.object(issue_mod.subprocess, "run", return_value=fake_result):
+            assert issue_mod.detect_repo() == "owner/repo"
+
+    def test_https_url_with_dotgit(self):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="https://github.com/owner/repo.git\n",
+            stderr="",
+        )
+        with patch.object(issue_mod.subprocess, "run", return_value=fake_result):
+            assert issue_mod.detect_repo() == "owner/repo"
+
+    def test_https_url_without_dotgit(self):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="https://github.com/owner/repo\n",
+            stderr="",
+        )
+        with patch.object(issue_mod.subprocess, "run", return_value=fake_result):
+            assert issue_mod.detect_repo() == "owner/repo"
+
+    def test_ssh_url_without_dotgit(self):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="git@github.com:owner/repo\n",
+            stderr="",
+        )
+        with patch.object(issue_mod.subprocess, "run", return_value=fake_result):
+            assert issue_mod.detect_repo() == "owner/repo"
+
+    def test_non_github_url_returns_none(self):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="https://gitlab.com/owner/repo.git\n",
+            stderr="",
+        )
+        with patch.object(issue_mod.subprocess, "run", return_value=fake_result):
+            assert issue_mod.detect_repo() is None
+
+    def test_git_failure_returns_none(self):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=1,
+            stdout="",
+            stderr="fatal: not a git repository",
+        )
+        with patch.object(issue_mod.subprocess, "run", return_value=fake_result):
+            assert issue_mod.detect_repo() is None
+
+    def test_empty_output_returns_none(self):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with patch.object(issue_mod.subprocess, "run", return_value=fake_result):
+            assert issue_mod.detect_repo() is None
+
+    def test_malformed_url_returns_none(self):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="not-a-url\n",
+            stderr="",
+        )
+        with patch.object(issue_mod.subprocess, "run", return_value=fake_result):
+            assert issue_mod.detect_repo() is None
+
+    def test_subprocess_exception_returns_none(self):
+        with patch.object(
+            issue_mod.subprocess, "run", side_effect=OSError("git not found"),
+        ):
+            assert issue_mod.detect_repo() is None
+
+
 class TestCreateIssue:
     """Tests for the create_issue function."""
 
@@ -165,10 +247,46 @@ class TestMain:
         assert output["status"] == "error"
         assert output["message"] == "Auth required"
 
-    def test_main_missing_repo(self):
-        with patch("sys.argv", ["issue.py", "--title", "Test"]), \
-             pytest.raises(SystemExit, match="2"):
+    def test_main_auto_detect_repo(self, capsys):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="https://github.com/detected/repo/issues/99\n",
+            stderr="",
+        )
+        with patch.object(issue_mod, "detect_repo", return_value="detected/repo"), \
+             patch.object(issue_mod.subprocess, "run", return_value=fake_result), \
+             patch("sys.argv", ["issue.py", "--title", "Auto detected"]):
             issue_mod.main()
+
+        output = json.loads(capsys.readouterr().out)
+        assert output["status"] == "ok"
+        assert output["url"] == "https://github.com/detected/repo/issues/99"
+
+    def test_main_explicit_repo_overrides(self, capsys):
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout="https://github.com/explicit/repo/issues/1\n",
+            stderr="",
+        )
+        with patch.object(issue_mod, "detect_repo") as mock_detect, \
+             patch.object(issue_mod.subprocess, "run", return_value=fake_result), \
+             patch("sys.argv", ["issue.py", "--repo", "explicit/repo",
+                                "--title", "Explicit"]):
+            issue_mod.main()
+
+        mock_detect.assert_not_called()
+        output = json.loads(capsys.readouterr().out)
+        assert output["url"] == "https://github.com/explicit/repo/issues/1"
+
+    def test_main_auto_detect_fails(self, capsys):
+        with patch.object(issue_mod, "detect_repo", return_value=None), \
+             patch("sys.argv", ["issue.py", "--title", "No repo"]), \
+             pytest.raises(SystemExit, match="1"):
+            issue_mod.main()
+
+        output = json.loads(capsys.readouterr().out)
+        assert output["status"] == "error"
+        assert "--repo" in output["message"]
 
     def test_main_missing_title(self):
         with patch("sys.argv", ["issue.py", "--repo", "owner/repo"]), \

@@ -56,10 +56,10 @@ Then check `conclusion`:
 
 - `"success"` → proceed
 - `"failure"` or `"cancelled"` → stop: "CI failed on main. Fix tests before releasing."
-- `null` (in_progress/queued) → poll: sleep 15 seconds, re-check, up to 3 retries
-  (45 seconds total). Print "CI still running... checking again in 15s (attempt N/3)"
-  each time. If still not done after 3 attempts, stop: "CI hasn't finished after
-  45 seconds. Check GitHub Actions manually."
+- `null` (in_progress/queued) → stop and suggest polling:
+
+> "CI is still running on main. Re-run `/flow-release` when done,
+> or use `/loop 15s /flow-release` to auto-retry."
 
 ## Step 4 — Show what changed since last release
 
@@ -228,3 +228,4 @@ Print:
 - Always create a GitHub Release — it's the public changelog
 - Never add Co-Authored-By trailers or attribution lines
 - `--manual` is user-invoked only. Claude must never pass this flag programmatically.
+- The skill is idempotent: safe to re-invoke via `/loop` after a "pending CI" stop

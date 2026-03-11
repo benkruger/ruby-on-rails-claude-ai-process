@@ -999,6 +999,20 @@ def test_commit_mode_resolution():
     )
 
 
+def test_commit_has_commit_format_support():
+    """Commit SKILL.md must support both commit_format options."""
+    content = (SKILLS_DIR / "flow-commit" / "SKILL.md").read_text()
+    assert "commit_format" in content, (
+        "skills/flow-commit/SKILL.md must reference 'commit_format' config key"
+    )
+    assert "title-only" in content, (
+        "skills/flow-commit/SKILL.md must document 'title-only' format"
+    )
+    assert "full" in content.lower(), (
+        "skills/flow-commit/SKILL.md must document 'full' format"
+    )
+
+
 def test_no_skill_invokes_commit_with_auto():
     """Skills that use /flow:flow-commit --auto must be in the allow list.
 

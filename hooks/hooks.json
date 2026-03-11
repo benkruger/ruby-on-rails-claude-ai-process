@@ -21,6 +21,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/lib/validate-ci-bash.py"
           }
         ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/lib/validate-exit-plan.py"
+          }
+        ]
       }
     ],
     "Stop": [

@@ -155,6 +155,22 @@ def test_hooks_json_has_pretooluse_bash_validator():
     )
 
 
+def test_hooks_json_has_pretooluse_exit_plan_validator():
+    """hooks.json must register validate-exit-plan.py as ExitPlanMode hook."""
+    hooks = json.loads((HOOKS_DIR / "hooks.json").read_text())
+    assert "PreToolUse" in hooks["hooks"]
+    matchers = hooks["hooks"]["PreToolUse"]
+    exit_plan_matchers = [m for m in matchers if m["matcher"] == "ExitPlanMode"]
+    assert len(exit_plan_matchers) == 1, (
+        f"Expected exactly 1 ExitPlanMode matcher in PreToolUse, "
+        f"got {len(exit_plan_matchers)}"
+    )
+    commands = [h["command"] for h in exit_plan_matchers[0]["hooks"]]
+    assert any("validate-exit-plan.py" in cmd for cmd in commands), (
+        "PreToolUse ExitPlanMode hook must reference validate-exit-plan.py"
+    )
+
+
 def test_commands_are_unique():
     """All phase commands must be unique — no two phases share a command."""
     data = _load_phases()

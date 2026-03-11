@@ -1,5 +1,24 @@
 # Release Notes
 
+## v0.25.0 — PR body archives phase timings and session link
+
+### New features
+
+- **Phase timings table** — Complete (Phase 6) now generates a visible, non-collapsible
+  markdown table in the PR body showing how long each phase took.
+- **Session log link** — Complete adds a session transcript artifact to the PR body
+  when `session_id` is available in the state file.
+- **`--no-collapse` mode** — `update-pr-body --append-section` can now render plain
+  markdown sections instead of collapsible `<details>` blocks.
+
+### Fixes
+
+- **Session log slug bug** — Removed `.lstrip("-")` from slug computation in
+  `start-setup.py` so the path matches Claude Code's actual directory naming
+  (e.g. `-Users-ben-code-flow`, not `Users-ben-code-flow`).
+- **`session_id` in state file** — Start now captures `CLAUDE_SESSION_ID` from the
+  environment and stores it in the state file for Complete to use.
+
 ## v0.24.8
 
 ### Fixes

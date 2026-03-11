@@ -96,6 +96,14 @@ closing ` ``` ` and the tag. pymarkdown MD031 requires a blank line
 after every fenced code block, including when the next line is a
 closing tag rather than prose.
 
+## Destination Renumbering
+
+When renumbering destinations or steps within a SKILL.md, grep for the
+old numbers throughout the entire file before marking the change complete.
+Preamble summary lines (e.g. "Use `<worktree_path>` for destinations 2
+and 4") are easy to miss because they sit far from the destination table
+they reference. A grep for the old number catches these stale references.
+
 ## Mid-Phase Self-Invocation
 
 When a phase skill invokes built-in skills (Skill tool) mid-phase and

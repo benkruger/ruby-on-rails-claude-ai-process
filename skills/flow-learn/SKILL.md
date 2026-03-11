@@ -47,7 +47,7 @@ Compute `<worktree_path>` for repo-destination edits:
   state file's `worktree` field, e.g. `<project_root>/.worktrees/<branch>`)
 - **Maintainer / Standalone:** `<worktree_path>` = `<project_root>` (no worktree)
 
-Use `<worktree_path>` for all repo file edits (destinations 2 and 4).
+Use `<worktree_path>` for all repo file edits (destinations 1 and 2).
 Use `<project_root>` for `.flow-states/` paths only.
 
 ## Mode Resolution
@@ -107,13 +107,10 @@ Read and synthesise before doing anything else.
 
 ### Source A — CLAUDE.md rules (all modes)
 
-Read the project's `CLAUDE.md`. These are the rules that should have been
-followed. Note every rule and convention entry.
-
-**Note:** Reading `~/.claude/CLAUDE.md` may trigger a Read permission
-prompt. This is a known limitation — Claude Code prompts for Read access
-to `~/.claude/` paths and this cannot be suppressed via settings.json.
-Approve the prompt to continue.
+Read the project's `CLAUDE.md` at `<worktree_path>/CLAUDE.md`. These are
+the rules that should have been followed. Note every rule and convention
+entry. The global CLAUDE.md is already loaded in conversation context —
+no separate read is needed.
 
 ### Source B — Conversation context (all modes)
 
@@ -177,32 +174,21 @@ they are process changes.
 This step is fully autonomous — decide destinations and apply all changes
 without asking the user.
 
-### The 5 destinations
+### The 2 destinations
 
 | # | Name | Path | Write method |
 |---|------|------|-------------|
-| 1 | Global CLAUDE.md | `~/.claude/CLAUDE.md` | Edit directly |
-| 2 | Project CLAUDE.md | `CLAUDE.md` in project | Edit on disk |
-| 3 | Global rules | `~/.claude/rules/<topic>.md` | Edit directly |
-| 4 | Project rules | `.claude/rules/<topic>.md` in project | Edit on disk |
-| 5 | Project memory | `~/.claude/projects/<repo-root>/memory/MEMORY.md` | Edit directly |
+| 1 | Project CLAUDE.md | `CLAUDE.md` in project | Edit on disk |
+| 2 | Project rules | `.claude/rules/<topic>.md` in project | Edit on disk |
 
-Destinations 1, 3, 5 are user-private (outside the repo, not committed).
-Destinations 2, 4 are on disk — committed in Step 4 if applicable.
+Both destinations are repo-local — committed in Step 5 if applicable.
 
 ### Routing heuristics
 
-Destinations 1-4 are **instructions** — rules Claude must follow.
-Destination 5 is **context** — knowledge Claude should know.
-Never write to memory (5) what should be an instruction (1-4).
-
 | Learning type | Destination | Example |
 |---|---|---|
-| Universal process rule | 1 — Global CLAUDE.md | "Always run CI before committing" |
-| Project architecture or scope | 2 — Project CLAUDE.md | "Skills are markdown, not code" |
-| Universal coding anti-pattern | 3 — Global rules | "Never use update_column in tests" |
-| Project-specific coding gotcha | 4 — Project rules | "Use git -C not cd && git" |
-| Working knowledge, preferences, TODOs | 5 — Project memory | "User prefers no TaskCreate" |
+| Process rule or architecture | 1 — Project CLAUDE.md | "Always run CI before committing" |
+| Coding anti-pattern or gotcha | 2 — Project rules | "Use git -C not cd && git" |
 
 ### Writing rules for CLAUDE.md and rules files
 
@@ -226,19 +212,10 @@ For each item in "Process violations":
    overlook, reword the rule at its current destination
 3. Read the target file, apply the rewording. Do not duplicate existing content.
 
-### Private destinations (1, 3, 5) — direct edits
-
-For each private destination with changes:
-1. Read the target file
-2. Apply all additions and rewordings for that destination
-3. These are outside the repo — no commit needed
-
-### Repo destinations (2, 4) — committed in Step 4
-
 For each repo destination with changes:
 1. Read the target file in the worktree using `<worktree_path>`:
-   - Destination 2: `<worktree_path>/CLAUDE.md`
-   - Destination 4: `<worktree_path>/.claude/rules/<topic>.md`
+   - Destination 1: `<worktree_path>/CLAUDE.md`
+   - Destination 2: `<worktree_path>/.claude/rules/<topic>.md`
 2. Apply all additions and rewordings for that destination
 
 ### Handling denied edits
@@ -261,18 +238,18 @@ repo-destination change for Step 5's commit decision.
 
 ## Step 5 — Commit (conditional)
 
-**Phase 5:** If any repo-destination changes were made (destinations 2 or
-4), commit once via `/flow:flow-commit --auto`. Only CLAUDE.md and `.claude/`
+**Phase 5:** If any changes were made (CLAUDE.md or `.claude/` files),
+commit once via `/flow:flow-commit --auto`. Only CLAUDE.md and `.claude/`
 files are committed — never application code. If `git add -A` results in
 nothing staged (stealth user with excluded files), skip the commit
 gracefully — do not error.
 
-**Maintainer:** If any repo-destination changes were made, commit once via
+**Maintainer:** If any changes were made, commit once via
 `/flow:flow-commit --auto`.
 
 **Standalone:** Skip entirely — no commit.
 
-If no repo-destination changes were made, skip this step regardless of mode.
+If no changes were made, skip this step regardless of mode.
 
 ---
 
@@ -332,10 +309,8 @@ Present the full report to the user:
 
   Changes applied
   ---------------
-  Global CLAUDE.md: 2 additions
-  Project rules (.claude/rules/testing.md): 1 addition
-  Global rules (~/.claude/rules/testing.md): 1 addition (skipped — user denied)
-  Project CLAUDE.md: 1 addition (committed / uncommitted)
+  Project CLAUDE.md: 2 additions (committed)
+  Project rules (.claude/rules/testing.md): 1 addition (committed)
 
   Issues filed
   ------------
@@ -350,9 +325,9 @@ Omit "Changes applied" if no changes were made. Omit "Issues filed" if
 no issues were filed or not in Phase 5 mode.
 
 In the "Changes applied" section, show "(committed)" or "(uncommitted)"
-next to each repo-destination file to indicate whether Step 4 committed it.
-Show "(skipped — user denied)" next to any destination where the user
-denied the Edit tool call during Step 3.
+next to each file to indicate whether Step 5 committed it. Show
+"(skipped — user denied)" next to any destination where the user denied
+the Edit tool call during Step 3.
 
 ---
 
@@ -436,8 +411,7 @@ No phase transition, no transition question.
 - Decisions on destinations and wording are autonomous — do not ask the user for approval mid-process
 - If the user denies an Edit tool call during Step 3, skip that learning and continue — a denied edit means "skip this one," not "stop the phase"
 - The report in Step 7 is the user's review point — make it comprehensive
-- Global writes (`~/.claude/CLAUDE.md`, `~/.claude/rules/`, `~/.claude/projects/`) are direct edits — never committed
-- Repo writes (`CLAUDE.md`, `.claude/rules/`) go through `/flow:flow-commit --auto` (Phase 5 and Maintainer)
+- All learnings are written to repo files (`CLAUDE.md`, `.claude/rules/`) and committed via `/flow:flow-commit --auto` (Phase 5 and Maintainer)
 - Plugin improvement notes are filed as GitHub issues on the plugin repo — never committed to the target project
 - Only CLAUDE.md and `.claude/` files are modified — never application code
 - Never use Bash to print banners — output them as text in your response

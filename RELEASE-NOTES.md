@@ -1,5 +1,22 @@
 # Release Notes
 
+## v0.27.0 — Stop hook fixes phase halting after child skill invocations
+
+### New
+
+- **Stop hook** (`lib/stop-continue.py`) forces the model to continue after
+  child skills (/simplify, /review, /security-review, code-review:code-review,
+  /flow:flow-commit) return. Uses a `_continue_pending` flag in the state
+  file — set before invoking, cleared by the hook when it blocks the stop.
+  Fail-open design ensures normal operation is never disrupted.
+
+### Fixes
+
+- Code Review no longer halts between steps when a child skill returns
+  (#86, #87, #88, #96, #97, #98).
+- Code phase no longer halts after /flow:flow-commit returns between
+  tasks (#101).
+
 ## v0.26.0 — Repo-only Learn phase
 
 - Learn phase reduced from 5 destinations to 2 repo-local destinations

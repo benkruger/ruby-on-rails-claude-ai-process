@@ -1,5 +1,17 @@
 # Release Notes
 
+## v0.27.1 — Fix session_id capture to use Stop hook stdin
+
+### Fixes
+
+- `session_id` and `transcript_path` in the state file were always `null`
+  because the previous implementation read from `CLAUDE_SESSION_ID` env var,
+  which doesn't exist in Claude Code. The Stop hook now captures both fields
+  from hook stdin JSON on every model response, writing them into the active
+  state file. Idempotent — skips the write if `session_id` is already set.
+- Session log artifact moved from Complete Step 6 to Plan Step 3, where
+  `transcript_path` is already available from the state file.
+
 ## v0.27.0 — Stop hook fixes phase halting after child skill invocations
 
 ### New

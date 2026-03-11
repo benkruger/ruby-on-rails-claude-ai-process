@@ -120,6 +120,12 @@ inform fix decisions.
 
 ## Step 1 — Simplify
 
+Set the continuation flag before invoking the child skill:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=simplify
+```
+
 Invoke Claude Code's built-in `/simplify` skill using the Skill tool.
 `/simplify` refactors code for clarity, reduces complexity, and improves
 naming while preserving exact functionality. It is safe to run here
@@ -160,13 +166,30 @@ skip the commit, and proceed to Step 2.
 **If "Go back to Code"**: Run `git restore .` to discard changes, then
 follow the back-navigation instructions below.
 
-**Commit**: Run `bin/flow ci` first. If green: if commit=auto, use
-`/flow:flow-commit --auto`; otherwise use `/flow:flow-commit`.
+**Commit**: Run `bin/flow ci` first. If green, set the continuation flag:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=commit
+```
+
+If commit=auto, use `/flow:flow-commit --auto`; otherwise use `/flow:flow-commit`.
+
+After the commit completes, clear the continuation flag:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=
+```
 
 Record step completion:
 
 ```bash
 bin/flow set-timestamp --set code_review_step=1
+```
+
+Clear the continuation flag before self-invoking:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=
 ```
 
 To continue to Step 2, invoke `flow:flow-code-review --continue-step` using
@@ -179,6 +202,12 @@ the Skill tool as your final action. If commit=auto was resolved, pass
 
 Read `pr_number` from the state file. Read `plan_file` from the state
 file to get the plan file path. Use the Read tool to read the plan file.
+
+Set the continuation flag before invoking the child skill:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=review
+```
 
 Invoke Claude's built-in review command on the PR:
 
@@ -224,8 +253,20 @@ bin/flow ci
 Any fix made during Review requires `bin/flow ci` to run again.
 </HARD-GATE>
 
-If fixes were made, if commit=auto use `/flow:flow-commit --auto`,
+If fixes were made, set the continuation flag before committing:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=commit
+```
+
+If commit=auto use `/flow:flow-commit --auto`,
 otherwise use `/flow:flow-commit` for the Review fixes.
+
+After the commit completes, clear the continuation flag:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=
+```
 
 ### Review summary
 
@@ -254,6 +295,12 @@ Record step completion:
 bin/flow set-timestamp --set code_review_step=2
 ```
 
+Clear the continuation flag before self-invoking:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=
+```
+
 To continue to Step 3, invoke `flow:flow-code-review --continue-step` using
 the Skill tool as your final action. If commit=auto was resolved, pass
 `--auto` as well. Do not output anything else after this invocation.
@@ -261,6 +308,12 @@ the Skill tool as your final action. If commit=auto was resolved, pass
 ---
 
 ## Step 3 — Security
+
+Set the continuation flag before invoking the child skill:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=security-review
+```
 
 Invoke Claude's built-in security review command:
 
@@ -277,8 +330,10 @@ For each finding from the security review:
 
 1. Fix the issue in code
 2. Run `bin/flow ci`
-3. If commit=auto, invoke `/flow:flow-commit --auto` for the fix. Otherwise invoke `/flow:flow-commit`.
-4. Move to the next finding
+3. Set `bin/flow set-timestamp --set _continue_pending=commit`
+4. If commit=auto, invoke `/flow:flow-commit --auto` for the fix. Otherwise invoke `/flow:flow-commit`.
+5. After the commit completes, clear with `bin/flow set-timestamp --set _continue_pending=`
+6. Move to the next finding
 
 <HARD-GATE>
 `bin/flow ci` must be green after every fix. Do not move to the next
@@ -320,6 +375,12 @@ Record step completion:
 bin/flow set-timestamp --set code_review_step=3
 ```
 
+Clear the continuation flag before self-invoking:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=
+```
+
 To continue to Step 4, invoke `flow:flow-code-review --continue-step` using
 the Skill tool as your final action. If commit=auto was resolved, pass
 `--auto` as well. Do not output anything else after this invocation.
@@ -327,6 +388,12 @@ the Skill tool as your final action. If commit=auto was resolved, pass
 ---
 
 ## Step 4 — Code Review Plugin
+
+Set the continuation flag before invoking the child skill:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=code-review:code-review
+```
 
 Invoke the `code-review:code-review` plugin using the Skill tool with no
 flags or arguments.
@@ -348,8 +415,10 @@ For each finding from the code-review plugin:
 
 1. Fix the issue in code
 2. Run `bin/flow ci`
-3. If commit=auto, invoke `/flow:flow-commit --auto` for the fix. Otherwise invoke `/flow:flow-commit`.
-4. Move to the next finding
+3. Set `bin/flow set-timestamp --set _continue_pending=commit`
+4. If commit=auto, invoke `/flow:flow-commit --auto` for the fix. Otherwise invoke `/flow:flow-commit`.
+5. After the commit completes, clear with `bin/flow set-timestamp --set _continue_pending=`
+6. Move to the next finding
 
 <HARD-GATE>
 `bin/flow ci` must be green after every fix. Do not move to the next
@@ -386,6 +455,12 @@ Record step completion:
 
 ```bash
 bin/flow set-timestamp --set code_review_step=4
+```
+
+Clear the continuation flag before self-invoking:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=
 ```
 
 To continue to Done, invoke `flow:flow-code-review --continue-step` using

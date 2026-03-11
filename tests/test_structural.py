@@ -292,3 +292,22 @@ def test_plugin_json_has_no_config_hash():
         "plugin.json must not contain config_hash — "
         "Claude Code's plugin validator rejects unrecognized keys"
     )
+
+
+def test_hooks_json_has_stop_continue_hook():
+    """hooks.json must register stop-continue.py as a Stop hook."""
+    hooks = json.loads((HOOKS_DIR / "hooks.json").read_text())
+    assert "Stop" in hooks["hooks"], (
+        "hooks.json missing Stop key — "
+        "the continuation hook must be registered"
+    )
+    matchers = hooks["hooks"]["Stop"]
+    assert len(matchers) >= 1, "Stop hook must have at least one entry"
+    commands = [
+        h["command"]
+        for entry in matchers
+        for h in entry["hooks"]
+    ]
+    assert any("stop-continue.py" in cmd for cmd in commands), (
+        "Stop hook must reference stop-continue.py"
+    )

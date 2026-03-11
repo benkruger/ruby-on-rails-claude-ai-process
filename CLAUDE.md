@@ -71,6 +71,7 @@ CI will fail if these are missing:
 - `lib/issue.py` — creates GitHub issues via `gh` subprocess (wraps `gh issue create`; auto-detects repo from git remote when `--repo` is omitted)
 - `lib/format-pr-timings.py` — reads state file, formats phase durations as a markdown table for PR body
 - `lib/update-pr-body.py` — updates PR body: `--add-artifact` for list items, `--append-section` for collapsible/plain sections
+- `lib/stop-continue.py` — Stop hook script that forces continuation when `_continue_pending` flag is set in the state file
 - `lib/validate-ci-bash.py` — global PreToolUse hook validator (blocks compound commands and file-read commands in all Bash calls)
 - `bin/flow` — dispatcher script routing subcommands to `lib/*.py`
 - `docs/reference/flow-state-schema.md` — state file schema reference

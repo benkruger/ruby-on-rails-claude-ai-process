@@ -1610,3 +1610,39 @@ def test_prime_has_plugin_installation_step():
     assert "claude plugin install" in content, (
         "flow-prime must include 'claude plugin install' command"
     )
+
+
+def test_code_review_sets_continue_pending_before_child_skills():
+    """Each Code Review step must set _continue_pending before child skill."""
+    content = _read_skill("flow-code-review")
+    child_skills = [
+        ("simplify", "/simplify"),
+        ("review", "/review"),
+        ("security-review", "/security-review"),
+        ("code-review:code-review", "code-review:code-review"),
+    ]
+    for flag_value, skill_ref in child_skills:
+        flag_pattern = f"_continue_pending={flag_value}"
+        assert flag_pattern in content, (
+            f"Code Review must set _continue_pending={flag_value} "
+            f"before invoking {skill_ref}"
+        )
+        flag_pos = content.index(flag_pattern)
+        skill_pos = content.index(skill_ref, flag_pos)
+        assert flag_pos < skill_pos, (
+            f"_continue_pending={flag_value} must appear before "
+            f"{skill_ref} invocation"
+        )
+
+
+def test_code_skill_sets_continue_pending_before_commit():
+    """Code phase must set _continue_pending before /flow:flow-commit."""
+    content = _read_skill("flow-code")
+    assert "_continue_pending=commit" in content, (
+        "Code phase must set _continue_pending=commit before commit"
+    )
+    flag_pos = content.index("_continue_pending=commit")
+    commit_pos = content.index("/flow:flow-commit", flag_pos)
+    assert flag_pos < commit_pos, (
+        "_continue_pending=commit must appear before /flow:flow-commit"
+    )

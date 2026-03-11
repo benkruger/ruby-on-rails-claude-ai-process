@@ -252,12 +252,24 @@ Do NOT commit and do NOT move to the next task until `bin/flow ci` is green.
 
 ### Commit
 
+Set the continuation flag before committing:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=commit
+```
+
 If commit=auto, use `/flow:flow-commit --auto`. Otherwise, use `/flow:flow-commit`.
 
 The commit message subject should reference the task:
 
 ```text
 Add <what was built> — Task <n> of <total>
+```
+
+After the commit completes, clear the continuation flag:
+
+```bash
+bin/flow set-timestamp --set _continue_pending=
 ```
 
 ---

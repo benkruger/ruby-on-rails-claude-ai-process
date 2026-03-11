@@ -135,16 +135,7 @@ For **abort** and **complete** (single mode), ask one AskUserQuestion each:
 > - **Auto (Recommended)** — "Skip confirmation prompt"
 > - **Manual** — "Require confirmation prompt"
 
-### Commit message format
-
-After all autonomy questions, ask about commit message format:
-
-> "What commit message format would you like?"
->
-> - **Title only (less obviously AI)** — "Simple subject line, no tl;dr section"
-> - **Full format with tl;dr (current)** — "Title + tl;dr + explanation + file list"
-
-Store both the `skills_dict` (from all autonomy choices) and the `commit_type` (value: `"title"` or `"full"`) for Step 3.
+Store the result as `skills_dict` for Step 3.
 
 ### Step 3 — Run prime setup script
 

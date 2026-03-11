@@ -1067,6 +1067,19 @@ def test_learning_has_no_worktree_memory_rescue():
     )
 
 
+def test_learning_repo_destinations_use_worktree_path():
+    """Learn skill must use <worktree_path> for repo-destination edits.
+
+    In Phase 5 mode, repo destinations (2 and 4) must be edited in the
+    worktree, not at the project root. The skill must reference
+    <worktree_path> to build paths for CLAUDE.md and .claude/rules/."""
+    content = _read_skill("flow-learn")
+    assert "<worktree_path>" in content, (
+        "Learn skill must reference <worktree_path> for repo-destination "
+        "edits so files are edited in the worktree, not the project root"
+    )
+
+
 def test_generic_skills_have_no_framework_conditionals():
     """Skills that were made generic must not contain framework conditionals.
 

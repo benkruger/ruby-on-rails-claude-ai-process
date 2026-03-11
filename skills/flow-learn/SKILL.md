@@ -37,10 +37,18 @@ stop immediately and show the error to the user.
 </HARD-GATE>
 
 Keep the project root, branch, state data, and detected mode in context.
-Use the project root to build Read tool paths (e.g.
+Use the project root to build state file paths (e.g.
 `<project_root>/.flow-states/<branch>.json`). Do not re-read the state
 file or re-run git commands to gather the same information. Do not `cd`
 to the project root — `bin/flow` commands find paths internally.
+
+Compute `<worktree_path>` for repo-destination edits:
+- **Phase 5:** `<worktree_path>` = `<project_root>/<state.worktree>` (from the
+  state file's `worktree` field, e.g. `<project_root>/.worktrees/<branch>`)
+- **Maintainer / Standalone:** `<worktree_path>` = `<project_root>` (no worktree)
+
+Use `<worktree_path>` for all repo file edits (destinations 2 and 4).
+Use `<project_root>` for `.flow-states/` paths only.
 
 ## Mode Resolution
 
@@ -228,7 +236,9 @@ For each private destination with changes:
 ### Repo destinations (2, 4) — committed in Step 4
 
 For each repo destination with changes:
-1. Read the target file in the project
+1. Read the target file in the worktree using `<worktree_path>`:
+   - Destination 2: `<worktree_path>/CLAUDE.md`
+   - Destination 4: `<worktree_path>/.claude/rules/<topic>.md`
 2. Apply all additions and rewordings for that destination
 
 ### Handling denied edits

@@ -12,11 +12,15 @@ model: opus
 /flow:flow-code-review
 /flow:flow-code-review --auto
 /flow:flow-code-review --manual
+/flow:flow-code-review --continue-step
+/flow:flow-code-review --continue-step --auto
+/flow:flow-code-review --continue-step --manual
 ```
 
 - `/flow:flow-code-review` — uses configured mode from the state file (default: manual)
 - `/flow:flow-code-review --auto` — auto-fix and auto-commit all findings, auto-advance to Learn
 - `/flow:flow-code-review --manual` — requires explicit approval of changes and routing decisions
+- `/flow:flow-code-review --continue-step` — self-invocation: skip Announce and Update State, dispatch to the next step via Resume Check
 
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
@@ -45,6 +49,13 @@ to the project root — `bin/flow` commands find paths internally.
 2. If `--manual` was passed → commit=manual, continue=manual
 3. Otherwise, read the state file at `<project_root>/.flow-states/<branch>.json`. Use `skills.flow-code-review.commit` and `skills.flow-code-review.continue`.
 4. If the state file has no `skills` key → use built-in defaults: commit=manual, continue=manual
+
+## Self-Invocation Check
+
+If `--continue-step` was passed, this is a self-invocation from a
+previous step. Skip the Announce banner and the Update State section
+(do not call `phase-transition --action enter` again). Proceed directly
+to the Resume Check section.
 
 ## Announce
 
@@ -158,9 +169,9 @@ Record step completion:
 bin/flow set-timestamp --set code_review_step=1
 ```
 
-<HARD-GATE>
-Do not stop, pause, or wait for user input — continue to Step 2 immediately.
-</HARD-GATE>
+To continue to Step 2, invoke `flow:flow-code-review --continue-step` using
+the Skill tool as your final action. If commit=auto was resolved, pass
+`--auto` as well. Do not output anything else after this invocation.
 
 ---
 
@@ -243,9 +254,9 @@ Record step completion:
 bin/flow set-timestamp --set code_review_step=2
 ```
 
-<HARD-GATE>
-Do not stop, pause, or wait for user input — continue to Step 3 immediately.
-</HARD-GATE>
+To continue to Step 3, invoke `flow:flow-code-review --continue-step` using
+the Skill tool as your final action. If commit=auto was resolved, pass
+`--auto` as well. Do not output anything else after this invocation.
 
 ---
 
@@ -309,9 +320,9 @@ Record step completion:
 bin/flow set-timestamp --set code_review_step=3
 ```
 
-<HARD-GATE>
-Do not stop, pause, or wait for user input — continue to Step 4 immediately.
-</HARD-GATE>
+To continue to Step 4, invoke `flow:flow-code-review --continue-step` using
+the Skill tool as your final action. If commit=auto was resolved, pass
+`--auto` as well. Do not output anything else after this invocation.
 
 ---
 
@@ -377,9 +388,9 @@ Record step completion:
 bin/flow set-timestamp --set code_review_step=4
 ```
 
-<HARD-GATE>
-Do not stop, pause, or wait for user input — continue to Done immediately.
-</HARD-GATE>
+To continue to Done, invoke `flow:flow-code-review --continue-step` using
+the Skill tool as your final action. If commit=auto was resolved, pass
+`--auto` as well. Do not output anything else after this invocation.
 
 ---
 
@@ -463,4 +474,4 @@ Invoke `flow:flow-status`.
 - Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
 - Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories
 - Never cd before running `bin/flow` — it detects the project root internally
-- After each step (Simplify, Review, Security, Code Review Plugin) completes, immediately continue to the next step — never pause or wait for user input between steps
+- After each step (Simplify, Review, Security, Code Review Plugin) completes, advance to the next step via self-invocation — never pause or wait for user input between steps

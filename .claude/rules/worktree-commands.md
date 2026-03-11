@@ -17,6 +17,21 @@ Use the Grep tool for content search, the Read tool for file contents,
 and the Glob tool for file discovery. Dedicated tools never trigger
 permission prompts.
 
+## File tool paths must use the worktree
+
+When working in a worktree (pwd contains `.worktrees/`), ALL file
+tool paths (Edit, Read, Write, Grep, Glob) for repo-tracked files
+must use the worktree absolute path from `pwd`, not the main repo
+path. The worktree has its own copy of every tracked file. Editing
+the main repo's copy does not affect the worktree.
+
+Before every Edit or Write call, verify the path starts with the
+current working directory (from `pwd`), not the project root from
+`git worktree list`.
+
+Shared paths that live OUTSIDE the worktree are fine to access
+directly: `.flow-states/`, `~/.claude/`, plugin cache paths.
+
 ## Never invoke Python directly
 
 Never run `python3` or `.venv/bin/python3` via the Bash tool.

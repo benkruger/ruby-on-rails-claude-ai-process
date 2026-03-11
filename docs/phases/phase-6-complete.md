@@ -29,8 +29,8 @@ and PR number. If the state file is missing, infer from git state
 ### 2. Check PR status
 
 Check whether the PR is already merged. If merged, skip directly to
-cleanup (step 9). If open, continue to merge flow. If closed but not
-merged, stop with an error.
+close issues (step 8). If open, continue to merge flow. If closed but
+not merged, stop with an error.
 
 ### 3. Merge main into branch
 

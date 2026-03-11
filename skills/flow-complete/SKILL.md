@@ -107,7 +107,7 @@ If the state file had no `pr_number` (or no state file was found), try the branc
 gh pr view <branch> --json state --jq .state
 ```
 
-**If `MERGED`** — the PR is already merged. Skip directly to Step 9 (cleanup).
+**If `MERGED`** — the PR is already merged. Skip directly to Step 8 (close issues).
 
 **If `OPEN`** — continue to Step 3 to merge.
 

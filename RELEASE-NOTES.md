@@ -1,5 +1,12 @@
 # Release Notes
 
+## v0.24.8
+
+### Fixes
+
+- Fix pymarkdown MD018 violation in RELEASE-NOTES.md where issue references
+  at the start of a continuation line were flagged as possible Atx headings.
+
 ## v0.24.7 — Fix Phase 4 Code Review halting bugs
 
 ### Fixes

@@ -1,5 +1,17 @@
 # Release Notes
 
+## v0.28.3 — Fix start phase blockers
+
+### Fixes
+
+- Start-setup initial commit now writes `.flow-commit-msg` before committing,
+  matching the pre-commit hook's expected fingerprint file. Previously, the
+  hook blocked all new features from starting (#108).
+- Feature name HARD-GATE no longer prompts interactively when arguments are
+  provided. Models now pass all argument words through verbatim instead of
+  filtering or re-asking. Missing arguments show a usage error instead of
+  an AskUserQuestion prompt (#109).
+
 ## v0.28.2 — Bug fixes for prompt storage, permissions, and plan autonomy
 
 ### Fixes

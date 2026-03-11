@@ -89,6 +89,18 @@ On completion (whether approved, denied, or nothing to commit), print the same w
 
 `--auto` is user-invoked only. Claude must never call `/flow:flow-commit --auto` programmatically — except in `/flow:flow-learn`, which is fully autonomous and commits without mid-process approval.
 
+## Format Resolution
+
+Determine the commit message format:
+
+1. Use the Read tool to read `.flow.json` from the project root.
+2. Parse the `commit_format` value from the JSON.
+   - `"title-only"` → use the title-only format in Step 2
+   - `"full"` → use the full format in Step 2
+3. If `.flow.json` does not exist or has no `commit_format` key → use `"full"`.
+
+Keep `commit_format` in context for Step 2.
+
 ---
 
 ## Process
@@ -162,7 +174,9 @@ Flag any docs that may need updates before writing the commit message. If docs a
 
 Write a commit message that a developer reading `git log` six months from now would find genuinely useful.
 
-**Structure:**
+Use the `commit_format` from Format Resolution to determine the structure.
+
+**If `commit_format` is `"full"`:**
 
 ```text
 Full-sentence subject line (imperative verb + what + why, ends with a period.)
@@ -177,7 +191,7 @@ what behaviour changes, or what was wrong before.
 - path/to/another.rb: What changed and why
 ```
 
-**Before displaying your draft, verify it contains all of these in order:**
+Before displaying your draft, verify it contains all of these in order:
 
 1. Subject line — imperative verb, what + why in one sentence, ends with a period
 2. Blank line
@@ -189,19 +203,39 @@ what behaviour changes, or what was wrong before.
 
 If any element is missing or out of order, rewrite before displaying.
 
-**Subject line rules:**
+**If `commit_format` is `"title-only"`:**
+
+```text
+Full-sentence subject line (imperative verb + what + why, ends with a period.)
+
+- path/to/file.rb: What changed and why
+- path/to/other.rb: What changed and why
+- path/to/another.rb: What changed and why
+```
+
+Before displaying your draft, verify it contains all of these in order:
+
+1. Subject line — imperative verb, what + why in one sentence, ends with a period
+2. Blank line
+3. File list — one bullet per changed file with reason
+
+If any element is missing or out of order, rewrite before displaying.
+
+**Subject line rules (both formats):**
 - Start with an imperative verb: Add, Fix, Update, Remove, Refactor, Extract
 - Include the business reason — why this change matters, not just what changed. "Remove /flow-qa skill and dev-mode plumbing because Claude Code's --plugin-dir flag makes QA testing trivial."
 - Describe the goal, not the mechanism — when a change has both, the subject says why it matters
 - No prefix jargon (no `feat:`, `chore:`, `fix:` — just the verb)
 - Ends with a period (it is a full sentence)
 
-**Body rules:**
+**Body rules (both formats):**
 - Blank line between subject and body
-- Explain the motivation — what prompted this change?
 - List each meaningful change with its file and a plain-English reason
 - Call out explicitly if the diff includes migrations, schema changes, or Gemfile changes
 - Do not pad with obvious restatements of the diff
+
+**Additional body rules (full format only):**
+- Explain the motivation — what prompted this change?
 
 Display the full message under the heading **Commit Message** before asking for approval.
 

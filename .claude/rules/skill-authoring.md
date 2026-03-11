@@ -111,6 +111,15 @@ mechanically incremented. A skip that pointed to cleanup before the
 insertion should now point to the new step if the new step should also
 run in that path.
 
+## Mode Resolution Source
+
+When a phase skill resolves its continue or commit mode and the state file
+has no entry for that skill in its `skills` key, check `.flow.json` before
+falling back to the built-in default. `.flow.json` is the user's
+configuration — its absence from the state file does not mean manual.
+For example, if the state file has no `flow-plan` key under `skills`, read
+`.flow.json` to find the configured continue mode before defaulting.
+
 ## Mid-Phase Self-Invocation
 
 When a phase skill invokes built-in skills (Skill tool) mid-phase and

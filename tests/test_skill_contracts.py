@@ -1001,7 +1001,7 @@ def test_commit_mode_resolution():
 
 def test_commit_has_commit_format_support():
     """Commit SKILL.md must support both commit_format options."""
-    content = (SKILLS_DIR / "flow-commit" / "SKILL.md").read_text()
+    content = _read_skill("flow-commit")
     assert "commit_format" in content, (
         "skills/flow-commit/SKILL.md must reference 'commit_format' config key"
     )

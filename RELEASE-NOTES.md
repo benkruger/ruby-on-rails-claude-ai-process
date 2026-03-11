@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.24.4 — Fix Complete skill project root handling
+
+### Fixes
+
+- Fix Complete skill running from worktree instead of project root, which caused merge checkout failures (#79).
+
 ## v0.24.3 — Bug fixes for Code Review and Plan phases
 
 ### Fixes

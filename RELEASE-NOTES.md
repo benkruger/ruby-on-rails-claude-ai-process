@@ -1,5 +1,17 @@
 # Release Notes
 
+## v0.27.2 — Fix Stop hook permission denied
+
+### Fixes
+
+- Fix Stop hook `Permission denied` error — `stop-continue.py` was missing
+  execute permission since v0.27.0.
+
+### Improvements
+
+- Add `test_hook_scripts_are_executable` structural test to catch missing +x
+  on all hook scripts.
+
 ## v0.27.1 — Fix session_id capture to use Stop hook stdin
 
 ### Fixes

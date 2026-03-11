@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.24.5 — Learn phase worktree fix and CI lint exclusion
+
+### Fixes
+
+- Learn skill now edits repo-destination files (CLAUDE.md, .claude/rules/) in the worktree instead of the project root, so changes land on the feature branch (#81, closes #80)
+- Issues #69 and #70 closed as already fixed in v0.24.4
+- Exclude tmp/ from pymarkdown linting — generated release notes artifacts no longer cause CI failures
+
 ## v0.24.4 — Fix Complete skill project root handling
 
 ### Fixes

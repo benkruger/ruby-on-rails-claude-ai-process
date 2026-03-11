@@ -102,13 +102,36 @@ Skip to "Done — Update state and complete phase" to finish the phase.
 
 ---
 
-## Step 1 — Feature description
+## Step 1 — Feature description and issue context
 
 Use the `prompt` from the state file as the feature description. This is the
 full text the user passed to `/flow:flow-start` — it describes what to build.
 
 Do not ask "What are we building?" — the prompt is the input for the planning
-phase. Proceed directly to Step 2.
+phase.
+
+### Fetch referenced issues
+
+Check the prompt for `#N` patterns (e.g., `#107`, `#42`). For each unique
+issue number found, fetch the issue body:
+
+```bash
+gh issue view <issue_number> --json number,title,body
+```
+
+Use the issue body as primary planning context — it contains the detailed
+problem description, acceptance criteria, and context that the short prompt
+cannot convey. The prompt words alone may be ambiguous; the issue body is
+the authoritative source.
+
+If the prompt contains no `#N` patterns, skip this step and use the prompt
+as-is.
+
+If a fetch fails (issue does not exist, permissions error, network failure),
+note the failure and continue with the remaining issues and prompt text.
+Do not stop planning because one issue could not be fetched.
+
+Proceed to Step 2.
 
 ---
 

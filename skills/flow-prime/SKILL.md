@@ -202,6 +202,7 @@ All permissions (universal + all framework sets) for reference:
       "Bash(claude plugin marketplace add *)",
       "Bash(claude plugin install *)",
       "Bash(gh issue list *)",
+      "Bash(gh issue view *)",
       "Read(~/.claude/rules/*)"
     ],
     "deny": [

@@ -16,7 +16,7 @@ approves it as a whole.
 
 ## How It Works
 
-1. Claude asks what you're building and what success looks like
+1. Claude reads the feature description and fetches any referenced GitHub issues
 2. Claude enters plan mode (`EnterPlanMode`)
 3. In plan mode: Claude explores the codebase, identifies risks,
    designs the approach, and writes the plan to a plan file

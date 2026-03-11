@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.24.6 — Auto-detect repo in bin/flow issue
+
+### Improvements
+
+- `bin/flow issue` now auto-detects the GitHub repo from `git remote origin` when `--repo` is omitted (#84, #85)
+- Supports both SSH and HTTPS remote URL formats
+- Falls back to a helpful JSON error if detection fails and no `--repo` is given
+
 ## v0.24.5 — Learn phase worktree fix and CI lint exclusion
 
 ### Fixes

@@ -51,7 +51,8 @@
       "Bash(gh pr checks *)",
       "Bash(gh pr merge *)",
       "Bash(gh pr:*)",
-      "Skill(code-review:code-review)"
+      "Skill(code-review:code-review)",
+      "Read(~/.claude/rules/*)"
     ],
     "deny": [
       "Bash(git rebase *)",

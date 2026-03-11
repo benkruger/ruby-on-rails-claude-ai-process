@@ -6,6 +6,18 @@ model: opus
 
 # FLOW Plan — Phase 2: Plan
 
+## Usage
+
+```text
+/flow:flow-plan
+/flow:flow-plan --auto
+/flow:flow-plan --manual
+```
+
+- `/flow:flow-plan` — uses configured mode from the state file (default: manual)
+- `/flow:flow-plan --auto` — auto-advance to Code without asking
+- `/flow:flow-plan --manual` — requires explicit approval before advancing
+
 <HARD-GATE>
 Run this phase entry check as your very first action. If any check fails,
 stop immediately and show the error to the user.
@@ -27,6 +39,13 @@ in context — use the project root to build Read tool paths (e.g.
 `<project_root>/.flow-states/<branch>.json`). Do not re-read the state
 file or re-run git commands to gather the same information. Do not `cd`
 to the project root — `bin/flow` commands find paths internally.
+
+## Mode Resolution
+
+1. If `--auto` was passed → continue=auto
+2. If `--manual` was passed → continue=manual
+3. Otherwise, read the state file at `<project_root>/.flow-states/<branch>.json`. Use `skills.flow-plan.continue`.
+4. If the state file has no `skills` key → use built-in default: continue=manual
 
 ## Announce
 
@@ -178,7 +197,11 @@ Output in your response (not via Bash) inside a fenced code block:
 ```
 ````
 
-Invoke `flow:flow-status`, then use AskUserQuestion:
+Invoke `flow:flow-status`.
+
+**If continue=auto**, skip the transition question and invoke `flow:flow-code` directly.
+
+**If continue=manual**, use AskUserQuestion:
 
 > "Phase 2: Plan is complete. Ready to begin Phase 3: Code?"
 >

@@ -201,7 +201,8 @@ All permissions (universal + all framework sets) for reference:
       "Bash(claude plugin list)",
       "Bash(claude plugin marketplace add *)",
       "Bash(claude plugin install *)",
-      "Bash(gh issue list *)"
+      "Bash(gh issue list *)",
+      "Read(~/.claude/rules/*)"
     ],
     "deny": [
       "Bash(git rebase *)",

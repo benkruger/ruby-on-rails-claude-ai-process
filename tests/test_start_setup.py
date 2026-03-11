@@ -70,13 +70,16 @@ def git_repo_with_remote(_git_repo_with_remote_template, tmp_path):
     return repo
 
 
-def _run(cwd, feature_name, env_extra=None):
+def _run(cwd, feature_name, env_extra=None, prompt=None):
     """Run start-setup.py with a feature name inside the given directory."""
     env = os.environ.copy()
     if env_extra:
         env.update(env_extra)
+    cmd = [sys.executable, SCRIPT, feature_name]
+    if prompt is not None:
+        cmd.extend(["--prompt", prompt])
     result = subprocess.run(
-        [sys.executable, SCRIPT, feature_name],
+        cmd,
         capture_output=True, text=True, cwd=str(cwd), env=env,
     )
     return result
@@ -96,7 +99,7 @@ def _write_flow_json(repo, version, framework="rails", skills=None):
     (repo / ".flow.json").write_text(json.dumps(data))
 
 
-def _run_no_gh(cwd, feature_name, framework="rails"):
+def _run_no_gh(cwd, feature_name, framework="rails", prompt=None):
     """Run start-setup.py with gh stubbed out and flow.json initialized."""
     # Ensure flow.json exists with correct version for the version gate
     _write_flow_json(cwd, _current_plugin_version(), framework)
@@ -113,6 +116,8 @@ def _run_no_gh(cwd, feature_name, framework="rails"):
     gh_stub.chmod(0o755)
     env["PATH"] = f"{stub_dir}:{env['PATH']}"
     cmd = [sys.executable, SCRIPT, feature_name]
+    if prompt is not None:
+        cmd.extend(["--prompt", prompt])
     result = subprocess.run(
         cmd,
         capture_output=True, text=True, cwd=str(cwd), env=env,
@@ -517,3 +522,32 @@ def test_branch_name_strips_at_sign():
 def test_branch_name_strips_mixed_special_chars():
     """Multiple special characters stripped, words still joined."""
     assert _mod._branch_name("fix #83 @user $100") == "fix-83-user-100"
+
+
+# --- Prompt preservation via --prompt flag ---
+
+
+def test_prompt_flag_preserves_issue_references(git_repo_with_remote):
+    """--prompt stores verbatim text including #N issue references."""
+    result = _run_no_gh(
+        git_repo_with_remote, "fix issue pre-commit hook",
+        prompt="fix issue pre-commit hook #106",
+    )
+    assert result.returncode == 0, result.stderr
+    state_path = (
+        git_repo_with_remote / ".flow-states"
+        / "fix-issue-pre-commit-hook.json"
+    )
+    state = json.loads(state_path.read_text())
+    assert state["prompt"] == "fix issue pre-commit hook #106"
+
+
+def test_prompt_flag_omitted_falls_back_to_feature_words(git_repo_with_remote):
+    """Without --prompt, prompt field falls back to the feature name."""
+    result = _run_no_gh(git_repo_with_remote, "some feature")
+    assert result.returncode == 0, result.stderr
+    state_path = (
+        git_repo_with_remote / ".flow-states" / "some-feature.json"
+    )
+    state = json.loads(state_path.read_text())
+    assert state["prompt"] == "some feature"

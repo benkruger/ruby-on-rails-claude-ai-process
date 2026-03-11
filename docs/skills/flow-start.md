@@ -25,7 +25,7 @@ Begins a new feature. This is always the first command run for any piece of work
 1. Checks the version gate and notifies if a newer FLOW release is available on GitHub
 2. Checks for existing active FLOW features
 3. Runs `bin/flow ci` on main to verify the codebase is healthy
-4. Runs `lib/start-setup.py` — verifies `/flow-prime` version gate, git pull, worktree creation, empty commit + push + PR, and state file creation
+4. Runs `lib/start-setup.py` — verifies `/flow-prime` version gate, git pull, worktree creation, empty commit + push + PR, and state file creation. The `--prompt` flag passes the user's raw input (including `#N` issue references) so it is preserved verbatim in the state file for issue closing at completion
 5. Runs `bin/dependencies` if it exists (created by `/flow-prime`), then `bin/flow ci`, with ci-fixer sub-agent if needed
 6. Marks Phase 1 complete and transitions to Phase 2: Research
 

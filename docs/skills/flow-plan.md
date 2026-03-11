@@ -8,7 +8,7 @@ parent: Skills
 
 **Phase:** 2 — Plan
 
-**Usage:** `/flow-plan`
+**Usage:** `/flow-plan`, `/flow-plan --auto`, or `/flow-plan --manual`
 
 Explores the codebase, designs the approach, and produces an ordered
 implementation plan using Claude Code's native plan mode. Replaces the
@@ -48,6 +48,12 @@ If the session breaks mid-plan, `/flow-continue` checks whether
 `plan_file` is already set in the state file. If set, the plan was
 already approved — the phase completes and transitions to Code.
 If not set, the plan mode flow restarts.
+
+---
+
+## Mode
+
+Mode is configurable via `.flow.json` (default: manual) under `skills.flow-plan.continue`. In auto mode, the phase transition advances to Code without asking. Flags `--auto` and `--manual` override the configured mode.
 
 ---
 

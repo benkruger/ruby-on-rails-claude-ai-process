@@ -4,13 +4,14 @@ Runs git pull, creates worktree, makes initial commit + push + PR,
 creates state file, and logs all operations. The version gate
 (prime-check) runs as a separate step before this script.
 
-Usage: bin/flow start-setup "<feature name>"
+Usage: bin/flow start-setup "<feature name>" [--prompt "<full prompt>"]
 
 Output (JSON to stdout):
   Success: {"status": "ok", "worktree": "...", "pr_url": "...", "pr_number": N, "feature": "...", "branch": "..."}
   Failure: {"status": "error", "step": "...", "message": "..."}
 """
 
+import argparse
 import json
 import re
 import shutil
@@ -192,7 +193,13 @@ def _log(project_root, branch, message):
 
 
 def main():
-    if len(sys.argv) < 2:
+    parser = argparse.ArgumentParser(description="FLOW Start phase setup")
+    parser.add_argument("feature_name", nargs="?", help="Feature name words")
+    parser.add_argument("--prompt", default=None,
+                        help="Full start prompt (preserved verbatim in state file)")
+    args = parser.parse_args()
+
+    if not args.feature_name:
         print(json.dumps({
             "status": "error",
             "step": "args",
@@ -200,7 +207,8 @@ def main():
         }))
         sys.exit(1)
 
-    feature_words = sys.argv[1]
+    feature_words = args.feature_name
+    raw_prompt = args.prompt if args.prompt is not None else feature_words
     branch = _branch_name(feature_words)
     feature_title = _title_case(feature_words)
     project_root = Path.cwd()
@@ -226,7 +234,7 @@ def main():
 
         # Create state file
         _create_state_file(project_root, branch, feature_title, pr_url, pr_number,
-                           framework=framework, skills=skills, prompt=feature_words)
+                           framework=framework, skills=skills, prompt=raw_prompt)
         _log(project_root, branch, f"create .flow-states/{branch}.json (exit 0)")
 
         # Freeze phase config for this feature

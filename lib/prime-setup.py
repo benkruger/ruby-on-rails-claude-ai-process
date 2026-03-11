@@ -48,6 +48,7 @@ UNIVERSAL_ALLOW = [
     "Bash(claude plugin marketplace add *)",
     "Bash(claude plugin install *)",
     "Bash(gh issue list *)",
+    "Read(~/.claude/rules/*)",
 ]
 
 FLOW_DENY = [

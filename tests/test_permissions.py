@@ -152,6 +152,7 @@ PLACEHOLDER_SUBS = {
     "<issue_title>": "Test issue title",
     "<issue_body>": "Test issue body",
     "<transcript_path>": "~/.claude/projects/-tmp-test/abc123.jsonl",
+    "<full-start-prompt>": "test feature #42",
 }
 
 

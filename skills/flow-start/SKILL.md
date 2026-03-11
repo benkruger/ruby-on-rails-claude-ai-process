@@ -171,8 +171,10 @@ Wait for the sub-agent to return.
 Run the consolidated setup script:
 
 ```bash
-exec ${CLAUDE_PLUGIN_ROOT}/bin/flow start-setup "<feature-name>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow start-setup "<feature-name>" --prompt "<full-start-prompt>"
 ```
+
+`<full-start-prompt>` is the user's original input verbatim, including `#N` issue references and any special characters. Do not sanitize or transform it.
 
 The script performs these operations in a single process:
 

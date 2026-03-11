@@ -1,5 +1,14 @@
 # Release Notes
 
+## v0.28.5 — Plan phase fetches referenced GitHub issues
+
+- Plan Step 1 now scans the prompt for `#N` patterns and fetches each
+  referenced issue via `gh issue view` before exploration begins. The
+  issue body becomes primary planning context instead of inferring from
+  the prompt words alone.
+- Added `gh issue view *` permission to prime-setup and flow-prime reference.
+- Contract test enforces the instruction persists.
+
 ## v0.28.4 — ExitPlanMode safety hook
 
 ### Fixes

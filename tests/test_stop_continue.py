@@ -21,6 +21,77 @@ _spec.loader.exec_module(_mod)
 # --- In-process tests ---
 
 
+class TestCaptureSessionId:
+    def test_updates_state_file(self, git_repo, state_dir, branch, monkeypatch):
+        monkeypatch.chdir(git_repo)
+        state = make_state(current_phase="flow-start")
+        write_state(state_dir, branch, state)
+
+        _mod.capture_session_id({
+            "session_id": "abc123",
+            "transcript_path": "/path/to/transcript.jsonl",
+        })
+
+        updated = json.loads((state_dir / f"{branch}.json").read_text())
+        assert updated["session_id"] == "abc123"
+        assert updated["transcript_path"] == "/path/to/transcript.jsonl"
+
+    def test_skips_when_already_set(self, git_repo, state_dir, branch, monkeypatch):
+        monkeypatch.chdir(git_repo)
+        state = make_state(current_phase="flow-start")
+        state["session_id"] = "abc123"
+        write_state(state_dir, branch, state)
+        state_path = state_dir / f"{branch}.json"
+        original_content = state_path.read_text()
+
+        _mod.capture_session_id({"session_id": "abc123"})
+
+        assert state_path.read_text() == original_content
+
+    def test_no_state_file(self, git_repo, monkeypatch):
+        monkeypatch.chdir(git_repo)
+
+        # Should not raise
+        _mod.capture_session_id({"session_id": "abc123"})
+
+    def test_no_session_id_in_input(self, git_repo, state_dir, branch, monkeypatch):
+        monkeypatch.chdir(git_repo)
+        state = make_state(current_phase="flow-start")
+        write_state(state_dir, branch, state)
+        state_path = state_dir / f"{branch}.json"
+        original_content = state_path.read_text()
+
+        _mod.capture_session_id({})
+
+        assert state_path.read_text() == original_content
+
+    def test_no_branch(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        # Should not raise when not in a git repo
+        _mod.capture_session_id({"session_id": "abc123"})
+
+    def test_corrupt_state_file(self, git_repo, state_dir, branch, monkeypatch):
+        monkeypatch.chdir(git_repo)
+        (state_dir / f"{branch}.json").write_text("{bad json")
+
+        # Should not raise on corrupt state file
+        _mod.capture_session_id({"session_id": "abc123"})
+
+    def test_updates_transcript_path(self, git_repo, state_dir, branch, monkeypatch):
+        monkeypatch.chdir(git_repo)
+        state = make_state(current_phase="flow-start")
+        write_state(state_dir, branch, state)
+
+        _mod.capture_session_id({
+            "session_id": "xyz789",
+            "transcript_path": "/home/user/.claude/projects/abc/xyz789.jsonl",
+        })
+
+        updated = json.loads((state_dir / f"{branch}.json").read_text())
+        assert updated["transcript_path"] == "/home/user/.claude/projects/abc/xyz789.jsonl"
+
+
 class TestCheckContinue:
     def test_flag_set_blocks_and_clears(self, git_repo, state_dir, branch, monkeypatch):
         monkeypatch.chdir(git_repo)
@@ -154,3 +225,18 @@ class TestSubprocess:
 
         assert exit_code == 0
         assert stdout == ""
+
+    def test_main_passes_stdin_to_capture(self, git_repo, state_dir, branch):
+        state = make_state(current_phase="flow-start")
+        write_state(state_dir, branch, state)
+
+        stdin = json.dumps({
+            "session_id": "from-stdin-test",
+            "transcript_path": "/path/to/from-stdin.jsonl",
+        })
+        exit_code, stdout = _run_hook(stdin, cwd=git_repo)
+
+        assert exit_code == 0
+        updated = json.loads((state_dir / f"{branch}.json").read_text())
+        assert updated["session_id"] == "from-stdin-test"
+        assert updated["transcript_path"] == "/path/to/from-stdin.jsonl"

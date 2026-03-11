@@ -124,6 +124,7 @@ def make_state(current_phase="flow-start", phase_statuses=None, framework="rails
         "framework": framework,
         "plan_file": None,
         "session_id": None,
+        "transcript_path": None,
         "notes": [],
         "phases": phases,
     }

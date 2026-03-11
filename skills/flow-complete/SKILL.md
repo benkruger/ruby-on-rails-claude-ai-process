@@ -34,7 +34,7 @@ blocks — it records warnings for the confirmation step.
 2. Get the current branch: run `git branch --show-current`.
 3. Use the Read tool to read `<project_root>/.flow-states/<branch>.json`.
    - If the file exists: extract `feature`, `branch`, `worktree`, `pr_number`,
-     `pr_url`, `session_id`, and `cumulative_seconds`. Check `phases.flow-learn.status` — if
+     `pr_url`, and `cumulative_seconds`. Check `phases.flow-learn.status` — if
      not `"complete"`, record warning "Phase 5 not complete (status: <actual status>)."
    - If the file does not exist: record warning "No state file found for
      branch '<branch>'."
@@ -216,17 +216,6 @@ bin/flow format-pr-timings --state-file <project_root>/.flow-states/<branch>.jso
 ```bash
 bin/flow update-pr-body --pr <pr_number> --append-section --heading "Phase Timings" --content-file <project_root>/.flow-states/<branch>-timings.md --no-collapse
 ```
-
-**Session link:** If `session_id` from the state file is not null,
-add the session log artifact. Construct the path:
-`~/.claude/projects/<slug>/<session_id>.jsonl` where `<slug>` is the
-project root path with `/` replaced by `-`.
-
-```bash
-bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Session log" --value <session_log_path>
-```
-
-If `session_id` is null, skip this step.
 
 **State file and session log:** Use the Read tool to read
 `<project_root>/.flow-states/<branch>.json` and

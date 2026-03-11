@@ -19,6 +19,36 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from flow_utils import project_root, resolve_branch
 
 
+def capture_session_id(hook_input):
+    """Update session_id and transcript_path in active state file."""
+    session_id = hook_input.get("session_id")
+    if not session_id:
+        return
+
+    try:
+        root = project_root()
+        branch, _ = resolve_branch()
+        if not branch:
+            return
+
+        state_path = root / ".flow-states" / f"{branch}.json"
+        if not state_path.exists():
+            return
+
+        state = json.loads(state_path.read_text())
+        if state.get("session_id") == session_id:
+            return  # Already set, skip write
+
+        state["session_id"] = session_id
+        transcript_path = hook_input.get("transcript_path")
+        if transcript_path:
+            state["transcript_path"] = transcript_path
+
+        state_path.write_text(json.dumps(state, indent=2))
+    except Exception:
+        pass  # Fail-open, same as check_continue
+
+
 def check_continue():
     """Check if _continue_pending flag is set in the active state file.
 
@@ -51,10 +81,13 @@ def check_continue():
 
 
 def main():
+    hook_input = {}
     try:
-        json.load(sys.stdin)
+        hook_input = json.load(sys.stdin)
     except Exception:
         pass
+
+    capture_session_id(hook_input)
 
     should_block, skill_name = check_continue()
 

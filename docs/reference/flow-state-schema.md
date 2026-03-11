@@ -39,6 +39,7 @@ The frozen phases file is a snapshot of `flow-phases.json` taken at start time. 
   "framework": "rails",
   "plan_file": null,
   "session_id": null,
+  "transcript_path": null,
   "skills": {
     "flow-start": {"continue": "manual"},
     "flow-code": {"commit": "manual", "continue": "manual"},
@@ -94,7 +95,8 @@ The frozen phases file is a snapshot of `flow-phases.json` taken at start time. 
 | `current_phase` | string | The currently active phase key (e.g. `"flow-code"`) |
 | `framework` | string | `"rails"` or `"python"` — set during `/flow-prime`, copied to state by `/flow-start` |
 | `plan_file` | string / null | Absolute path to the plan file at `~/.claude/plans/<name>.md` — set by Phase 2: Plan |
-| `session_id` | string / null | Claude Code session UUID from `CLAUDE_SESSION_ID` env var — set by `/flow-start`, used by `/flow-complete` to add session link artifact to PR |
+| `session_id` | string / null | Claude Code session UUID — set by Stop hook from hook stdin |
+| `transcript_path` | string / null | Absolute path to session transcript .jsonl — set by Stop hook from hook stdin |
 | `skills` | object / absent | Per-skill autonomy settings copied from `.flow.json` by `/flow-start` — see [Skills Object](#skills-object) |
 | `code_review_step` | integer | Last completed Code Review step (0-4). Set to 0 on phase entry, incremented after each step. Used for resume after context compaction. |
 | `_continue_pending` | string | Name of the child skill currently executing. Set before invoking a child skill, cleared by the Stop hook after forcing continuation. Empty string or absent means no continuation pending. |

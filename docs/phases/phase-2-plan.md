@@ -48,6 +48,7 @@ By the end of Phase 2:
 - An approved approach with clear rationale
 - Ordered implementation tasks ready for Phase 3: Code
 - Plan file path stored in the state file
+- Session log artifact added to PR (when transcript path is available)
 
 ---
 

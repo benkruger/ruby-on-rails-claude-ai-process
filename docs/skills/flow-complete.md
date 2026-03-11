@@ -19,14 +19,14 @@ confirmation before the irreversible merge.
 
 ## What It Does
 
-1. Reads `.flow-states/<branch>.json` for worktree, feature name, PR number,
-   and session\_id (or infers from git state if the file is missing)
+1. Reads `.flow-states/<branch>.json` for worktree, feature name, and PR number
+   (or infers from git state if the file is missing)
 2. Checks PR status — if already merged, skips to cleanup
 3. Merges `origin/main` into the feature branch, resolving any conflicts
 4. Checks CI status — waits for checks to pass (suggests `/loop` for pending)
 5. Confirms with the user (only when `--manual` is passed)
 6. Archives artifacts to the PR body: phase timings table (non-collapsible),
-   session log link (if session\_id is set), state file, and session log
+   state file, and session log
 7. Squash-merges the PR via `gh pr merge --squash`
 8. Runs the cleanup process: remove worktree, delete branches, delete state file, log, and CI sentinel
 9. Pulls `origin main` so local main has the merged feature code

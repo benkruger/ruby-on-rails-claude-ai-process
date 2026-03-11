@@ -147,6 +147,15 @@ Then update the PR body with the plan file artifact:
 bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Plan file" --value <plan_file_path>
 ```
 
+Check `transcript_path` from the state data read during the gate.
+If not null, add the session log artifact:
+
+```bash
+bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Session log" --value <transcript_path>
+```
+
+If `transcript_path` is null, skip this step.
+
 After the plan file path is stored, call `ExitPlanMode`.
 
 ---

@@ -1478,6 +1478,40 @@ def test_code_review_steps_record_completion():
         )
 
 
+def test_code_review_steps_self_invoke():
+    """Each Code Review step must self-invoke flow:flow-code-review --continue-step."""
+    content = _read_skill("flow-code-review")
+
+    for step_num in range(1, 5):
+        if step_num < 4:
+            next_header = f"## Step {step_num + 1}"
+        else:
+            next_header = "## Back Navigation|## Done"
+        step_match = re.search(
+            rf"## Step {step_num}.*?\n(.*?)(?=\n(?:{next_header}))",
+            content, re.DOTALL,
+        )
+        assert step_match, f"Could not find Step {step_num} in flow-code-review/SKILL.md"
+        assert "flow:flow-code-review --continue-step" in step_match.group(1), (
+            f"Step {step_num} must self-invoke via 'flow:flow-code-review --continue-step'"
+        )
+
+
+def test_code_review_has_self_invocation_check():
+    """Code Review must have a Self-Invocation Check section for --continue-step."""
+    content = _read_skill("flow-code-review")
+    assert "## Self-Invocation Check" in content, (
+        "flow-code-review must have a '## Self-Invocation Check' section"
+    )
+    si_match = re.search(
+        r"## Self-Invocation Check\n(.*?)(?=\n## )", content, re.DOTALL
+    )
+    assert si_match, "Could not find Self-Invocation Check section content"
+    assert "--continue-step" in si_match.group(1), (
+        "Self-Invocation Check must reference --continue-step flag"
+    )
+
+
 def test_start_step_6_enforces_flow_commit_exclusively():
     """Step 6 must use /flow:flow-commit and not suggest git commit."""
     content = _read_skill("flow-start")

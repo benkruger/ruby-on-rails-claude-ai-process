@@ -244,23 +244,20 @@ bin/flow update-pr-body --pr <pr_number> --append-section --heading "Session Log
 
 If any file does not exist, skip that step — do not fail.
 
-**Issues Filed:** Read the state file and check for an `issues_filed`
-array. If it exists and is non-empty, format a markdown table and append
-it to the PR body:
+**Issues Filed:** Format the issues summary:
 
-| Label | Title | Phase | URL |
-|-------|-------|-------|-----|
-| Rule | Add rule: check eager-loaded associations | Learn | #44 |
-| Flaky Test | test_worker_timeout intermittent failure | Code | #45 |
+```bash
+bin/flow format-issues-summary --state-file <project_root>/.flow-states/<branch>.json --output <project_root>/.flow-states/<branch>-issues.md
+```
 
-Write the table to `<project_root>/.flow-states/<branch>-issues.md`,
-then append it:
+Parse the JSON output. If `has_issues` is `false`, skip the PR body append.
+If `has_issues` is `true`, append the table to the PR body:
 
 ```bash
 bin/flow update-pr-body --pr <pr_number> --append-section --heading "Issues Filed" --content-file <project_root>/.flow-states/<branch>-issues.md --no-collapse
 ```
 
-If `issues_filed` is empty or absent, skip this step.
+Keep the `banner_line` from the JSON output — use it in the Done banner below.
 
 ### Step 7 — Merge PR
 
@@ -329,13 +326,14 @@ Output the following banner in your response (not via Bash) inside a fenced code
   FLOW v0.28.9 — Phase 6: Complete — COMPLETE (<formatted_time>)
   Feature '<feature>' is fully done.
   Worktree removed, state file and log deleted.
-  Issues filed: N (Rule: X, Flow: Y, ...)
+  <banner_line>
 ============================================
 ```
 ````
 
-Only include the "Issues filed" line if `issues_filed` is non-empty.
-Group the count by label (e.g. `Issues filed: 3 (Rule: 1, Flaky Test: 2)`).
+Only include the `<banner_line>` line if `has_issues` was `true` in the
+`format-issues-summary` output from Step 6. Use the `banner_line` value
+exactly as returned — do not recompute it.
 
 ## Rules
 

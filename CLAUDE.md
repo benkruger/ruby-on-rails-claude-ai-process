@@ -77,6 +77,7 @@ CI will fail if these are missing:
 - `lib/close-issues.py` — closes GitHub issues referenced in the start prompt (`#N` patterns) via `gh issue close`
 - `lib/issue.py` — creates GitHub issues via `gh` subprocess (wraps `gh issue create`; auto-detects repo from git remote when `--repo` is omitted)
 - `lib/add-issue.py` — records filed issues in the state file's `issues_filed` array (follows `append-note.py` pattern)
+- `lib/format-issues-summary.py` — formats `issues_filed` as a markdown table and banner line for Complete phase
 - `lib/format-pr-timings.py` — reads state file, formats phase durations as a markdown table for PR body
 - `lib/update-pr-body.py` — updates PR body: `--add-artifact` for list items, `--append-section` for collapsible/plain sections
 - `lib/stop-continue.py` — Stop hook script that forces continuation when `_continue_pending` flag is set in the state file
@@ -161,6 +162,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 | `test_structural.py` | Config invariants: phases 1-6 exist, versions match across 3 locations, commands unique, hooks reference existing files |
 | `test_skill_contracts.py` | SKILL.md content: HARD-GATE presence, announce banners, state updates, ci-fixer agent, model frontmatter, logging sections, note-capture options. Uses glob-based discovery — new skills are automatically covered |
 | `test_add_issue.py` | Issue recording: append to empty/existing array, missing state file, CLI integration |
+| `test_format_issues_summary.py` | Issues summary formatting: empty/missing/single/multiple issues, label grouping, table output, CLI |
 | `test_close_issues.py` | Issue closing: extraction of `#N` patterns from prompt, deduplication, partial failure, CLI integration |
 | `test_check_phase.py` | Phase guard: blocks on incomplete prerequisites, allows on complete, handles worktrees, re-entry notes |
 | `test_session_start.py` | Session hook: feature detection, timing reset, awareness injection, multi-feature handling |

@@ -8,25 +8,61 @@ command against blocked patterns, and exits with the appropriate code.
 Exit 0 — allow (command passes through to normal permission system)
 Exit 2 — block (error message on stderr is fed back to the sub-agent)
 
-Blocked patterns:
+Validation layers (in order):
 1. Compound commands (&&, ;, |) — "Use separate Bash calls instead"
 2. File-read commands (cat, head, tail, grep, rg, find, ls) —
    "Use Read/Glob/Grep tools instead"
+3. Whitelist — command must match a Bash(...) allow pattern in
+   .claude/settings.json. If settings.json is missing or unparseable,
+   fall through (don't break non-FLOW projects).
 """
 
 import json
 import re
 import sys
+from pathlib import Path
+
+from flow_utils import permission_to_regex
 
 # Commands that have dedicated tool alternatives
 FILE_READ_COMMANDS = {"cat", "head", "tail", "grep", "rg", "find", "ls"}
 
 
-def validate(command):
+def _find_settings_json():
+    """Walk up from CWD looking for .claude/settings.json.
+
+    Returns the parsed dict, or None if not found or unparseable.
+    """
+    current = Path.cwd().resolve()
+    for directory in [current, *current.parents]:
+        settings_path = directory / ".claude" / "settings.json"
+        if settings_path.is_file():
+            try:
+                return json.loads(settings_path.read_text())
+            except (json.JSONDecodeError, ValueError, OSError):
+                return None
+    return None
+
+
+def _build_allow_regexes(settings):
+    """Extract Bash(...) allow patterns from settings and compile to regexes."""
+    allow = settings.get("permissions", {}).get("allow", [])
+    regexes = []
+    for entry in allow:
+        regex = permission_to_regex(entry)
+        if regex is not None:
+            regexes.append(regex)
+    return regexes
+
+
+def validate(command, settings=None):
     """Validate a Bash command string.
 
     Returns (allowed: bool, message: str).
     message is empty if allowed, otherwise explains why blocked.
+
+    If settings is provided, also checks command against the allow-list
+    whitelist. If settings is None, the whitelist check is skipped.
     """
     # Block compound commands (&&, ;, |)
     if "&&" in command or re.search(r"(?<!\\);", command) or "|" in command:
@@ -43,6 +79,16 @@ def validate(command):
                 f"(Read for cat/head/tail, Grep for grep/rg, "
                 f"Glob for find/ls).")
 
+    # Whitelist check — only if settings are available
+    if settings is not None:
+        regexes = _build_allow_regexes(settings)
+        if regexes:
+            matched = any(r.match(command) for r in regexes)
+            if not matched:
+                return (False,
+                        f"BLOCKED: Command not in allow list: '{command}'. "
+                        f"Check .claude/settings.json allow patterns.")
+
     return (True, "")
 
 
@@ -57,7 +103,8 @@ def main():
     if not command:
         sys.exit(0)
 
-    allowed, message = validate(command)
+    settings = _find_settings_json()
+    allowed, message = validate(command, settings=settings)
     if not allowed:
         print(message, file=sys.stderr)
         sys.exit(2)

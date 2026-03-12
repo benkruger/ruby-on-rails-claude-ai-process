@@ -392,8 +392,8 @@ def test_version_marker_with_empty_skills_dict(tmp_path):
     assert data["skills"] == {}
 
 
-def test_universal_allow_includes_bin_dependencies():
-    assert "Bash(bin/dependencies)" in _mod.UNIVERSAL_ALLOW
+def test_universal_allow_includes_bin_glob():
+    assert "Bash(bin/*)" in _mod.UNIVERSAL_ALLOW
 
 
 def test_universal_allow_includes_claude_plugin_commands():

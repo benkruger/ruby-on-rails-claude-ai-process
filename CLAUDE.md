@@ -142,7 +142,10 @@ Claude never computes timestamps, time differences, or counter increments. All s
 
 ### Permission Invariant
 
-Every `` ```bash `` block in every skill and docs file must run without triggering a Claude Code permission prompt. `test_permissions.py` enforces this: it extracts every bash block, substitutes placeholders with concrete values, and verifies each command matches an allow-list pattern and does not match a deny-list pattern. New bash commands require a matching permission entry. New placeholders require a `PLACEHOLDER_SUBS` entry. Unrecognized placeholders fail the test — they are never silently skipped.
+Every `` ```bash `` block in every skill and docs file must run without triggering a Claude Code permission prompt. Two layers enforce this:
+
+- **Test time** — `test_permissions.py` extracts every bash block, substitutes placeholders with concrete values, and verifies each command matches an allow-list pattern and does not match a deny-list pattern. New bash commands require a matching permission entry. New placeholders require a `PLACEHOLDER_SUBS` entry. Unrecognized placeholders fail the test — they are never silently skipped.
+- **Runtime** — `validate-ci-bash.py` runs as a global `PreToolUse` hook on every Bash call. It blocks compound commands and file-read commands via fast-path checks, then enforces the `.claude/settings.json` allow list as a whitelist. Commands not matching any `Bash(...)` allow pattern are blocked with exit code 2 and a helpful error message. If `settings.json` is missing (non-FLOW project), the whitelist check is skipped.
 
 ## Test Architecture
 

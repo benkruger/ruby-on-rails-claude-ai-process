@@ -110,8 +110,11 @@ FLOW uses one custom plugin sub-agent: `ci-fixer` (`agents/ci-fixer.md`)
 for CI failure diagnosis and fix in Start (Steps 3 and 5). The `PreToolUse`
 hook (`lib/validate-ci-bash.py`) is registered globally in `hooks/hooks.json`,
 enforcing tool restrictions on all Bash calls — including those from
-built-in skills' sub-agents. The ci-fixer also retains its own hook
-declaration for defense in depth.
+built-in skills' sub-agents. The hook validates three layers: compound
+command blocking, file-read command blocking, and whitelist enforcement
+against `.claude/settings.json` allow patterns. Commands not matching any
+`Bash(...)` pattern are blocked with exit 2. The ci-fixer also retains
+its own hook declaration for defense in depth.
 
 Plan uses Claude Code's native plan mode (`EnterPlanMode`/`ExitPlanMode`).
 Code Review delegates to built-in `/simplify`, `/review`, and

@@ -20,7 +20,7 @@ def _load_module():
     return mod
 
 
-def _run_hook(command):
+def _run_hook(command, cwd=None):
     """Run the hook script as a subprocess with the given command.
 
     Returns (exit_code, stderr).
@@ -31,8 +31,22 @@ def _run_hook(command):
         input=hook_input,
         capture_output=True,
         text=True,
+        cwd=cwd,
     )
     return result.returncode, result.stderr.strip()
+
+
+SAMPLE_SETTINGS = {
+    "permissions": {
+        "allow": [
+            "Bash(git status)",
+            "Bash(git diff *)",
+            "Bash(bin/*)",
+            "Bash(*bin/flow *)",
+        ],
+        "deny": [],
+    }
+}
 
 
 # --- In-process validate() tests ---
@@ -151,6 +165,140 @@ def test_validate_allows_empty_command():
     assert allowed is True
 
 
+# --- Whitelist validation tests ---
+
+
+def test_whitelist_allows_matching_command():
+    mod = _load_module()
+    allowed, message = mod.validate("git status", settings=SAMPLE_SETTINGS)
+    assert allowed is True
+    assert message == ""
+
+
+def test_whitelist_allows_glob_match():
+    mod = _load_module()
+    allowed, message = mod.validate("git diff HEAD", settings=SAMPLE_SETTINGS)
+    assert allowed is True
+    assert message == ""
+
+
+def test_whitelist_allows_bin_glob():
+    mod = _load_module()
+    allowed, message = mod.validate("bin/ci", settings=SAMPLE_SETTINGS)
+    assert allowed is True
+
+
+def test_whitelist_allows_leading_glob():
+    mod = _load_module()
+    allowed, message = mod.validate(
+        "/usr/local/bin/flow ci", settings=SAMPLE_SETTINGS
+    )
+    assert allowed is True
+
+
+def test_whitelist_blocks_unmatched_command():
+    mod = _load_module()
+    allowed, message = mod.validate("curl http://example.com", settings=SAMPLE_SETTINGS)
+    assert allowed is False
+    assert "not in allow list" in message
+    assert "curl http://example.com" in message
+
+
+def test_whitelist_blocks_rm_rf():
+    mod = _load_module()
+    allowed, message = mod.validate("rm -rf /", settings=SAMPLE_SETTINGS)
+    assert allowed is False
+    assert "not in allow list" in message
+
+
+def test_whitelist_skipped_when_no_settings():
+    """When settings=None, whitelist check is skipped — command passes."""
+    mod = _load_module()
+    allowed, message = mod.validate("curl http://example.com", settings=None)
+    assert allowed is True
+    assert message == ""
+
+
+def test_whitelist_skipped_when_empty_allow():
+    """When allow list is empty, whitelist is not enforced."""
+    mod = _load_module()
+    settings = {"permissions": {"allow": []}}
+    allowed, message = mod.validate("curl http://example.com", settings=settings)
+    assert allowed is True
+
+
+def test_compound_blocked_before_whitelist():
+    """Compound commands are caught by fast-path before whitelist check."""
+    mod = _load_module()
+    allowed, message = mod.validate(
+        "git status && git diff", settings=SAMPLE_SETTINGS
+    )
+    assert allowed is False
+    assert "Compound commands" in message
+
+
+def test_file_read_blocked_before_whitelist():
+    """File-read commands are caught by fast-path before whitelist check."""
+    mod = _load_module()
+    allowed, message = mod.validate("cat README.md", settings=SAMPLE_SETTINGS)
+    assert allowed is False
+    assert "Read" in message
+
+
+def test_find_settings_json(tmp_path):
+    """_find_settings_json finds settings.json walking up from CWD."""
+    mod = _load_module()
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    settings = {"permissions": {"allow": ["Bash(git status)"]}}
+    (claude_dir / "settings.json").write_text(json.dumps(settings))
+
+    # Nested subdir — should find settings.json in parent
+    subdir = tmp_path / "a" / "b"
+    subdir.mkdir(parents=True)
+
+    import os
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(subdir)
+        result = mod._find_settings_json()
+        assert result is not None
+        assert result["permissions"]["allow"] == ["Bash(git status)"]
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_find_settings_json_missing(tmp_path):
+    """_find_settings_json returns None when no settings.json exists."""
+    mod = _load_module()
+
+    import os
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = mod._find_settings_json()
+        assert result is None
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_find_settings_json_invalid(tmp_path):
+    """_find_settings_json returns None when settings.json is invalid JSON."""
+    mod = _load_module()
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    (claude_dir / "settings.json").write_text("not valid json {{{")
+
+    import os
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = mod._find_settings_json()
+        assert result is None
+    finally:
+        os.chdir(old_cwd)
+
+
 # --- Subprocess (full hook) tests ---
 
 
@@ -211,3 +359,34 @@ def test_hook_exit_0_for_missing_tool_input():
         text=True,
     )
     assert result.returncode == 0
+
+
+def test_hook_subprocess_whitelist_block(tmp_path):
+    """Full subprocess test: command blocked by whitelist."""
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    settings = {"permissions": {"allow": ["Bash(git status)"]}}
+    (claude_dir / "settings.json").write_text(json.dumps(settings))
+
+    code, stderr = _run_hook("curl http://example.com", cwd=str(tmp_path))
+    assert code == 2
+    assert "not in allow list" in stderr
+
+
+def test_hook_subprocess_whitelist_allow(tmp_path):
+    """Full subprocess test: command allowed by whitelist."""
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    settings = {"permissions": {"allow": ["Bash(git status)"]}}
+    (claude_dir / "settings.json").write_text(json.dumps(settings))
+
+    code, stderr = _run_hook("git status", cwd=str(tmp_path))
+    assert code == 0
+    assert stderr == ""
+
+
+def test_hook_subprocess_no_settings(tmp_path):
+    """Full subprocess test: no settings.json means fall through."""
+    code, stderr = _run_hook("curl http://example.com", cwd=str(tmp_path))
+    assert code == 0
+    assert stderr == ""

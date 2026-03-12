@@ -8,6 +8,7 @@ Provides common functions used across multiple hook scripts:
 """
 
 import json
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -182,3 +183,20 @@ def find_state_files(root, branch):
             continue
 
     return results
+
+
+def permission_to_regex(perm):
+    """Convert a Bash(pattern) permission to a compiled regex.
+
+    Bash(git push) -> ^git push$
+    Bash(git push *) -> ^git push .*$
+    Bash(bin/ci;*) -> ^bin/ci;.*$
+
+    Returns None for non-Bash entries.
+    """
+    match = re.match(r"Bash\((.+)\)", perm)
+    if not match:
+        return None
+    pattern = match.group(1)
+    escaped = re.escape(pattern).replace(r"\*", ".*")
+    return re.compile("^" + escaped + "$")

@@ -10,6 +10,7 @@ import json
 import re
 
 from conftest import LIB_DIR, REPO_ROOT, SKILLS_DIR
+from flow_utils import permission_to_regex as _permission_to_regex_impl
 
 MAINTAINER_SKILLS_DIR = REPO_ROOT / ".claude" / "skills"
 SETTINGS_JSON = REPO_ROOT / ".claude" / "settings.json"
@@ -105,20 +106,8 @@ def _concrete_example(perm):
 
 
 def _permission_to_regex(perm):
-    """Convert a Bash(pattern) permission to a regex.
-
-    Bash(git push) -> ^git push$
-    Bash(git push *) -> ^git push .*$
-    Bash(bin/ci;*) -> ^bin/ci;.*$
-    """
-    # Extract the pattern inside Bash(...)
-    match = re.match(r"Bash\((.+)\)", perm)
-    if not match:
-        return None
-    pattern = match.group(1)
-    # Escape regex-special chars except *, then replace * with .*
-    escaped = re.escape(pattern).replace(r"\*", ".*")
-    return re.compile("^" + escaped + "$")
+    """Delegate to shared implementation in flow_utils."""
+    return _permission_to_regex_impl(perm)
 
 
 # Auto-allowed commands that Claude Code never prompts for (read-only)

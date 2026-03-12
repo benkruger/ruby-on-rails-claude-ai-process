@@ -36,7 +36,7 @@ the fix.
 ## Rules
 
 - Use Read, Glob, and Grep tools for all file reading and searching
-- Only use Bash for `bin/flow ci` and `git add`
+- Only use Bash for `bin/flow ci`, `git add`, and direct tool invocations (e.g. `rubocop -A`)
 - Never use `cd <path> && git` — use `git -C <path>` if needed
 - Never use piped commands (|) — use separate Bash calls
 - Never use cat, head, tail, grep, rg, find, or ls via Bash

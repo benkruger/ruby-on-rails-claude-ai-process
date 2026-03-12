@@ -1,5 +1,20 @@
 # Release Notes
 
+## v0.28.10 — Safety and permission fixes
+
+- **Block git restore .** — PreToolUse hook now blocks blanket `git restore .`
+  to prevent silent loss of uncommitted changes. Code Review skill updated to
+  use per-file restores instead.
+- **Restore Read(/tmp/*.txt) permission** — recovered permission entry that was
+  accidentally lost during a Complete phase cleanup.
+- **Checksum → version invariant** — structural test enforcing that config_hash
+  changes require version bumps. ci-fixer now uses `rubocop -A` for RuboCop
+  violations.
+- **Issue filing improvements** — `bin/flow issue` and `bin/flow add-issue`
+  for tracking issues filed during Learn and Code Review phases.
+- **Settings.json runtime whitelist** — PreToolUse hook enforces the allow list
+  as a whitelist, blocking commands not matching any pattern.
+
 ## v0.29.0 — Issue-driven autonomous workflow
 
 Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous cycle unbroken. Five issue types filed across three phases, all tracked in the state file and surfaced at Complete.

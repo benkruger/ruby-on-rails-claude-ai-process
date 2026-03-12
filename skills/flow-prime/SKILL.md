@@ -233,7 +233,8 @@ All permissions (universal + all framework sets) for reference:
       "Bash(claude plugin install *)",
       "Bash(gh issue list *)",
       "Bash(gh issue view *)",
-      "Read(~/.claude/rules/*)"
+      "Read(~/.claude/rules/*)",
+      "Read(/tmp/*.txt)"
     ],
     "deny": [
       "Bash(git rebase *)",

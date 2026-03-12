@@ -53,6 +53,7 @@
       "Bash(gh pr:*)",
       "Skill(code-review:code-review)",
       "Read(~/.claude/rules/*)",
+      "Read(/tmp/*.txt)",
       "Bash(gh issue view *)",
       "Bash(git status)",
       "Bash(git diff)",

@@ -55,6 +55,7 @@ UNIVERSAL_ALLOW = [
     "Bash(gh issue list *)",
     "Bash(gh issue view *)",
     "Read(~/.claude/rules/*)",
+    "Read(/tmp/*.txt)",
 ]
 
 FLOW_DENY = [

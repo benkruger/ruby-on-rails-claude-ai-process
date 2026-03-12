@@ -244,6 +244,24 @@ bin/flow update-pr-body --pr <pr_number> --append-section --heading "Session Log
 
 If any file does not exist, skip that step — do not fail.
 
+**Issues Filed:** Read the state file and check for an `issues_filed`
+array. If it exists and is non-empty, format a markdown table and append
+it to the PR body:
+
+| Label | Title | Phase | URL |
+|-------|-------|-------|-----|
+| Rule | Add rule: check eager-loaded associations | Learn | #44 |
+| Flaky Test | test_worker_timeout intermittent failure | Code | #45 |
+
+Write the table to `<project_root>/.flow-states/<branch>-issues.md`,
+then append it:
+
+```bash
+bin/flow update-pr-body --pr <pr_number> --append-section --heading "Issues Filed" --content-file <project_root>/.flow-states/<branch>-issues.md --no-collapse
+```
+
+If `issues_filed` is empty or absent, skip this step.
+
 ### Step 7 — Merge PR
 
 Merge the PR via squash merge:
@@ -311,9 +329,13 @@ Output the following banner in your response (not via Bash) inside a fenced code
   FLOW v0.28.9 — Phase 6: Complete — COMPLETE (<formatted_time>)
   Feature '<feature>' is fully done.
   Worktree removed, state file and log deleted.
+  Issues filed: N (Rule: X, Flow: Y, ...)
 ============================================
 ```
 ````
+
+Only include the "Issues filed" line if `issues_filed` is non-empty.
+Group the count by label (e.g. `Issues filed: 3 (Rule: 1, Flaky Test: 2)`).
 
 ## Rules
 

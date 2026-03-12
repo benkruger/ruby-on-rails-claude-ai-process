@@ -1,6 +1,6 @@
 ---
 name: flow-learn
-description: "Phase 5: Learn — review what went wrong, capture learnings, route each to its correct permanent home. Runs before the PR is merged. The only commits are CLAUDE.md and .claude/ changes."
+description: "Phase 5: Learn — review what went wrong, capture learnings, route to CLAUDE.md or file issues. CLAUDE.md edits committed directly; rules filed as Rule issues to avoid permission prompts."
 model: sonnet
 ---
 
@@ -51,7 +51,7 @@ Compute `<worktree_path>` for repo-destination edits:
   state file's `worktree` field, e.g. `<project_root>/.worktrees/<branch>`)
 - **Maintainer / Standalone:** `<worktree_path>` = `<project_root>` (no worktree)
 
-Use `<worktree_path>` for all repo file edits (destinations 1 and 2).
+Use `<worktree_path>` for CLAUDE.md edits.
 Use `<project_root>` for `.flow-states/` paths only.
 
 ## Mode Resolution
@@ -192,49 +192,33 @@ they are process changes.
 This step is fully autonomous — decide destinations and apply all changes
 without asking the user.
 
-### The 2 destinations
+### Destinations and routing
 
-| # | Name | Path | Write method |
-|---|------|------|-------------|
-| 1 | Project CLAUDE.md | `CLAUDE.md` in project | Edit on disk |
-| 2 | Project rules | `.claude/rules/<topic>.md` in project | Edit on disk |
-
-Both destinations are repo-local — committed in Step 5 if applicable.
-
-### Routing heuristics
-
-| Learning type | Destination | Example |
+| Learning type | Destination | Method |
 |---|---|---|
-| Process rule or architecture | 1 — Project CLAUDE.md | "Always run CI before committing" |
-| Coding anti-pattern or gotcha | 2 — Project rules | "Use git -C not cd && git" |
+| Process rule or architecture | Project CLAUDE.md (`CLAUDE.md`) | Edit on disk |
+| Coding anti-pattern or gotcha | `.claude/rules/<topic>.md` | File a "Rule" issue |
 
-### Writing rules for CLAUDE.md and rules files
+CLAUDE.md edits are direct — committed in Step 5.
+
+Rules edits are deferred — filed as GitHub issues with all context needed
+for a future session to apply them.
+
+### Writing rules
 
 - Write for Claude, not for humans — the audience is a future Claude session
 - Be direct, specific, and actionable — describe the exact situation and the
   exact required behavior
 - One to three sentences maximum
 - Generic and reusable — not tied to the specific feature or session
-- Placed in the correct section of the target file
 
-### Apply changes
+### Apply CLAUDE.md changes
 
-For each item in "Missing rules":
-1. Select a destination using the routing heuristics table
-2. Compose a learning entry following the writing rules above
-3. Read the target file, apply the addition. Do not duplicate existing content.
+For each item routed to CLAUDE.md (process rules, architecture):
 
-For each item in "Process violations":
-1. Evaluate whether the existing rule's language was clear enough
-2. If the violation happened because the rule was ambiguous or easy to
-   overlook, reword the rule at its current destination
-3. Read the target file, apply the rewording. Do not duplicate existing content.
-
-For each repo destination with changes:
-1. Read the target file in the worktree using `<worktree_path>`:
-   - Destination 1: `<worktree_path>/CLAUDE.md`
-   - Destination 2: `<worktree_path>/.claude/rules/<topic>.md`
-2. Apply all additions and rewordings for that destination
+1. Compose a learning entry following the writing rules above
+2. Read `<worktree_path>/CLAUDE.md`, apply the addition or rewording
+3. Do not duplicate existing content
 
 ### Handling denied edits
 
@@ -242,6 +226,35 @@ If the user denies an Edit tool call, treat it as "skip this learning"
 — not "stop everything." Record which destination was skipped and
 continue with the remaining learnings. A denied edit does not block
 subsequent destinations, steps, or the phase completion.
+
+### File Rule issues
+
+For each item routed to `.claude/rules/` (coding anti-patterns, gotchas):
+
+1. Compose the rule text following the writing rules above
+2. Determine the target file (`.claude/rules/<topic>.md`) and whether
+   it is a new rule or an update to an existing rule
+3. File a GitHub issue on the target project and record it
+
+File the issue:
+
+```bash
+bin/flow issue --label "Rule" --title "<issue_title>" --body "<issue_body>"
+```
+
+The issue body must contain the full rule text, the target file path
+(e.g. `.claude/rules/testing-gotchas.md`), whether this is a new rule
+or an update, and the section to place it in (if updating an existing
+file).
+
+Parse the JSON output. If `"status": "ok"`, record the issue:
+
+```bash
+bin/flow add-issue --label "Rule" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
+```
+
+If `bin/flow issue` fails, note the failure and continue with
+remaining items.
 
 ---
 
@@ -327,10 +340,12 @@ the Skill tool as your final action. If commit=auto was resolved, pass
 
 Skip for Maintainer and Standalone.
 
+### Process gap issues
+
 For each item in "Process gaps", file a GitHub issue on the plugin repo:
 
 ```bash
-bin/flow issue --repo benkruger/flow --label learning --title "<issue_title>" --body "<issue_body>"
+bin/flow issue --repo benkruger/flow --label "Flow" --title "<issue_title>" --body "<issue_body>"
 ```
 
 The issue title should be a concise description of the process gap. The
@@ -338,7 +353,31 @@ issue body should describe the gap generically — no user project details,
 no feature-specific context. Focus on what the FLOW process should do
 differently.
 
-If there are no process gap items, skip this step.
+After each successful issue, record it:
+
+```bash
+bin/flow add-issue --label "Flow" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
+```
+
+### Documentation drift issues
+
+For each item where documentation is out of sync with actual behavior
+(discovered during Step 2 synthesis), file an issue on the target project:
+
+```bash
+bin/flow issue --label "Documentation Drift" --title "<issue_title>" --body "<issue_body>"
+```
+
+The issue body should describe what is stale and what the current
+behavior actually is.
+
+After each successful issue, record it:
+
+```bash
+bin/flow add-issue --label "Documentation Drift" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
+```
+
+If there are no process gap or documentation drift items, skip this step.
 
 ---
 
@@ -380,24 +419,27 @@ Present the full report to the user:
   Changes applied
   ---------------
   Project CLAUDE.md: 2 additions (committed)
-  Project rules (.claude/rules/testing.md): 1 addition (committed)
 
   Issues filed
   ------------
-  #42: Commit skill should warn when branch is behind
-  #43: Plan skill should prompt for queue awareness
+  [Rule] #44: Add rule — check eager-loaded associations
+  [Flow] #42: Commit skill should warn when branch is behind
+  [Documentation Drift] #45: README still references old auth flow
 
 ============================================
 ```
 ````
 
-Omit "Changes applied" if no changes were made. Omit "Issues filed" if
-no issues were filed or not in Phase 5 mode.
+Omit "Changes applied" if no CLAUDE.md changes were made. Omit "Issues
+filed" if no issues were filed or not in Phase 5 mode.
 
 In the "Changes applied" section, show "(committed)" or "(uncommitted)"
 next to each file to indicate whether Step 5 committed it. Show
 "(skipped — user denied)" next to any destination where the user denied
 the Edit tool call during Step 3.
+
+In the "Issues filed" section, prefix each issue with its label in
+brackets (e.g. `[Rule]`, `[Flow]`, `[Documentation Drift]`).
 
 ---
 
@@ -481,9 +523,11 @@ No phase transition, no transition question.
 - Decisions on destinations and wording are autonomous — do not ask the user for approval mid-process
 - If the user denies an Edit tool call during Step 3, skip that learning and continue — a denied edit means "skip this one," not "stop the phase"
 - The report in Step 7 is the user's review point — make it comprehensive
-- All learnings are written to repo files (`CLAUDE.md`, `.claude/rules/`) and committed via `/flow:flow-commit --auto` (Phase 5 and Maintainer)
-- Plugin improvement notes are filed as GitHub issues on the plugin repo — never committed to the target project
-- Only CLAUDE.md and `.claude/` files are modified — never application code
+- CLAUDE.md learnings are edited on disk and committed via `/flow:flow-commit --auto` (Phase 5 and Maintainer)
+- Rules learnings (`.claude/rules/`) are filed as GitHub issues with label "Rule" — never edited directly, to avoid permission prompts
+- Plugin process gaps are filed as GitHub issues on the plugin repo with label "Flow"
+- Documentation drift is filed as GitHub issues on the target project with label "Documentation Drift"
+- Only CLAUDE.md and `.claude/settings.json` files are modified on disk — never application code or `.claude/rules/`
 - Never use Bash to print banners — output them as text in your response
 - Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep
 - Never use `cd <path> && git` — use `git -C <path>` for git commands in other directories

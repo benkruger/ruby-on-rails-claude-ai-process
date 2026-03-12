@@ -1117,20 +1117,113 @@ def test_learning_has_no_private_destination_paths():
 
 
 def test_learning_destinations_are_repo_only():
-    """Learn skill must define exactly 2 repo-local destinations.
+    """Learn skill must define repo-local destinations with correct routing.
 
-    Destinations are Project CLAUDE.md and project rules. Both are
-    committed to the repo via flow-commit."""
+    CLAUDE.md edits are direct (on disk). Rules edits are filed as issues."""
     content = _read_skill("flow-learn")
-    assert "2 destinations" in content.lower(), (
-        "Learn skill must reference '2 destinations' (repo-local only)"
+    assert "Destinations and routing" in content, (
+        "Learn skill must have a 'Destinations and routing' section"
     )
     assert "Project CLAUDE.md" in content, (
         "Learn skill must include 'Project CLAUDE.md' as a destination"
     )
-    assert "Project rules" in content, (
-        "Learn skill must include 'Project rules' as a destination"
+    assert "Edit on disk" in content, (
+        "Learn skill must route CLAUDE.md edits to disk"
     )
+    assert "Rule" in content, (
+        "Learn skill must route .claude/rules/ changes as Rule issues"
+    )
+
+
+def test_learning_files_rule_issues():
+    """Learn skill must file Rule issues for .claude/rules/ learnings."""
+    content = _read_skill("flow-learn")
+    # Step 3 must instruct filing issues with --label containing "Rule"
+    step3_match = re.search(
+        r"## Step 3.*?\n(.*?)(?:\n## Step 4|\n---)", content, re.DOTALL
+    )
+    assert step3_match, "Learn skill has no Step 3 section"
+    step3_text = step3_match.group(1)
+    assert '--label' in step3_text and 'Rule' in step3_text, (
+        "Learn Step 3 must instruct filing issues with label 'Rule'"
+    )
+    assert "bin/flow issue" in step3_text, (
+        "Learn Step 3 must use 'bin/flow issue' to file Rule issues"
+    )
+
+
+def test_learning_files_flow_issues_not_learning():
+    """Learn Step 6 must use label 'Flow', not 'learning'."""
+    content = _read_skill("flow-learn")
+    # Step 6 section
+    step6_match = re.search(
+        r"## Step 6.*?\n(.*?)(?:\n## Step 7|\n---)", content, re.DOTALL
+    )
+    assert step6_match, "Learn skill has no Step 6 section"
+    step6_text = step6_match.group(1)
+    assert "--label" in step6_text, (
+        "Learn Step 6 must specify a --label for issue filing"
+    )
+    assert "Flow" in step6_text, (
+        "Learn Step 6 must use label 'Flow' for process gap issues"
+    )
+    assert 'learning' not in step6_text.split("--label")[1].split("\n")[0].lower(), (
+        "Learn Step 6 must not use label 'learning' — use 'Flow' instead"
+    )
+
+
+def test_code_files_flaky_test_issues():
+    """Code skill CI Gate must file Flaky Test issues for intermittent failures."""
+    content = _read_skill("flow-code")
+    # CI Gate section must mention flaky test detection
+    ci_gate_match = re.search(
+        r"### bin/flow ci Gate.*?\n(.*?)(?:\n### Commit|\n---)",
+        content,
+        re.DOTALL,
+    )
+    assert ci_gate_match, "Code skill has no 'bin/flow ci Gate' section"
+    ci_gate_text = ci_gate_match.group(1)
+    assert "Flaky Test" in ci_gate_text, (
+        "Code CI Gate must detect and file 'Flaky Test' issues"
+    )
+    assert "bin/flow issue" in ci_gate_text, (
+        "Code CI Gate must use 'bin/flow issue' to file flaky test issues"
+    )
+
+
+def test_code_review_files_tech_debt_issues():
+    """Code Review skill must file Tech Debt issues for out-of-scope findings."""
+    content = _read_skill("flow-code-review")
+    assert "Tech Debt" in content, (
+        "Code Review skill must mention 'Tech Debt' for out-of-scope findings"
+    )
+    assert "bin/flow issue" in content, (
+        "Code Review skill must use 'bin/flow issue' to file issues"
+    )
+
+
+def test_code_review_files_doc_drift_issues():
+    """Code Review skill must file Documentation Drift issues for stale docs."""
+    content = _read_skill("flow-code-review")
+    assert "Documentation Drift" in content, (
+        "Code Review skill must mention 'Documentation Drift' for stale docs"
+    )
+
+
+def test_skills_record_issues_via_add_issue():
+    """Every skill that calls bin/flow issue must also call bin/flow add-issue."""
+    skills_with_issues = []
+    for skill_path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        content = skill_path.read_text()
+        if "bin/flow issue" in content:
+            skills_with_issues.append(skill_path)
+    assert skills_with_issues, "No skills call bin/flow issue — test is misconfigured"
+    for skill_path in skills_with_issues:
+        content = skill_path.read_text()
+        assert "bin/flow add-issue" in content, (
+            f"{skill_path.parent.name}/SKILL.md calls bin/flow issue but "
+            f"never calls bin/flow add-issue to record it"
+        )
 
 
 def test_generic_skills_have_no_framework_conditionals():

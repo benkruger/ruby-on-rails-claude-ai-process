@@ -128,6 +128,7 @@ def make_state(current_phase="flow-start", phase_statuses=None, framework="rails
         "notes": [],
         "prompt": "test feature",
         "phases": phases,
+        "issues_filed": [],
     }
     return state
 

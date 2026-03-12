@@ -244,6 +244,21 @@ bin/flow update-pr-body --pr <pr_number> --append-section --heading "Session Log
 
 If any file does not exist, skip that step — do not fail.
 
+**Issues Filed:** Format the issues summary:
+
+```bash
+bin/flow format-issues-summary --state-file <project_root>/.flow-states/<branch>.json --output <project_root>/.flow-states/<branch>-issues.md
+```
+
+Parse the JSON output. If `has_issues` is `false`, skip the PR body append.
+If `has_issues` is `true`, append the table to the PR body:
+
+```bash
+bin/flow update-pr-body --pr <pr_number> --append-section --heading "Issues Filed" --content-file <project_root>/.flow-states/<branch>-issues.md --no-collapse
+```
+
+Keep the `banner_line` from the JSON output — use it in the Done banner below.
+
 ### Step 7 — Merge PR
 
 Merge the PR via squash merge:
@@ -311,9 +326,14 @@ Output the following banner in your response (not via Bash) inside a fenced code
   FLOW v0.28.9 — Phase 6: Complete — COMPLETE (<formatted_time>)
   Feature '<feature>' is fully done.
   Worktree removed, state file and log deleted.
+  <banner_line>
 ============================================
 ```
 ````
+
+Only include the `<banner_line>` line if `has_issues` was `true` in the
+`format-issues-summary` output from Step 6. Use the `banner_line` value
+exactly as returned — do not recompute it.
 
 ## Rules
 

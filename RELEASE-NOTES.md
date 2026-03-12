@@ -1,5 +1,12 @@
 # Release Notes
 
+## v0.28.9 — Runtime whitelist enforcement
+
+- PreToolUse hook now enforces .claude/settings.json allow list as a whitelist — commands not matching any Bash(...) pattern are blocked with exit 2
+- Extracted permission_to_regex() into flow_utils.py for shared use between hook and tests
+- Added read-only git patterns (status, diff, log, branch) and cd to prime allow list
+- Simplified bin/ permissions: bin/ci + bin/dependencies + bin/test replaced with bin/* glob
+
 ## v0.28.8 — Bug fixes for session log artifact, Plan autonomy, and issue closing
 
 ### Fixes

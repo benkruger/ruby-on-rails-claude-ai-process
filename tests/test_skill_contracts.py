@@ -1210,6 +1210,22 @@ def test_code_review_files_doc_drift_issues():
     )
 
 
+def test_skills_record_issues_via_add_issue():
+    """Every skill that calls bin/flow issue must also call bin/flow add-issue."""
+    skills_with_issues = []
+    for skill_path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        content = skill_path.read_text()
+        if "bin/flow issue" in content:
+            skills_with_issues.append(skill_path)
+    assert skills_with_issues, "No skills call bin/flow issue — test is misconfigured"
+    for skill_path in skills_with_issues:
+        content = skill_path.read_text()
+        assert "bin/flow add-issue" in content, (
+            f"{skill_path.parent.name}/SKILL.md calls bin/flow issue but "
+            f"never calls bin/flow add-issue to record it"
+        )
+
+
 def test_generic_skills_have_no_framework_conditionals():
     """Skills that were made generic must not contain framework conditionals.
 

@@ -24,8 +24,8 @@ former Research, Design, and Plan phases with a single integrated phase.
 3. In plan mode: explores the codebase, identifies risks, designs the
    approach, and writes the plan to a plan file
 4. User iterates directly with the plan via plan mode's revision loop
-5. Stores the plan file path in the state file, adds the session log artifact
-   to the PR (when transcript path is available), then calls `ExitPlanMode`
+5. Stores the plan file path in the state file, adds the plan file artifact
+   to the PR, then calls `ExitPlanMode`
 6. Completes the phase and transitions to Code
 
 ---

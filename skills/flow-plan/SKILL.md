@@ -179,16 +179,7 @@ bin/flow set-timestamp --set plan_file=<plan_file_path>
 Replace `<plan_file_path>` with the actual path to the plan file that
 was written during plan mode.
 
-Then re-read `<project_root>/.flow-states/<branch>.json` to get the current
-`transcript_path` (the Stop hook may have written it after the gate read).
-
-If `transcript_path` is not null, add both artifacts in one command:
-
-```bash
-bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Plan file" --value <plan_file_path> --label "Session log" --value <transcript_path>
-```
-
-If `transcript_path` is null, add just the plan file:
+Add the plan file artifact to the PR:
 
 ```bash
 bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Plan file" --value <plan_file_path>

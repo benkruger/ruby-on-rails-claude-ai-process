@@ -206,6 +206,15 @@ If no warnings:
 Archive key artifacts to the PR body before merging. These files are
 deleted during cleanup, so this is the last chance to preserve them.
 
+**Session log artifact:** If `transcript_path` from the state file is
+not null, add a session log link to the PR artifacts:
+
+```bash
+bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Session log" --value <transcript_path>
+```
+
+If `transcript_path` is null, skip this command.
+
 **Phase Timings:** Generate the phase timings table and append it to
 the PR body as a non-collapsible section:
 

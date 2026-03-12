@@ -1856,3 +1856,26 @@ def test_learn_steps_record_completion():
         assert f"learn_step={step_num}" in step_text, (
             f"Step {step_num} must contain 'learn_step={step_num}' marker"
         )
+
+
+def test_plan_skill_does_not_reference_transcript_path():
+    """Plan must not contain transcript_path — session log artifact lives in Complete."""
+    content = _read_skill("flow-plan")
+    assert "transcript_path" not in content, (
+        "flow-plan/SKILL.md must not reference transcript_path. "
+        "The session log artifact belongs in flow-complete Step 6."
+    )
+
+
+def test_complete_skill_has_session_log_artifact():
+    """Complete Step 6 must add the session log artifact to the PR."""
+    content = _read_skill("flow-complete")
+    assert "--add-artifact" in content, (
+        "flow-complete/SKILL.md must contain --add-artifact for the session log"
+    )
+    assert "Session log" in content, (
+        "flow-complete/SKILL.md must contain 'Session log' label"
+    )
+    assert "transcript_path" in content, (
+        "flow-complete/SKILL.md must reference transcript_path"
+    )

@@ -25,8 +25,8 @@ confirmation before the irreversible merge.
 3. Merges `origin/main` into the feature branch, resolving any conflicts
 4. Checks CI status — waits for checks to pass (suggests `/loop` for pending)
 5. Confirms with the user (only when `--manual` is passed)
-6. Archives artifacts to the PR body: phase timings table (non-collapsible),
-   state file, and session log
+6. Archives artifacts to the PR body: session log link (from transcript path),
+   phase timings table (non-collapsible), state file, and session log dump
 7. Squash-merges the PR via `gh pr merge --squash`
 8. Closes any GitHub issues referenced in the start prompt (`#N` patterns)
 9. Runs the cleanup process: remove worktree, delete branches, delete state file, log, and CI sentinel

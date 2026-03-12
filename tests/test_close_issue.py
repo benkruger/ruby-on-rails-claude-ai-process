@@ -1,8 +1,10 @@
 """Tests for lib/close-issue.py — close a single GitHub issue."""
 
+import io
 import json
 import subprocess
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -166,9 +168,6 @@ def test_cli_closes_issue_with_number_and_repo():
             args=args, returncode=1, stdout="", stderr="Unknown command",
         )
 
-    import io
-    from contextlib import redirect_stdout
-
     with patch.object(_mod, "subprocess") as mock_subprocess:
         with patch.object(sys, "argv", ["close-issue.py", "--number", "117", "--repo", "benkruger/flow"]):
             mock_subprocess.run = mock_run
@@ -207,9 +206,6 @@ def test_cli_auto_detects_repo():
             args=args, returncode=0, stdout="", stderr="",
         )
 
-    import io
-    from contextlib import redirect_stdout
-
     with patch.object(_mod, "subprocess") as mock_subprocess:
         with patch.object(sys, "argv", ["close-issue.py", "--number", "117"]):
             mock_subprocess.run = mock_run
@@ -233,9 +229,6 @@ def test_cli_error_when_detection_fails():
             args=args, returncode=1, stdout="", stderr="No such remote",
         )
 
-    import io
-    from contextlib import redirect_stdout
-
     with patch.object(_mod, "subprocess") as mock_subprocess:
         with patch.object(sys, "argv", ["close-issue.py", "--number", "117"]):
             mock_subprocess.run = mock_run
@@ -256,9 +249,6 @@ def test_cli_error_from_gh_issue_close():
         return subprocess.CompletedProcess(
             args=args, returncode=1, stdout="", stderr="Issue 999 not found",
         )
-
-    import io
-    from contextlib import redirect_stdout
 
     with patch.object(_mod, "subprocess") as mock_subprocess:
         with patch.object(sys, "argv", ["close-issue.py", "--number", "999", "--repo", "benkruger/flow"]):

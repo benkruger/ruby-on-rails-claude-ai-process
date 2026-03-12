@@ -22,40 +22,24 @@ import sys
 def detect_repo_or_fail():
     """Auto-detect GitHub repo from git remote origin URL.
 
-    Returns 'owner/repo' string or exits with error.
+    Returns 'owner/repo' string or exits with error JSON.
     """
+    error_message = "Could not detect repo from git remote. Use --repo owner/name."
     try:
         result = subprocess.run(
             ["git", "remote", "get-url", "origin"],
             capture_output=True, text=True,
         )
-        if result.returncode != 0:
-            print(json.dumps({
-                "status": "error",
-                "message": "Could not detect repo from git remote. Use --repo owner/name.",
-            }))
-            sys.exit(1)
-        url = result.stdout.strip()
-        if not url:
-            print(json.dumps({
-                "status": "error",
-                "message": "Could not detect repo from git remote. Use --repo owner/name.",
-            }))
-            sys.exit(1)
-        match = re.search(r"github\.com[:/]([^/]+/[^/]+?)(?:\.git)?$", url)
-        if match:
-            return match.group(1)
-        print(json.dumps({
-            "status": "error",
-            "message": "Could not detect repo from git remote. Use --repo owner/name.",
-        }))
-        sys.exit(1)
+        if result.returncode == 0:
+            url = result.stdout.strip()
+            if url:
+                match = re.search(r"github\.com[:/]([^/]+/[^/]+?)(?:\.git)?$", url)
+                if match:
+                    return match.group(1)
     except Exception:
-        print(json.dumps({
-            "status": "error",
-            "message": "Could not detect repo from git remote. Use --repo owner/name.",
-        }))
-        sys.exit(1)
+        pass
+    print(json.dumps({"status": "error", "message": error_message}))
+    sys.exit(1)
 
 
 def close_issue_by_number(repo, number):
@@ -75,7 +59,7 @@ def close_issue_by_number(repo, number):
 def main():
     parser = argparse.ArgumentParser(description="Close a GitHub issue")
     parser.add_argument("--repo", default=None, help="Repository (owner/name)")
-    parser.add_argument("--number", required=True, help="Issue number")
+    parser.add_argument("--number", required=True, type=int, help="Issue number")
     args = parser.parse_args()
 
     repo = args.repo

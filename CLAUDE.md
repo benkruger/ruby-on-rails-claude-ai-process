@@ -142,6 +142,10 @@ Phase skills log completion events to `.flow-states/<branch>.log` using a comman
 
 The version lives in 3 places (across 2 files), all must match: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` (top-level metadata), `.claude-plugin/marketplace.json` (plugins array entry). `test_structural.py` enforces consistency.
 
+### Checksum → Version Invariant
+
+If `config_hash` changes (due to SETUP_EPOCH increment or structural config changes), `flow_version` MUST change. The inverse is not required — `flow_version` may change for bugfixes or features without changing `config_hash`. This invariant ensures projects with structural config changes always see version bumps and trigger re-initialization when needed.
+
 ### State Mutations
 
 Claude never computes timestamps, time differences, or counter increments. All standard state mutations go through `bin/flow` commands: `phase-transition` for entry/completion, `set-timestamp` for mid-phase fields. The plan file lives at `~/.claude/plans/` (Claude Code's native location) and its path is stored in `state["plan_file"]`.

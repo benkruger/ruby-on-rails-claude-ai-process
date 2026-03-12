@@ -1,5 +1,22 @@
 # Release Notes
 
+## v0.28.11 — Fix auto-continue and cleanup artifact bugs
+
+- **Start skill upgraded to sonnet** — haiku lost track of the resolved
+  continue mode after intermediate skill invocations, causing prompts even
+  in auto mode. Sonnet retains state across Skill tool boundaries.
+- **Start Done reordered for auto mode** — checks continue=auto before
+  invoking flow:flow-status, skipping both status display and
+  AskUserQuestion when running autonomously.
+- **Plan completion before ExitPlanMode** — phase-transition complete now
+  runs in Step 3 before ExitPlanMode, so the state is always updated even
+  when ExitPlanMode clears context. Done section is now best-effort.
+- **Session-start hook detects never-entered phases** — when current_phase
+  was advanced but phase-transition enter never ran (status still pending),
+  the hook now triggers auto-continue instead of waiting for user input.
+- **Complete phase cleanup fix** — .flow-states/ timing artifact files no
+  longer left behind after phase completion.
+
 ## v0.28.10 — Safety and permission fixes
 
 - **Block git restore .** — PreToolUse hook now blocks blanket `git restore .`

@@ -165,6 +165,24 @@ def test_validate_allows_empty_command():
     assert allowed is True
 
 
+# --- Blanket restore tests ---
+
+
+def test_validate_blocks_git_restore_dot():
+    mod = _load_module()
+    allowed, message = mod.validate("git restore .")
+    assert allowed is False
+    assert "git restore ." in message
+    assert "individually" in message
+
+
+def test_validate_allows_git_restore_specific_file():
+    mod = _load_module()
+    allowed, message = mod.validate("git restore lib/foo.py")
+    assert allowed is True
+    assert message == ""
+
+
 # --- Whitelist validation tests ---
 
 
@@ -324,6 +342,14 @@ def test_hook_exit_2_for_blocked_pipe():
     code, stderr = _run_hook("git show HEAD:file.py | sed 's/foo/bar/'")
     assert code == 2
     assert "BLOCKED" in stderr
+
+
+def test_hook_exit_2_for_git_restore_dot():
+    """git restore . is blocked by the hook."""
+    code, stderr = _run_hook("git restore .")
+    assert code == 2
+    assert "BLOCKED" in stderr
+    assert "individually" in stderr
 
 
 def test_hook_exit_0_for_invalid_json():

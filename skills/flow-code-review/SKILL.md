@@ -160,11 +160,20 @@ proceed directly to commit. The diff is still shown for visibility.
 run `git diff HEAD` again to show the revised diff. Then ask again:
 "Ready to commit?" with the two options: **Yes, commit** or **No, revert**.
 
-**If "No, revert"**: Run `git restore .` to discard `/simplify`'s changes,
-skip the commit, and proceed to Step 2.
+**If "No, revert"**: Run `git diff --stat` to list changed files, then
+restore each file individually:
 
-**If "Go back to Code"**: Run `git restore .` to discard changes, then
-follow the back-navigation instructions below.
+```bash
+git restore <file>
+```
+
+Repeat for each changed file. Never use `git restore .` — it discards
+all changes without review. After restoring, skip the commit and proceed
+to Step 2.
+
+**If "Go back to Code"**: Restore each changed file individually (same
+process as "No, revert" above), then follow the back-navigation
+instructions below.
 
 **Commit**: Run `bin/flow ci` first. If green, set the continuation flag:
 

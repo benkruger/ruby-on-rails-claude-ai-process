@@ -70,8 +70,16 @@ def validate(command, settings=None):
                 "BLOCKED: Compound commands (&&, ;, |) are not allowed. "
                 "Use separate Bash calls for each command.")
 
+    # Block blanket restore (git restore . wipes all changes without review)
+    stripped = command.strip()
+    if stripped == "git restore .":
+        return (False,
+                "BLOCKED: 'git restore .' discards ALL changes without review. "
+                "Use 'git restore <file>' for each file individually. "
+                "Before restoring, run 'git diff' to capture what will be lost.")
+
     # Block file-read commands
-    first_word = command.strip().split()[0] if command.strip() else ""
+    first_word = stripped.split()[0] if stripped else ""
     if first_word in FILE_READ_COMMANDS:
         return (False,
                 f"BLOCKED: '{first_word}' is not allowed. "

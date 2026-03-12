@@ -56,10 +56,7 @@ Then check `conclusion`:
 
 - `"success"` → proceed
 - `"failure"` or `"cancelled"` → stop: "CI failed on main. Fix tests before releasing."
-- `null` (in_progress/queued) → stop and suggest polling:
-
-> "CI is still running on main. Re-run `/flow-release` when done,
-> or use `/loop 15s /flow-release` to auto-retry."
+- `null` (in_progress/queued) → invoke the `loop` skill via the Skill tool with args `15s /flow-release` and return. The loop will re-invoke the release skill automatically until CI completes.
 
 ## Step 4 — Show what changed since last release
 

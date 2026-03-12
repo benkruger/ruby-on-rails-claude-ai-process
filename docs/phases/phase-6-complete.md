@@ -40,7 +40,7 @@ are merge conflicts, resolve them inline and push the resolution.
 ### 4. Check CI status
 
 Check the PR's CI checks. If all pass, continue to merge. If any are
-pending, stop and suggest `/loop 15s /flow:flow-complete` to auto-retry.
+pending, invoke `/loop 15s /flow:flow-complete` to auto-retry.
 If any have failed, launch the ci-fixer sub-agent to diagnose and fix.
 
 ### 5. Confirm with user (--manual only)

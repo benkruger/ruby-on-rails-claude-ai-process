@@ -160,10 +160,7 @@ Parse the output. Each check has a status: pass, fail, or pending.
 
 **If all checks pass** — continue to Step 5.
 
-**If any check is pending** — stop and suggest polling:
-
-> "CI checks are still running. Re-run `/flow:flow-complete` when done,
-> or use `/loop 15s /flow:flow-complete` to auto-retry."
+**If any check is pending** — invoke the `loop` skill via the Skill tool with args `15s /flow:flow-complete` and return. The loop will re-invoke the complete skill automatically until CI completes.
 
 **If any check has failed** — launch the `ci-fixer` sub-agent to diagnose
 and fix. Use the Agent tool:

@@ -1,5 +1,18 @@
 # Release Notes
 
+## v0.28.12 — System-enforce auto-continue via PreToolUse hook
+
+- **AskUserQuestion hook enforcement** — auto-continue (`continue=auto`) is
+  now enforced by a PreToolUse hook on AskUserQuestion, preventing the model
+  from prompting when autonomous phase transitions are configured. Previously
+  relied on instruction-based enforcement which the model forgot after many
+  tool calls.
+- **State file flag** — `phase_complete()` sets `_auto_continue` in the state
+  file when the current phase has `continue=auto`; `phase_enter()` clears it
+  on next phase entry. Handles both object and flat string skill configs.
+- **Start model reverted to haiku** — the sonnet upgrade in v0.28.11 was a
+  workaround for mode retention, no longer needed with hook enforcement.
+
 ## v0.28.11 — Fix auto-continue and cleanup artifact bugs
 
 - **Start skill upgraded to sonnet** — haiku lost track of the resolved

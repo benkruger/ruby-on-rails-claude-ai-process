@@ -53,7 +53,13 @@
       "Bash(gh pr:*)",
       "Skill(code-review:code-review)",
       "Read(~/.claude/rules/*)",
-      "Bash(gh issue view *)"
+      "Bash(gh issue view *)",
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(git diff *)",
+      "Bash(git branch --show-current)",
+      "Bash(cd *)",
+      "Bash(bin/*)"
     ],
     "deny": [
       "Bash(git rebase *)",

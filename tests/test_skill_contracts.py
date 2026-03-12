@@ -1160,13 +1160,13 @@ def test_generic_skills_have_no_framework_conditionals():
 # --- Configurable auto/manual mode ---
 
 CONFIGURABLE_SKILLS = [
-    "flow-start", "flow-code", "flow-code-review",
+    "flow-start", "flow-plan", "flow-code", "flow-code-review",
     "flow-learn", "flow-abort", "flow-complete",
 ]
 
 
 def test_configurable_skills_support_both_flags():
-    """All 6 configurable skills must mention --auto and --manual in Usage."""
+    """All 7 configurable skills must mention --auto and --manual in Usage."""
     for name in CONFIGURABLE_SKILLS:
         content = _read_skill(name)
         assert "--auto" in content, (
@@ -1178,7 +1178,7 @@ def test_configurable_skills_support_both_flags():
 
 
 def test_configurable_skills_have_mode_resolution():
-    """All 6 configurable skills must contain a Mode Resolution section."""
+    """All 7 configurable skills must contain a Mode Resolution section."""
     for name in CONFIGURABLE_SKILLS:
         content = _read_skill(name)
         assert "## Mode Resolution" in content, (
@@ -1187,12 +1187,12 @@ def test_configurable_skills_have_mode_resolution():
 
 
 TWO_AXIS_SKILLS = ["flow-code", "flow-code-review", "flow-learn"]
-CONTINUE_ONLY_SKILLS = ["flow-start"]
+CONTINUE_ONLY_SKILLS = ["flow-start", "flow-plan"]
 UTILITY_SKILLS = ["flow-abort", "flow-complete"]
 
 
 def test_mode_resolution_references_config_source():
-    """All 6 configurable skills Mode Resolution must reference config source."""
+    """All 7 configurable skills Mode Resolution must reference config source."""
     for name in CONFIGURABLE_SKILLS:
         content = _read_skill(name)
         resolution_match = re.search(
@@ -1229,6 +1229,26 @@ def test_mode_resolution_references_config_source():
             assert f"skills.{name}.continue" in resolution_text, (
                 f"skills/{name}/SKILL.md Mode Resolution does not reference "
                 f"'skills.{name}.continue' key"
+            )
+
+
+def test_prime_presets_cover_all_configurable_skills():
+    """Every skill in CONFIGURABLE_SKILLS must appear in all 3 prime presets."""
+    content = _read_skill("flow-prime")
+    # Extract the 3 preset JSON blocks (autonomous, manual, recommended)
+    # They are the first 3 ```json blocks in the file
+    json_blocks = re.findall(r"```json\n(\{.*?\})\n```", content, re.DOTALL)
+    assert len(json_blocks) >= 3, (
+        f"Expected at least 3 JSON blocks in flow-prime SKILL.md, "
+        f"found {len(json_blocks)}"
+    )
+    preset_names = ["fully autonomous", "fully manual", "recommended"]
+    for i, preset_name in enumerate(preset_names):
+        parsed = json.loads(json_blocks[i])
+        for skill in CONFIGURABLE_SKILLS:
+            assert skill in parsed, (
+                f"'{skill}' missing from {preset_name} preset in "
+                f"flow-prime SKILL.md"
             )
 
 

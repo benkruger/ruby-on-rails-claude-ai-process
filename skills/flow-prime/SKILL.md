@@ -72,22 +72,22 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 **Fully autonomous** — all auto:
 
 ```json
-{"flow-start": {"continue": "auto"}, "flow-code": {"commit": "auto", "continue": "auto"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}
+{"flow-start": {"continue": "auto"}, "flow-plan": {"continue": "auto"}, "flow-code": {"commit": "auto", "continue": "auto"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}
 ```
 
 **Fully manual** — all manual:
 
 ```json
-{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "manual", "continue": "manual"}, "flow-learn": {"commit": "manual", "continue": "manual"}, "flow-abort": "manual", "flow-complete": "manual"}
+{"flow-start": {"continue": "manual"}, "flow-plan": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "manual", "continue": "manual"}, "flow-learn": {"commit": "manual", "continue": "manual"}, "flow-abort": "manual", "flow-complete": "manual"}
 ```
 
 **Recommended** — safe defaults for all frameworks:
 
 ```json
-{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}
+{"flow-start": {"continue": "manual"}, "flow-plan": {"continue": "auto"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}
 ```
 
-**Customize** — ask per skill, in this order: start, code, code-review, learn, abort, complete. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
+**Customize** — ask per skill, in this order: start, plan, code, code-review, learn, abort, complete. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
 
 For **code** (commit and continue), ask two AskUserQuestions:
 
@@ -127,6 +127,13 @@ For **start** (continue only), ask one AskUserQuestion:
 >
 > - **Manual (Recommended)** — "Prompt before advancing"
 > - **Auto** — "Auto-advance to next phase"
+
+For **plan** (continue only), ask one AskUserQuestion:
+
+> "Continue mode for /flow:flow-plan? (controls phase advancement to Code)"
+>
+> - **Auto (Recommended)** — "Auto-advance to Code phase"
+> - **Manual** — "Prompt before advancing"
 
 For **abort** and **complete** (single mode), ask one AskUserQuestion each:
 
@@ -271,7 +278,7 @@ from Step 3, and write the file back with the Write tool. The result should
 look like:
 
 ```json
-{"flow_version": "0.16.4", "framework": "python", "config_hash": "2c54c5cd6972", "commit_format": "full", "skills": {"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}}
+{"flow_version": "0.16.4", "framework": "python", "config_hash": "2c54c5cd6972", "commit_format": "full", "skills": {"flow-start": {"continue": "manual"}, "flow-plan": {"continue": "auto"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-code-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-abort": "auto", "flow-complete": "auto"}}
 ```
 
 The `config_hash` field is a 12-character hex digest stored by `prime-setup`. When the plugin version changes, `/flow-start` recomputes the hash and compares against the stored value to decide whether re-prime is needed. If the config hasn't changed, the version is auto-upgraded without re-running `/flow-prime`.
@@ -335,6 +342,7 @@ Display the skills configuration as a pipe-delimited markdown table with exactly
 | Skill     | Commit | Continue |
 |-----------|--------|----------|
 | start       | —      | manual   |
+| plan        | —      | auto     |
 | code        | manual | manual   |
 | code-review | auto   | auto     |
 | learning    | auto   | auto     |

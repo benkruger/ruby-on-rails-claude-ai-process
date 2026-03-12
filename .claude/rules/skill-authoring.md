@@ -111,14 +111,14 @@ mechanically incremented. A skip that pointed to cleanup before the
 insertion should now point to the new step if the new step should also
 run in that path.
 
-## Mode Resolution Source
+## Config Chain Integrity
 
-When a phase skill resolves its continue or commit mode and the state file
-has no entry for that skill in its `skills` key, check `.flow.json` before
-falling back to the built-in default. `.flow.json` is the user's
-configuration — its absence from the state file does not mean manual.
-For example, if the state file has no `flow-plan` key under `skills`, read
-`.flow.json` to find the configured continue mode before defaulting.
+The autonomy config chain is: prime presets → `.flow.json` → state file → skill reads.
+Phase skills must read mode resolution from the state file only — never `.flow.json`.
+When a phase skill's config is missing at runtime, the fix is always at the source
+(add the skill to the prime presets in `flow-prime/SKILL.md`), never at the consumer
+(adding `.flow.json` fallback reads to the skill). Every skill in `CONFIGURABLE_SKILLS`
+(`test_skill_contracts.py`) must have an entry in all 4 prime presets — CI enforces this.
 
 ## Mid-Phase Self-Invocation
 

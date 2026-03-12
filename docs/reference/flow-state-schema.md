@@ -43,6 +43,7 @@ The frozen phases file is a snapshot of `flow-phases.json` taken at start time. 
   "transcript_path": null,
   "skills": {
     "flow-start": {"continue": "manual"},
+    "flow-plan": {"continue": "auto"},
     "flow-code": {"commit": "manual", "continue": "manual"},
     "flow-code-review": {"commit": "auto", "continue": "auto"},
     "flow-learn": {"commit": "auto", "continue": "auto"},

@@ -1,5 +1,14 @@
 # Release Notes
 
+## v0.28.15 — Faster flow-prime setup
+
+### Improvements
+
+- Consolidate flow-prime Steps 4–8 into a single `bin/flow prime-setup` call,
+  reducing tool calls from ~10 to ~6. The script now accepts `--skills-json`
+  and `--commit-format` args to write the complete `.flow.json` in one pass,
+  and calls prime-project and create-dependencies internally.
+
 ## v0.28.14 — Fix ci-fixer commit enforcement and docs accuracy
 
 - Start Phase: ci-fixer fixes on main now use `/flow:flow-commit --auto` with a

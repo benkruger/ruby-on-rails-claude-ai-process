@@ -496,6 +496,7 @@ def test_pre_commit_hook_content(git_repo):
     hook_path = git_repo / ".git" / "hooks" / "pre-commit"
     content = hook_path.read_text()
     assert ".flow-commit-msg" in content
+    assert ".flow-states/" in content
     assert "exit 1" in content
 
 
@@ -509,6 +510,10 @@ def test_pre_commit_hook_idempotent(git_repo):
 
 def test_pre_commit_hook_blocks_direct_commit(git_repo):
     _mod.install_pre_commit_hook(git_repo)
+    # Create active FLOW state file for current branch
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(exist_ok=True)
+    (state_dir / "main.json").write_text("{}")
     (git_repo / "test.txt").write_text("hello")
     subprocess.run(["git", "add", "test.txt"], cwd=git_repo, check=True)
     result = subprocess.run(
@@ -521,11 +526,42 @@ def test_pre_commit_hook_blocks_direct_commit(git_repo):
 
 def test_pre_commit_hook_allows_flow_commit(git_repo):
     _mod.install_pre_commit_hook(git_repo)
+    # Create active FLOW state file for current branch
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(exist_ok=True)
+    (state_dir / "main.json").write_text("{}")
     (git_repo / "test.txt").write_text("hello")
     subprocess.run(["git", "add", "test.txt"], cwd=git_repo, check=True)
     (git_repo / ".flow-commit-msg").write_text("test commit message")
     result = subprocess.run(
         ["git", "commit", "-F", ".flow-commit-msg"],
+        cwd=git_repo, capture_output=True, text=True,
+    )
+    assert result.returncode == 0
+
+
+def test_pre_commit_hook_allows_commit_without_flow_state(git_repo):
+    """No active FLOW feature — direct commits should succeed."""
+    _mod.install_pre_commit_hook(git_repo)
+    (git_repo / "test.txt").write_text("hello")
+    subprocess.run(["git", "add", "test.txt"], cwd=git_repo, check=True)
+    result = subprocess.run(
+        ["git", "commit", "-m", "direct commit"],
+        cwd=git_repo, capture_output=True, text=True,
+    )
+    assert result.returncode == 0
+
+
+def test_pre_commit_hook_allows_commit_on_different_branch(git_repo):
+    """FLOW state exists for another branch — commits on main should succeed."""
+    _mod.install_pre_commit_hook(git_repo)
+    state_dir = git_repo / ".flow-states"
+    state_dir.mkdir(exist_ok=True)
+    (state_dir / "feature-branch.json").write_text("{}")
+    (git_repo / "test.txt").write_text("hello")
+    subprocess.run(["git", "add", "test.txt"], cwd=git_repo, check=True)
+    result = subprocess.run(
+        ["git", "commit", "-m", "direct commit"],
         cwd=git_repo, capture_output=True, text=True,
     )
     assert result.returncode == 0

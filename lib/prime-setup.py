@@ -245,8 +245,10 @@ def update_git_exclude(project_root):
 PRE_COMMIT_HOOK = """\
 #!/usr/bin/env bash
 # .git/hooks/pre-commit — installed by /flow:flow-prime
-if [ ! -f .flow-commit-msg ]; then
-  echo "BLOCKED: Commits must go through /flow:flow-commit."
+# Only enforce when the current branch has an active FLOW feature
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [ -n "$branch" ] && [ -f ".flow-states/${branch}.json" ] && [ ! -f .flow-commit-msg ]; then
+  echo "BLOCKED: FLOW feature in progress on ${branch}. Commits must go through /flow:flow-commit."
   echo "The file .flow-commit-msg was not found — this looks like a direct git commit."
   exit 1
 fi

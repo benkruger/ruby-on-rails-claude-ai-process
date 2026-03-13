@@ -179,7 +179,7 @@ The script handles everything in a single call:
 - Setting `defaultMode` to `acceptEdits` (overrides existing values — FLOW requires this for state file writes without prompts)
 - Writing `.flow.json` with version marker, framework, config hash, skills config, and commit format
 - Adding `.flow-states/`, `.worktrees/`, `.flow.json`, and `bin/dependencies` to `.git/info/exclude`
-- Installing a pre-commit hook at `.git/hooks/pre-commit` that blocks direct `git commit` and requires all commits to go through `/flow:flow-commit`
+- Installing a pre-commit hook at `.git/hooks/pre-commit` that blocks direct `git commit` during active FLOW features and requires commits to go through `/flow:flow-commit`
 - Priming the project CLAUDE.md with framework conventions (if CLAUDE.md exists)
 - Creating `bin/dependencies` from the framework template (skips if already exists)
 

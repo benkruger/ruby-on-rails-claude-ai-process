@@ -1,5 +1,15 @@
 # Release Notes
 
+## v0.28.16 — Scope pre-commit hook to active FLOW features
+
+### Fixes
+
+- Pre-commit hook no longer blocks command-line commits when no FLOW feature is
+  in progress. The hook now checks for a `.flow-states/<branch>.json` state file
+  before blocking — commits outside active FLOW features pass through normally.
+- Fixed test that hardcoded `main` as the branch name, failing on CI where the
+  default branch is `master`.
+
 ## v0.28.15 — Faster flow-prime setup
 
 ### Improvements

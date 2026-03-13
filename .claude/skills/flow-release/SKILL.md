@@ -14,7 +14,7 @@ Print:
 ````markdown
 ```text
 ============================================
-  FLOW v0.28.15 — release — STARTING
+  FLOW v0.28.16 — release — STARTING
 ============================================
 ```
 ````
@@ -206,7 +206,7 @@ Print:
 ````markdown
 ```text
 ============================================
-  FLOW v0.28.15 — release — COMPLETE
+  FLOW v0.28.16 — release — COMPLETE
   Released v<new_version>
   https://github.com/benkruger/flow/releases/tag/v<new_version>
 

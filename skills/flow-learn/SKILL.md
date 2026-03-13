@@ -1,7 +1,6 @@
 ---
 name: flow-learn
 description: "Phase 5: Learn — review what went wrong, capture learnings, route to CLAUDE.md or file issues. CLAUDE.md edits committed directly; rules filed as Rule issues to avoid permission prompts."
-model: sonnet
 ---
 
 # Learn

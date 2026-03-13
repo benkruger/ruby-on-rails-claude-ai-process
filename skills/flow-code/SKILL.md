@@ -1,7 +1,6 @@
 ---
 name: flow-code
 description: "Phase 3: Code — execute plan tasks one at a time with TDD. Review diff before each commit. bin/ci must pass before moving to the next task. Framework architecture standards enforced."
-model: opus
 ---
 
 # FLOW Code — Phase 3: Code

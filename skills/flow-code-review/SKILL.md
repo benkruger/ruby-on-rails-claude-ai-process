@@ -1,7 +1,6 @@
 ---
 name: flow-code-review
 description: "Phase 4: Code Review — four lenses on the same diff: clarity, correctness, safety, and CLAUDE.md compliance. Invokes /simplify, /review, /security-review, and code-review:code-review with a commit after each step."
-model: opus
 ---
 
 # FLOW Code Review — Phase 4: Code Review

@@ -17,7 +17,6 @@ REQUIRED_FEATURES = {
     "Autonomy config": ["autonomy"],
     "Learning system": ["learning system"],
     "Native Claude features": ["plan mode"],
-    "Model selection": ["opus"],
     "Zero dependencies": ["zero dependencies"],
     "Minimal repo artifacts": [".flow-states"],
     "Multi-language": ["rails"],

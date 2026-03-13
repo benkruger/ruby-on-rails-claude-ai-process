@@ -1,7 +1,6 @@
 ---
 name: flow-commit
 description: "Review the full diff, approve or deny, then git add + commit + push. Use at every commit checkpoint in the FLOW workflow."
-model: sonnet
 ---
 
 # Commit

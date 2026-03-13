@@ -1,7 +1,6 @@
 ---
 name: flow-plan
 description: "Phase 2: Plan — explore the codebase, design the approach, and create an implementation plan using Claude Code's native plan mode."
-model: opus
 ---
 
 # FLOW Plan — Phase 2: Plan

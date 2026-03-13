@@ -1,7 +1,6 @@
 ---
 name: flow-config
 description: "Display the current FLOW configuration from .flow.json — version, framework, and per-skill autonomy settings."
-model: haiku
 ---
 
 # FLOW Config — Display Configuration

@@ -1,7 +1,6 @@
 ---
 name: flow-issues
 description: "Fetch open issues, categorize, prioritize, and display a dashboard."
-model: haiku
 ---
 
 # FLOW Issues

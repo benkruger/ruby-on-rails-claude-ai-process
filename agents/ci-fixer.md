@@ -2,7 +2,6 @@
 name: ci-fixer
 description: "Fix CI failures. Use when bin/flow ci or bin/ci fails and needs diagnosis."
 tools: Read, Glob, Grep, Edit, Write, Bash
-model: sonnet
 maxTurns: 20
 hooks:
   PreToolUse:

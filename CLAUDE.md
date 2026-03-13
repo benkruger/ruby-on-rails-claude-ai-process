@@ -22,14 +22,14 @@ In the target project:
 
 ## The 6 Phases
 
-| Phase | Name | Command | Model | Purpose |
-|-------|------|---------|-------|---------|
-| 1 | Start | `/flow:flow-start` | haiku | Create worktree, PR, state file, configure workspace |
-| 2 | Plan | `/flow:flow-plan` | opus | Explore codebase, design approach, create implementation plan |
-| 3 | Code | `/flow:flow-code` | opus | Execute plan tasks one at a time with TDD |
-| 4 | Code Review | `/flow:flow-code-review` | opus | Four lenses: clarity, correctness, safety, CLAUDE.md compliance |
-| 5 | Learn | `/flow:flow-learn` | sonnet | Review mistakes, capture learnings, route to permanent homes |
-| 6 | Complete | `/flow:flow-complete` | haiku | Merge PR, remove worktree, delete state file |
+| Phase | Name | Command | Purpose |
+|-------|------|---------|---------|
+| 1 | Start | `/flow:flow-start` | Create worktree, PR, state file, configure workspace |
+| 2 | Plan | `/flow:flow-plan` | Explore codebase, design approach, create implementation plan |
+| 3 | Code | `/flow:flow-code` | Execute plan tasks one at a time with TDD |
+| 4 | Code Review | `/flow:flow-code-review` | Four lenses: clarity, correctness, safety, CLAUDE.md compliance |
+| 5 | Learn | `/flow:flow-learn` | Review mistakes, capture learnings, route to permanent homes |
+| 6 | Complete | `/flow:flow-complete` | Merge PR, remove worktree, delete state file |
 
 Phase gates are enforced by `lib/check-phase.py` — there is no instruction path to skip a phase. Back-transitions (e.g., Code Review can return to Code or Plan) are defined in `flow-phases.json`.
 
@@ -165,7 +165,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 | Test File | What It Enforces |
 |-----------|------------------|
 | `test_structural.py` | Config invariants: phases 1-6 exist, versions match across 3 locations, commands unique, hooks reference existing files |
-| `test_skill_contracts.py` | SKILL.md content: HARD-GATE presence, announce banners, state updates, ci-fixer agent, model frontmatter, logging sections, note-capture options. Uses glob-based discovery — new skills are automatically covered |
+| `test_skill_contracts.py` | SKILL.md content: HARD-GATE presence, announce banners, state updates, ci-fixer agent, logging sections, note-capture options. Uses glob-based discovery — new skills are automatically covered |
 | `test_add_issue.py` | Issue recording: append to empty/existing array, missing state file, CLI integration |
 | `test_format_issues_summary.py` | Issues summary formatting: empty/missing/single/multiple issues, label grouping, table output, CLI |
 | `test_close_issues.py` | Issue closing: extraction of `#N` patterns from prompt, deduplication, partial failure, CLI integration |

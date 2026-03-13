@@ -37,14 +37,14 @@ Start → Plan → Code → Code Review → Learn → Complete
   1       2      3         4            5          6
 ```
 
-| Phase | Command | Model | What happens |
-|-------|---------|-------|-------------|
-| **1: Start** | `/flow-start <prompt>` | Haiku | New worktree, push branch, open PR, `bin/ci` baseline, upgrade dependencies, `bin/ci` green — Sonnet sub-agent fixes CI failures |
-| **2: Plan** | `/flow-plan` | **Opus** | Reads the start prompt as feature description, enters native plan mode — explore codebase, design approach, produce ordered tasks with risks |
-| **3: Code** | `/flow-code` | **Opus** | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
-| **4: Code Review** | `/flow-code-review` | **Opus** | Four lenses — clarity (`/simplify`), correctness (`/review`), safety (`/security-review`), and CLAUDE.md compliance (`code-review:code-review` plugin) |
-| **5: Learn** | `/flow-learn` | Sonnet | Learnings routed to CLAUDE.md, rules, and memory — plugin gaps noted |
-| **6: Complete** | `/flow-complete` | Haiku | Close issues referenced in prompt, PR merged, worktree removed, state file deleted, feature done |
+| Phase | Command | What happens |
+|-------|---------|-------------|
+| **1: Start** | `/flow-start <prompt>` | New worktree, push branch, open PR, `bin/ci` baseline, upgrade dependencies, `bin/ci` green — sub-agent fixes CI failures |
+| **2: Plan** | `/flow-plan` | Reads the start prompt as feature description, enters native plan mode — explore codebase, design approach, produce ordered tasks with risks |
+| **3: Code** | `/flow-code` | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
+| **4: Code Review** | `/flow-code-review` | Four lenses — clarity (`/simplify`), correctness (`/review`), safety (`/security-review`), and CLAUDE.md compliance (`code-review:code-review` plugin) |
+| **5: Learn** | `/flow-learn` | Learnings routed to CLAUDE.md, rules, and memory — plugin gaps noted |
+| **6: Complete** | `/flow-complete` | Close issues referenced in prompt, PR merged, worktree removed, state file deleted, feature done |
 
 ---
 
@@ -169,21 +169,7 @@ Main conversation          Sub-agent (general-purpose)
       |─── Updates state file
 ```
 
-Phase 1 also uses a **general-purpose Sonnet sub-agent** when `bin/ci` fails — whether from a dirty main branch, dependency upgrade breakage, or flaky tests. The sub-agent diagnoses failures, fixes them, iterates up to 3 times, then reports back. The main Haiku agent handles the mechanical setup at speed.
-
-### Model Recommendations
-
-FLOW automatically selects the right model for each phase — Opus for hard thinking, Sonnet for structured work, Haiku for mechanical steps. Each skill's frontmatter sets the model, so invoking the skill switches automatically.
-
-| Phase | Model | Why |
-|-------|-------|-----|
-| 1: Start | Haiku | Mechanical setup; CI failures delegated to Sonnet sub-agent |
-| 2: Plan | **Opus** | Codebase exploration, architectural judgment, and task planning — bad plans cascade through all later phases |
-| 3: Code | **Opus** | Writing correct code against complex codebase |
-| 4: Code Review | **Opus** | Clarity (`/simplify`), correctness (`/review`), safety (`/security-review`), and CLAUDE.md compliance (`code-review:code-review` plugin) — four review lenses |
-| 5: Learn | Sonnet | Synthesizing learnings into reusable patterns |
-| 6: Complete | Haiku | Merge PR, delete worktree and state file |
-| Commit | Sonnet | Writing clear, well-structured commit messages |
+Phase 1 also uses a **general-purpose sub-agent** when `bin/ci` fails — whether from a dirty main branch, dependency upgrade breakage, or flaky tests. The sub-agent diagnoses failures, fixes them, iterates up to 3 times, then reports back.
 
 ### State File Persistence
 

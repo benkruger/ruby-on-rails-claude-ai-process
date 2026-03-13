@@ -1,7 +1,6 @@
 ---
 name: flow-complete
 description: "Phase 6: Complete — merge the PR, remove the worktree, and delete the state file. Final phase."
-model: haiku
 ---
 
 # FLOW Complete — Phase 6: Complete

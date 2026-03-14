@@ -1,0 +1,7 @@
+{
+  "allow": [
+    "Bash(open *)",
+    "Bash(xcrun *)",
+    "Bash(xcodebuild *)"
+  ]
+}

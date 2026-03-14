@@ -35,7 +35,7 @@ def detect(project_root, frameworks_dir=None):
     detected = []
     for config in configs:
         for glob_pattern in config["detect_globs"]:
-            if (project / glob_pattern).exists():
+            if any(project.glob(glob_pattern)):
                 detected.append({
                     "name": config["name"],
                     "display_name": config["display_name"],
@@ -75,7 +75,7 @@ def main():
     detected = []
     for config in configs:
         for glob_pattern in config["detect_globs"]:
-            if (project / glob_pattern).exists():
+            if any(project.glob(glob_pattern)):
                 detected.append({
                     "name": config["name"],
                     "display_name": config["display_name"],

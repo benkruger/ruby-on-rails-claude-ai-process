@@ -87,7 +87,8 @@ def main():
             "message": (
                 f"FLOW version mismatch: initialized for "
                 f"v{init_data.get('flow_version')}, plugin is "
-                f"v{plugin_version}. Run /flow:flow-prime to upgrade."
+                f"v{plugin_version}. Run /flow:flow-prime --reprime to upgrade "
+                f"(keeps current config), or /flow:flow-prime to reconfigure."
             ),
         }))
         return

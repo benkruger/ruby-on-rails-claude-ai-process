@@ -1000,6 +1000,17 @@ def test_release_default_requires_approval():
     )
 
 
+def test_prime_supports_reprime_flag():
+    """Prime SKILL.md must support --reprime for fast upgrades."""
+    content = _read_skill("flow-prime")
+    assert "--reprime" in content, (
+        "flow-prime/SKILL.md must support --reprime flag"
+    )
+    assert ".flow.json" in content and "Skip" in content, (
+        "flow-prime --reprime must read .flow.json and skip questions"
+    )
+
+
 # --- Framework fragment contracts ---
 
 

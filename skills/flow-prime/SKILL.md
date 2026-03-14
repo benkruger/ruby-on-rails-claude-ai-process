@@ -9,9 +9,12 @@ description: "One-time project setup — configure workspace permissions, git ex
 
 ```text
 /flow:flow-prime
+/flow:flow-prime --reprime
 ```
 
 Run once after installing FLOW, and again after each FLOW upgrade. Configures workspace permissions, git excludes, and writes a version marker so `/flow:flow-start` knows the project is initialized.
+
+`--reprime` skips all questions and reuses the existing `.flow.json` config. Use this for upgrades where you want the same framework, autonomy, and commit format — just new artifacts installed.
 
 ## Announce
 
@@ -24,6 +27,16 @@ At the very start, output the following banner in your response (not via Bash) i
 ============================================
 ```
 ````
+
+## Reprime Check
+
+If `--reprime` was passed:
+
+1. Use the Read tool to read `.flow.json` from the project root.
+   - If the file does not exist, stop with: "No existing config to reprime from. Run `/flow:flow-prime` instead."
+2. Extract `framework`, `skills`, and `commit_format` from the JSON.
+3. Run `claude plugin list` to check plugin state (needed for Step 5).
+4. Skip Steps 1–3 entirely. Jump to Step 4 with the extracted values.
 
 ## Steps
 

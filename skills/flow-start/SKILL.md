@@ -91,7 +91,7 @@ Process the results in this order:
 
 **1a. Version gate (prime-check):**
 
-- If `"status": "error"` — tell the user to run `/flow:flow-prime` and stop. Do not proceed to any further steps.
+- If `"status": "error"` — show the error message from the JSON (it suggests `/flow:flow-prime --reprime` or `/flow:flow-prime`) and stop. Do not proceed to any further steps.
 - If `"status": "ok"` and `"auto_upgraded": true` — show this notice using the `old_version` and `new_version` fields from the JSON, then continue:
 
 ````markdown
@@ -103,7 +103,7 @@ FLOW auto-upgraded from v{old_version} to v{new_version} (config unchanged).
 - If `"status": "ok"` without `auto_upgraded` — proceed silently.
 
 <HARD-GATE>
-Do NOT proceed if version check fails. Tell the user to run `/flow:flow-prime` and stop.
+Do NOT proceed if version check fails. Show the error message and stop.
 </HARD-GATE>
 
 **1b. Upgrade check:**

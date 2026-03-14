@@ -8,9 +8,11 @@ parent: Skills
 
 **Phase:** Any (run once per install/upgrade)
 
-**Usage:** `/flow-prime`
+**Usage:** `/flow-prime` or `/flow-prime --reprime`
 
 One-time project setup. Configures workspace permissions in `.claude/settings.json`, sets up git excludes, and writes a version marker. Run once after installing FLOW and again after each upgrade.
+
+`--reprime` skips all questions and reuses the existing `.flow.json` config — same framework, autonomy, and commit format, just new artifacts installed. Use this for upgrades where your config hasn't changed.
 
 ---
 

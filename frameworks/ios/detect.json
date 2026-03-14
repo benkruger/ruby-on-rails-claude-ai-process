@@ -1,0 +1,5 @@
+{
+  "name": "ios",
+  "display_name": "iOS",
+  "detect_globs": ["*.xcodeproj"]
+}

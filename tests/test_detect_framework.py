@@ -56,6 +56,23 @@ def test_detects_both_when_gemfile_and_pyproject_exist(project):
     assert "python" in names
 
 
+def test_detects_ios_when_xcodeproj_exists(project):
+    project.mkdir()
+    (project / "MyApp.xcodeproj").mkdir()
+    result = _mod.detect(str(project), str(FRAMEWORKS_DIR))
+    names = [f["name"] for f in result]
+    assert "ios" in names
+
+
+def test_detects_ios_with_glob_pattern(project):
+    project.mkdir()
+    (project / "AnotherApp.xcodeproj").mkdir()
+    result = _mod.detect(str(project), str(FRAMEWORKS_DIR))
+    ios = [f for f in result if f["name"] == "ios"]
+    assert len(ios) == 1
+    assert ios[0]["display_name"] == "iOS"
+
+
 def test_detects_nothing_when_no_marker_files(project):
     project.mkdir()
     result = _mod.detect(str(project), str(FRAMEWORKS_DIR))
@@ -76,6 +93,7 @@ def test_lists_available_frameworks(project):
     names = [f["name"] for f in available]
     assert "rails" in names
     assert "python" in names
+    assert "ios" in names
 
 
 def test_frameworks_dir_returns_valid_path():
@@ -97,6 +115,7 @@ def test_available_frameworks_with_default_dir():
     names = [f["name"] for f in available]
     assert "rails" in names
     assert "python" in names
+    assert "ios" in names
 
 
 def test_main_detects_framework(tmp_path, capsys, monkeypatch):

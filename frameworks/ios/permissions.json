@@ -1,0 +1,13 @@
+{
+  "allow": [
+    "Bash(open *)",
+    "Bash(xcrun *)",
+    "Bash(xcodebuild *)"
+  ],
+  "derived_permissions": [
+    {
+      "glob": "*.xcodeproj",
+      "template": "Bash(killall {stem})"
+    }
+  ]
+}

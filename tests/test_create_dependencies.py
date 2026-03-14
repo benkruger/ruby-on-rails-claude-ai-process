@@ -59,6 +59,13 @@ def test_python_template_content(tmp_path):
     assert ".venv/bin/pip" in content
 
 
+def test_ios_template_content(tmp_path):
+    _mod.create(str(tmp_path), "ios", str(FRAMEWORKS_DIR))
+    content = (tmp_path / "bin" / "dependencies").read_text()
+    assert "Package.swift" in content
+    assert "xcodebuild" in content
+
+
 def test_main_success(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(
         sys, "argv",

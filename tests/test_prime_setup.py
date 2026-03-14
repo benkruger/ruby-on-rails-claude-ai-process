@@ -346,6 +346,48 @@ def test_python_framework_excludes_rails_permissions(tmp_path):
         assert entry not in settings["permissions"]["allow"]
 
 
+def test_settings_has_all_allow_entries_ios(tmp_path):
+    _mod.merge_settings(tmp_path, "ios")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    expected = _mod.UNIVERSAL_ALLOW + _load_framework_permissions("ios")
+    for entry in expected:
+        assert entry in settings["permissions"]["allow"]
+
+
+def test_flow_json_includes_framework_ios(tmp_path):
+    _mod.write_version_marker(tmp_path, _mod._plugin_version(), "ios")
+    data = json.loads((tmp_path / ".flow.json").read_text())
+    assert data["framework"] == "ios"
+
+
+def test_ios_framework_excludes_rails_permissions(tmp_path):
+    _mod.merge_settings(tmp_path, "ios")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    for entry in _load_framework_permissions("rails"):
+        assert entry not in settings["permissions"]["allow"]
+
+
+def test_ios_framework_excludes_python_permissions(tmp_path):
+    _mod.merge_settings(tmp_path, "ios")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    for entry in _load_framework_permissions("python"):
+        assert entry not in settings["permissions"]["allow"]
+
+
+def test_rails_framework_excludes_ios_permissions(tmp_path):
+    _mod.merge_settings(tmp_path, "rails")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    for entry in _load_framework_permissions("ios"):
+        assert entry not in settings["permissions"]["allow"]
+
+
+def test_python_framework_excludes_ios_permissions(tmp_path):
+    _mod.merge_settings(tmp_path, "python")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    for entry in _load_framework_permissions("ios"):
+        assert entry not in settings["permissions"]["allow"]
+
+
 def test_framework_output_in_ok_response(git_repo):
     result = _run(git_repo, framework="python")
     assert result.returncode == 0
@@ -572,6 +614,63 @@ def test_pre_commit_hook_allows_flow_commit(git_repo, branch):
         cwd=git_repo, capture_output=True, text=True,
     )
     assert result.returncode == 0
+
+
+# --- Derived permissions ---
+
+
+def test_derive_permissions_ios_xcodeproj(tmp_path):
+    (tmp_path / "MyApp.xcodeproj").mkdir()
+    result = _mod._derive_permissions(tmp_path, "ios")
+    assert "Bash(killall MyApp)" in result
+
+
+def test_derive_permissions_no_xcodeproj(tmp_path):
+    result = _mod._derive_permissions(tmp_path, "ios")
+    assert result == []
+
+
+def test_derive_permissions_rails_has_none(tmp_path):
+    result = _mod._derive_permissions(tmp_path, "rails")
+    assert result == []
+
+
+def test_derive_permissions_unknown_framework(tmp_path):
+    result = _mod._derive_permissions(tmp_path, "nonexistent")
+    assert result == []
+
+
+def test_derived_permissions_merged_into_settings(tmp_path):
+    (tmp_path / "SaltedKitchen.xcodeproj").mkdir()
+    _mod.merge_settings(tmp_path, "ios")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    assert "Bash(killall SaltedKitchen)" in settings["permissions"]["allow"]
+
+
+def test_derived_permissions_no_duplicates(tmp_path):
+    (tmp_path / "SaltedKitchen.xcodeproj").mkdir()
+    _mod.merge_settings(tmp_path, "ios")
+    _mod.merge_settings(tmp_path, "ios")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    allow_list = settings["permissions"]["allow"]
+    assert allow_list.count("Bash(killall SaltedKitchen)") == 1
+
+
+def test_derived_permissions_not_in_config_hash(tmp_path):
+    (tmp_path / "SomeApp.xcodeproj").mkdir()
+    hash_value = _mod.compute_config_hash("ios")
+    assert isinstance(hash_value, str)
+    assert len(hash_value) == 12
+
+
+def test_cli_derives_permissions_from_project(git_repo):
+    (git_repo / "TestApp.xcodeproj").mkdir()
+    result = _run(git_repo, framework="ios")
+    assert result.returncode == 0
+    settings = json.loads(
+        (git_repo / ".claude" / "settings.json").read_text()
+    )
+    assert "Bash(killall TestApp)" in settings["permissions"]["allow"]
 
 
 def test_pre_commit_hook_allows_commit_without_flow_state(git_repo):

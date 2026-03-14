@@ -22,7 +22,7 @@ One-time project setup. Configures workspace permissions in `.claude/settings.js
 2. Asks the user to choose an autonomy level (fully autonomous, fully manual, recommended, or customize per skill)
 3. Asks the user to choose a commit message format (title-only or full)
 4. Runs a single setup script that handles all configuration in one call:
-   - Reads or creates `.claude/settings.json` and merges FLOW allow/deny permissions (universal + framework-specific)
+   - Reads or creates `.claude/settings.json` and merges FLOW allow/deny permissions (universal + framework-specific + derived)
    - Writes `.flow.json` with version, framework, config hash, commit format, and skills configuration
    - Adds `.flow-states/`, `.worktrees/`, `.flow.json`, and `bin/dependencies` to `.git/info/exclude`
    - Installs a pre-commit hook that blocks direct `git commit` during active FLOW features and requires `/flow:flow-commit`
@@ -61,6 +61,14 @@ The chosen configuration is stored in `.flow.json` under a `skills` key:
 Phase skills that commit (Code, Code Review, Learn) have both axes as a nested object. Phase skills that don't commit (Start, Plan) have only the continue axis. Utility skills (Abort, Complete) have a single string value. The `/flow-commit` skill is not configurable — it defaults to auto and can be overridden with `--manual`.
 
 Individual skills can always be overridden at invocation time with `--auto` or `--manual` flags, regardless of the `.flow.json` configuration.
+
+---
+
+## Derived Permissions
+
+Some permissions are project-specific but can be automatically determined from project files. Frameworks can declare `derived_permissions` in `frameworks/<name>/permissions.json` with glob patterns and templates. For example, iOS derives `Bash(killall AppName)` from the `*.xcodeproj` directory name — no user input needed.
+
+Derived permissions are merged into `.claude/settings.json` automatically during setup alongside universal and framework permissions.
 
 ---
 

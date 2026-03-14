@@ -36,7 +36,7 @@ UNIVERSAL_ALLOW = [
     "Bash(gh pr edit *)",
     "Bash(gh pr close *)",
     "Bash(bin/*)",
-    "Bash(rm .flow-commit-*)",
+    "Bash(rm .flow-*)",
     "Bash(rm .claude/settings.local.json)",
     "Bash(*bin/flow *)",
     "Bash(gh pr view *)",
@@ -121,6 +121,29 @@ def compute_setup_hash():
     return hashlib.sha256(content).hexdigest()[:12]
 
 
+def _derive_permissions(project_root, framework):
+    """Resolve derived permissions from frameworks/<name>/permissions.json.
+
+    Reads the optional derived_permissions array. Each entry has a glob
+    pattern and a template with {stem} placeholder. The glob is matched
+    against the project root, and {stem} is replaced with the matched
+    path's stem (filename without extension).
+
+    Returns a list of resolved permission strings.
+    """
+    permissions_path = _frameworks_dir() / framework / "permissions.json"
+    if not permissions_path.exists():
+        return []
+    data = json.loads(permissions_path.read_text())
+    derived = data.get("derived_permissions", [])
+    results = []
+    for entry in derived:
+        for match in sorted(Path(project_root).glob(entry["glob"])):
+            results.append(entry["template"].replace("{stem}", match.stem))
+            break
+    return results
+
+
 def merge_settings(project_root, framework):
     """Merge FLOW permissions into .claude/settings.json. Returns merged dict."""
     settings_dir = project_root / ".claude"
@@ -144,6 +167,12 @@ def merge_settings(project_root, framework):
     for entry in _allow_list(framework):
         if entry not in existing_allow:
             settings["permissions"]["allow"].append(entry)
+
+    # Merge derived permissions (project-specific, from glob detection)
+    for entry in _derive_permissions(project_root, framework):
+        if entry not in existing_allow:
+            settings["permissions"]["allow"].append(entry)
+            existing_allow.add(entry)
 
     existing_deny = set(settings["permissions"]["deny"])
     for entry in FLOW_DENY:

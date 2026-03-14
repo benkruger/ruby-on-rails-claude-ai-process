@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.28.19 — Skill performance: parallelization and round-trip reduction
+
+### Improvements
+
+- **flow-commit**: 12 sequential rounds → 6. New `finalize-commit.py` script consolidates commit + cleanup + pull + push into one call. Mode detection and format resolution parallelized with Glob. CI and staging run in parallel. Status and diff run in parallel.
+- **flow-start**: 18 sequential rounds → 9. Version gate, upgrade check, existing feature check, and CI all run in one parallel round. New `log.py` subcommand replaces the 2-round Read+Write logging pattern with a single call. Log entries pipelined with the next command.
+- **flow-prime**: detect-framework and `claude plugin list` run in parallel in Step 1, cached result reused in Step 5.
+
 ## v0.28.18 — Fix auto-upgrade skipping artifact reinstallation
 
 ### Fixes

@@ -74,6 +74,7 @@ CI will fail if these are missing:
 - `lib/prime-project.py` — inserts framework conventions into target CLAUDE.md between markers
 - `lib/create-dependencies.py` — copies framework dependency template to `bin/dependencies`
 - `agents/ci-fixer.md` — custom plugin sub-agent for CI failure diagnosis and fix
+- `lib/finalize-commit.py` — consolidates commit + message-file cleanup + pull + push into one subprocess chain
 - `lib/close-issues.py` — closes GitHub issues referenced in the start prompt (`#N` patterns) via `gh issue close`
 - `lib/issue.py` — creates GitHub issues via `gh` subprocess (wraps `gh issue create`; auto-detects repo from git remote when `--repo` is omitted)
 - `lib/add-issue.py` — records filed issues in the state file's `issues_filed` array (follows `append-note.py` pattern)
@@ -184,6 +185,7 @@ Shared fixtures in `tests/conftest.py`: `git_repo` (minimal git repo), `state_di
 | `test_create_dependencies.py` | Dependency template: file creation, skip-if-exists, chmod, CLI |
 | `test_prime_setup.py` | Prime setup: data-driven permissions, settings merge, version marker, git exclude, pre-commit hook |
 | `test_validate_ask_user.py` | AskUserQuestion hook: blocks prompts when `_auto_continue` set, allows when absent/empty, subprocess integration |
+| `test_finalize_commit.py` | Commit finalization: happy path, commit/pull/push failures, merge conflict detection, message file cleanup, CLI |
 
 ## Maintainer Skills (private to this repo)
 

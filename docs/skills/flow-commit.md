@@ -16,11 +16,11 @@ Reviews all pending changes before committing. You see the full diff and propose
 
 ## What It Does
 
-1. Runs `git status` and `git diff HEAD` separately and displays the diff
-2. Proposes a commit message in the `tl;dr` format
-3. Asks for explicit approval before touching git
-4. On approval — `git add -A`, commits with the proposed message, pushes
-5. On denial — asks what needs to be fixed and stops
+1. Runs CI (if dirty) and stages changes in parallel
+2. Shows `git status` and `git diff --cached` in parallel
+3. Proposes a commit message in the `tl;dr` format
+4. On approval — commits, pulls, and pushes via `bin/flow finalize-commit`
+5. On denial — unstages and asks what needs to be fixed
 
 ---
 
@@ -85,7 +85,7 @@ Mode is resolved in this order:
 1. `--auto` flag → auto mode (skip approval)
 2. `--manual` flag → manual mode (require approval)
 3. `.flow.json` `skills.flow-commit` value
-4. Built-in default: **manual**
+4. Built-in default: **auto**
 
 Everything else stays identical: `bin/flow ci` runs first (FLOW and Maintainer mode only), the full diff is displayed, the commit message is generated and shown, and pull-before-push happens. The only difference is whether Step 3 (approval prompt) is shown.
 

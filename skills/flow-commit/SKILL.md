@@ -7,20 +7,28 @@ description: "Review the full diff, approve or deny, then git add + commit + pus
 
 Review all pending changes as a diff before committing. You must get explicit approval before touching git.
 
-## Mode Detection
+## Round 1 — Setup
 
-Determine the operating mode before proceeding:
+Run all of these in parallel (one response, multiple tool calls):
 
-1. Run both commands in parallel (two Bash calls in one response):
-   - `git worktree list --porcelain` — note the path on the first `worktree` line (this is the project root).
-   - `git branch --show-current` — this is the current branch.
-2. Read `<project_root>/.flow-states/<branch>.json` with the Read tool.
-   - **File exists** (content returned) → **FLOW** mode
-   - **File does not exist** (error returned) → use Glob to check for `flow-phases.json` in the project root.
-     - Exists → **Maintainer** mode (this is the plugin source repo)
-     - Does not exist → **Standalone** mode
+1. `git worktree list --porcelain` — note the path on the first `worktree` line (this is the project root).
+2. `git branch --show-current` — this is the current branch.
 
-Keep the project root, branch, and detected mode in context for the rest of this skill.
+Keep the project root and branch in context for the rest of this skill.
+
+## Round 2 — Mode and Format Detection
+
+Run all of these in parallel (one response, all use the project root from Round 1):
+
+1. Use the Glob tool: pattern `*.json`, path `<project_root>/.flow-states` — if any results, this is **FLOW** mode.
+2. Use the Glob tool: pattern `flow-phases.json`, path `<project_root>` — if found (and no state files from #1), this is **Maintainer** mode.
+3. Use the Read tool: read `<project_root>/.flow.json`.
+   - Parse the `commit_format` value: `"title-only"` or `"full"`.
+   - If `.flow.json` does not exist or has no `commit_format` key → use `"full"`.
+
+If neither Glob returned results → **Standalone** mode.
+
+Keep the detected mode and `commit_format` in context.
 
 ## Announce
 
@@ -88,47 +96,40 @@ On completion (whether approved, denied, or nothing to commit), print the same w
 
 `--auto` is user-invoked only. Claude must never call `/flow:flow-commit --auto` programmatically — except in phase skills (`/flow:flow-start`, `/flow:flow-code`, `/flow:flow-code-review`, `/flow:flow-learn`) which commit autonomously as part of their workflow.
 
-## Format Resolution
-
-Determine the commit message format:
-
-1. Use the Read tool to read `.flow.json` from the project root.
-2. Parse the `commit_format` value from the JSON.
-   - `"title-only"` → use the title-only format in Step 2
-   - `"full"` → use the full format in Step 2
-3. If `.flow.json` does not exist or has no `commit_format` key → use `"full"`.
-
-Keep `commit_format` in context for Step 2.
-
 ---
 
 ## Process
 
-### Step 0 — Run tests
+### Round 3 — Test and stage
 
-**FLOW and Maintainer mode only.** Skip for Standalone.
+**FLOW and Maintainer mode:** run both in parallel (one response, two Bash calls):
 
-Run `bin/flow ci --if-dirty`. This skips the run if no files changed since the
-last green run. If any test fails, stop and report the failure.
-Do not proceed to diff review until tests pass.
-
-### Step 1 — Show the diff
-
-First run `git status` to see what changed. If nothing to commit, tell the user "Nothing to commit", print the COMPLETE banner, and return to the caller.
-
-Then stage everything and diff the staged changes:
+```bash
+bin/flow ci --if-dirty
+```
 
 ```bash
 git add -A
+```
+
+CI and staging are independent — CI tests the working tree, staging indexes it. If CI
+fails, stop and report the failure. Staged files are harmless if CI fails — nothing commits.
+
+**Standalone mode:** run only `git add -A` (skip CI).
+
+### Round 4 — Show the diff
+
+Run both in parallel (one response, two Bash calls):
+
+```bash
+git status
 ```
 
 ```bash
 git diff --cached
 ```
 
-This ensures new (untracked) files appear in the diff output — `git diff HEAD`
-misses untracked files entirely. Staging first gives one unified diff with
-consistent formatting for all changes.
+If `git diff --cached` is empty, tell the user "Nothing to commit", print the COMPLETE banner, and return to the caller.
 
 Render the output directly in your response — do not ask the user to expand tool output.
 
@@ -169,11 +170,11 @@ If the diff includes changes to any of these files:
 
 Flag any docs that may need updates before writing the commit message. If docs are already current, proceed.
 
-### Step 2 — Commit Message
+### Step 1 — Commit Message
 
 Write a commit message that a developer reading `git log` six months from now would find genuinely useful.
 
-Use the `commit_format` from Format Resolution to determine the structure.
+Use the `commit_format` from Round 2 to determine the structure.
 
 **If `commit_format` is `"full"`:**
 
@@ -238,7 +239,7 @@ If any element is missing or out of order, rewrite before displaying.
 
 Display the full message under the heading **Commit Message** before asking for approval.
 
-### Step 3 — Ask for approval
+### Step 2 — Ask for approval
 
 **Unless `--manual` was explicitly passed, skip this step entirely — the default is auto.**
 
@@ -248,9 +249,9 @@ Question: "Approve this commit?"
 - Option 1: **Approve** — "Looks good, commit and push"
 - Option 2: **Deny** — "Something needs to be fixed first"
 
-### Step 4 — Commit and push (on approval)
+### Round 5 — Commit and push (on approval)
 
-Files are already staged from Step 1. No need to `git add -A` again.
+Files are already staged from Round 3. No need to `git add -A` again.
 
 1. Use the Write tool to write the commit message to `.flow-commit-msg` in the project root.
    - Each worktree has its own project root, so concurrent sessions don't collide
@@ -259,37 +260,30 @@ Files are already staged from Step 1. No need to `git add -A` again.
    - Never write to `/tmp/` — paths outside the project trigger permission prompts that settings.json cannot suppress
    - Never use `python3 -c` to write the message — literal `$(...)` in the body triggers command substitution warnings
    - Never use `git commit -m` with heredoc — the multi-line command fails permission pattern matching
-2. Commit from the temp file:
 
-   ```bash
-   git commit -F .flow-commit-msg
-   ```
+### Round 6 — Finalize
 
-3. Delete the temp file:
+Run the finalize script to commit, clean up the message file, pull, and push in one call:
 
-   ```bash
-   rm .flow-commit-msg
-   ```
+```bash
+bin/flow finalize-commit .flow-commit-msg <current-branch>
+```
 
-   The `rm` prevents the Write tool from showing a confusing diff of old→new message on the next commit.
-4. `git pull origin <current-branch>` — pull before pushing to pick up any changes merged while you were working
-5. If the pull produced merge conflicts:
-   - Run `git status` to identify every conflicting file
-   - Read each conflicting file carefully — understand both sides:
-     - `<<<<<<<` (HEAD) = our changes
-     - `>>>>>>>` (incoming) = what was merged to main
-   - For each conflict, attempt to resolve it intelligently:
-     - If both sides add different things that don't logically conflict → keep both
-     - If one side removes something the other side modified → understand intent, apply the right resolution
-     - If the resolution is obvious from context → fix it silently, `git add <file>`
-   - Only escalate to the user if a conflict requires a domain or business decision you cannot make — show exactly that conflict and ask specifically what to do
-   - Once all conflicts are resolved: `git add -A`, then continue to push
-6. If pull was clean: `git push`
-7. Confirm success and show the commit SHA.
+The script returns JSON:
 
-### Step 5 — Handle denial
+- `{"status": "ok", "sha": "..."}` — success. Confirm and show the commit SHA.
+- `{"status": "conflict", "files": [...]}` — merge conflicts from pull. Resolve each conflicting file:
+  - Read each conflicting file carefully — understand both sides
+  - If both sides add different things that don't logically conflict → keep both
+  - If one side removes something the other side modified → understand intent, apply the right resolution
+  - If the resolution is obvious from context → fix it silently, `git add <file>`
+  - Only escalate to the user if a conflict requires a domain or business decision you cannot make
+  - Once all conflicts are resolved: `git add -A`, then `git push`
+- `{"status": "error", ...}` — report the step and message to the user.
 
-Unstage everything first (files were staged in Step 1 for diff purposes):
+### Step 3 — Handle denial
+
+Unstage everything first (files were staged in Round 3 for diff purposes):
 
 ```bash
 git reset HEAD

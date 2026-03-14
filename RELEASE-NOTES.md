@@ -1,5 +1,19 @@
 # Release Notes
 
+## v0.28.22 — PostCompact hook, permission cleanup, and fast reprime
+
+- Add PostCompact hook to capture conversation summary after context
+  compaction (#135). State file stores compact_summary, compact_cwd,
+  and compact_count for SessionStart to inject on resume.
+- Add --reprime flag to /flow-prime for fast upgrades that reuse
+  existing config instead of re-running full setup.
+- Consolidate 7 gh issue permission entries into 1 wildcard for
+  easier auditing.
+- Replace --body with --body-file in issue filing to avoid Bash hook
+  validator failures on special characters.
+- Add Agent(flow:ci-fixer) to permissions and constrain ci-fixer to
+  project directory.
+
 ## v0.28.21 — Fix Ruby CI scripts and require release approval
 
 ### Fixes

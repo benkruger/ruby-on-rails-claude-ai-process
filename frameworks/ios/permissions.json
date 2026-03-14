@@ -4,10 +4,10 @@
     "Bash(xcrun *)",
     "Bash(xcodebuild *)"
   ],
-  "suggested_permissions": [
+  "derived_permissions": [
     {
-      "label": "App process name (for killall after tests)",
-      "template": "Bash(killall {value})"
+      "glob": "*.xcodeproj",
+      "template": "Bash(killall {stem})"
     }
   ]
 }

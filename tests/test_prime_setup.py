@@ -18,8 +18,7 @@ _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 
 
-def _run(project_root, framework="rails", skills_json=None,
-         commit_format=None, project_permissions_json=None):
+def _run(project_root, framework="rails", skills_json=None, commit_format=None):
     """Run prime-setup.py via subprocess."""
     cmd = [sys.executable, SCRIPT, str(project_root)]
     if framework:
@@ -28,8 +27,6 @@ def _run(project_root, framework="rails", skills_json=None,
         cmd.extend(["--skills-json", skills_json])
     if commit_format is not None:
         cmd.extend(["--commit-format", commit_format])
-    if project_permissions_json is not None:
-        cmd.extend(["--project-permissions-json", project_permissions_json])
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result
 
@@ -619,83 +616,61 @@ def test_pre_commit_hook_allows_flow_commit(git_repo, branch):
     assert result.returncode == 0
 
 
-# --- Project permissions ---
+# --- Derived permissions ---
 
 
-def test_merge_settings_with_project_permissions(tmp_path):
-    project_perms = ["Bash(killall SaltedKitchen)", "Bash(ps aux)"]
-    _mod.merge_settings(tmp_path, "ios", project_permissions=project_perms)
+def test_derive_permissions_ios_xcodeproj(tmp_path):
+    (tmp_path / "MyApp.xcodeproj").mkdir()
+    result = _mod._derive_permissions(tmp_path, "ios")
+    assert "Bash(killall MyApp)" in result
+
+
+def test_derive_permissions_no_xcodeproj(tmp_path):
+    result = _mod._derive_permissions(tmp_path, "ios")
+    assert result == []
+
+
+def test_derive_permissions_rails_has_none(tmp_path):
+    result = _mod._derive_permissions(tmp_path, "rails")
+    assert result == []
+
+
+def test_derive_permissions_unknown_framework(tmp_path):
+    result = _mod._derive_permissions(tmp_path, "nonexistent")
+    assert result == []
+
+
+def test_derived_permissions_merged_into_settings(tmp_path):
+    (tmp_path / "SaltedKitchen.xcodeproj").mkdir()
+    _mod.merge_settings(tmp_path, "ios")
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
-    for entry in project_perms:
-        assert entry in settings["permissions"]["allow"]
+    assert "Bash(killall SaltedKitchen)" in settings["permissions"]["allow"]
 
 
-def test_merge_settings_project_permissions_no_duplicates(tmp_path):
-    project_perms = ["Bash(killall SaltedKitchen)"]
-    _mod.merge_settings(tmp_path, "ios", project_permissions=project_perms)
-    _mod.merge_settings(tmp_path, "ios", project_permissions=project_perms)
+def test_derived_permissions_no_duplicates(tmp_path):
+    (tmp_path / "SaltedKitchen.xcodeproj").mkdir()
+    _mod.merge_settings(tmp_path, "ios")
+    _mod.merge_settings(tmp_path, "ios")
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
     allow_list = settings["permissions"]["allow"]
     assert allow_list.count("Bash(killall SaltedKitchen)") == 1
 
 
-def test_merge_settings_without_project_permissions(tmp_path):
-    _mod.merge_settings(tmp_path, "rails")
-    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
-    assert "Bash(killall SaltedKitchen)" not in settings["permissions"]["allow"]
+def test_derived_permissions_not_in_config_hash(tmp_path):
+    (tmp_path / "SomeApp.xcodeproj").mkdir()
+    hash_value = _mod.compute_config_hash("ios")
+    assert isinstance(hash_value, str)
+    assert len(hash_value) == 12
 
 
-def test_version_marker_with_project_permissions(tmp_path):
-    project_perms = ["Bash(killall SaltedKitchen)"]
-    _mod.write_version_marker(
-        tmp_path, _mod._plugin_version(), "ios",
-        project_permissions=project_perms,
-    )
-    data = json.loads((tmp_path / ".flow.json").read_text())
-    assert data["project_permissions"] == project_perms
-
-
-def test_version_marker_without_project_permissions_no_key(tmp_path):
-    _mod.write_version_marker(tmp_path, _mod._plugin_version(), "ios")
-    data = json.loads((tmp_path / ".flow.json").read_text())
-    assert "project_permissions" not in data
-
-
-def test_version_marker_with_empty_project_permissions(tmp_path):
-    _mod.write_version_marker(
-        tmp_path, _mod._plugin_version(), "ios",
-        project_permissions=[],
-    )
-    data = json.loads((tmp_path / ".flow.json").read_text())
-    assert data["project_permissions"] == []
-
-
-def test_config_hash_excludes_project_permissions():
-    hash_without = _mod.compute_config_hash("ios")
-    hash_with = _mod.compute_config_hash("ios")
-    assert hash_without == hash_with
-
-
-def test_cli_project_permissions_merged(git_repo):
-    project_perms = '["Bash(killall TestApp)"]'
-    result = _run(git_repo, framework="ios",
-                  project_permissions_json=project_perms)
+def test_cli_derives_permissions_from_project(git_repo):
+    (git_repo / "TestApp.xcodeproj").mkdir()
+    result = _run(git_repo, framework="ios")
     assert result.returncode == 0
     settings = json.loads(
         (git_repo / ".claude" / "settings.json").read_text()
     )
     assert "Bash(killall TestApp)" in settings["permissions"]["allow"]
-    data = json.loads((git_repo / ".flow.json").read_text())
-    assert data["project_permissions"] == ["Bash(killall TestApp)"]
-
-
-def test_cli_invalid_project_permissions_json(git_repo):
-    result = _run(git_repo, framework="ios",
-                  project_permissions_json="not-json")
-    assert result.returncode == 1
-    data = json.loads(result.stdout)
-    assert data["status"] == "error"
-    assert "project-permissions-json" in data["message"]
 
 
 def test_pre_commit_hook_allows_commit_without_flow_state(git_repo):

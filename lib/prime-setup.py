@@ -121,7 +121,30 @@ def compute_setup_hash():
     return hashlib.sha256(content).hexdigest()[:12]
 
 
-def merge_settings(project_root, framework, project_permissions=None):
+def _derive_permissions(project_root, framework):
+    """Resolve derived permissions from frameworks/<name>/permissions.json.
+
+    Reads the optional derived_permissions array. Each entry has a glob
+    pattern and a template with {stem} placeholder. The glob is matched
+    against the project root, and {stem} is replaced with the matched
+    path's stem (filename without extension).
+
+    Returns a list of resolved permission strings.
+    """
+    permissions_path = _frameworks_dir() / framework / "permissions.json"
+    if not permissions_path.exists():
+        return []
+    data = json.loads(permissions_path.read_text())
+    derived = data.get("derived_permissions", [])
+    results = []
+    for entry in derived:
+        for match in sorted(Path(project_root).glob(entry["glob"])):
+            results.append(entry["template"].replace("{stem}", match.stem))
+            break
+    return results
+
+
+def merge_settings(project_root, framework):
     """Merge FLOW permissions into .claude/settings.json. Returns merged dict."""
     settings_dir = project_root / ".claude"
     settings_path = settings_dir / "settings.json"
@@ -145,12 +168,11 @@ def merge_settings(project_root, framework, project_permissions=None):
         if entry not in existing_allow:
             settings["permissions"]["allow"].append(entry)
 
-    # Merge project-specific permissions (user customizations)
-    if project_permissions:
-        for entry in project_permissions:
-            if entry not in existing_allow:
-                settings["permissions"]["allow"].append(entry)
-                existing_allow.add(entry)
+    # Merge derived permissions (project-specific, from glob detection)
+    for entry in _derive_permissions(project_root, framework):
+        if entry not in existing_allow:
+            settings["permissions"]["allow"].append(entry)
+            existing_allow.add(entry)
 
     existing_deny = set(settings["permissions"]["deny"])
     for entry in FLOW_DENY:
@@ -177,7 +199,7 @@ def merge_settings(project_root, framework, project_permissions=None):
 
 def write_version_marker(project_root, version, framework, skills=None,
                          config_hash=None, setup_hash=None,
-                         commit_format=None, project_permissions=None):
+                         commit_format=None):
     """Write .flow.json with the plugin version, framework, and optional fields.
 
     If skills is provided, it is included as a top-level key mapping skill
@@ -196,8 +218,6 @@ def write_version_marker(project_root, version, framework, skills=None,
         data["commit_format"] = commit_format
     if skills is not None:
         data["skills"] = skills
-    if project_permissions is not None:
-        data["project_permissions"] = project_permissions
     flow_json.write_text(json.dumps(data) + "\n")
 
 
@@ -301,7 +321,6 @@ def main():
     framework = None
     skills_json = None
     commit_format = None
-    project_permissions_json = None
     i = 2
     while i < len(sys.argv):
         if sys.argv[i] == "--framework" and i + 1 < len(sys.argv):
@@ -312,9 +331,6 @@ def main():
             i += 2
         elif sys.argv[i] == "--commit-format" and i + 1 < len(sys.argv):
             commit_format = sys.argv[i + 1]
-            i += 2
-        elif sys.argv[i] == "--project-permissions-json" and i + 1 < len(sys.argv):
-            project_permissions_json = sys.argv[i + 1]
             i += 2
         else:
             i += 1
@@ -337,29 +353,16 @@ def main():
             }))
             sys.exit(1)
 
-    project_permissions = None
-    if project_permissions_json is not None:
-        try:
-            project_permissions = json.loads(project_permissions_json)
-        except json.JSONDecodeError as e:
-            print(json.dumps({
-                "status": "error",
-                "message": f"Invalid --project-permissions-json: {e}",
-            }))
-            sys.exit(1)
-
     try:
         plugin_data = _plugin_json()
         version = plugin_data["version"]
         config_hash = compute_config_hash(framework)
         setup_hash = compute_setup_hash()
-        merge_settings(project_root, framework,
-                       project_permissions=project_permissions)
+        merge_settings(project_root, framework)
         write_version_marker(project_root, version, framework,
                              skills=skills, config_hash=config_hash,
                              setup_hash=setup_hash,
-                             commit_format=commit_format,
-                             project_permissions=project_permissions)
+                             commit_format=commit_format)
         exclude_updated = update_git_exclude(project_root)
         install_pre_commit_hook(project_root)
 

@@ -23,7 +23,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ````markdown
 ```text
 ============================================
-  FLOW v0.28.21 — Prime — STARTING
+  FLOW v0.28.22 — Prime — STARTING
 ============================================
 ```
 ````
@@ -240,8 +240,7 @@ All permissions (universal + all framework sets) for reference:
       "Bash(claude plugin list)",
       "Bash(claude plugin marketplace add *)",
       "Bash(claude plugin install *)",
-      "Bash(gh issue list *)",
-      "Bash(gh issue view *)",
+      "Bash(gh issue *)",
       "Read(~/.claude/rules/*)",
       "Read(/tmp/*.txt)",
       "Agent(flow:ci-fixer)"
@@ -294,7 +293,7 @@ Output the following banner in your response (not via Bash) inside a fenced code
 ````markdown
 ```text
 ============================================
-  FLOW v0.28.21 — Prime — COMPLETE
+  FLOW v0.28.22 — Prime — COMPLETE
 ============================================
 ```
 ````

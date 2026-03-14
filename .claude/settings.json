@@ -22,7 +22,7 @@
       "Bash(gh pr close *)",
       "Bash(*bin/flow *)",
       "Bash(.venv/bin/pip install *)",
-      "Bash(gh issue list *)",
+      "Bash(gh issue *)",
       "Bash(gh pr list *)",
       "Bash(gh pr view *)",
       "Bash(rm .flow-states/*)",
@@ -37,7 +37,6 @@
       "Skill(code-review:code-review)",
       "Read(~/.claude/rules/*)",
       "Read(/tmp/*.txt)",
-      "Bash(gh issue view *)",
       "Bash(cd *)",
       "Bash(bin/*)"
     ],

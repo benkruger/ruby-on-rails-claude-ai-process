@@ -110,10 +110,10 @@ def _permission_to_regex(perm):
     return _permission_to_regex_impl(perm)
 
 
-# Auto-allowed commands that Claude Code never prompts for (read-only)
-AUTO_ALLOWED = {"cd", "git status", "git diff", "git log", "git branch",
-                "git show", "git blame", "git worktree list",
-                "git rev-parse"}
+# Auto-allowed commands that Claude Code never prompts for (read-only).
+# Git commands are covered by Bash(git *) in the allow list, so only
+# non-git auto-allowed commands remain here.
+AUTO_ALLOWED = {"cd"}
 
 # Commands that touch ~/.claude/ paths. Claude Code's built-in sensitive-path
 # protection always prompts for these regardless of settings.json entries.

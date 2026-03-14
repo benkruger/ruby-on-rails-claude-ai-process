@@ -1,5 +1,19 @@
 # Release Notes
 
+## v0.28.21 — Fix Ruby CI scripts and require release approval
+
+### Fixes
+
+- `ci.py` no longer hardcodes `bash` as the interpreter for the target project's `bin/ci`.
+  Scripts with shebangs (Ruby, Python, etc.) now run correctly via the OS interpreter.
+
+### Improvements
+
+- `/flow-release` now defaults to manual approval. `--auto` flag required to skip the prompt.
+- New `target_project` test fixture simulates a non-bash target project (Python `bin/ci`, no
+  `bin/flow`) so integration tests catch interpreter and path assumptions that the FLOW repo masks.
+- New "Target Project Mindset" rule in skill-authoring guidelines.
+
 ## v0.28.20 — Fix bin/flow resolution in target projects
 
 ### Fixes

@@ -15,7 +15,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ````markdown
 ```text
 ============================================
-  FLOW v0.28.20 — flow:flow-status — STARTING
+  FLOW v0.28.21 — flow:flow-status — STARTING
 ============================================
 ```
 ````

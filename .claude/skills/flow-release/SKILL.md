@@ -25,28 +25,38 @@ Print:
 
 **`--manual`:** Pause at Step 5 for approval. Allows overriding the version or editing release notes. Also serves as a dry-run — deny at the prompt to stop.
 
-## Step 1 — Check for uncommitted changes
+## Step 1 — Pre-flight checks
 
-Run `git status`. If there are uncommitted changes, stop:
+Run both in parallel (one response, two Bash calls):
 
-> "There are uncommitted changes. Commit or stash them before releasing."
-
-Do not proceed until the working tree is clean.
-
-## Step 2 — Check main is up to date
+```bash
+git status
+```
 
 ```bash
 git pull origin main
 ```
 
-If this produces changes, warn the user that new commits were pulled.
+If `git status` shows uncommitted changes, stop:
 
-## Step 3 — Verify CI is green
+> "There are uncommitted changes. Commit or stash them before releasing."
 
-Run:
+If `git pull` produced changes, warn the user that new commits were pulled.
+
+## Step 2 — Verify CI and find last release
+
+Run all three in parallel (one response, three Bash calls):
 
 ```bash
 gh run list --branch main --limit 1 --json conclusion,headSha,status
+```
+
+```bash
+git rev-parse HEAD
+```
+
+```bash
+git describe --tags --abbrev=0
 ```
 
 First verify the run's `headSha` matches `git rev-parse HEAD`.
@@ -58,36 +68,30 @@ Then check `conclusion`:
 - `"failure"` or `"cancelled"` → stop: "CI failed on main. Fix tests before releasing."
 - `null` (in_progress/queued) → invoke the `loop` skill via the Skill tool with args `15s /flow-release` and return. The loop will re-invoke the release skill automatically until CI completes.
 
-## Step 4 — Show what changed since last release
+If `git describe` fails (no tags exist), set `<last_tag>` to `HEAD~20`.
 
-Find the last tag:
+## Step 3 — Show what changed and read version
 
-```bash
-git describe --tags --abbrev=0
-```
-
-If that fails (no tags exist), set `<last_tag>` to `HEAD~20`.
-
-**Do not stop here.** The tag name matching the current version does NOT
-mean there is nothing to release — the tag may point to an older commit.
-
-Now list commits since the tag:
+Run both in parallel (one response, one Bash call + one Read):
 
 ```bash
 git log --oneline <last_tag>..HEAD
 ```
 
+Also use the Read tool to read `.claude-plugin/plugin.json`.
+
 Display the commit list. This is what goes into the release.
+
+**Do not stop here.** The tag name matching the current version does NOT
+mean there is nothing to release — the tag may point to an older commit.
 
 **Only if the commit list is empty** (no output from `git log`), stop:
 
 > "Nothing to release — HEAD is already tagged as `<last_tag>`."
 
-## Step 5 — Determine version and draft release notes
+## Step 4 — Determine version and draft release notes
 
-Read the current version from `.claude-plugin/plugin.json`.
-
-Analyze the commit list from Step 4 and recommend a release type using
+Analyze the commit list from Step 3 and recommend a release type using
 these rules (apply the highest that matches):
 
 - **Major** — any commit removes or renames a skill, changes a skill's
@@ -104,7 +108,7 @@ Then draft the release notes section:
 ```text
 ## v<new_version> — <short description>
 
-<Summary of what changed — written from the commit list in Step 4.
+<Summary of what changed — written from the commit list in Step 3.
 Group by: new features, fixes, improvements. Be concise.>
 ```
 ````
@@ -119,17 +123,19 @@ Present the recommendation and the draft release notes in your response.
 > - **Different version** — specify in Other
 > - **Notes need changes** — describe in Other
 
-**Default (no flags):** proceed directly to Step 6.
+**Default (no flags):** proceed directly to Step 5.
 
-## Step 6 — Bump version and verify config hashes
+## Step 5 — Bump version and prepare release notes
 
-Run:
+Run both in parallel (one response, one Bash call + one Read):
 
 ```bash
 make bump NEW=<new_version>
 ```
 
-This updates `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`,
+Also use the Read tool to read `RELEASE-NOTES.md`.
+
+The bump updates `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`,
 and all skill banners in one step.
 
 Config and setup hashes are not stored in `plugin.json` — they are computed
@@ -137,67 +143,65 @@ dynamically by `compute_config_hash()` and `compute_setup_hash()` in
 `lib/prime-setup.py` at prime time and compared at start time by
 `lib/prime-check.py`. No manual hash updates are needed during releases.
 
-## Step 7 — Update RELEASE-NOTES.md
+## Step 6 — Update release notes and write commit message
 
-Read the current `RELEASE-NOTES.md`. Add the release notes section
-approved in Step 5 at the top (below the `# Release Notes` heading).
+Run both in parallel (one response, one Edit + one Write):
 
-## Step 8 — Commit and push
+Edit `RELEASE-NOTES.md` — add the release notes section from Step 4 at the
+top (below the `# Release Notes` heading).
+
+Write `Release v<new_version>` to `.flow-commit-msg` via the Write tool.
+
+## Step 7 — Stage and commit
+
+Stage all changes:
 
 ```bash
 git add -A
 ```
 
-Write `Release v<new_version>` to `.flow-commit-msg` via the Write tool, then:
+Then finalize the commit in one call:
 
 ```bash
-git commit -F .flow-commit-msg
-```
-
-```bash
-rm .flow-commit-msg
-```
-
-```bash
-git pull origin main
-```
-
-```bash
-git push origin main
+bin/flow finalize-commit .flow-commit-msg main
 ```
 
 No diff review. No `bin/ci`. No approval prompt — CI was verified in
-Step 3, changes were shown in Step 4, and version was confirmed in Step 5.
+Step 2, changes were shown in Step 3, and version was confirmed in Step 4.
 
-## Step 9 — Tag and push
+## Step 8 — Tag and extract release notes
+
+Run both in parallel (one response, two Bash calls):
 
 ```bash
 git tag v<new_version>
-git push origin main
-git push origin v<new_version>
 ```
-
-## Step 10 — Create GitHub Release
-
-First extract just this version's section from RELEASE-NOTES.md:
 
 ```bash
 bin/flow extract-release-notes v<new_version>
 ```
 
-This writes `tmp/release-notes-v<new_version>.md`. Then create the release:
+The extract writes `tmp/release-notes-v<new_version>.md`.
+
+## Step 9 — Push tag
+
+```bash
+git push origin v<new_version>
+```
+
+## Step 10 — Publish release and update marketplace
+
+Run both in parallel (one response, two Bash calls):
 
 ```bash
 gh release create v<new_version> --title "v<new_version>" --notes-file tmp/release-notes-v<new_version>.md
 ```
 
-## Step 11 — Update local marketplace
-
 ```bash
 claude plugin marketplace update flow-marketplace
 ```
 
-If this fails, print the command for the user to run manually.
+If the marketplace update fails, print the command for the user to run manually.
 
 ## Done
 

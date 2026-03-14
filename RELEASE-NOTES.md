@@ -1,5 +1,25 @@
 # Release Notes
 
+## v0.28.17 — Model-agnostic skills and consolidated git permissions
+
+### Improvements
+
+- Remove `model:` frontmatter from all skills and the ci-fixer agent so FLOW
+  inherits the user's session model — no plugin changes needed when models evolve.
+- Consolidate 18 specific `Bash(git ...)` allow entries into one `Bash(git *)` so
+  unanticipated git commands (e.g. `git rev-parse`, `git show`, `git blame`) are
+  never blocked by the PreToolUse hook. The deny list still blocks destructive
+  operations.
+
+### Cleanup
+
+- Remove Model column from phase tables in README.md and CLAUDE.md.
+- Remove "Model Recommendations" section from README.md.
+- Delete `test_model_frontmatter_is_valid` and
+  `test_model_frontmatter_matches_documented_table` tests.
+- Remove git entries from `AUTO_ALLOWED` in test_permissions.py (now covered by the
+  allow list).
+
 ## v0.28.16 — Scope pre-commit hook to active FLOW features
 
 ### Fixes

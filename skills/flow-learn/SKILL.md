@@ -98,7 +98,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase flow-learn --action enter
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-learn --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -238,7 +238,7 @@ For each item routed to `.claude/rules/` (coding anti-patterns, gotchas):
 File the issue:
 
 ```bash
-bin/flow issue --label "Rule" --title "<issue_title>" --body "<issue_body>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow issue --label "Rule" --title "<issue_title>" --body "<issue_body>"
 ```
 
 The issue body must contain the full rule text, the target file path
@@ -249,7 +249,7 @@ file).
 Parse the JSON output. If `"status": "ok"`, record the issue:
 
 ```bash
-bin/flow add-issue --label "Rule" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow add-issue --label "Rule" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
 ```
 
 If `bin/flow issue` fails, note the failure and continue with
@@ -262,7 +262,7 @@ remaining items.
 Set the continuation flag before invoking the child skill:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=local-permission
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=local-permission
 ```
 
 Invoke `/flow:flow-local-permission`.
@@ -273,13 +273,13 @@ repo-destination change for Step 5's commit decision.
 Record step completion:
 
 ```bash
-bin/flow set-timestamp --set learn_step=4
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set learn_step=4
 ```
 
 Clear the continuation flag:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 To continue to Step 5, invoke `flow:flow-learn --continue-step` using
@@ -294,7 +294,7 @@ If no changes were made in Steps 3-4, record step completion and
 self-invoke to skip the commit:
 
 ```bash
-bin/flow set-timestamp --set learn_step=5
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set learn_step=5
 ```
 
 Then invoke `flow:flow-learn --continue-step` using the Skill tool as
@@ -312,7 +312,7 @@ user with excluded files), skip the commit gracefully — do not error.
 Set the continuation flag before committing:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=commit
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=commit
 ```
 
 If commit=auto, use `/flow:flow-commit --auto`. Otherwise, use
@@ -322,11 +322,11 @@ After the commit completes, clear the continuation flag and record step
 completion:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 ```bash
-bin/flow set-timestamp --set learn_step=5
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set learn_step=5
 ```
 
 To continue to Step 6, invoke `flow:flow-learn --continue-step` using
@@ -344,7 +344,7 @@ Skip for Maintainer and Standalone.
 For each item in "Process gaps", file a GitHub issue on the plugin repo:
 
 ```bash
-bin/flow issue --repo benkruger/flow --label "Flow" --title "<issue_title>" --body "<issue_body>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow issue --repo benkruger/flow --label "Flow" --title "<issue_title>" --body "<issue_body>"
 ```
 
 The issue title should be a concise description of the process gap. The
@@ -355,7 +355,7 @@ differently.
 After each successful issue, record it:
 
 ```bash
-bin/flow add-issue --label "Flow" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow add-issue --label "Flow" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
 ```
 
 ### Documentation drift issues
@@ -364,7 +364,7 @@ For each item where documentation is out of sync with actual behavior
 (discovered during Step 2 synthesis), file an issue on the target project:
 
 ```bash
-bin/flow issue --label "Documentation Drift" --title "<issue_title>" --body "<issue_body>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow issue --label "Documentation Drift" --title "<issue_title>" --body "<issue_body>"
 ```
 
 The issue body should describe what is stale and what the current
@@ -373,7 +373,7 @@ behavior actually is.
 After each successful issue, record it:
 
 ```bash
-bin/flow add-issue --label "Documentation Drift" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow add-issue --label "Documentation Drift" --title "<issue_title>" --url "<issue_url>" --phase "flow-learn"
 ```
 
 If there are no process gap or documentation drift items, skip this step.
@@ -449,7 +449,7 @@ brackets (e.g. `[Rule]`, `[Flow]`, `[Documentation Drift]`).
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase flow-learn --action complete
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-learn --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.

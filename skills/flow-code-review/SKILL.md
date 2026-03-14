@@ -73,7 +73,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase flow-code-review --action enter
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-code-review --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -122,7 +122,7 @@ inform fix decisions.
 Set the continuation flag before invoking the child skill:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=simplify
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=simplify
 ```
 
 Invoke Claude Code's built-in `/simplify` skill using the Skill tool.
@@ -177,7 +177,7 @@ instructions below.
 **Commit**: Run `bin/flow ci` first. If green, set the continuation flag:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=commit
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=commit
 ```
 
 If commit=auto, use `/flow:flow-commit --auto`; otherwise use `/flow:flow-commit`.
@@ -185,19 +185,19 @@ If commit=auto, use `/flow:flow-commit --auto`; otherwise use `/flow:flow-commit
 After the commit completes, clear the continuation flag:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 Record step completion:
 
 ```bash
-bin/flow set-timestamp --set code_review_step=1
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set code_review_step=1
 ```
 
 Clear the continuation flag before self-invoking:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 To continue to Step 2, invoke `flow:flow-code-review --continue-step` using
@@ -214,7 +214,7 @@ file to get the plan file path. Use the Read tool to read the plan file.
 Set the continuation flag before invoking the child skill:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=review
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=review
 ```
 
 Invoke Claude's built-in review command on the PR:
@@ -260,25 +260,25 @@ Classify as one of:
 File an issue and move on — do not fix out-of-scope findings:
 
 ```bash
-bin/flow issue --label "Tech Debt" --title "<issue_title>" --body "<issue_body>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow issue --label "Tech Debt" --title "<issue_title>" --body "<issue_body>"
 ```
 
 Or for documentation:
 
 ```bash
-bin/flow issue --label "Documentation Drift" --title "<issue_title>" --body "<issue_body>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow issue --label "Documentation Drift" --title "<issue_title>" --body "<issue_body>"
 ```
 
 After filing, record it:
 
 ```bash
-bin/flow add-issue --label "Tech Debt" --title "<issue_title>" --url "<issue_url>" --phase "flow-code-review"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow add-issue --label "Tech Debt" --title "<issue_title>" --url "<issue_url>" --phase "flow-code-review"
 ```
 
 After fixing in-scope findings, run:
 
 ```bash
-bin/flow ci
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow ci
 ```
 
 <HARD-GATE>
@@ -289,7 +289,7 @@ Any fix made during Review requires `bin/flow ci` to run again.
 If fixes were made, set the continuation flag before committing:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=commit
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=commit
 ```
 
 If commit=auto use `/flow:flow-commit --auto`,
@@ -298,7 +298,7 @@ otherwise use `/flow:flow-commit` for the Review fixes.
 After the commit completes, clear the continuation flag:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 ### Review summary
@@ -325,13 +325,13 @@ Show a summary of what was found and fixed inside a fenced code block:
 Record step completion:
 
 ```bash
-bin/flow set-timestamp --set code_review_step=2
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set code_review_step=2
 ```
 
 Clear the continuation flag before self-invoking:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 To continue to Step 3, invoke `flow:flow-code-review --continue-step` using
@@ -345,7 +345,7 @@ the Skill tool as your final action. If commit=auto was resolved, pass
 Set the continuation flag before invoking the child skill:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=security-review
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=security-review
 ```
 
 Invoke Claude's built-in security review command:
@@ -405,13 +405,13 @@ Show a summary of what was found and fixed inside a fenced code block:
 Record step completion:
 
 ```bash
-bin/flow set-timestamp --set code_review_step=3
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set code_review_step=3
 ```
 
 Clear the continuation flag before self-invoking:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 To continue to Step 4, invoke `flow:flow-code-review --continue-step` using
@@ -425,7 +425,7 @@ the Skill tool as your final action. If commit=auto was resolved, pass
 Set the continuation flag before invoking the child skill:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=code-review:code-review
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=code-review:code-review
 ```
 
 Invoke the `code-review:code-review` plugin using the Skill tool with no
@@ -487,13 +487,13 @@ Show a summary of what was found and fixed inside a fenced code block:
 Record step completion:
 
 ```bash
-bin/flow set-timestamp --set code_review_step=4
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set code_review_step=4
 ```
 
 Clear the continuation flag before self-invoking:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 To continue to Done, invoke `flow:flow-code-review --continue-step` using
@@ -522,7 +522,7 @@ Use AskUserQuestion if a finding is too significant to fix in Code Review:
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase flow-code-review --action complete
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-code-review --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.

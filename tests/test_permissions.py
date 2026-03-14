@@ -386,6 +386,33 @@ def test_logging_template_is_command_first():
         )
 
 
+def test_plugin_skills_use_plugin_root_for_bin_flow():
+    """Every bin/flow call in a plugin skill bash block must use
+    ${CLAUDE_PLUGIN_ROOT} prefix.
+
+    Bare bin/flow only resolves in the FLOW plugin repo itself. Target
+    projects do not have bin/flow — the command fails with exit 127.
+    This was introduced when parallelizing skill steps removed the
+    context-learning workaround where the model inferred the prefix
+    from earlier sequential steps."""
+    errors = []
+    for rel, content in _all_plugin_skill_files():
+        blocks = re.findall(r"```bash\s*\n(.*?)```", content, re.DOTALL)
+        for block in blocks:
+            for line in block.strip().split("\n"):
+                stripped = line.strip()
+                if stripped.startswith("bin/flow"):
+                    errors.append(
+                        f"{rel}: bare 'bin/flow' must use "
+                        f"${{CLAUDE_PLUGIN_ROOT}}/bin/flow — "
+                        f"got: {stripped[:60]}"
+                    )
+    assert not errors, (
+        "Plugin skill bash blocks must not use bare bin/flow "
+        "(fails in target projects):\n" + "\n".join(errors)
+    )
+
+
 def test_no_exit_in_bash_blocks():
     """No ```bash``` block in any SKILL.md or docs/*.md should contain exit.
 

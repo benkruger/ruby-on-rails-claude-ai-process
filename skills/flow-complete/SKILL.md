@@ -206,7 +206,7 @@ deleted during cleanup, so this is the last chance to preserve them.
 not null, add a session log link to the PR artifacts:
 
 ```bash
-bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Session log" --value <transcript_path>
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Session log" --value <transcript_path>
 ```
 
 If `transcript_path` is null, skip this command.
@@ -215,11 +215,11 @@ If `transcript_path` is null, skip this command.
 the PR body as a non-collapsible section:
 
 ```bash
-bin/flow format-pr-timings --state-file <project_root>/.flow-states/<branch>.json --output <project_root>/.flow-states/<branch>-timings.md
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow format-pr-timings --state-file <project_root>/.flow-states/<branch>.json --output <project_root>/.flow-states/<branch>-timings.md
 ```
 
 ```bash
-bin/flow update-pr-body --pr <pr_number> --append-section --heading "Phase Timings" --content-file <project_root>/.flow-states/<branch>-timings.md --no-collapse
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow update-pr-body --pr <pr_number> --append-section --heading "Phase Timings" --content-file <project_root>/.flow-states/<branch>-timings.md --no-collapse
 ```
 
 **State file and session log:** Use the Read tool to read
@@ -229,13 +229,13 @@ bin/flow update-pr-body --pr <pr_number> --append-section --heading "Phase Timin
 Append the state file to the PR body:
 
 ```bash
-bin/flow update-pr-body --pr <pr_number> --append-section --heading "State File" --summary ".flow-states/<branch>.json" --content-file <project_root>/.flow-states/<branch>.json --format json
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow update-pr-body --pr <pr_number> --append-section --heading "State File" --summary ".flow-states/<branch>.json" --content-file <project_root>/.flow-states/<branch>.json --format json
 ```
 
 Append the session log to the PR body:
 
 ```bash
-bin/flow update-pr-body --pr <pr_number> --append-section --heading "Session Log" --summary ".flow-states/<branch>.log" --content-file <project_root>/.flow-states/<branch>.log --format text
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow update-pr-body --pr <pr_number> --append-section --heading "Session Log" --summary ".flow-states/<branch>.log" --content-file <project_root>/.flow-states/<branch>.log --format text
 ```
 
 If any file does not exist, skip that step — do not fail.
@@ -243,14 +243,14 @@ If any file does not exist, skip that step — do not fail.
 **Issues Filed:** Format the issues summary:
 
 ```bash
-bin/flow format-issues-summary --state-file <project_root>/.flow-states/<branch>.json --output <project_root>/.flow-states/<branch>-issues.md
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow format-issues-summary --state-file <project_root>/.flow-states/<branch>.json --output <project_root>/.flow-states/<branch>-issues.md
 ```
 
 Parse the JSON output. If `has_issues` is `false`, skip the PR body append.
 If `has_issues` is `true`, append the table to the PR body:
 
 ```bash
-bin/flow update-pr-body --pr <pr_number> --append-section --heading "Issues Filed" --content-file <project_root>/.flow-states/<branch>-issues.md --no-collapse
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow update-pr-body --pr <pr_number> --append-section --heading "Issues Filed" --content-file <project_root>/.flow-states/<branch>-issues.md --no-collapse
 ```
 
 Keep the `banner_line` from the JSON output — use it in the Done banner below.
@@ -275,7 +275,7 @@ Close any GitHub issues referenced in the start prompt. This is best-effort —
 continue to cleanup even if closing fails.
 
 ```bash
-bin/flow close-issues --state-file <project_root>/.flow-states/<branch>.json
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow close-issues --state-file <project_root>/.flow-states/<branch>.json
 ```
 
 Parse the JSON output. Report which issues were closed and which failed.

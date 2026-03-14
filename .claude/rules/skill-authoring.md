@@ -131,3 +131,13 @@ a `--continue-step` flag. The skill's Resume Check reads a step counter
 from the state file and dispatches to the next sub-step on re-entry.
 This mirrors how phase-to-phase transitions work — the Skill invocation
 is the last action, never a mid-response call.
+
+## Plugin Root for bin/flow
+
+Every `bin/flow` call in a plugin skill bash block must use
+`exec ${CLAUDE_PLUGIN_ROOT}/bin/flow`. Bare `bin/flow` only
+resolves in the FLOW repo itself — target projects do not have
+it. This works during plugin development (the FLOW repo has
+`bin/flow` locally) but fails with exit 127 in every target
+project. CI enforces this via
+`test_plugin_skills_use_plugin_root_for_bin_flow`.

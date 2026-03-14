@@ -73,7 +73,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase flow-code --action enter
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-code --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -264,7 +264,7 @@ subsequent attempt without any code changes, it is flaky. File a
 "Flaky Test" issue with reproduction data and continue:
 
 ```bash
-bin/flow issue --label "Flaky Test" --title "<issue_title>" --body "<issue_body>"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow issue --label "Flaky Test" --title "<issue_title>" --body "<issue_body>"
 ```
 
 The issue body must include: the test name, the failure message, how many
@@ -273,7 +273,7 @@ attempts it took to pass, and the task being worked on.
 After filing, record it:
 
 ```bash
-bin/flow add-issue --label "Flaky Test" --title "<issue_title>" --url "<issue_url>" --phase "flow-code"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow add-issue --label "Flaky Test" --title "<issue_title>" --url "<issue_url>" --phase "flow-code"
 ```
 
 <HARD-GATE>
@@ -287,13 +287,13 @@ Do NOT commit and do NOT move to the next task until `bin/flow ci` is green.
 Record the completed task number:
 
 ```bash
-bin/flow set-timestamp --set code_task=<n>
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set code_task=<n>
 ```
 
 Set the continuation flag before committing:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=commit
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=commit
 ```
 
 If commit=auto, use `/flow:flow-commit --auto`. Otherwise, use `/flow:flow-commit`.
@@ -307,7 +307,7 @@ Add <what was built> — Task <n> of <total>
 After the commit completes, clear the continuation flag:
 
 ```bash
-bin/flow set-timestamp --set _continue_pending=
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set _continue_pending=
 ```
 
 To continue to the next task, invoke `flow:flow-code --continue-step`
@@ -336,7 +336,7 @@ Once every task from the plan file is complete:
 **Final `bin/flow ci --if-dirty` sweep:**
 
 ```bash
-bin/flow ci --if-dirty
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow ci --if-dirty
 ```
 
 Then check coverage — Read `coverage/uncovered.txt`.
@@ -356,7 +356,7 @@ is empty. 100% coverage is mandatory.
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase flow-code --action complete
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-code --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.

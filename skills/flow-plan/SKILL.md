@@ -63,7 +63,7 @@ At the very start, output the following banner in your response (not via Bash) i
 Update state for phase entry:
 
 ```bash
-bin/flow phase-transition --phase flow-plan --action enter
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-plan --action enter
 ```
 
 Parse the JSON output to confirm `"status": "ok"`.
@@ -172,7 +172,7 @@ Store the plan file path in the state file BEFORE exiting plan mode.
 to run.
 
 ```bash
-bin/flow set-timestamp --set plan_file=<plan_file_path>
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set plan_file=<plan_file_path>
 ```
 
 Replace `<plan_file_path>` with the actual path to the plan file that
@@ -181,13 +181,13 @@ was written during plan mode.
 Add the plan file artifact to the PR:
 
 ```bash
-bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Plan file" --value <plan_file_path>
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow update-pr-body --pr <pr_number> --add-artifact --label "Plan file" --value <plan_file_path>
 ```
 
 Complete the phase before exiting plan mode:
 
 ```bash
-bin/flow phase-transition --phase flow-plan --action complete
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-plan --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.

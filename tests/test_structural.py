@@ -347,35 +347,30 @@ def test_hooks_json_has_stop_continue_hook():
     )
 
 
-def test_version_changes_when_config_hash_changes():
-    """Validate the checksum → version invariant is documented and would trigger on SETUP_EPOCH change.
+def test_checksum_version_invariant():
+    """Validate the checksum → version invariant is documented and setup_hash exists.
 
     This test verifies:
-    1. config_hash computation differs when SETUP_EPOCH increments
-    2. The invariant is documented in CLAUDE.md
-
-    Note: Full validation that developers actually bump flow_version when SETUP_EPOCH
-    increments requires release-time inspection of version history, not a unit test.
+    1. compute_setup_hash() exists and returns a valid 12-char hex digest
+    2. compute_config_hash() exists and returns a valid 12-char hex digest
+    3. The invariant is documented in CLAUDE.md
     """
     import importlib.util
 
-    # Load prime-setup.py dynamically
     prime_setup_path = LIB_DIR / "prime-setup.py"
     spec = importlib.util.spec_from_file_location("prime_setup", prime_setup_path)
     prime_setup = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(prime_setup)
 
-    # Compute what the config_hash would be with current and incremented SETUP_EPOCH
-    current_hash = prime_setup.compute_config_hash("python")
-    simulated_hash = prime_setup.compute_config_hash("python", setup_epoch=prime_setup.SETUP_EPOCH + 1)
+    setup_hash = prime_setup.compute_setup_hash()
+    assert len(setup_hash) == 12
+    assert all(c in "0123456789abcdef" for c in setup_hash)
 
-    # Verify the hashes would actually differ
-    assert current_hash != simulated_hash, (
-        "Test setup error: config_hash should differ with SETUP_EPOCH+1"
-    )
+    config_hash = prime_setup.compute_config_hash("python")
+    assert len(config_hash) == 12
+    assert all(c in "0123456789abcdef" for c in config_hash)
 
-    # Verify: the invariant is documented in CLAUDE.md
     claude_md = (REPO_ROOT / "CLAUDE.md").read_text()
-    assert "Checksum → Version Invariant" in claude_md or "if config_hash changes" in claude_md, (
+    assert "Checksum → Version Invariant" in claude_md, (
         "CLAUDE.md must document the checksum → version invariant"
     )

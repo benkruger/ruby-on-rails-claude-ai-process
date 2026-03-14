@@ -145,7 +145,7 @@ The version lives in 3 places (across 2 files), all must match: `.claude-plugin/
 
 ### Checksum → Version Invariant
 
-If `config_hash` changes (due to SETUP_EPOCH increment or structural config changes), `flow_version` MUST change. The inverse is not required — `flow_version` may change for bugfixes or features without changing `config_hash`. This invariant ensures projects with structural config changes always see version bumps and trigger re-initialization when needed.
+If `config_hash` or `setup_hash` changes, `flow_version` MUST change. `config_hash` covers permission structure (allow/deny lists, defaultMode, exclude entries). `setup_hash` is a SHA-256 of the entire `prime-setup.py` file, covering all installation artifacts (hooks, excludes, priming, dependencies). The inverse is not required — `flow_version` may change for bugfixes or features without changing either hash. Both hashes must match for auto-upgrade in `prime-check.py`; either mismatch forces a full `/flow:flow-prime` re-run.
 
 ### State Mutations
 

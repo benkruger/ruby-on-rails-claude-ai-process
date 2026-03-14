@@ -14,15 +14,25 @@ import sys
 from pathlib import Path
 
 
-def _compute_config_hash(framework):
-    """Compute config hash via prime-setup module."""
+def _load_prime_setup():
+    """Load the prime-setup module dynamically."""
     spec = importlib.util.spec_from_file_location(
         "prime_setup",
         Path(__file__).resolve().parent / "prime-setup.py",
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.compute_config_hash(framework)
+    return mod
+
+
+def _compute_config_hash(framework):
+    """Compute config hash via prime-setup module."""
+    return _load_prime_setup().compute_config_hash(framework)
+
+
+def _compute_setup_hash():
+    """Compute setup hash via prime-setup module."""
+    return _load_prime_setup().compute_setup_hash()
 
 
 def _read_plugin_json():
@@ -49,11 +59,16 @@ def main():
     plugin_version = plugin_data["version"]
 
     if init_data.get("flow_version") != plugin_version:
-        stored_hash = init_data.get("config_hash")
+        stored_config = init_data.get("config_hash")
+        stored_setup = init_data.get("setup_hash")
         framework = init_data.get("framework", "")
-        plugin_hash = _compute_config_hash(framework)
+        plugin_config = _compute_config_hash(framework)
+        plugin_setup = _compute_setup_hash()
 
-        if stored_hash and plugin_hash and stored_hash == plugin_hash:
+        config_match = stored_config and plugin_config and stored_config == plugin_config
+        setup_match = stored_setup and plugin_setup and stored_setup == plugin_setup
+
+        if config_match and setup_match:
             old_version = init_data["flow_version"]
             init_data["flow_version"] = plugin_version
             flow_json.write_text(json.dumps(init_data) + "\n")

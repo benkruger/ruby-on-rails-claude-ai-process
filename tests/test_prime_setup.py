@@ -453,20 +453,6 @@ def test_version_marker_without_config_hash_has_no_key(tmp_path):
     assert "config_hash" not in data
 
 
-def test_config_hash_includes_setup_epoch():
-    """Changing SETUP_EPOCH changes the config hash."""
-    original_epoch = _mod.SETUP_EPOCH
-    hash_before = _mod.compute_config_hash("rails")
-
-    _mod.SETUP_EPOCH = original_epoch + 1
-    try:
-        hash_after = _mod.compute_config_hash("rails")
-    finally:
-        _mod.SETUP_EPOCH = original_epoch
-
-    assert hash_before != hash_after
-
-
 def test_happy_path_stores_config_hash(git_repo):
     """main() computes and stores config_hash in .flow.json."""
     result = _run(git_repo)
@@ -474,6 +460,54 @@ def test_happy_path_stores_config_hash(git_repo):
     data = json.loads((git_repo / ".flow.json").read_text())
     assert "config_hash" in data
     assert len(data["config_hash"]) == 12
+
+
+# --- Setup hash ---
+
+
+def test_compute_setup_hash_returns_12_hex_chars():
+    result = _mod.compute_setup_hash()
+    assert isinstance(result, str)
+    assert len(result) == 12
+    assert all(c in "0123456789abcdef" for c in result)
+
+
+def test_compute_setup_hash_is_deterministic():
+    hash1 = _mod.compute_setup_hash()
+    hash2 = _mod.compute_setup_hash()
+    assert hash1 == hash2
+
+
+def test_compute_setup_hash_matches_file_content():
+    """Verify the hash is derived from the actual file bytes."""
+    import hashlib
+    from pathlib import Path
+    content = (LIB_DIR / "prime-setup.py").read_bytes()
+    expected = hashlib.sha256(content).hexdigest()[:12]
+    assert _mod.compute_setup_hash() == expected
+
+
+def test_version_marker_with_setup_hash(tmp_path):
+    _mod.write_version_marker(
+        tmp_path, _mod._plugin_version(), "rails", setup_hash="abc123def456",
+    )
+    data = json.loads((tmp_path / ".flow.json").read_text())
+    assert data["setup_hash"] == "abc123def456"
+
+
+def test_version_marker_without_setup_hash_has_no_key(tmp_path):
+    _mod.write_version_marker(tmp_path, _mod._plugin_version(), "rails")
+    data = json.loads((tmp_path / ".flow.json").read_text())
+    assert "setup_hash" not in data
+
+
+def test_happy_path_stores_setup_hash(git_repo):
+    """main() computes and stores setup_hash in .flow.json."""
+    result = _run(git_repo)
+    assert result.returncode == 0
+    data = json.loads((git_repo / ".flow.json").read_text())
+    assert "setup_hash" in data
+    assert len(data["setup_hash"]) == 12
 
 
 # --- Pre-commit hook installation ---

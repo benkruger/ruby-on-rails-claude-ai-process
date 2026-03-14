@@ -13,8 +13,8 @@ from conftest import LIB_DIR
 SCRIPT = str(LIB_DIR / "prime-check.py")
 
 
-def _computed_config_hash(framework):
-    """Compute config hash for test fixtures."""
+def _load_prime_setup():
+    """Load prime-setup module for test fixtures."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "prime_setup",
@@ -22,7 +22,17 @@ def _computed_config_hash(framework):
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.compute_config_hash(framework)
+    return mod
+
+
+def _computed_config_hash(framework):
+    """Compute config hash for test fixtures."""
+    return _load_prime_setup().compute_config_hash(framework)
+
+
+def _computed_setup_hash():
+    """Compute setup hash for test fixtures."""
+    return _load_prime_setup().compute_setup_hash()
 
 
 def _current_plugin_data():
@@ -108,13 +118,15 @@ def test_happy_path_python_framework(tmp_path):
 # --- Auto-upgrade on version mismatch with matching config_hash ---
 
 
-def test_auto_upgrades_when_config_hash_matches(tmp_path):
-    """Version mismatch + matching hash → ok + auto_upgraded."""
+def test_auto_upgrades_when_both_hashes_match(tmp_path):
+    """Version mismatch + matching config and setup hashes → ok + auto_upgraded."""
     config_hash = _computed_config_hash("rails")
+    setup_hash = _computed_setup_hash()
     (tmp_path / ".flow.json").write_text(json.dumps({
         "flow_version": "0.0.1",
         "framework": "rails",
         "config_hash": config_hash,
+        "setup_hash": setup_hash,
     }))
     result = _run(tmp_path)
     assert result.returncode == 0
@@ -129,10 +141,12 @@ def test_auto_upgrades_when_config_hash_matches(tmp_path):
 def test_auto_upgrade_updates_version_in_file(tmp_path):
     """Auto-upgrade rewrites flow_version in .flow.json."""
     config_hash = _computed_config_hash("python")
+    setup_hash = _computed_setup_hash()
     (tmp_path / ".flow.json").write_text(json.dumps({
         "flow_version": "0.0.1",
         "framework": "python",
         "config_hash": config_hash,
+        "setup_hash": setup_hash,
     }))
     _run(tmp_path)
     updated = json.loads((tmp_path / ".flow.json").read_text())
@@ -140,19 +154,22 @@ def test_auto_upgrade_updates_version_in_file(tmp_path):
 
 
 def test_auto_upgrade_preserves_existing_fields(tmp_path):
-    """Auto-upgrade preserves framework, skills, and config_hash."""
+    """Auto-upgrade preserves framework, skills, config_hash, and setup_hash."""
     config_hash = _computed_config_hash("rails")
+    setup_hash = _computed_setup_hash()
     skills = {"flow-start": {"continue": "auto"}}
     (tmp_path / ".flow.json").write_text(json.dumps({
         "flow_version": "0.0.1",
         "framework": "rails",
         "config_hash": config_hash,
+        "setup_hash": setup_hash,
         "skills": skills,
     }))
     _run(tmp_path)
     updated = json.loads((tmp_path / ".flow.json").read_text())
     assert updated["framework"] == "rails"
     assert updated["config_hash"] == config_hash
+    assert updated["setup_hash"] == setup_hash
     assert updated["skills"] == skills
 
 
@@ -170,11 +187,44 @@ def test_requires_reinit_when_config_hash_missing(tmp_path):
 
 
 def test_requires_reinit_when_config_hash_mismatches(tmp_path):
-    """Version mismatch + different hash → error (config changed)."""
+    """Version mismatch + different config hash → error."""
+    setup_hash = _computed_setup_hash()
     (tmp_path / ".flow.json").write_text(json.dumps({
         "flow_version": "0.0.1",
         "framework": "rails",
         "config_hash": "000000000000",
+        "setup_hash": setup_hash,
+    }))
+    result = _run(tmp_path)
+    assert result.returncode == 0
+    data = json.loads(result.stdout)
+    assert data["status"] == "error"
+    assert "/flow:flow-prime" in data["message"]
+
+
+def test_requires_reinit_when_setup_hash_missing(tmp_path):
+    """Version mismatch + matching config_hash but no setup_hash → error."""
+    config_hash = _computed_config_hash("rails")
+    (tmp_path / ".flow.json").write_text(json.dumps({
+        "flow_version": "0.0.1",
+        "framework": "rails",
+        "config_hash": config_hash,
+    }))
+    result = _run(tmp_path)
+    assert result.returncode == 0
+    data = json.loads(result.stdout)
+    assert data["status"] == "error"
+    assert "mismatch" in data["message"]
+
+
+def test_requires_reinit_when_setup_hash_mismatches(tmp_path):
+    """Version mismatch + matching config_hash but wrong setup_hash → error."""
+    config_hash = _computed_config_hash("rails")
+    (tmp_path / ".flow.json").write_text(json.dumps({
+        "flow_version": "0.0.1",
+        "framework": "rails",
+        "config_hash": config_hash,
+        "setup_hash": "000000000000",
     }))
     result = _run(tmp_path)
     assert result.returncode == 0

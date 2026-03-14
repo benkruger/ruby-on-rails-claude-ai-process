@@ -187,7 +187,7 @@ Output JSON: `{"status": "ok", "settings_merged": true, "exclude_updated": true,
 
 If the script returns an error, show the message and stop.
 
-The `config_hash` field in `.flow.json` is a 12-character hex digest. When the plugin version changes, `/flow-start` recomputes the hash and compares against the stored value to decide whether re-prime is needed. If the config hasn't changed, the version is auto-upgraded without re-running `/flow-prime`.
+`.flow.json` stores two hashes: `config_hash` (permission structure) and `setup_hash` (entire `prime-setup.py` file content), both 12-character hex digests. When the plugin version changes, `/flow-start` recomputes both hashes and compares against stored values. If both match, the version is auto-upgraded. If either mismatches, `/flow-prime` must be re-run.
 
 The permissions merged depend on the framework. Universal permissions are
 always merged. Framework-specific permissions are loaded from

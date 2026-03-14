@@ -66,8 +66,6 @@ FLOW_DENY = [
 
 EXCLUDE_ENTRIES = [".flow-states/", ".worktrees/", ".flow.json", "bin/dependencies"]
 
-SETUP_EPOCH = 1
-
 
 def _load_framework_permissions(framework):
     """Load permissions from frameworks/<name>/permissions.json."""
@@ -82,28 +80,24 @@ def _allow_list(framework):
     return UNIVERSAL_ALLOW + _load_framework_permissions(framework)
 
 
-def _canonical_config(framework, setup_epoch=None):
+def _canonical_config(framework):
     """Build the canonical config dict for hashing.
 
     Args:
         framework: Framework name (e.g., 'python', 'rails')
-        setup_epoch: Override for SETUP_EPOCH (default: use current SETUP_EPOCH)
 
     Returns:
-        Dict with allow, defaultMode, deny, exclude, and setup_epoch entries.
+        Dict with allow, defaultMode, deny, and exclude entries.
     """
-    if setup_epoch is None:
-        setup_epoch = SETUP_EPOCH
     return {
         "allow": sorted(_allow_list(framework)),
         "defaultMode": "acceptEdits",
         "deny": sorted(FLOW_DENY),
         "exclude": sorted(EXCLUDE_ENTRIES),
-        "setup_epoch": setup_epoch,
     }
 
 
-def compute_config_hash(framework, setup_epoch=None):
+def compute_config_hash(framework):
     """Compute a deterministic hash of all structural config inputs.
 
     Hashes the canonical JSON of sorted allow list, deny list, exclude
@@ -111,11 +105,20 @@ def compute_config_hash(framework, setup_epoch=None):
 
     Args:
         framework: Framework name (e.g., 'python', 'rails')
-        setup_epoch: Override for SETUP_EPOCH (default: use current SETUP_EPOCH)
     """
-    canonical = _canonical_config(framework, setup_epoch)
+    canonical = _canonical_config(framework)
     raw = json.dumps(canonical, sort_keys=True)
     return hashlib.sha256(raw.encode()).hexdigest()[:12]
+
+
+def compute_setup_hash():
+    """Compute a hash of the prime-setup.py file content.
+
+    Any change to this file changes the hash and forces re-prime on
+    next auto-upgrade. Returns a 12-char hex digest.
+    """
+    content = Path(__file__).resolve().read_bytes()
+    return hashlib.sha256(content).hexdigest()[:12]
 
 
 def merge_settings(project_root, framework):
@@ -166,18 +169,22 @@ def merge_settings(project_root, framework):
 
 
 def write_version_marker(project_root, version, framework, skills=None,
-                         config_hash=None, commit_format=None):
+                         config_hash=None, setup_hash=None,
+                         commit_format=None):
     """Write .flow.json with the plugin version, framework, and optional fields.
 
     If skills is provided, it is included as a top-level key mapping skill
     names to "auto" or "manual". If config_hash is provided, it is stored
-    for version upgrade comparisons. If commit_format is provided, it is
-    stored as a top-level key.
+    for version upgrade comparisons. If setup_hash is provided, it is stored
+    to detect changes to the setup script itself. If commit_format is
+    provided, it is stored as a top-level key.
     """
     flow_json = project_root / ".flow.json"
     data = {"flow_version": version, "framework": framework}
     if config_hash is not None:
         data["config_hash"] = config_hash
+    if setup_hash is not None:
+        data["setup_hash"] = setup_hash
     if commit_format is not None:
         data["commit_format"] = commit_format
     if skills is not None:
@@ -321,9 +328,11 @@ def main():
         plugin_data = _plugin_json()
         version = plugin_data["version"]
         config_hash = compute_config_hash(framework)
+        setup_hash = compute_setup_hash()
         merge_settings(project_root, framework)
         write_version_marker(project_root, version, framework,
                              skills=skills, config_hash=config_hash,
+                             setup_hash=setup_hash,
                              commit_format=commit_format)
         exclude_updated = update_git_exclude(project_root)
         install_pre_commit_hook(project_root)

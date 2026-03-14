@@ -53,19 +53,14 @@ At the very start, output the following banner in your response (not via Bash) i
 
 ## Logging
 
-After every Bash command in Steps 5–6, log it to `.flow-states/<branch>.log`. Step 4 handles its own logging internally.
+After every Bash command in Steps 3–4, log it to `.flow-states/<branch>.log`
+using `bin/flow log`. Step 2 handles its own logging internally.
 
-Run the command directly — do not append any suffix:
+Run the command first, then log the result. Pipeline the log call with the
+next command where possible (run both in parallel in one response).
 
 ```bash
-COMMAND
-```
-
-Then Read `.flow-states/<branch>.log` (empty string if it does not
-exist yet) and Write it back with this line appended:
-
-```text
-YYYY-MM-DDTHH:MM:SSZ [Phase 1] Step X — desc (exit EC)
+bin/flow log <branch> "[Phase 1] Step X — desc (exit EC)"
 ```
 
 Use the feature name as `<branch>` — it matches the branch name.
@@ -74,15 +69,27 @@ Use the feature name as `<branch>` — it matches the branch name.
 
 ## Steps
 
-### Step 1 — Version gate
+### Step 1 — Pre-flight checks
 
-Run the version check before anything else:
+Run all four in parallel (one response, multiple tool calls):
 
 ```bash
 exec ${CLAUDE_PLUGIN_ROOT}/bin/flow prime-check
 ```
 
-Parse the JSON output:
+```bash
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow upgrade-check
+```
+
+```bash
+bin/flow ci
+```
+
+Also use the Glob tool: pattern `*.json`, path `.flow-states` — checks for existing active features.
+
+Process the results in this order:
+
+**1a. Version gate (prime-check):**
 
 - If `"status": "error"` — tell the user to run `/flow:flow-prime` and stop. Do not proceed to any further steps.
 - If `"status": "ok"` and `"auto_upgraded": true` — show this notice using the `old_version` and `new_version` fields from the JSON, then continue:
@@ -99,13 +106,8 @@ FLOW auto-upgraded from v{old_version} to v{new_version} (config unchanged).
 Do NOT proceed if version check fails. Tell the user to run `/flow:flow-prime` and stop.
 </HARD-GATE>
 
-After prime-check passes, check for a newer release:
+**1b. Upgrade check:**
 
-```bash
-exec ${CLAUDE_PLUGIN_ROOT}/bin/flow upgrade-check
-```
-
-Parse the JSON output:
 - `"status": "current"` — proceed silently
 - `"status": "unknown"` — proceed silently (best-effort check)
 - `"status": "upgrade_available"` — show this notice, then continue:
@@ -124,11 +126,9 @@ Parse the JSON output:
 ```
 ````
 
-### Step 2 — Check for existing feature
+**1c. Existing feature check (Glob results):**
 
-Use the Glob tool to check for existing state files matching `.flow-states/*.json`.
-
-If any files are found, list their names (the branch names from the filenames).
+If any state files are found, list their names (the branch names from the filenames).
 
 If any files are found and continue=auto, print a warning and proceed automatically.
 
@@ -140,18 +140,12 @@ If any files are found and continue=manual, use AskUserQuestion:
 > - **Cancel** — stop here
 
 <HARD-GATE>
-Do NOT proceed past Step 2 until the existing feature check is complete. If existing features are found and the user chooses Cancel, stop here.
+Do NOT proceed past the existing feature check. If existing features are found and the user chooses Cancel, stop here.
 </HARD-GATE>
 
-### Step 3 — Verify main is green
+**1d. CI result:**
 
-Run `bin/flow ci` on main before creating any resources:
-
-```bash
-bin/flow ci
-```
-
-If it passes, continue to Step 4.
+If CI passed, continue to Step 2.
 
 If it fails, launch the `ci-fixer` sub-agent to diagnose and fix. Use the Agent tool:
 
@@ -163,14 +157,14 @@ knows what failed.
 
 Wait for the sub-agent to return.
 
-- **Fixed** — commit the fixes via `/flow:flow-commit --auto`, then continue to Step 4
+- **Fixed** — commit the fixes via `/flow:flow-commit --auto`, then continue to Step 2
 - **Not fixed** — stop and report to the user. Do not create a worktree, PR, or state file
 
 <HARD-GATE>
-Do NOT proceed to Step 4 until the ci-fixer changes are committed and pushed via `/flow:flow-commit --auto`. Uncommitted fixes on main will not appear in the worktree.
+Do NOT proceed to Step 2 until the ci-fixer changes are committed and pushed via `/flow:flow-commit --auto`. Uncommitted fixes on main will not appear in the worktree.
 </HARD-GATE>
 
-### Step 4 — Set up workspace
+### Step 2 — Set up workspace
 
 Run the consolidated setup script:
 
@@ -195,15 +189,19 @@ The script logs each operation to `.flow-states/<branch>.log` internally.
 {"status": "ok", "worktree": ".worktrees/<branch>", "pr_url": "...", "pr_number": 123, "feature": "...", "branch": "..."}
 ```
 
-Parse the JSON. Then cd into the worktree:
+Parse the JSON. Then run both in parallel (one response, two tool calls):
 
 ```bash
 cd .worktrees/<branch>
 ```
 
+Also use the Read tool to check if `bin/dependencies` exists at `<project_root>/.worktrees/<branch>/bin/dependencies`.
+
 The Bash tool persists working directory between calls, so all subsequent
 commands run inside the worktree automatically. Do NOT repeat `cd .worktrees/`
 in later steps — it would look for a nested `.worktrees/` that doesn't exist.
+
+If Read returns an error (file not found), skip to Done silently.
 
 **On failure** — stdout is error JSON, details on stderr:
 
@@ -214,42 +212,61 @@ in later steps — it would look for a nested `.worktrees/` that doesn't exist.
 If the script returns an error, read the stderr output for details, report
 the failure to the user, and stop.
 
-### Step 5 — Update dependencies
+### Step 3 — Update dependencies
 
-Use the Read tool to check if `bin/dependencies` exists in the worktree.
-If Read returns an error (file not found), skip to Done silently.
-
-If `bin/dependencies` exists, run it:
+If `bin/dependencies` was found in Step 2, run it:
 
 ```bash
 bin/dependencies
 ```
 
-Then run CI to verify:
+Then run the log and CI in parallel (one response, two Bash calls):
+
+```bash
+bin/flow log <branch> "[Phase 1] Step 3 — bin/dependencies (exit EC)"
+```
 
 ```bash
 bin/flow ci
 ```
 
-- **Passes** — continue to Step 6
-- **Fails** — launch the `ci-fixer` sub-agent to diagnose and fix.
+Use the exit code from the `bin/dependencies` command for EC in the log entry.
+
+- **CI passes** — continue to Step 4
+- **CI fails** — launch the `ci-fixer` sub-agent to diagnose and fix.
   Use the Agent tool:
   - `subagent_type`: `"flow:ci-fixer"`
   - `description`: `"Fix bin/flow ci failures"`
   - Provide the full `bin/flow ci` output in the prompt.
   - After the sub-agent returns:
-    - **Fixed** — continue to Step 6 (dependency changes + fixes committed together)
+    - **Fixed** — continue to Step 4 (dependency changes + fixes committed together)
     - **Not fixed** — stop and report to the user what is failing
 
 <HARD-GATE>
-Do NOT proceed past Step 5 until `bin/flow ci` is green.
+Do NOT proceed past Step 3 until `bin/flow ci` is green.
 </HARD-GATE>
 
-If `bin/dependencies` does not exist, skip to Done silently.
+### Step 4 — Commit and push
 
-### Step 6 — Commit and push
+Run the CI log and git status in parallel (one response, two Bash calls):
 
-Run `git status` to check for uncommitted changes. If there are no changes, skip directly to Done.
+```bash
+bin/flow log <branch> "[Phase 1] Step 3 — bin/flow ci (exit EC)"
+```
+
+```bash
+git status
+```
+
+Use the exit code from the `bin/flow ci` command for EC in the log entry.
+
+Then log the status result:
+
+```bash
+bin/flow log <branch> "[Phase 1] Step 4 — git status (exit EC)"
+```
+
+If `git status` shows no uncommitted changes, skip directly to Done.
 
 Otherwise, use `/flow:flow-commit --auto` to review and commit any dependency changes. No exceptions. Never use `git commit` directly.
 

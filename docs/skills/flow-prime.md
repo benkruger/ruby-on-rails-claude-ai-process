@@ -16,7 +16,7 @@ One-time project setup. Configures workspace permissions in `.claude/settings.js
 
 ## What It Does
 
-1. Auto-detects framework using data-driven detection (`frameworks/*/detect.json`) and confirms with the user
+1. Auto-detects framework using data-driven detection (`frameworks/*/detect.json`) and checks plugin availability in parallel
 2. Asks the user to choose an autonomy level (fully autonomous, fully manual, recommended, or customize per skill)
 3. Asks the user to choose a commit message format (title-only or full)
 4. Runs a single setup script that handles all configuration in one call:

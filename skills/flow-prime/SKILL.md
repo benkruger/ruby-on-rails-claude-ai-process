@@ -27,15 +27,21 @@ At the very start, output the following banner in your response (not via Bash) i
 
 ## Steps
 
-### Step 1 — Detect framework
+### Step 1 — Detect framework and check plugins
 
-Auto-detect the framework using the data-driven detector:
+Run both in parallel (one response, two Bash calls):
 
 ```bash
 exec ${CLAUDE_PLUGIN_ROOT}/bin/flow detect-framework <project_root>
 ```
 
-Parse the JSON output. The `detected` array contains frameworks matched
+```bash
+claude plugin list
+```
+
+Keep the plugin list output for Step 5 — do not re-run it.
+
+Parse the detect-framework JSON output. The `detected` array contains frameworks matched
 by file presence, and `available` lists all supported frameworks.
 
 If exactly one framework is detected, confirm with AskUserQuestion:
@@ -245,11 +251,7 @@ All permissions (universal + all framework sets) for reference:
 
 ### Step 5 — Install code-review plugin
 
-Check if the `code-review` plugin is already available:
-
-```bash
-claude plugin list
-```
+Use the `claude plugin list` output from Step 1 (do not re-run it).
 
 If the output does not contain `claude-code-plugins`, add the marketplace source:
 

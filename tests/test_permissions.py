@@ -363,8 +363,8 @@ def test_logging_uses_project_local_path():
 
 
 def test_logging_template_is_command_first():
-    """The ```bash``` block inside ## Logging must start with COMMAND,
-    not with date."""
+    """The ```bash``` block inside ## Logging must start with COMMAND
+    or bin/flow log, not with date."""
     for name in _logging_skills():
         content = _read_skill(name)
         logging_match = re.search(
@@ -378,9 +378,10 @@ def test_logging_template_is_command_first():
         assert bash_match, f"skills/{name}/SKILL.md ## Logging has no ```bash``` block"
         bash_content = bash_match.group(1).strip()
 
-        assert bash_content.startswith("COMMAND"), (
+        valid = bash_content.startswith("COMMAND") or bash_content.startswith("bin/flow log")
+        assert valid, (
             f"skills/{name}/SKILL.md ## Logging bash template must start "
-            f"with COMMAND, not '{bash_content[:30]}...'"
+            f"with COMMAND or bin/flow log, not '{bash_content[:30]}...'"
         )
 
 

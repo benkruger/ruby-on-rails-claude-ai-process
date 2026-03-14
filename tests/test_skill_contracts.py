@@ -701,13 +701,12 @@ def test_status_formatter_shows_timing_for_completed_phases():
 # --- Start phase setup script ---
 
 
-def test_start_logging_uses_read_write():
-    """Start SKILL.md logging section must use Read+Write like every other skill.
+def test_start_logging_uses_safe_pattern():
+    """Start SKILL.md logging section must use a safe logging pattern.
 
-    The >> (Bash append) pattern requires $(date ...) for timestamps, which
-    triggers Claude Code's security prompt. settings.json cannot suppress $()
-    prompts. The Read+Write pattern avoids this by generating the timestamp
-    in Claude's tool layer."""
+    Either Read+Write (tool layer timestamps) or bin/flow log (Python
+    subprocess) is acceptable. The >> (Bash append) pattern requires
+    $(date ...) which triggers Claude Code's security prompt."""
     content = _read_skill("flow-start")
     logging_match = re.search(
         r"## Logging\n(.*?)(?=\n## |\n---|\Z)", content, re.DOTALL
@@ -715,9 +714,11 @@ def test_start_logging_uses_read_write():
     assert logging_match, "flow-start/SKILL.md has no ## Logging section"
     logging_section = logging_match.group(1)
 
-    assert "Read" in logging_section and "Write" in logging_section, (
-        "flow-start/SKILL.md ## Logging section must use Read+Write pattern — "
-        "Bash >> with $(date) triggers permission prompts"
+    uses_read_write = "Read" in logging_section and "Write" in logging_section
+    uses_flow_log = "bin/flow log" in logging_section
+    assert uses_read_write or uses_flow_log, (
+        "flow-start/SKILL.md ## Logging section must use Read+Write or "
+        "bin/flow log pattern — Bash >> with $(date) triggers permission prompts"
     )
     assert ">>" not in logging_section, (
         "flow-start/SKILL.md ## Logging section must NOT use >> (Bash append) — "
@@ -1440,16 +1441,16 @@ def test_start_step_3_has_ci_fix_subagent():
     )
 
 
-def test_start_step_3_commits_via_flow_commit():
-    """Step 3 CI fixes on main must be committed via /flow:flow-commit."""
+def test_start_ci_fixes_committed_via_flow_commit():
+    """CI fixes on main must be committed via /flow:flow-commit."""
     content = _read_skill("flow-start")
-    step3_match = re.search(
-        r"### Step 3.*?\n(.*?)(?=\n### Step 4)", content, re.DOTALL
+    step1_match = re.search(
+        r"### Step 1.*?\n(.*?)(?=\n### Step 2)", content, re.DOTALL
     )
-    assert step3_match, "Could not find Step 3 in flow-start/SKILL.md"
-    step3_text = step3_match.group(1)
-    assert "/flow:flow-commit" in step3_text, (
-        "flow-start Step 3 must commit CI fixes via /flow:flow-commit"
+    assert step1_match, "Could not find Step 1 in flow-start/SKILL.md"
+    step1_text = step1_match.group(1)
+    assert "/flow:flow-commit" in step1_text, (
+        "flow-start Step 1 must commit CI fixes via /flow:flow-commit"
     )
 
 
@@ -1630,22 +1631,22 @@ def test_code_review_has_self_invocation_check():
     )
 
 
-def test_start_step_6_enforces_flow_commit_exclusively():
-    """Step 6 must use /flow:flow-commit and not suggest git commit."""
+def test_start_commit_step_enforces_flow_commit_exclusively():
+    """Commit step must use /flow:flow-commit and not suggest git commit."""
     content = _read_skill("flow-start")
-    step6_match = re.search(
-        r"### Step 6.*?\n(.*?)(?=\n### Done)", content, re.DOTALL
+    step4_match = re.search(
+        r"### Step 4.*?\n(.*?)(?=\n### Done)", content, re.DOTALL
     )
-    assert step6_match, "Could not find Step 6 in flow-start/SKILL.md"
-    step6_text = step6_match.group(1)
-    assert "/flow:flow-commit" in step6_text, (
-        "flow-start Step 6 must reference /flow:flow-commit"
+    assert step4_match, "Could not find Step 4 in flow-start/SKILL.md"
+    step4_text = step4_match.group(1)
+    assert "/flow:flow-commit" in step4_text, (
+        "flow-start Step 4 must reference /flow:flow-commit"
     )
-    # Step 6 may mention "git commit" only in a prohibition (e.g. "Never use")
-    for line in step6_text.splitlines():
+    # Step 4 may mention "git commit" only in a prohibition (e.g. "Never use")
+    for line in step4_text.splitlines():
         if "git commit" in line:
             assert re.search(r"[Nn]ever", line), (
-                f"flow-start Step 6 mentions 'git commit' outside a "
+                f"flow-start Step 4 mentions 'git commit' outside a "
                 f"prohibition: {line.strip()}"
             )
 

@@ -378,10 +378,11 @@ def test_logging_template_is_command_first():
         assert bash_match, f"skills/{name}/SKILL.md ## Logging has no ```bash``` block"
         bash_content = bash_match.group(1).strip()
 
-        valid = bash_content.startswith("COMMAND") or bash_content.startswith("bin/flow log")
+        valid = (bash_content.startswith("COMMAND")
+                or "bin/flow log" in bash_content.split("\n")[0])
         assert valid, (
             f"skills/{name}/SKILL.md ## Logging bash template must start "
-            f"with COMMAND or bin/flow log, not '{bash_content[:30]}...'"
+            f"with COMMAND or contain bin/flow log, not '{bash_content[:50]}...'"
         )
 
 

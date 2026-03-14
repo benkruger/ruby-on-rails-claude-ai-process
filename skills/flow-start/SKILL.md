@@ -60,7 +60,7 @@ Run the command first, then log the result. Pipeline the log call with the
 next command where possible (run both in parallel in one response).
 
 ```bash
-bin/flow log <branch> "[Phase 1] Step X — desc (exit EC)"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow log <branch> "[Phase 1] Step X — desc (exit EC)"
 ```
 
 Use the feature name as `<branch>` — it matches the branch name.
@@ -82,7 +82,7 @@ exec ${CLAUDE_PLUGIN_ROOT}/bin/flow upgrade-check
 ```
 
 ```bash
-bin/flow ci
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow ci
 ```
 
 Also use the Glob tool: pattern `*.json`, path `.flow-states` — checks for existing active features.
@@ -223,11 +223,11 @@ bin/dependencies
 Then run the log and CI in parallel (one response, two Bash calls):
 
 ```bash
-bin/flow log <branch> "[Phase 1] Step 3 — bin/dependencies (exit EC)"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow log <branch> "[Phase 1] Step 3 — bin/dependencies (exit EC)"
 ```
 
 ```bash
-bin/flow ci
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow ci
 ```
 
 Use the exit code from the `bin/dependencies` command for EC in the log entry.
@@ -251,7 +251,7 @@ Do NOT proceed past Step 3 until `bin/flow ci` is green.
 Run the CI log and git status in parallel (one response, two Bash calls):
 
 ```bash
-bin/flow log <branch> "[Phase 1] Step 3 — bin/flow ci (exit EC)"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow log <branch> "[Phase 1] Step 3 — bin/flow ci (exit EC)"
 ```
 
 ```bash
@@ -263,7 +263,7 @@ Use the exit code from the `bin/flow ci` command for EC in the log entry.
 Then log the status result:
 
 ```bash
-bin/flow log <branch> "[Phase 1] Step 4 — git status (exit EC)"
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow log <branch> "[Phase 1] Step 4 — git status (exit EC)"
 ```
 
 If `git status` shows no uncommitted changes, skip directly to Done.
@@ -275,7 +275,7 @@ Otherwise, use `/flow:flow-commit --auto` to review and commit any dependency ch
 Complete the phase:
 
 ```bash
-bin/flow phase-transition --phase flow-start --action complete
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-transition --phase flow-start --action complete
 ```
 
 Parse the JSON output. If `"status": "error"`, report the error and stop.

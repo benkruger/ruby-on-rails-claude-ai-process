@@ -105,7 +105,7 @@ On completion (whether approved, denied, or nothing to commit), print the same w
 **FLOW and Maintainer mode:** run both in parallel (one response, two Bash calls):
 
 ```bash
-bin/flow ci --if-dirty
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow ci --if-dirty
 ```
 
 ```bash
@@ -266,7 +266,7 @@ Files are already staged from Round 3. No need to `git add -A` again.
 Run the finalize script to commit, clean up the message file, pull, and push in one call:
 
 ```bash
-bin/flow finalize-commit .flow-commit-msg <current-branch>
+exec ${CLAUDE_PLUGIN_ROOT}/bin/flow finalize-commit .flow-commit-msg <current-branch>
 ```
 
 The script returns JSON:

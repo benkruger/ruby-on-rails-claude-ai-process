@@ -243,7 +243,8 @@ All permissions (universal + all framework sets) for reference:
       "Bash(gh issue list *)",
       "Bash(gh issue view *)",
       "Read(~/.claude/rules/*)",
-      "Read(/tmp/*.txt)"
+      "Read(/tmp/*.txt)",
+      "Agent(flow:ci-fixer)"
     ],
     "deny": [
       "Bash(git rebase *)",

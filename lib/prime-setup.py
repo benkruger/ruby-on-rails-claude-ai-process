@@ -49,6 +49,7 @@ UNIVERSAL_ALLOW = [
     "Bash(gh issue view *)",
     "Read(~/.claude/rules/*)",
     "Read(/tmp/*.txt)",
+    "Agent(flow:ci-fixer)",
 ]
 
 FLOW_DENY = [

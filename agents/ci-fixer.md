@@ -40,6 +40,7 @@ the fix.
 - Never use piped commands (|) — use separate Bash calls
 - Never use cat, head, tail, grep, rg, find, or ls via Bash
 - Read the project CLAUDE.md for framework conventions before fixing
+- Never search or read outside the project directory — no `~/.gem/`, `~/.rbenv/`, `/usr/`, or other system paths. Fix issues using project files only
 
 ## Return Format
 

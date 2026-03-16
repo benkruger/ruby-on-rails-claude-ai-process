@@ -1,5 +1,19 @@
 # Release Notes
 
+## v0.30.0 — DAG-enhanced planning via decompose plugin
+
+- Plan phase now invokes the `decompose` plugin (`decompose:decompose`)
+  for structured DAG analysis — nodes, dependencies, topological ordering
+- Plan and DAG files stored in `.flow-states/` alongside other feature
+  artifacts, embedded as collapsible sections in the PR body
+- DAG mode configurable via `.flow.json` (`auto`/`always`/`never`)
+- `flow-prime` installs the decompose plugin automatically
+- Removed Claude Code native plan mode (`EnterPlanMode`/`ExitPlanMode`)
+  — replaced by direct decompose plugin invocation
+- Removed `lib/validate-exit-plan.py` hook — no longer needed
+- Content standards added to issue filing rules
+- Design document at `docs/reference/dag-planning-design.md`
+
 ## v0.29.0 — iOS framework support
 
 - Add iOS as third supported framework alongside Rails and Python

@@ -39,7 +39,8 @@
       "Read(~/.claude/rules/*)",
       "Read(/tmp/*.txt)",
       "Bash(cd *)",
-      "Bash(bin/*)"
+      "Bash(bin/*)",
+      "Agent(flow:ci-fixer)"
     ],
     "deny": [
       "Bash(git rebase *)",

@@ -1,10 +1,13 @@
 {
   "allow": [
     "Bash(bin/rails test *)",
+    "Bash(rails *)",
+    "Bash(RAILS_ENV=*)",
+    "Bash(bundle *)",
+    "Bash(ruby *)",
+    "Bash(./migrate.sh *)",
     "Bash(rubocop *)",
     "Bash(rubocop -A)",
-    "Bash(bundle update --all)",
-    "Bash(bundle exec *)",
     "Bash(psql *)"
   ]
 }

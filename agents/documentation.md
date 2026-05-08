@@ -34,10 +34,23 @@ your turn budget is spent on behavioral analysis, not formatting
 noise. `<base_branch>` is the integration branch the flow coordinates
 against (resolved at runtime via `bin/flow base-branch` — usually
 `main`, but `staging`/`develop`/etc. for repos whose default branch
-is not `main`). The paths to the project CLAUDE.md and
-`.claude/rules/` directory are also provided. Use Read, Glob, and
-Grep tools to investigate the surrounding codebase and read
-documentation files.
+is not `main`).
+
+A NARROWED LIST of doc paths likely affected by this diff is also
+provided in your prompt under a `DOC_PATHS:` header. The skill
+derives this list via filename heuristics (`skills/<name>/SKILL.md`
+→ `docs/skills/<name>.md`; phase skill changes →
+`docs/phases/phase-<N>-<name>.md`; `.claude/rules/*.md` cross-
+references; CLAUDE.md and `docs/reference/flow-state-schema.md`
+when the diff affects state shape). Investigate ONLY the listed
+doc paths for documentation drift — do NOT walk the full
+`<worktree>/docs/` tree. The narrowed scope is what keeps your turn
+budget bounded on moderately-sized PRs.
+
+The paths to the project CLAUDE.md and `.claude/rules/` directory
+are also provided for cross-reference checks. Use Read, Glob, and
+Grep tools to investigate the surrounding codebase and read the
+listed documentation files.
 
 ## Workflow
 
@@ -56,11 +69,16 @@ works?" Think about implicit conventions, unstated assumptions, names
 that only make sense with context, and architectural decisions that are
 not self-evident.
 
-**Read the documentation.** Use the Read tool to read CLAUDE.md and all
-`.claude/rules/*.md` files. For each behavioral change in the diff,
-check whether the documentation still accurately describes the code's
-behavior. If the diff changes how something works but the docs still
-describe the old behavior, that is a documentation accuracy finding.
+**Read the documentation.** Use the Read tool to read CLAUDE.md and
+the doc paths listed under the `DOC_PATHS:` header in your prompt.
+Read `.claude/rules/*.md` files only when checking cross-references
+between rules in the diff. For each behavioral change in the diff,
+check whether the documentation in the listed paths still accurately
+describes the code's behavior. If the diff changes how something
+works but the docs still describe the old behavior, that is a
+documentation accuracy finding. Do NOT walk the full
+`<worktree>/docs/` tree — the listed paths are exhaustive for
+documentation drift in this PR.
 
 **Write findings incrementally.** Produce each finding immediately when
 discovered as a structured `**Finding` block. Do not batch findings at

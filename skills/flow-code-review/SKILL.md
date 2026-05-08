@@ -183,6 +183,43 @@ prettier, black) reformat many files, the substantive diff excludes
 formatting noise and preserves the agents' turn budget for behavioral
 analysis.
 
+**Compute affected doc paths.**
+
+The documentation agent's turn budget is bounded; pointing it at the
+full `<worktree_path>/docs/` tree on moderately-sized PRs causes
+autocompact-thrash before findings are produced. The skill computes a
+narrowed list of doc paths likely affected by the diff via filename
+heuristics, and the agent investigates ONLY those paths.
+
+Capture the changed-file list:
+
+```bash
+git diff --name-only origin/<base_branch>...HEAD
+```
+
+From the changed-file list, derive `<doc_paths>` (a list of paths
+under `<worktree_path>` to embed inline in the documentation agent
+prompt):
+
+- For each `skills/<name>/SKILL.md` in the diff → add
+  `<worktree_path>/docs/skills/<name>.md`
+- For each phase skill (`skills/flow-<phase>/SKILL.md`) in the diff →
+  also add `<worktree_path>/docs/phases/phase-<N>-<phase>.md` (look up
+  `<N>` from `flow-phases.json` — phase order is the array index plus
+  one)
+- For each `.claude/rules/*.md` in the diff → include the rule path
+  itself so the agent can check cross-references in sibling rule files
+- Always include `<worktree_path>/CLAUDE.md`
+- If the diff touches `src/state.rs`, `src/phase_*.rs`, or
+  `flow-phases.json` → add
+  `<worktree_path>/docs/reference/flow-state-schema.md`
+- If the diff touches `agents/*.md` → add
+  `<worktree_path>/docs/reference/agents.md` if it exists
+
+Capture this list as `<doc_paths>` for use in Step 2. The narrowed
+list is exhaustive for documentation drift in this PR — the
+documentation agent does not need to walk the full docs tree.
+
 **Derive adversarial test setup.**
 
 The adversarial agent writes a single probe test file inside the
@@ -342,7 +379,8 @@ Provide the substantive diff output in the prompt, along with:
 - The path to the project CLAUDE.md
 - The branch name
 
-**Documentation agent** — context-sparse (receives substantive diff, doc paths):
+**Documentation agent** — context-sparse (receives substantive diff,
+narrowed doc-paths list, doc roots):
 
 Use the Agent tool with:
 
@@ -351,15 +389,22 @@ Use the Agent tool with:
 
 Provide the substantive diff output in the prompt, along with:
 
+- The narrowed list of doc paths (`<doc_paths>` from Step 1) — embed
+  inline, one path per line, under a `DOC_PATHS:` header
 - The path to the project CLAUDE.md
-- The path to the `.claude/rules/` directory
+- The path to the `.claude/rules/` directory (for cross-reference
+  checks only — the agent must investigate ONLY the listed doc paths
+  for documentation drift, not the full `<worktree_path>/docs/` tree)
 
 Prefix the prompt with:
 
 > "You are a new team member reading this PR for the first time. The
-> substantive diff (whitespace-only changes filtered) is below.
-> Investigate the codebase and documentation for comprehension barriers
-> and documentation drift."
+> substantive diff (whitespace-only changes filtered) is below, along
+> with a NARROWED LIST of doc paths likely affected by this PR (under
+> the DOC_PATHS header). Read each listed doc path and check it against
+> the diff for drift. Do NOT walk the full `<worktree>/docs/` tree —
+> the listed paths are exhaustive for documentation drift in this PR.
+> Investigate the codebase for comprehension barriers as usual."
 
 Wait for all agents to return.
 

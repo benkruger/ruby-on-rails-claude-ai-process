@@ -248,10 +248,27 @@ newline) or include trailing whitespace from line-continuation
 quoting. The contract is a single-line path; the skill normalizes
 defensively.
 
+<HARD-GATE>
 If `bin/test` exits 2, surface the stderr message and halt — the
 project must configure `bin/test --adversarial-path` (uncomment
 the runner block and set the matching path comment in `bin/test`)
 before Code Review can run. Do NOT proceed to Step 2.
+
+This is an infrastructure halt, not a decision point. There is a
+single option only — fix the unconfigured stub: uncomment the
+runner block in `bin/test` and set the matching path comment, then
+re-run Code Review. Do NOT enumerate alternatives ("(1) skip the
+adversarial agent, (2) abort the workflow, (3) configure
+`bin/test`") — every non-fix path silently weakens the quality
+gate.
+
+Per `.claude/rules/anti-patterns.md` "Never Offer to Skip Workflow
+Steps" and `.claude/rules/fix-infrastructure-bugs.md` "Fix
+Infrastructure Bugs Immediately": when an infrastructure halt
+fires inside a workflow, the response is to fix the underlying
+problem and resume — never to bypass the step that detected it.
+
+</HARD-GATE>
 
 The returned path may be absolute or relative. A relative path is
 resolved against the cwd you ran `bin/test --adversarial-path`

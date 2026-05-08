@@ -417,6 +417,110 @@ fn documentation_agent_declares_end_of_findings_marker() {
     assert_agent_output_format_declares_end_of_findings("documentation.md");
 }
 
+// --- Halt instructions wrapped in fix-first HARD-GATE ---
+//
+// When a phase skill instructs the model to halt the workflow on an
+// infrastructure failure (e.g. `bin/test --adversarial-path` exits 2,
+// a phase-gate command returns a structured error), the surrounding
+// prose must wrap the instruction in a `<HARD-GATE>` block that names
+// the single fix-first response and cites both
+// `.claude/rules/anti-patterns.md` "Never Offer to Skip Workflow Steps"
+// and `.claude/rules/fix-infrastructure-bugs.md` "Fix Infrastructure
+// Bugs Immediately". Without the HARD-GATE shape, the model defaults
+// to enumerating multiple options ("(1) fix it, (2) skip the agent,
+// (3) abort the workflow") at the moment the rule says enumeration
+// is forbidden.
+//
+// Single coordinated test (rather than per-skill siblings) because
+// the invariant is corpus-wide: every phase SKILL.md that adds a
+// halt instruction must follow the same shape. Per-skill failure
+// output is preserved by including the skill name and trigger line
+// in every assertion message.
+//
+// Trigger vocabulary (closed and curated):
+//
+// - A line containing `halt` AND one of `exit 2` / `exits 2` /
+//   `exit code 2` / `exits with 2` (case-insensitive).
+// - A line containing `infrastructure halt` (case-insensitive).
+//
+// Compliance proof — the trigger line must sit inside an open
+// `<HARD-GATE>` block, AND the enclosing block must contain:
+// `single option` OR `Two options`; AND `anti-patterns.md`; AND
+// `fix-infrastructure-bugs.md`. Compliance is the conjunction.
+
+fn line_byte_offset(content: &str, line_index: usize) -> usize {
+    let mut offset = 0;
+    for (i, line) in content.lines().enumerate() {
+        if i == line_index {
+            return offset;
+        }
+        offset += line.len() + 1;
+    }
+    offset
+}
+
+fn halt_trigger_matches(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    if lower.contains("infrastructure halt") {
+        return true;
+    }
+    if !lower.contains("halt") {
+        return false;
+    }
+    lower.contains("exit 2")
+        || lower.contains("exits 2")
+        || lower.contains("exit code 2")
+        || lower.contains("exits with 2")
+}
+
+#[test]
+fn phase_skills_halt_instructions_wrapped_in_fix_first_hard_gate() {
+    let ps = phase_skills_map();
+    for (key, skill) in &ps {
+        let content = common::read_skill(skill);
+        for (idx, line) in content.lines().enumerate() {
+            if !halt_trigger_matches(line) {
+                continue;
+            }
+            let line_offset = line_byte_offset(&content, idx);
+            let before = &content[..line_offset];
+            let last_open = before.rfind("<HARD-GATE>");
+            let last_close = before.rfind("</HARD-GATE>");
+            let inside_hard_gate = match (last_open, last_close) {
+                (Some(o), Some(c)) => o > c,
+                (Some(_), None) => true,
+                _ => false,
+            };
+            assert!(
+                inside_hard_gate,
+                "Phase {key} ({skill}) line {}: halt instruction must be wrapped in a <HARD-GATE> block per .claude/rules/anti-patterns.md \"Never Offer to Skip Workflow Steps\" and .claude/rules/fix-infrastructure-bugs.md \"Fix Infrastructure Bugs Immediately\". Trigger line:\n  {line}",
+                idx + 1
+            );
+            let gate_start = last_open.expect("inside_hard_gate implies open");
+            let after_open = &content[gate_start..];
+            let gate_end_relative = after_open.find("</HARD-GATE>").unwrap_or_else(|| {
+                panic!("Phase {key} ({skill}) HARD-GATE at byte {gate_start} has no closing tag")
+            });
+            let gate_block = &after_open[..gate_end_relative];
+            assert!(
+                gate_block.contains("single option") || gate_block.contains("Two options"),
+                "Phase {key} ({skill}) line {}: enclosing HARD-GATE must frame the response with \"single option\" or \"Two options\" so the model cannot enumerate alternatives. Trigger line:\n  {line}",
+                idx + 1
+            );
+            assert!(
+                gate_block.contains("anti-patterns.md"),
+                "Phase {key} ({skill}) line {}: enclosing HARD-GATE must cite .claude/rules/anti-patterns.md (Never Offer to Skip Workflow Steps). Trigger line:\n  {line}",
+                idx + 1
+            );
+            assert!(
+                gate_block.contains("fix-infrastructure-bugs.md"),
+                "Phase {key} ({skill}) line {}: enclosing HARD-GATE must cite .claude/rules/fix-infrastructure-bugs.md (Fix Infrastructure Bugs Immediately). Trigger line:\n  {line}",
+                idx + 1
+            );
+        }
+    }
+}
+
 #[test]
 fn learn_no_onboarding_subagent() {
     let c = common::read_skill("flow-learn");

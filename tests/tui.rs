@@ -14,7 +14,8 @@ use ratatui::{Frame, Terminal};
 
 use flow_rs::tui::{
     apply_filter_key, build_iterm_open_worktree_script, detail_pane_phase_header,
-    flow_matches_filter, list_row_phase_label, DrawFn, EventSourceFn, TuiApp, TuiAppPlatform, View,
+    flow_matches_filter, format_age, list_row_phase_label, DrawFn, EventSourceFn, TuiApp,
+    TuiAppPlatform, View,
 };
 use flow_rs::tui_data::{
     AccountMetrics, FlowSummary, IssueSummary, OrchestrationItem, OrchestrationSummary,
@@ -582,6 +583,56 @@ fn test_render_tasks_view_no_plan() {
     app.view = View::Tasks;
     let output = render_to_string(&app, 80, 40);
     assert!(output.contains("No plan file."));
+}
+
+// --- format_age ---
+
+#[test]
+fn test_format_age_zero() {
+    assert_eq!(
+        format_age(std::time::Duration::from_secs(0)),
+        "updated 0s ago"
+    );
+}
+
+#[test]
+fn test_format_age_seconds_below_minute() {
+    assert_eq!(
+        format_age(std::time::Duration::from_secs(45)),
+        "updated 45s ago"
+    );
+}
+
+#[test]
+fn test_format_age_one_minute_boundary() {
+    assert_eq!(
+        format_age(std::time::Duration::from_secs(60)),
+        "updated 1m ago"
+    );
+}
+
+#[test]
+fn test_format_age_minutes_below_hour() {
+    assert_eq!(
+        format_age(std::time::Duration::from_secs(45 * 60)),
+        "updated 45m ago"
+    );
+}
+
+#[test]
+fn test_format_age_one_hour_boundary() {
+    assert_eq!(
+        format_age(std::time::Duration::from_secs(3700)),
+        "updated 1h ago"
+    );
+}
+
+#[test]
+fn test_format_age_many_hours() {
+    assert_eq!(
+        format_age(std::time::Duration::from_secs(5 * 3600)),
+        "updated 5h ago"
+    );
 }
 
 // --- apply_filter_key + flow_matches_filter ---

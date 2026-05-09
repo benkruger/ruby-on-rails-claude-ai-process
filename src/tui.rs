@@ -7,7 +7,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::execute;
@@ -30,6 +30,26 @@ use crate::utils::format_tokens;
 
 /// Auto-refresh interval.
 const REFRESH_MS: u64 = 2000;
+
+/// Format an elapsed `Duration` as a short "updated Ns/Nm/Nh ago"
+/// string. Pure helper — accepts a `Duration` so tests can construct
+/// arbitrary values without mocking `Instant::now()`.
+///
+/// Buckets:
+///
+/// - `< 60s`   → `"updated Ns ago"`
+/// - `< 60m`   → `"updated Nm ago"`
+/// - otherwise → `"updated Nh ago"`
+pub fn format_age(elapsed: Duration) -> String {
+    let secs = elapsed.as_secs();
+    if secs < 60 {
+        format!("updated {}s ago", secs)
+    } else if secs < 3600 {
+        format!("updated {}m ago", secs / 60)
+    } else {
+        format!("updated {}h ago", secs / 3600)
+    }
+}
 
 /// Apply a key event to the filter state machine (`filter_query` +
 /// `filter_input_active`). Pure helper — operates entirely on the
@@ -260,6 +280,9 @@ pub struct TuiApp {
     /// True while the user is typing into the filter — chars append,
     /// Backspace pops, Enter commits, Esc cancels.
     pub filter_input_active: bool,
+    /// Wall clock of the most recent successful data fetch. Drives
+    /// the "updated Ns ago" indicator in the metrics row.
+    pub last_refresh: Instant,
 }
 
 impl TuiApp {
@@ -300,6 +323,7 @@ impl TuiApp {
             platform,
             filter_query: None,
             filter_input_active: false,
+            last_refresh: Instant::now(),
         }
     }
 
@@ -329,6 +353,7 @@ impl TuiApp {
         }
         self.metrics =
             tui_data::load_account_metrics(&self.root, Some(self.platform.home.as_path()));
+        self.last_refresh = Instant::now();
     }
 
     /// Run the TUI event loop against a caller-supplied draw closure
@@ -692,9 +717,10 @@ impl TuiApp {
             return vec![];
         }
         let cost_text = format!("${}/mo", self.metrics.cost_monthly);
+        let age_text = format_age(self.last_refresh.elapsed());
         if self.metrics.stale {
             let rl_text = "5h:--  7d:--".to_string();
-            let total_width = cost_text.len() + 2 + rl_text.len() + 2;
+            let total_width = cost_text.len() + 2 + rl_text.len() + 2 + age_text.len() + 2;
             if total_width > max_x.saturating_sub(30) {
                 return vec![];
             }
@@ -702,11 +728,20 @@ impl TuiApp {
                 Span::styled(cost_text, Style::default().add_modifier(Modifier::DIM)),
                 Span::raw("  "),
                 Span::styled(rl_text, Style::default().add_modifier(Modifier::DIM)),
+                Span::raw("  "),
+                Span::raw(age_text),
             ]
         } else {
             let rl_5h_text = format!("5h:{}%", self.metrics.rl_5h.unwrap_or(0));
             let rl_7d_text = format!("7d:{}%", self.metrics.rl_7d.unwrap_or(0));
-            let total_width = cost_text.len() + 2 + rl_5h_text.len() + 2 + rl_7d_text.len() + 2;
+            let total_width = cost_text.len()
+                + 2
+                + rl_5h_text.len()
+                + 2
+                + rl_7d_text.len()
+                + 2
+                + age_text.len()
+                + 2;
             if total_width > max_x.saturating_sub(30) {
                 return vec![];
             }
@@ -716,6 +751,8 @@ impl TuiApp {
                 Span::styled(rl_5h_text, rl_color(self.metrics.rl_5h.unwrap_or(0))),
                 Span::raw("  "),
                 Span::styled(rl_7d_text, rl_color(self.metrics.rl_7d.unwrap_or(0))),
+                Span::raw("  "),
+                Span::raw(age_text),
             ]
         }
     }

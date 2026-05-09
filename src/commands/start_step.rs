@@ -60,7 +60,12 @@ pub fn resolve_flow_bin(
 /// execs into a subcommand via bin/flow.
 pub fn run(step: i64, branch: &str, subcommand: Vec<String>) {
     let root = project_root();
-    let state_path = FlowPaths::new(&root, branch).state_file();
+    // `branch` arrives from clap; production callers (start-init
+    // pipeline) supply `branch_name()`-sanitized values, so `try_new`
+    // is the standard constructor and `expect` documents the boundary.
+    let state_path = FlowPaths::try_new(&root, branch)
+        .expect("start-step branch is start-init pipeline output (branch_name-sanitized)")
+        .state_file();
 
     let updated = update_step(&state_path, step);
 

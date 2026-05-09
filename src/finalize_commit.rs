@@ -181,8 +181,13 @@ pub fn run_impl(
     }
 
     // Derive phase number from state file's current_phase for log prefixes.
+    // `args.branch` arrives from /flow:flow-commit, which copies it from
+    // the active flow's state file (sanitized at flow-start). `try_new`
+    // is the standard constructor; `expect` documents the boundary.
     let pn = {
-        let state_path = FlowPaths::new(root, &args.branch).state_file();
+        let state_path = FlowPaths::try_new(root, &args.branch)
+            .expect("args.branch is the active flow's state-file branch (sanitized at flow-start)")
+            .state_file();
         std::fs::read_to_string(&state_path)
             .ok()
             .and_then(|c| serde_json::from_str::<Value>(&c).ok())
@@ -329,7 +334,11 @@ pub fn run_impl(
     // does not force-advance the parent phase after a failed commit.
     // Conflict is NOT cleared — the commit skill retries after resolving.
     if result["status"] == "error" {
-        let state_path = FlowPaths::new(root, &args.branch).state_file();
+        // Same upstream sanitization as the `pn` block above —
+        // `args.branch` is the active flow's state-file branch.
+        let state_path = FlowPaths::try_new(root, &args.branch)
+            .expect("args.branch is the active flow's state-file branch (sanitized at flow-start)")
+            .state_file();
         if state_path.exists() {
             let _ = mutate_state(&state_path, &mut |state| {
                 if !(state.is_object() || state.is_null()) {

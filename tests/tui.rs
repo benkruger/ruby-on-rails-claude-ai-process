@@ -13,8 +13,8 @@ use ratatui::backend::TestBackend;
 use ratatui::{Frame, Terminal};
 
 use flow_rs::tui::{
-    detail_pane_phase_header, list_row_phase_label, DrawFn, EventSourceFn, TuiApp, TuiAppPlatform,
-    View,
+    build_iterm_open_worktree_script, detail_pane_phase_header, list_row_phase_label, DrawFn,
+    EventSourceFn, TuiApp, TuiAppPlatform, View,
 };
 use flow_rs::tui_data::{
     AccountMetrics, FlowSummary, IssueSummary, OrchestrationItem, OrchestrationSummary,
@@ -582,6 +582,127 @@ fn test_render_tasks_view_no_plan() {
     app.view = View::Tasks;
     let output = render_to_string(&app, 80, 40);
     assert!(output.contains("No plan file."));
+}
+
+// --- build_iterm_open_worktree_script ---
+
+#[test]
+fn test_build_iterm_open_worktree_script_vanilla_path() {
+    let script = build_iterm_open_worktree_script("/Users/me/code/foo");
+    assert!(
+        script.contains(r#"cd \"/Users/me/code/foo\""#),
+        "expected escaped cd in script:\n{}",
+        script
+    );
+    assert!(script.contains("create tab with default profile"));
+    assert!(script.contains("create window with default profile"));
+}
+
+#[test]
+fn test_build_iterm_open_worktree_script_path_with_quotes() {
+    let script = build_iterm_open_worktree_script("/Users/foo \"bar\"/code");
+    // Each `"` in the input becomes `\"` in the rendered AppleScript
+    // source per `escape_applescript_string`. The whole `cd "..."`
+    // wrapping itself contributes the outer `\"` pair.
+    assert!(
+        script.contains(r#"cd \"/Users/foo \"bar\"/code\""#),
+        "expected escaped quotes:\n{}",
+        script
+    );
+}
+
+#[test]
+fn test_build_iterm_open_worktree_script_path_with_backslash() {
+    let script = build_iterm_open_worktree_script("/foo\\bar/code");
+    assert!(
+        script.contains(r#"cd \"/foo\\bar/code\""#),
+        "expected escaped backslash:\n{}",
+        script
+    );
+}
+
+#[test]
+fn test_build_iterm_open_worktree_script_path_with_spaces() {
+    // Spaces don't need escaping but must pass through unchanged.
+    let script = build_iterm_open_worktree_script("/Users/me/code with space");
+    assert!(
+        script.contains(r#"cd \"/Users/me/code with space\""#),
+        "expected spaces preserved:\n{}",
+        script
+    );
+}
+
+#[test]
+fn test_open_worktree_shell_empty_flows_returns_false() {
+    let app = make_app();
+    assert!(!app.open_worktree_shell());
+}
+
+#[test]
+fn test_open_worktree_shell_relative_path_joins_with_root() {
+    // No flows would short-circuit; populate one with a relative
+    // worktree path so the absolute-path branch is taken.
+    let dir = tempfile::tempdir().unwrap();
+    let script = write_fixture_script(dir.path(), "osascript", "#!/bin/sh\necho opened\n");
+    let mut app = make_app_with_osascript(&script.to_string_lossy());
+    let mut flow = make_flow("Rel", "Code", 3);
+    flow.worktree = ".worktrees/rel".to_string();
+    app.flows = vec![flow];
+    assert!(app.open_worktree_shell());
+}
+
+#[test]
+fn test_open_worktree_shell_absolute_path_used_directly() {
+    let dir = tempfile::tempdir().unwrap();
+    let script = write_fixture_script(dir.path(), "osascript", "#!/bin/sh\necho opened\n");
+    let mut app = make_app_with_osascript(&script.to_string_lossy());
+    let mut flow = make_flow("Abs", "Code", 3);
+    flow.worktree = "/abs/path/to/wt".to_string();
+    app.flows = vec![flow];
+    assert!(app.open_worktree_shell());
+}
+
+#[test]
+fn test_open_worktree_shell_osascript_failure_returns_false() {
+    let mut app = make_app_with_osascript("/bin/false");
+    let mut flow = make_flow("F", "Code", 3);
+    flow.worktree = "/abs/wt".to_string();
+    app.flows = vec![flow];
+    assert!(!app.open_worktree_shell());
+}
+
+#[test]
+fn test_open_worktree_shell_spawn_error_returns_false() {
+    let mut app = make_app_with_osascript("/nonexistent/osascript");
+    let mut flow = make_flow("S", "Code", 3);
+    flow.worktree = "/abs/wt".to_string();
+    app.flows = vec![flow];
+    assert!(!app.open_worktree_shell());
+}
+
+#[test]
+fn test_open_worktree_shell_not_opened_returns_false() {
+    let dir = tempfile::tempdir().unwrap();
+    let script = write_fixture_script(dir.path(), "osascript", "#!/bin/sh\necho something_else\n");
+    let mut app = make_app_with_osascript(&script.to_string_lossy());
+    let mut flow = make_flow("N", "Code", 3);
+    flow.worktree = "/abs/wt".to_string();
+    app.flows = vec![flow];
+    assert!(!app.open_worktree_shell());
+}
+
+#[test]
+fn test_input_o_invokes_open_worktree_shell() {
+    let dir = tempfile::tempdir().unwrap();
+    let script = write_fixture_script(dir.path(), "osascript", "#!/bin/sh\necho opened\n");
+    let mut app = make_app_with_osascript(&script.to_string_lossy());
+    let mut flow = make_flow("O", "Code", 3);
+    flow.worktree = "/abs/wt".to_string();
+    app.flows = vec![flow];
+    // 'o' keybinding wired in handle_list_input — drives through
+    // open_worktree_shell, returning unit (no assertion on bool here;
+    // covered above), exercises the match arm.
+    app.handle_key(key(KeyCode::Char('o')));
 }
 
 // --- detail_pane_phase_header ---

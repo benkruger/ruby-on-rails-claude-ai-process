@@ -349,6 +349,9 @@ impl TuiApp {
                 self.issue_selected = 0;
             }
             KeyCode::Enter => self.open_worktree(),
+            KeyCode::Char('o') => {
+                self.open_worktree_shell();
+            }
             KeyCode::Char('p') => self.open_pr(),
             KeyCode::Char('l') => self.view = View::Log,
             KeyCode::Char('i') => self.view = View::Issues,
@@ -468,6 +471,36 @@ impl TuiApp {
         let _ = execute!(io::stdout(), EnterAlternateScreen);
 
         self.refresh_data();
+    }
+
+    /// Open a fresh iTerm2 tab (or window when none is open) and run
+    /// `cd <worktree>` so the user lands in the active flow's worktree
+    /// without leaving the TUI. Returns true when osascript reports
+    /// `"opened"`.
+    pub fn open_worktree_shell(&self) -> bool {
+        if self.flows.is_empty() {
+            return false;
+        }
+        let flow = &self.flows[self.selected];
+        let path = if std::path::Path::new(&flow.worktree).is_absolute() {
+            flow.worktree.clone()
+        } else {
+            self.root.join(&flow.worktree).to_string_lossy().to_string()
+        };
+        let script = build_iterm_open_worktree_script(&path);
+        match Command::new(&self.platform.osascript_binary)
+            .arg("-e")
+            .arg(&script)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .output()
+        {
+            Ok(output) => {
+                output.status.success()
+                    && String::from_utf8_lossy(&output.stdout).trim() == "opened"
+            }
+            Err(_) => false,
+        }
     }
 
     /// Activate an iTerm2 tab by matching its session tty. Reads the
@@ -1529,6 +1562,36 @@ fn build_iterm_activation_script(session_tty: &str) -> String {
     return "not found"
 end tell"#,
         tty = escaped
+    )
+}
+
+/// Build the AppleScript text that asks iTerm2 to open a fresh shell
+/// in a new tab (or new window if no window exists) and `cd` into the
+/// supplied worktree path.
+///
+/// `path` is escaped via [`escape_applescript_string`] before being
+/// interpolated into the AppleScript double-quoted literal — the same
+/// injection-safety contract as [`build_iterm_activation_script`].
+///
+/// Pure helper — `pub` so unit tests can verify the rendered script
+/// content directly. The osascript invocation lives in
+/// `TuiApp::open_worktree_shell`.
+pub fn build_iterm_open_worktree_script(path: &str) -> String {
+    let escaped = escape_applescript_string(path);
+    format!(
+        r#"tell application "iTerm2"
+    if (count of windows) = 0 then
+        create window with default profile
+    else
+        tell current window to create tab with default profile
+    end if
+    tell current session of current window
+        write text "cd \"{p}\" && clear"
+    end tell
+    activate
+    return "opened"
+end tell"#,
+        p = escaped
     )
 }
 

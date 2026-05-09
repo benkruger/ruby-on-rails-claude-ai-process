@@ -42,8 +42,6 @@ use flow_rs::output::json_error;
 use flow_rs::phase_enter;
 use flow_rs::phase_finalize;
 use flow_rs::phase_transition;
-use flow_rs::plan_check;
-use flow_rs::plan_extract;
 use flow_rs::plan_from_issue;
 use flow_rs::prime_check;
 use flow_rs::prime_setup;
@@ -360,14 +358,6 @@ enum Commands {
     /// Generic phase exit: complete + Slack + notification.
     #[command(name = "phase-finalize")]
     PhaseFinalize(phase_finalize::Args),
-
-    /// Scan the current plan file for unenumerated universal-coverage prose.
-    #[command(name = "plan-check")]
-    PlanCheck(plan_check::Args),
-
-    /// Extract pre-decomposed plan or prepare state for model-driven planning.
-    #[command(name = "plan-extract")]
-    PlanExtract(plan_extract::Args),
 
     /// Fetch issue body and extract sentinel-delimited plan.
     #[command(name = "plan-from-issue")]
@@ -781,12 +771,6 @@ fn main() {
         }
         Some(Commands::PhaseFinalize(args)) => {
             flow_rs::dispatch::dispatch_ok_result_json(phase_finalize::run_impl_main(&args));
-        }
-        Some(Commands::PlanCheck(args)) => {
-            flow_rs::dispatch::dispatch_ok_result_json(plan_check::run_impl(&args));
-        }
-        Some(Commands::PlanExtract(args)) => {
-            flow_rs::dispatch::dispatch_ok_result_json(plan_extract::run_impl(&args));
         }
         Some(Commands::PlanFromIssue(args)) => {
             let root = flow_rs::git::project_root();

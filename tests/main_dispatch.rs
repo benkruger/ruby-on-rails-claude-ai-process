@@ -93,8 +93,7 @@ fn all_subcommands_have_working_help() {
         "write-rule",
         "phase-enter",
         "phase-finalize",
-        "plan-check",
-        "plan-extract",
+        "plan-from-issue",
         "render-pr-body",
         "update-pr-body",
         "orchestrate-report",
@@ -1200,8 +1199,11 @@ fn main_arm_invocations_cover_dispatch() {
             &["--phase", "flow-code", "--branch", "test-fixture"],
             None,
         ),
-        ("plan-check", &[], None),
-        ("plan-extract", &[], None),
+        (
+            "plan-from-issue",
+            &["--issue", "1", "--branch", "test-fixture"],
+            None,
+        ),
         (
             "render-pr-body",
             &["--pr", "1", "--branch", "test-fixture"],

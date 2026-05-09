@@ -288,6 +288,23 @@ pub fn run_impl(args: &Args) -> Result<Value, String> {
     // Compute worktree path
     let worktree_path = root.join(".worktrees").join(&branch);
 
+    // `relative_cwd` carries the mono-repo subdirectory the flow was
+    // started in (empty for root-level flows). `worktree_cwd` joins it
+    // onto `worktree_path` so the response carries a copy-pasteable
+    // recovery path for sessions that lost cwd through context loss
+    // or skill chaining. Consumers: every phase skill that runs
+    // `cd "<worktree_cwd>"` after invoking phase-enter.
+    let relative_cwd = state
+        .get("relative_cwd")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let worktree_cwd = if relative_cwd.is_empty() {
+        worktree_path.clone()
+    } else {
+        worktree_path.join(&relative_cwd)
+    };
+
     // Build response with all state data the skill needs
     let mut response = json!({
         "status": "ok",
@@ -295,6 +312,8 @@ pub fn run_impl(args: &Args) -> Result<Value, String> {
         "project_root": root.to_string_lossy(),
         "branch": branch,
         "worktree_path": worktree_path.to_string_lossy(),
+        "relative_cwd": relative_cwd,
+        "worktree_cwd": worktree_cwd.to_string_lossy(),
         "mode": {
             "commit": commit_mode,
             "continue": continue_mode,

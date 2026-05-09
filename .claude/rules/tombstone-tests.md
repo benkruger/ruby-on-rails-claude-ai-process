@@ -288,3 +288,33 @@ the deleted code cannot be resurrected via merge conflict.
 
 Code Review Step 1 runs the audit automatically; Step 4 removes
 stale tombstones.
+
+## Enforcement
+
+The Naming Convention and the Literal-tombstone stability
+checklist are mechanically enforced by two corpus contract tests
+in `tests/tombstones.rs`:
+
+- `test_tombstones_no_naming_violations` — walks every
+  `#[test] fn` declaration in `tests/tombstones.rs` and asserts
+  the name matches the regex
+  `^test_[a-z][a-z0-9_]*_no_[a-z][a-z0-9_]*$` (the literal form
+  of `test_<scope>_no_<removed_thing>`). The two contract test
+  names themselves are excluded because their names are part of
+  the rule's own implementation rather than tombstones.
+- `test_tombstones_no_stability_docs_violations` — for every
+  `#[test] fn` whose body contains a `.contains(` call AND whose
+  preceding `///` doc block carries a `Tombstone:.*?PR #N`
+  marker with N at or above `STABILITY_DOCS_SENTINEL_PR`,
+  asserts the doc block mentions one of `concat`, `format`, or
+  `constant` (case-insensitive). The sentinel scopes enforcement
+  to tombstones added at or after the sentinel PR; pre-existing
+  tombstones below the sentinel remain out of scope so the
+  contract test does not retroactively flag every byte-substring
+  tombstone in the file.
+
+When raising the sentinel PR — for example, after a campaign
+that retrofits `///` doc blocks onto older byte-substring
+tombstones — update the `STABILITY_DOCS_SENTINEL_PR` value in
+`tests/tombstones.rs` and verify every newly-in-scope tombstone
+passes the contract test before committing.

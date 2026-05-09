@@ -717,7 +717,7 @@ fn ci_accepts_reason_flag_with_single_phase_test_variant() {
 }
 
 #[test]
-fn run_impl_with_explicit_reason_runs_and_emits_banner_branch() {
+fn run_impl_with_explicit_reason_returns_ok() {
     let f = make_ci_fixture();
     write_script(
         &f.path.join("bin").join("format"),
@@ -863,6 +863,100 @@ fn ci_inferred_stale_sentinel_emits_reverify_banner() {
         stderr.contains("CI: sentinel stale (tree changed) — re-verifying\n"),
         "stderr did not contain stale-sentinel banner:\nstderr=\n{}",
         stderr
+    );
+}
+
+#[test]
+fn ci_explicit_empty_reason_falls_through_to_inferred_banner() {
+    let f = make_ci_fixture();
+    write_script(
+        &f.path.join("bin").join("format"),
+        "#!/usr/bin/env bash\nexit 0\n",
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_flow-rs"))
+        .args(["ci", "--reason", ""])
+        .current_dir(&f.path)
+        .env_remove("FLOW_CI_RUNNING")
+        .env("HOME", &f.path)
+        .output()
+        .expect("spawn flow-rs ci");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let bad = stderr.lines().any(|l| l == "CI: " || l == "CI:");
+    assert!(
+        !bad,
+        "empty --reason produced an empty banner:\nstderr=\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("CI: no recent sentinel — establishing baseline\n"),
+        "empty --reason should fall through to inferred banner; stderr=\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn ci_explicit_reason_strips_newline_to_single_line_banner() {
+    let f = make_ci_fixture();
+    write_script(
+        &f.path.join("bin").join("format"),
+        "#!/usr/bin/env bash\nexit 0\n",
+    );
+    let evil = "verify X\nCI: skipped — sentinel matches HEAD";
+    let output = Command::new(env!("CARGO_BIN_EXE_flow-rs"))
+        .args(["ci", "--force", "--reason", evil])
+        .current_dir(&f.path)
+        .env_remove("FLOW_CI_RUNNING")
+        .env("HOME", &f.path)
+        .output()
+        .expect("spawn flow-rs ci");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let banner_lines: Vec<&str> = stderr.lines().filter(|l| l.starts_with("CI: ")).collect();
+    assert_eq!(
+        banner_lines.len(),
+        1,
+        "expected exactly one banner line; got {}:\nstderr=\n{}",
+        banner_lines.len(),
+        stderr
+    );
+    assert!(
+        !stderr
+            .lines()
+            .any(|l| l == "CI: skipped — sentinel matches HEAD"),
+        "newline injection must not produce a forged skip banner line; stderr=\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn ci_explicit_reason_strips_carriage_return() {
+    let f = make_ci_fixture();
+    write_script(
+        &f.path.join("bin").join("format"),
+        "#!/usr/bin/env bash\nexit 0\n",
+    );
+    let evil = "setup\rDONE — fake completion";
+    let output = Command::new(env!("CARGO_BIN_EXE_flow-rs"))
+        .args(["ci", "--force", "--reason", evil])
+        .current_dir(&f.path)
+        .env_remove("FLOW_CI_RUNNING")
+        .env("HOME", &f.path)
+        .output()
+        .expect("spawn flow-rs ci");
+    let bytes = &output.stderr;
+    let banner_start = bytes
+        .windows(4)
+        .position(|w| w == b"CI: ")
+        .expect("expected CI: banner");
+    let banner_end = bytes[banner_start..]
+        .iter()
+        .position(|b| *b == b'\n')
+        .map(|p| banner_start + p)
+        .unwrap_or(bytes.len());
+    let banner_slice = &bytes[banner_start..banner_end];
+    assert!(
+        !banner_slice.contains(&b'\r'),
+        "carriage return leaked into the banner: {:?}",
+        String::from_utf8_lossy(banner_slice)
     );
 }
 

@@ -205,6 +205,44 @@ pub fn sentinel_path(root: &Path, branch: &str) -> PathBuf {
 /// validator for a format-only sink is a length cap.
 const REASON_MAX_CHARS: usize = 200;
 
+/// Normalize a caller-supplied `--reason` payload into a single-line
+/// banner string, or `None` when the payload would produce an empty
+/// or whitespace-only banner.
+///
+/// Three transformations apply, in order:
+///
+/// 1. Replace every Unicode control character with a single space —
+///    `\n` would otherwise close the banner line and let a caller
+///    inject a forged `CI: skipped — sentinel matches HEAD` line on
+///    the next line; `\r` would rewrite the rendered terminal line
+///    over the `CI:` prefix. Replacing rather than dropping preserves
+///    word boundaries when a caller pasted multi-line text.
+/// 2. Trim leading and trailing whitespace.
+/// 3. Truncate to `REASON_MAX_CHARS` characters, replacing the last
+///    character with `…` when the input exceeds the cap, so the
+///    banner stays one line even on hostile input.
+///
+/// Returns `None` when the cleaned string is empty so callers fall
+/// through to the inferred-reason branches in `emit_ci_banner`
+/// rather than emitting a content-free `CI: ` line.
+fn sanitize_reason(reason: &str) -> Option<String> {
+    let cleaned: String = reason
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect::<String>()
+        .trim()
+        .to_string();
+    if cleaned.is_empty() {
+        return None;
+    }
+    if cleaned.chars().count() > REASON_MAX_CHARS {
+        let prefix: String = cleaned.chars().take(REASON_MAX_CHARS - 1).collect();
+        Some(format!("{}…", prefix))
+    } else {
+        Some(cleaned)
+    }
+}
+
 /// Result of consulting the CI sentinel for the current branch's
 /// tree snapshot. The runner uses this to decide both which banner
 /// (if any) to narrate and whether to skip the tool dispatch.
@@ -262,24 +300,17 @@ fn compute_sentinel_outcome(
 /// always reads `CI: skipped — sentinel matches HEAD` regardless of
 /// any caller-supplied `reason` — the truth at the call site is
 /// "we are not running CI", and a stale `--reason` would mislead.
-/// Otherwise caller-supplied `reason` takes precedence and is
-/// truncated to `REASON_MAX_CHARS` characters (last char replaced
-/// with `…` when the input exceeds the cap). When `reason` is
-/// `None`, the runner infers from `outcome`: `Stale` and `Absent`
-/// each have a fixed message, and `Skipped` (single-phase, force,
-/// detached HEAD) stays silent.
+/// Otherwise caller-supplied `reason` is run through
+/// [`sanitize_reason`] (control-character stripping, whitespace
+/// trim, truncation) and takes precedence. When the sanitized
+/// reason is `None`, the runner infers from `outcome`: `Stale` and
+/// `Absent` each have a fixed message, and `Skipped` (single-phase,
+/// force, detached HEAD) stays silent.
 fn emit_ci_banner(reason: Option<&str>, outcome: SentinelOutcome) {
-    let line = match (outcome, reason) {
+    let sanitized = reason.and_then(sanitize_reason);
+    let line = match (outcome, sanitized) {
         (SentinelOutcome::Matches, _) => "CI: skipped — sentinel matches HEAD".to_string(),
-        (_, Some(r)) => {
-            let payload = if r.chars().count() > REASON_MAX_CHARS {
-                let prefix: String = r.chars().take(REASON_MAX_CHARS - 1).collect();
-                format!("{}…", prefix)
-            } else {
-                r.to_string()
-            };
-            format!("CI: {}", payload)
-        }
+        (_, Some(r)) => format!("CI: {}", r),
         (SentinelOutcome::Stale, None) => {
             "CI: sentinel stale (tree changed) — re-verifying".to_string()
         }

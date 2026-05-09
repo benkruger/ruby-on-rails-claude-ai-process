@@ -480,7 +480,7 @@ adversarial, documentation. For each finding, classify it as **Real**
 (fix in Step 4) or **False positive** (dismiss with rationale).
 
 There is no filing path. All real findings are fixed during Code
-Review — see `.claude/rules/code-review-scope.md`.
+Review — see `.claude/rules/review-scope.md`.
 
 ### Supersession check
 

@@ -76,7 +76,7 @@ redundant is routed to Step 4 for deletion regardless of file
 location.
 
 There is no filing path. All real findings are fixed in Step 4 —
-see `.claude/rules/code-review-scope.md`. `bin/flow add-finding`
+see `.claude/rules/review-scope.md`. `bin/flow add-finding`
 rejects `--outcome filed` during Code Review, and `bin/flow issue`
 refuses to create issues while `current_phase == "flow-review"`
 unless `--override-code-review-ban` is passed.

@@ -65,7 +65,7 @@ For each finding from all agents, classify as:
 - **False positive** — dismiss with rationale citing code
 
 There is no filing path. All real findings are fixed during Code
-Review — see `.claude/rules/code-review-scope.md`. Mechanical
+Review — see `.claude/rules/review-scope.md`. Mechanical
 enforcement blocks filing: `bin/flow add-finding` rejects
 `--outcome filed` for `--phase flow-review`, and `bin/flow issue`
 refuses to create issues while `current_phase == "flow-review"`

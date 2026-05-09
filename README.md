@@ -229,7 +229,7 @@ Every feature has a state file at `.flow-states/<branch>/state.json`. Key fields
 - **Identity** — `branch`, `relative_cwd`, `repo`, `pr_number`, `pr_url`, `prompt`
 - **Phase tracking** — `current_phase`, per-phase `status`/`started_at`/`completed_at`/`cumulative_seconds`/`visit_count`, `phase_transitions` history
 - **Artifact paths** — `files.plan`, `files.dag`, `files.log`, `files.state`
-- **Progress** — `code_task` counter, `code_review_step`, `learn_step`, `complete_step`
+- **Progress** — `code_task` counter, `review_step`, `learn_step`, `complete_step`
 - **Notes** — corrections captured via `/flow-note` throughout the session
 - **Continuation** — `_continue_pending`, `_continue_context`, `_auto_continue` for stop-hook resumption
 - **Compaction** — `compact_summary`, `compact_cwd`, `compact_count` for post-compaction context recovery

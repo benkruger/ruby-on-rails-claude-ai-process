@@ -1512,7 +1512,7 @@ fn code_review_no_inline_simplify_step() {
 fn code_review_triage_two_outcomes_only() {
     // Code Review has two triage outcomes: Real (fix in Step 4) and
     // False positive (dismiss). The filing path was removed — see
-    // .claude/rules/code-review-scope.md.
+    // .claude/rules/review-scope.md.
     let c = common::read_skill("flow-review");
     assert!(
         !c.contains("bin/flow issue"),

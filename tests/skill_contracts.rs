@@ -1818,19 +1818,19 @@ fn flow_code_re_anchors_cwd_after_phase_enter() {
     );
 }
 
-/// Regression: flow-code-review/SKILL.md must instruct
+/// Regression: flow-review/SKILL.md must instruct
 /// `cd "<worktree_cwd>"` inside a bash fence between the phase-enter
 /// HARD-GATE and the Resume Check. Without this, a session resuming
 /// Code Review after context loss cannot re-anchor cwd at runtime
 /// (the model only executes bash fences). Consumer: every Code-
 /// Review-phase session running on a mono-repo flow.
 #[test]
-fn flow_code_review_re_anchors_cwd_after_phase_enter() {
-    let c = common::read_skill("flow-code-review");
+fn flow_review_re_anchors_cwd_after_phase_enter() {
+    let c = common::read_skill("flow-review");
     let bounded = slice_between_phase_enter_and_resume_check(&c);
     assert!(
         bash_fence_contains(bounded, r#"cd "<worktree_cwd>""#),
-        "flow-code-review/SKILL.md must instruct `cd \"<worktree_cwd>\"` inside a bash fence between phase-enter and Resume Check"
+        "flow-review/SKILL.md must instruct `cd \"<worktree_cwd>\"` inside a bash fence between phase-enter and Resume Check"
     );
 }
 

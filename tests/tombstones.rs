@@ -136,7 +136,7 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
 /// gets the full inventory in one CI run instead of fixing one violation
 /// at a time.
 #[test]
-fn test_no_backward_facing_comments_in_rust_source() {
+fn test_rust_source_no_backward_facing_comments() {
     let root = common::repo_root();
     let scanner_path = root
         .join("tests")
@@ -211,7 +211,7 @@ fn test_no_backward_facing_comments_in_rust_source() {
 // CI if a merge resolution or a future edit re-introduces any of them.
 
 #[test]
-fn test_coverage_md_must_not_exist() {
+fn test_root_no_test_coverage_md_file() {
     let root = common::repo_root();
     let path = root.join("test_coverage.md");
     assert!(
@@ -224,7 +224,7 @@ fn test_coverage_md_must_not_exist() {
 }
 
 #[test]
-fn docs_with_behavior_no_waiver_discipline_section() {
+fn test_docs_with_behavior_no_waiver_discipline_section() {
     let root = common::repo_root();
     let path = root.join(".claude/rules/docs-with-behavior.md");
     let content = fs::read_to_string(&path).expect("docs-with-behavior.md must exist");
@@ -241,7 +241,7 @@ fn docs_with_behavior_no_waiver_discipline_section() {
 }
 
 #[test]
-fn claude_md_no_test_coverage_references() {
+fn test_claude_md_no_test_coverage_references() {
     let root = common::repo_root();
     let path = root.join("CLAUDE.md");
     let content = fs::read_to_string(&path).expect("CLAUDE.md must exist");
@@ -305,7 +305,7 @@ fn normalize_for_weak_coverage_scan(s: &str) -> String {
 }
 
 #[test]
-fn test_no_weak_coverage_language_in_prose_corpus() {
+fn test_prose_corpus_no_weak_coverage_language() {
     let root = common::repo_root();
     let normalized_phrases: Vec<String> = WEAK_COVERAGE_PHRASES
         .iter()
@@ -373,7 +373,7 @@ fn test_no_weak_coverage_language_in_prose_corpus() {
 /// `#[path = "..."]` rename), and the substring scan catches any
 /// reintroduction of the skill's slash-command surface.
 #[test]
-fn flow_status_skill_directory_must_not_exist() {
+fn test_skills_dir_no_flow_status_subdirectory() {
     let root = common::repo_root();
     let path = root.join("skills").join("flow-status").join("SKILL.md");
     assert!(
@@ -389,9 +389,9 @@ fn flow_status_skill_directory_must_not_exist() {
 ///
 /// File-existence guard for the published documentation page. Pairs
 /// with the substring scan in
-/// `flow_status_skill_invocation_must_not_appear_in_rules_or_docs`.
+/// `test_rules_and_docs_no_flow_status_invocation`.
 #[test]
-fn flow_status_docs_page_must_not_exist() {
+fn test_docs_skills_no_flow_status_page() {
     let root = common::repo_root();
     let path = root.join("docs").join("skills").join("flow-status.md");
     assert!(
@@ -421,7 +421,7 @@ fn flow_status_docs_page_must_not_exist() {
 /// the model to invoke it. The byte-substring check catches every such
 /// shape.
 #[test]
-fn flow_status_skill_invocation_must_not_appear_in_skills() {
+fn test_skills_no_flow_status_invocation() {
     let root = common::repo_root();
     let skills_dir = root.join("skills");
     let mut violations: Vec<String> = Vec::new();
@@ -449,7 +449,7 @@ fn flow_status_skill_invocation_must_not_appear_in_skills() {
 /// for bare `flow-status` would false-positive on every legitimate
 /// `format-status` reference.
 #[test]
-fn flow_status_skill_invocation_must_not_appear_in_rules_or_docs() {
+fn test_rules_and_docs_no_flow_status_invocation() {
     let root = common::repo_root();
     const TOKENS: &[&str] = &["flow:flow-status", "/flow-status", "flow-status.md"];
     let mut targets: Vec<PathBuf> = Vec::new();
@@ -501,6 +501,151 @@ fn flow_status_skill_invocation_must_not_appear_in_rules_or_docs() {
          the skill was replaced by `bin/flow status`. Bare \
          `flow-status` is intentionally not scanned (substring of \
          `format-status`). Violations:\n{}",
+        violations.join("\n")
+    );
+}
+
+// --- scan_naming_violations ---
+//
+// Pure helper used by `test_tombstones_no_naming_violations` to enforce
+// the tombstone naming convention from `.claude/rules/tombstone-tests.md`
+// "Naming Convention". Walks `#[test] fn <name>(` declarations in the
+// supplied content and flags any name that does not match the regex
+// `^test_[a-z][a-z0-9_]*_no_[a-z][a-z0-9_]*$` (the literal form of the
+// `test_<scope>_no_<removed_thing>` pattern). Names listed in the
+// `exclusions` slice are skipped — used by the contract test for the
+// two contract tests themselves whose names are part of the rule's
+// own implementation rather than tombstones.
+
+fn scan_naming_violations(content: &str, exclusions: &[&str]) -> Vec<String> {
+    let test_fn_re = Regex::new(r"#\[test\]\s+fn\s+(\w+)\s*\(").unwrap();
+    let name_re = Regex::new(r"^test_[a-z][a-z0-9_]*_no_[a-z][a-z0-9_]*$").unwrap();
+    let mut violations = Vec::new();
+    for cap in test_fn_re.captures_iter(content) {
+        let m = cap.get(1).unwrap();
+        let name = m.as_str();
+        if exclusions.contains(&name) {
+            continue;
+        }
+        if !name_re.is_match(name) {
+            let offset = m.start();
+            let line = content[..offset].matches('\n').count() + 1;
+            violations.push(format!(
+                "line {}: {} — must match `^test_[a-z][a-z0-9_]*_no_[a-z][a-z0-9_]*$`",
+                line, name
+            ));
+        }
+    }
+    violations
+}
+
+#[test]
+fn test_scanner_no_violations_for_conformant_names() {
+    let fixture = concat!(
+        "#[",
+        "test",
+        "]\nfn test_foo_no_bar() {}\n",
+        "#[",
+        "test",
+        "]\nfn test_root_no_test_coverage_md_file() {}\n",
+    );
+    let violations = scan_naming_violations(fixture, &[]);
+    assert!(
+        violations.is_empty(),
+        "expected no violations for conformant names: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn test_scanner_no_false_negative_for_missing_test_prefix() {
+    let fixture = concat!("#[", "test", "]\nfn missing_prefix_no_test() {}\n",);
+    let violations = scan_naming_violations(fixture, &[]);
+    assert_eq!(
+        violations.len(),
+        1,
+        "expected 1 violation: {:?}",
+        violations
+    );
+    assert!(
+        violations[0].contains("missing_prefix_no_test"),
+        "violation should name the offender: {}",
+        violations[0]
+    );
+}
+
+#[test]
+fn test_scanner_no_false_negative_for_missing_no_segment() {
+    let fixture = concat!("#[", "test", "]\nfn test_something_must_not_exist() {}\n",);
+    let violations = scan_naming_violations(fixture, &[]);
+    assert_eq!(
+        violations.len(),
+        1,
+        "expected 1 violation: {:?}",
+        violations
+    );
+    assert!(violations[0].contains("test_something_must_not_exist"));
+}
+
+#[test]
+fn test_scanner_no_false_negative_for_test_no_prefix_only() {
+    let fixture = concat!("#[", "test", "]\nfn test_no_scope_segment() {}\n",);
+    let violations = scan_naming_violations(fixture, &[]);
+    assert_eq!(
+        violations.len(),
+        1,
+        "expected 1 violation: {:?}",
+        violations
+    );
+    assert!(violations[0].contains("test_no_scope_segment"));
+}
+
+#[test]
+fn test_scanner_no_violations_for_excluded_names() {
+    let fixture = concat!("#[", "test", "]\nfn nonconformant_excluded_name() {}\n",);
+    let violations = scan_naming_violations(fixture, &["nonconformant_excluded_name"]);
+    assert!(
+        violations.is_empty(),
+        "excluded name should be skipped: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn test_scanner_no_violations_for_non_test_fns() {
+    let fixture = "fn helper_function() {}\nfn another_plain_fn() {}\n";
+    let violations = scan_naming_violations(fixture, &[]);
+    assert!(
+        violations.is_empty(),
+        "plain fn declarations without #[test] should be ignored: {:?}",
+        violations
+    );
+}
+
+// --- test_tombstones_no_naming_violations ---
+//
+// Contract test enforcing the tombstone naming convention against
+// the live `tests/tombstones.rs` source. Reads the file at runtime
+// and asserts every `#[test] fn` declaration matches
+// `^test_[a-z][a-z0-9_]*_no_[a-z][a-z0-9_]*$`. The two contract
+// tests themselves are excluded because their names are part of the
+// rule's own implementation rather than tombstones — they enforce
+// the conventions but do not assert a removal.
+
+#[test]
+fn test_tombstones_no_naming_violations() {
+    let root = common::repo_root();
+    let path = root.join("tests").join("tombstones.rs");
+    let content = fs::read_to_string(&path).expect("tests/tombstones.rs must exist");
+    let exclusions: &[&str] = &[
+        "test_tombstones_no_naming_violations",
+        "test_tombstones_no_stability_docs_violations",
+    ];
+    let violations = scan_naming_violations(&content, exclusions);
+    assert!(
+        violations.is_empty(),
+        "Tombstone naming convention violations \
+         (see .claude/rules/tombstone-tests.md `Naming Convention`):\n\n{}",
         violations.join("\n")
     );
 }

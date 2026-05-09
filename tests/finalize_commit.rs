@@ -1466,3 +1466,37 @@ fn run_impl_main_ok_status_ok_exits_0() {
     let json: Value = serde_json::from_str(last).unwrap();
     assert_eq!(json["status"], "ok");
 }
+
+// --- CI reason banner ---
+
+#[test]
+fn finalize_commit_passes_ci_reason() {
+    let (clone_dir, _bare_dir) = setup_integration_repo_with_ci();
+    let clone_path = clone_dir.path();
+
+    fs::write(clone_path.join("feature.rs"), "fn main() {}\n").unwrap();
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", clone_path.to_str().unwrap(), "add", "-A"])
+            .output()
+            .unwrap(),
+    );
+
+    let msg_path = clone_path.join(".flow-commit-msg");
+    fs::write(&msg_path, "Test commit.").unwrap();
+
+    // No sentinel — CI runs and the explicit reason wins.
+
+    let output = flow_rs_no_recursion()
+        .args(["finalize-commit", msg_path.to_str().unwrap(), "main"])
+        .current_dir(clone_path)
+        .output()
+        .expect("spawn flow-rs");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("CI: verifying commit before git commit\n"),
+        "expected finalize_commit's explicit reason banner; stderr=\n{}",
+        stderr
+    );
+}

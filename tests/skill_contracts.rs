@@ -1715,6 +1715,68 @@ fn phase_enter_skills_no_action_enter() {
     }
 }
 
+/// Returns the slice of `content` between the first `phase-enter`
+/// invocation and the `## Resume Check` heading. Used by per-skill
+/// re-anchor tests to bound the assertion scope per
+/// `.claude/rules/testing-gotchas.md` "Subsection-Local Assertions
+/// in Contract Tests".
+fn slice_between_phase_enter_and_resume_check(content: &str) -> &str {
+    let after_enter = content
+        .split_once("phase-enter --phase")
+        .map(|(_, t)| t)
+        .expect("phase-enter --phase invocation must exist");
+    after_enter
+        .split_once("\n## Resume Check")
+        .map(|(s, _)| s)
+        .unwrap_or(after_enter)
+}
+
+/// Regression: flow-code/SKILL.md must instruct `cd "<worktree_cwd>"`
+/// between the phase-enter HARD-GATE and the Resume Check. Without
+/// this, a session resuming Code phase after context loss has no
+/// way to re-anchor cwd, and every subsequent bin/flow call fails
+/// with cwd_scope::enforce blocking. Consumer: every Code-phase
+/// session running on a mono-repo flow.
+#[test]
+fn flow_code_re_anchors_cwd_after_phase_enter() {
+    let c = common::read_skill("flow-code");
+    let bounded = slice_between_phase_enter_and_resume_check(&c);
+    assert!(
+        bounded.contains(r#"cd "<worktree_cwd>""#),
+        "flow-code/SKILL.md must instruct `cd \"<worktree_cwd>\"` between phase-enter and Resume Check"
+    );
+}
+
+/// Regression: flow-code-review/SKILL.md must instruct
+/// `cd "<worktree_cwd>"` between the phase-enter HARD-GATE and the
+/// Resume Check. Without this, a session resuming Code Review after
+/// context loss cannot re-anchor cwd. Consumer: every Code-Review-
+/// phase session running on a mono-repo flow.
+#[test]
+fn flow_code_review_re_anchors_cwd_after_phase_enter() {
+    let c = common::read_skill("flow-code-review");
+    let bounded = slice_between_phase_enter_and_resume_check(&c);
+    assert!(
+        bounded.contains(r#"cd "<worktree_cwd>""#),
+        "flow-code-review/SKILL.md must instruct `cd \"<worktree_cwd>\"` between phase-enter and Resume Check"
+    );
+}
+
+/// Regression: flow-learn/SKILL.md must instruct `cd "<worktree_cwd>"`
+/// between the phase-enter HARD-GATE and the Resume Check. Without
+/// this, a session resuming Learn after context loss cannot re-anchor
+/// cwd. Consumer: every Learn-phase session running on a mono-repo
+/// flow.
+#[test]
+fn flow_learn_re_anchors_cwd_after_phase_enter() {
+    let c = common::read_skill("flow-learn");
+    let bounded = slice_between_phase_enter_and_resume_check(&c);
+    assert!(
+        bounded.contains(r#"cd "<worktree_cwd>""#),
+        "flow-learn/SKILL.md must instruct `cd \"<worktree_cwd>\"` between phase-enter and Resume Check"
+    );
+}
+
 #[test]
 fn release_complete_banner_confirms_marketplace_update() {
     let c = fs::read_to_string(

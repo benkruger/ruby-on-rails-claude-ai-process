@@ -148,6 +148,34 @@ For each child issue, draft:
 - **Dependencies** — which other child issues this depends on (by title,
   resolved to numbers in Step 4)
 
+### Backwards-Reasoning Scan
+
+After composing each child issue body and before presenting the
+issue list, scan every child body for the following forbidden
+phrasings, which ground the current decomposition in a historical
+artifact rather than the code's current merits:
+
+- `"PR #<N> decided"`, `"the prior PR chose"`, `"the previous
+  commit"` — historical decision cited as authority
+- `"kept for backward compatibility"`, `"compat shim"`, `"legacy
+  alias for older"` — preservation justified by inherited
+  reasoning rather than a current consumer
+- `"older plugin versions"`, `"prior plugin"` — plugin-version-
+  compat reasoning (the FLOW plugin auto-updates and has no
+  installed base)
+- `"as PR #<N> chose to"`, `"following the prior PR"` —
+  deferring to past decisions
+
+Evaluate matches in context: a bare `PR #<N>` reference used for
+forensic detection (linking blocked-by, naming a specific merge)
+is fine; a `PR #<N>` reference used to justify the present design
+is forbidden. If any match is justifying-shape rather than
+identifier-shape in any child body, revise that body. Re-evaluate
+the underlying decision on the code's current merits, not on
+historical context. The scan applies to every child issue
+produced by this skill, not just the first one.
+See `.claude/rules/no-backwards-reasoning.md`.
+
 Present the full issue list as a table:
 
 | # | Title | Phase | Depends On |

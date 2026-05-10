@@ -331,6 +331,32 @@ The wrapped block looks like this in the issue body:
 <!-- FLOW-PLAN-END -->
 ```
 
+### Pre-Draft Backwards-Reasoning Scan
+
+Before presenting the draft, scan the body — including the
+Implementation Plan subsections — for the following forbidden
+phrasings, which ground the current decision in a historical
+artifact rather than the code's current merits:
+
+- `"PR #<N> decided"`, `"the prior PR chose"`, `"the previous
+  commit"` — historical decision cited as authority
+- `"kept for backward compatibility"`, `"compat shim"`, `"legacy
+  alias for older"` — preservation justified by inherited
+  reasoning rather than a current consumer
+- `"older plugin versions"`, `"prior plugin"` — plugin-version-
+  compat reasoning (the FLOW plugin auto-updates and has no
+  installed base)
+- `"as PR #<N> chose to"`, `"following the prior PR"` —
+  deferring to past decisions
+
+Evaluate matches in context: a bare `PR #<N>` reference used for
+forensic detection (linking blocked-by, naming a specific merge)
+is fine; a `PR #<N>` reference used to justify the present design
+is forbidden. If any match is justifying-shape rather than
+identifier-shape, revise the draft. Re-evaluate the underlying
+decision on the code's current merits, not on historical context.
+See `.claude/rules/no-backwards-reasoning.md`.
+
 ### Draft Presentation
 
 Present the full draft inline in the response — both title and body. Do

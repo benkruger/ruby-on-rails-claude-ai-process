@@ -270,8 +270,14 @@ pub fn set_blocked_idle(state_path: &Path) {
 /// Wraps `write_tab_sequences` with root/branch-aware fallback logic:
 /// if the branch state file exists use its contents, otherwise scan for
 /// any active feature state, otherwise call with just the detected repo.
+///
+/// The `Result` from `write_tab_sequences` is discarded: tty write
+/// failures are environmental (no controlling terminal, /dev/tty
+/// unavailable) and the function is best-effort visual feedback,
+/// not a correctness gate. Mirrors `commands::session_context`'s
+/// `let _ = write_tab_sequences(...)` pattern.
 pub fn set_tab_color(root: &Path, branch: &str, state_path: &Path) {
-    let result = if state_path.exists() {
+    let _ = if state_path.exists() {
         match std::fs::read_to_string(state_path) {
             Ok(content) => match serde_json::from_str::<Value>(&content) {
                 Ok(state) => {
@@ -292,13 +298,6 @@ pub fn set_tab_color(root: &Path, branch: &str, state_path: &Path) {
             write_tab_sequences(detect_repo(Some(root)).as_deref(), Some(root))
         }
     };
-    if let Err(e) = result {
-        log_diag(
-            Some(root),
-            Some(branch),
-            &format!("set_tab_color error: {}", e),
-        );
-    }
 }
 
 /// Block reason for discussion mode — instructs the model to invoke

@@ -94,7 +94,7 @@ pub fn run_impl(args: &Args) -> Value {
         }
     };
 
-    log("[Phase 6] complete-finalize — starting");
+    log("[Phase 5] complete-finalize — starting");
 
     // Capture the flow-level final account-window snapshot BEFORE
     // post_merge mutates state and cleanup deletes the state file.
@@ -207,7 +207,7 @@ pub fn run_impl(args: &Args) -> Value {
         "ok"
     };
     log(&format!(
-        "[Phase 6] complete-finalize — done (\"{}\")",
+        "[Phase 5] complete-finalize — done (\"{}\")",
         effective_status
     ));
 

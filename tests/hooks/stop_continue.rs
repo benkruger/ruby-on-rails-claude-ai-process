@@ -2937,3 +2937,163 @@ fn check_in_progress_utility_skill_no_block_when_marker_session_id_mismatches() 
         "marker whose internal session_id mismatches must not block"
     );
 }
+
+// --- end-to-end utility-skill marker integration ---
+
+/// Initialize a git repo with a default branch, an empty author, and
+/// an initial commit so `resolve_branch` resolves to `Some("main")`
+/// during the Stop hook subprocess. Without an initial commit,
+/// `git symbolic-ref HEAD` succeeds but `git branch --show-current`
+/// returns empty before any commit lands.
+fn init_main_repo(root: &Path) {
+    Command::new("git")
+        .args(["init", "--initial-branch", "main"])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["config", "user.email", "t@t"])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["config", "user.name", "t"])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    fs::write(root.join("README.md"), "x").unwrap();
+    Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "init"])
+        .current_dir(root)
+        .output()
+        .unwrap();
+}
+
+/// Spawn `bin/flow <subcommand> --skill X --session-id Y` with HOME
+/// set to the test fixture's tempdir. Returns (exit_code, stdout).
+fn run_marker_subcommand(
+    subcommand: &str,
+    home: &Path,
+    skill: &str,
+    session_id: &str,
+) -> (i32, String) {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_flow-rs"));
+    cmd.args([subcommand, "--skill", skill, "--session-id", session_id])
+        .env_remove("FLOW_CI_RUNNING")
+        .env("HOME", home)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let output = cmd.output().expect("spawn flow-rs subcommand");
+    (
+        output.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&output.stdout).to_string(),
+    )
+}
+
+/// Full end-to-end integration test for the utility-in-progress
+/// marker lifecycle through the real CLI surface. Drives the same
+/// path the production flow-create-issue skill takes:
+/// 1. spawn `set-utility-in-progress` to write the marker
+/// 2. spawn the Stop hook with matching session_id → must block
+/// 3. spawn `clear-utility-in-progress` to remove the marker
+/// 4. spawn the Stop hook again → must NOT block
+#[test]
+fn utility_marker_full_lifecycle_subprocess() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    init_main_repo(&root);
+    let session_id = "abc12345";
+
+    // 1. Write marker via the real CLI.
+    let (code, stdout) = run_marker_subcommand(
+        "set-utility-in-progress",
+        &root,
+        "flow:flow-create-issue",
+        session_id,
+    );
+    assert_eq!(code, 0, "set must succeed: stdout={}", stdout);
+    let marker = root
+        .join(".claude")
+        .join("flow")
+        .join(format!("utility-in-progress-{}.json", session_id));
+    assert!(marker.exists(), "marker must be written");
+
+    // 2. Stop hook with matching session_id must block.
+    let stdin_input = format!(r#"{{"session_id": "{}"}}"#, session_id);
+    let (code, stdout, _stderr) = run_hook_with_home(&root, &stdin_input, &root);
+    assert_eq!(code, 0, "Stop hook exits 0 even when blocking");
+    let parsed: Value =
+        serde_json::from_str(&stdout).expect("Stop hook must emit JSON when blocking");
+    assert_eq!(
+        parsed["decision"], "block",
+        "Stop hook must refuse turn-end while marker present: {}",
+        stdout
+    );
+    let reason = parsed["reason"].as_str().unwrap_or("");
+    assert!(
+        reason.contains("flow:flow-create-issue"),
+        "block reason must name the in-progress skill: {}",
+        reason
+    );
+
+    // 3. Clear marker via the real CLI.
+    let (code, stdout) = run_marker_subcommand(
+        "clear-utility-in-progress",
+        &root,
+        "flow:flow-create-issue",
+        session_id,
+    );
+    assert_eq!(code, 0, "clear must succeed: stdout={}", stdout);
+    assert!(!marker.exists(), "marker must be gone after clear");
+
+    // 4. Stop hook with same session_id must NOT block now.
+    let (code, stdout, _stderr) = run_hook_with_home(&root, &stdin_input, &root);
+    assert_eq!(code, 0);
+    // Either empty stdout (no block) or a JSON without decision="block".
+    if !stdout.trim().is_empty() {
+        let parsed: Value = serde_json::from_str(&stdout).unwrap_or(Value::Null);
+        assert_ne!(
+            parsed["decision"], "block",
+            "Stop hook must NOT block after clear: {}",
+            stdout
+        );
+    }
+}
+
+/// End-to-end orphan-marker case: a marker for one session_id must
+/// not block a Stop hook spawned for a different session_id. Drives
+/// the same CLI surface as the lifecycle test above.
+#[test]
+fn utility_marker_orphan_from_different_session_subprocess() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    init_main_repo(&root);
+
+    // Write a marker for "other_session" via the CLI.
+    let (code, _) = run_marker_subcommand(
+        "set-utility-in-progress",
+        &root,
+        "flow:flow-create-issue",
+        "other_session",
+    );
+    assert_eq!(code, 0);
+
+    // Spawn the Stop hook with a DIFFERENT session_id — the orphan
+    // marker must not block this session's turn-end.
+    let stdin_input = r#"{"session_id": "current_session"}"#;
+    let (code, stdout, _stderr) = run_hook_with_home(&root, stdin_input, &root);
+    assert_eq!(code, 0);
+    if !stdout.trim().is_empty() {
+        let parsed: Value = serde_json::from_str(&stdout).unwrap_or(Value::Null);
+        assert_ne!(
+            parsed["decision"], "block",
+            "orphan marker (different session_id) must not block: {}",
+            stdout
+        );
+    }
+}

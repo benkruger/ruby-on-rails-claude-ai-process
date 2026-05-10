@@ -6,7 +6,7 @@ tools: Read, Glob, Grep, Bash
 maxTurns: 40
 ---
 
-# Context-Isolated Code Review
+# Context-Isolated Review
 
 You are reviewing code you did not write. You have no context beyond the
 diff, the plan, the project CLAUDE.md, and the project rules. You do not

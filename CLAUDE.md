@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-FLOW is a Claude Code plugin (`flow:` namespace) that enforces an opinionated 5-phase development lifecycle: Start, Code, Code Review, Learn, Complete. Each phase is a skill that Claude reads and follows. Phase gates prevent skipping ahead. Language-agnostic — every project owns its toolchain via repo-local `bin/format`, `bin/lint`, `bin/build`, `bin/test` scripts that FLOW orchestrates.
+FLOW is a Claude Code plugin (`flow:` namespace) that enforces an opinionated 5-phase development lifecycle: Start, Code, Review, Learn, Complete. Each phase is a skill that Claude reads and follows. Phase gates prevent skipping ahead. Language-agnostic — every project owns its toolchain via repo-local `bin/format`, `bin/lint`, `bin/build`, `bin/test` scripts that FLOW orchestrates.
 
 This repo is the plugin source code. When installed in a target project, skills and hooks run in the target project's working directory, not here. State files, worktrees, and logs all live in the target project. If you are developing FLOW itself, you are modifying the plugin — not using it.
 
@@ -21,7 +21,7 @@ After Complete, the only permanent artifacts are the merged PR and any CLAUDE.md
 |-------|------|---------|---------|
 | 1 | Start | `/flow:flow-start` | Create worktree, PR, state file, configure workspace; extract plan from issue body sentinels via `bin/flow plan-from-issue` |
 | 2 | Code | `/flow:flow-code` | Execute plan tasks one at a time with TDD |
-| 3 | Code Review | `/flow:flow-review` | Six tenants assessed by four cognitively isolated agents (reviewer, pre-mortem, adversarial, documentation). Parent triages and fixes. |
+| 3 | Review | `/flow:flow-review` | Six tenants assessed by four cognitively isolated agents (reviewer, pre-mortem, adversarial, documentation). Parent triages and fixes. |
 | 4 | Learn | `/flow:flow-learn` | Capture learnings, route to permanent homes |
 | 5 | Complete | `/flow:flow-complete` | Merge PR, remove worktree, delete state file |
 
@@ -106,7 +106,7 @@ Skills are pure Markdown (`skills/<name>/SKILL.md`). The only executable code is
 
 The four `bin/*` stubs are installed by `/flow:flow-prime` from `assets/bin-stubs/` when absent. Each stub carries a `# FLOW-STUB-UNCONFIGURED` marker; `bin/flow ci` refuses to write the sentinel when any tool is still a stub.
 
-The `bin/test` stub additionally accepts `bin/test --adversarial-path` which prints the canonical Code Review adversarial probe test path. Exit 0 with single-line stdout = configured; exit 2 = unconfigured. The `EXCLUDE_ENTRIES` constant in `src/prime_check.rs` lists patterns prime adds to `.git/info/exclude` so the throwaway probe never appears in `git status`.
+The `bin/test` stub additionally accepts `bin/test --adversarial-path` which prints the canonical Review adversarial probe test path. Exit 0 with single-line stdout = configured; exit 2 = unconfigured. The `EXCLUDE_ENTRIES` constant in `src/prime_check.rs` lists patterns prime adds to `.git/info/exclude` so the throwaway probe never appears in `git status`.
 
 ### Subdirectory Context
 
@@ -116,7 +116,7 @@ Worktree creation mirrors every `.venv` discovered under the project root into t
 
 `cwd_scope::enforce` runs as the first action in every subcommand that runs tools or mutates state: `ci`, `build`, `lint`, `format`, `test`, `phase-enter`, `phase-finalize`, `phase-transition`, `set-timestamp`, `add-finding`. Read-only subcommands (`format-status`, `status`, `tombstone-audit`, `base-branch`) do not enforce.
 
-When a mono-repo session resumes (context compaction, orchestration, multi-skill chain), the agent's Bash tool cwd may reset to the main repo root and every subsequent `bin/flow` call hard-errors under `cwd_scope::enforce`. Two recovery paths exist: every `phase-enter` response carries a `worktree_cwd` field that joins `worktree_path` with `relative_cwd`, and the phase-enter skills (`flow-code`, `flow-code-review`, `flow-learn`) run `cd "<worktree_cwd>"` immediately after the HARD-GATE so the re-anchor is automatic at every phase entry. When `cwd_scope::enforce` still fires (e.g. mid-phase tool calls in a session that lost cwd between Bash invocations), the error message names the expected directory and ends with a copy-pasteable `cd "<expected>"` line the user can run verbatim.
+When a mono-repo session resumes (context compaction, orchestration, multi-skill chain), the agent's Bash tool cwd may reset to the main repo root and every subsequent `bin/flow` call hard-errors under `cwd_scope::enforce`. Two recovery paths exist: every `phase-enter` response carries a `worktree_cwd` field that joins `worktree_path` with `relative_cwd`, and the phase-enter skills (`flow-code`, `flow-review`, `flow-learn`) run `cd "<worktree_cwd>"` immediately after the HARD-GATE so the re-anchor is automatic at every phase entry. When `cwd_scope::enforce` still fires (e.g. mid-phase tool calls in a session that lost cwd between Bash invocations), the error message names the expected directory and ends with a copy-pasteable `cd "<expected>"` line the user can run verbatim.
 
 ### State File
 
@@ -231,7 +231,7 @@ The transcript walker (`src/hooks/transcript_walker.rs`) is shared infrastructur
 
 ### Tombstone Lifecycle
 
-Tombstone tests prevent merge conflicts from silently resurrecting deleted code. Standalone tombstones live in `tests/tombstones.rs`; topical tombstones integral to a test domain stay in their respective test files. `bin/flow tombstone-audit` scans all `tests/*.rs` for PR references, queries GitHub for merge dates, and classifies each as stale or current. Code Review Step 1 runs the audit; Step 4 removes stale tombstones. See `.claude/rules/tombstone-tests.md`.
+Tombstone tests prevent merge conflicts from silently resurrecting deleted code. Standalone tombstones live in `tests/tombstones.rs`; topical tombstones integral to a test domain stay in their respective test files. `bin/flow tombstone-audit` scans all `tests/*.rs` for PR references, queries GitHub for merge dates, and classifies each as stale or current. Review Step 1 runs the audit; Step 4 removes stale tombstones. See `.claude/rules/tombstone-tests.md`.
 
 ### 100% Coverage Is Enforced
 

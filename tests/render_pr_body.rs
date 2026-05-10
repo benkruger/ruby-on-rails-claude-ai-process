@@ -41,7 +41,7 @@ fn make_test_state() -> Value {
         "phases": {
             "flow-start": {"name": "Start", "status": "in_progress", "started_at": "2026-01-01T00:00:00Z", "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 1},
             "flow-code": {"name": "Code", "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0},
-            "flow-review": {"name": "Code Review", "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0},
+            "flow-review": {"name": "Review", "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0},
             "flow-learn": {"name": "Learn", "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0},
             "flow-complete": {"name": "Complete", "status": "pending", "started_at": null, "completed_at": null, "session_started_at": null, "cumulative_seconds": 0, "visit_count": 0}
         }
@@ -105,7 +105,7 @@ fn timings_table_started_only_filters() {
     let table = format_timings_table(&state, true);
     assert!(table.contains("| Start |"));
     assert!(table.contains("| Code |"));
-    assert!(!table.contains("| Code Review |"));
+    assert!(!table.contains("| Review |"));
     assert!(!table.contains("| Learn |"));
     assert!(!table.contains("| Complete |"));
     assert!(table.contains("| **Total** |"));
@@ -121,7 +121,7 @@ fn timings_table_all_phases() {
 
     let table = format_timings_table(&state, false);
     assert!(table.contains("| Start |"));
-    assert!(table.contains("| Code Review |"));
+    assert!(table.contains("| Review |"));
     assert!(table.contains("| Complete |"));
 }
 
@@ -473,7 +473,7 @@ fn phase_timings_shows_started_only() {
 
     assert!(body.contains("| Start |"));
     assert!(body.contains("| Code |"));
-    assert!(body.contains("| Code Review |"));
+    assert!(body.contains("| Review |"));
     assert!(!body.contains("| Learn |"));
     assert!(!body.contains("| Learn |"));
     let timings_start = body.find("## Phase Timings").unwrap();

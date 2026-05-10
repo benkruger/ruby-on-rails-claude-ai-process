@@ -88,5 +88,5 @@ advances to Complete without asking.
 
 ## Gates
 
-- Phase 4: Code Review must be complete
+- Phase 4: Review must be complete
 - Only CLAUDE.md and `.claude/` files are committed — never application code

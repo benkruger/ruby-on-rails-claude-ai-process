@@ -104,7 +104,7 @@ The frozen phases file is a snapshot of `flow-phases.json` taken at start time. 
 |-------|------|-------------|
 | `schema_version` | integer | Schema version marker — currently `1` |
 | `branch` | string | Git branch name — slug format. Canonical identity field. Feature name and worktree path are derived from this at read time |
-| `base_branch` | string | Integration branch FLOW operates against — what `start-gate` pulls from / runs CI on / pushes deps to, what `start-workspace` targets as the PR's `--base`, what Code Review/Plan/Learn diff against (`git diff origin/<base_branch>...HEAD`), and what Complete merges back into. Captured at flow-start time by `init-state` via `git branch --show-current` so it equals the branch the user was on when `/flow:flow-start` ran. flow-start refuses to proceed from detached HEAD or a non-git cwd — the value is required, not defaulted. Lets repos whose trunk is not `main` (e.g. `staging`, `develop`) run FLOW without leaking `main`-relative diffs |
+| `base_branch` | string | Integration branch FLOW operates against — what `start-gate` pulls from / runs CI on / pushes deps to, what `start-workspace` targets as the PR's `--base`, what Review/Plan/Learn diff against (`git diff origin/<base_branch>...HEAD`), and what Complete merges back into. Captured at flow-start time by `init-state` via `git branch --show-current` so it equals the branch the user was on when `/flow:flow-start` ran. flow-start refuses to proceed from detached HEAD or a non-git cwd — the value is required, not defaulted. Lets repos whose trunk is not `main` (e.g. `staging`, `develop`) run FLOW without leaking `main`-relative diffs |
 | `relative_cwd` | string | Subdirectory inside the project root where the user started the flow, captured by `start-init` from `cwd.strip_prefix(project_root())`. Empty string means the flow operates at the worktree root (the common case). Non-empty values (e.g. `"api"` or `"packages/api"`) tell `start-workspace` to include the suffix in its **absolute** `worktree_cwd` return value so the agent lands in the same subdirectory after the worktree is created, and tell every `bin/flow` subcommand's cwd-drift guard which directory to enforce. The skill's `cd <worktree_cwd>` works from any bash cwd because `worktree_cwd` is absolute; this matters when the user launches Claude at the repo root and `cd <app>` before invoking `/flow:flow-start`. Defaults to empty for state files written before this field existed |
 | `repo` | string / null | GitHub repo in `owner/repo` format, cached during `/flow-start`. Used by `bin/flow issue` to avoid repeated `git remote` calls. Null if detection fails |
 | `pr_number` | integer / null | GitHub PR number. Null during early Start (before PR creation) when created by `init-state` — backfilled by `start-workspace` after PR creation |
@@ -121,8 +121,8 @@ The frozen phases file is a snapshot of `flow-phases.json` taken at start time. 
 | `start_steps_total` | integer | Total number of Start phase steps (hardcoded 5). Set by `init-state --start-steps-total` at creation. Used by the TUI for "step N of M" display |
 | `plan_step` | integer | Current Plan phase step (0-4). Set via `set-timestamp` (standard path) or `plan-extract` (extracted path) at each step boundary. Used by the TUI to show "step 2 of 4" in the Plan phase annotation. Absent when Plan is not in progress |
 | `plan_steps_total` | integer | Total number of Plan phase steps (hardcoded 4). Set via `set-timestamp` (standard path) or `plan-extract` (extracted path) after phase entry. Used by the TUI for "step N of M" display |
-| `review_step` | integer | Last completed Code Review step (0-4). Set to 0 on phase entry, incremented after each step (1=Gather, 2=Launch, 3=Triage, 4=Fix). Used by the TUI and for resume after context compaction. Legacy alias `review_step` is accepted on read for state files written by older plugin versions |
-| `review_steps_total` | integer | Total number of Code Review steps (hardcoded 4). Set via `set-timestamp` after phase entry. Used by the TUI for "step N of M" display. Legacy key `review_steps_total` is accepted on read for state files written by older plugin versions |
+| `review_step` | integer | Last completed Review step (0-4). Set to 0 on phase entry, incremented after each step (1=Gather, 2=Launch, 3=Triage, 4=Fix). Used by the TUI and for resume after context compaction. Legacy alias `review_step` is accepted on read for state files written by older plugin versions |
+| `review_steps_total` | integer | Total number of Review steps (hardcoded 4). Set via `set-timestamp` after phase entry. Used by the TUI for "step N of M" display. Legacy key `review_steps_total` is accepted on read for state files written by older plugin versions |
 | `code_tasks_total` | integer / absent | Total number of implementation tasks from the plan. Set by Phase 1 (Start) Step 5 via `set-timestamp`, derived from a count of `#### Task N:` headings in the extracted `plan.md` (returned by `bin/flow plan-from-issue` in its success envelope as `tasks_total`). Used by the TUI to show "task 3 of 8" in the Code phase annotation. Absent in state files created before v0.40 |
 | `code_task_name` | string / absent | Short description of the current Code task from the plan. Set by Phase 3 (Code) via `set-timestamp` before each task starts. Used by the TUI to show "Update tests - task 2 of 3" in the Code phase annotation. Absent when Code phase is not in progress or in state files created before the feature was added |
 | `learn_step` | integer | Last completed Learn step (0-6). Set via `set-timestamp` at each step boundary. TUI displays `learn_step + 1` as the current step. Used for resume and TUI annotation "gathering sources - step 1 of 7" |
@@ -139,7 +139,7 @@ The frozen phases file is a snapshot of `flow-phases.json` taken at start time. 
 | `notes` | array | Corrections captured via `/flow-note` — see [Notes Array](#notes-array) |
 | `phase_transitions` | array | Phase entry log recording every `phase_enter()` call with from/to/timestamp and optional reason — see [Phase Transitions Array](#phase-transitions-array) |
 | `issues_filed` | array | GitHub issues filed during the feature — see [Issues Filed Array](#issues-filed-array) |
-| `findings` | array | Triage findings from Code Review and Learn phases — see [Findings Array](#findings-array) |
+| `findings` | array | Triage findings from Review and Learn phases — see [Findings Array](#findings-array) |
 | `compact_summary` | string / null | Conversation summary from last compaction. Written by PostCompact hook. Currently has no consumer (session-start consumer removed in PR #938). Transient. |
 | `compact_cwd` | string / null | CWD at last compaction time. Written by PostCompact hook. Currently has no consumer (session-start consumer removed in PR #938). Transient. |
 | `compact_count` | integer | Total number of context compactions during this feature. Incremented by PostCompact hook. Permanent. |
@@ -299,9 +299,9 @@ via `bin/flow issue`. Surfaced in the Complete phase PR body and Done banner.
 
 ## Findings Array
 
-Populated by `bin/flow add-finding` during Code Review (Phase 4) and Learn
+Populated by `bin/flow add-finding` during Review (Phase 4) and Learn
 (Phase 5) triage. Each entry records a finding, its triage outcome, and the
-reasoning. Rendered in the Complete phase Done banner as "Code Review Findings"
+reasoning. Rendered in the Complete phase Done banner as "Review Findings"
 and "Learn Findings" sections.
 
 ```json
@@ -311,7 +311,7 @@ and "Learn Findings" sections.
     "reason": "False positive — import used in macro expansion",
     "outcome": "dismissed",
     "phase": "flow-review",
-    "phase_name": "Code Review",
+    "phase_name": "Review",
     "timestamp": "2026-03-12T10:30:00-07:00"
   },
   {
@@ -482,4 +482,4 @@ Appended to a phase's `step_snapshots[]` on every step-counter increment that na
 
 Valid phase transitions are defined in `flow-phases.json` at the plugin root. Forward progression is always valid. Backward transitions are limited per phase.
 
-Valid transitions are defined in `flow-phases.json`: Code can return to Plan; Code Review can return to Code or Plan.
+Valid transitions are defined in `flow-phases.json`: Code can return to Plan; Review can return to Code or Plan.

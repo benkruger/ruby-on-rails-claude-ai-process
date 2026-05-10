@@ -1,7 +1,7 @@
 //! Integration tests for `bin/flow issue`.
 //!
 //! The command wraps `gh issue create` with label-retry logic, body
-//! file handling, repo detection fallbacks, and a Code Review filing
+//! file handling, repo detection fallbacks, and a Review filing
 //! ban. Tests install a mock `gh` on PATH and state-file fixtures to
 //! cover every branch.
 
@@ -777,22 +777,21 @@ fn args_milestone_defaults_to_none() {
 }
 
 #[test]
-fn args_parses_override_code_review_ban() {
+fn args_parses_override_review_ban() {
     use clap::Parser;
-    let args =
-        Args::try_parse_from(["issue", "--title", "Test", "--override-code-review-ban"]).unwrap();
-    assert!(args.override_code_review_ban);
+    let args = Args::try_parse_from(["issue", "--title", "Test", "--override-review-ban"]).unwrap();
+    assert!(args.override_review_ban);
 }
 
 #[test]
 fn args_override_defaults_to_false() {
     use clap::Parser;
     let args = Args::try_parse_from(["issue", "--title", "Test"]).unwrap();
-    assert!(!args.override_code_review_ban);
+    assert!(!args.override_review_ban);
 }
 
-// --- run_impl_main: Code Review filing gate (drives through public
-// `run_impl_main` surface — the private `should_reject_for_code_review`
+// --- run_impl_main: Review filing gate (drives through public
+// `run_impl_main` surface — the private `should_reject_for_review`
 // helper is only reachable from within `issue.rs`). ---
 
 fn default_args() -> Args {
@@ -803,12 +802,12 @@ fn default_args() -> Args {
         body_file: None,
         state_file: None,
         milestone: None,
-        override_code_review_ban: false,
+        override_review_ban: false,
     }
 }
 
 #[test]
-fn gate_blocks_when_current_phase_is_code_review() {
+fn gate_blocks_when_current_phase_is_review() {
     let dir = tempfile::tempdir().unwrap();
     let state = || Some(r#"{"current_phase":"flow-review"}"#.to_string());
     let repo = || Some("owner/name".to_string());
@@ -816,26 +815,23 @@ fn gate_blocks_when_current_phase_is_code_review() {
     assert_eq!(code, 1);
     assert_eq!(value["status"], "error");
     let msg = value["message"].as_str().unwrap();
-    assert!(msg.contains("Code Review"));
-    assert!(msg.contains("override-code-review-ban"));
+    assert!(msg.contains("Review"));
+    assert!(msg.contains("override-review-ban"));
 }
 
 #[test]
 fn gate_allows_in_learn_phase_with_stubbed_gh() {
     // Library-level gate is tested indirectly: when state passes the
-    // Code Review gate, run_impl_main proceeds to create_issue which
+    // Review gate, run_impl_main proceeds to create_issue which
     // spawns gh. With no gh on PATH the spawn fails, but what matters
     // here is the gate pass — the failure appears in the returned
-    // error, not as a Code Review block.
+    // error, not as a Review block.
     let dir = tempfile::tempdir().unwrap();
     let state = || Some(r#"{"current_phase":"flow-learn"}"#.to_string());
     let repo = || Some("owner/name".to_string());
     let (value, _code) = run_impl_main(default_args(), dir.path(), &state, &repo);
-    // gate pass proven by absence of Code Review message.
-    assert!(!value["message"]
-        .as_str()
-        .unwrap_or("")
-        .contains("Code Review"));
+    // gate pass proven by absence of Review message.
+    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
 }
 
 #[test]
@@ -844,10 +840,7 @@ fn gate_allows_when_no_state_file() {
     let state = || None;
     let repo = || Some("owner/name".to_string());
     let (value, _code) = run_impl_main(default_args(), dir.path(), &state, &repo);
-    assert!(!value["message"]
-        .as_str()
-        .unwrap_or("")
-        .contains("Code Review"));
+    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
 }
 
 #[test]
@@ -896,11 +889,11 @@ fn gate_fails_closed_when_state_has_bom() {
     let repo = || Some("owner/name".to_string());
     let (value, code) = run_impl_main(default_args(), dir.path(), &state, &repo);
     assert_eq!(code, 1);
-    assert!(value["message"].as_str().unwrap().contains("Code Review"));
+    assert!(value["message"].as_str().unwrap().contains("Review"));
 }
 
 #[test]
-fn gate_fails_closed_when_state_has_bom_and_no_code_review() {
+fn gate_fails_closed_when_state_has_bom_and_no_review() {
     let dir = tempfile::tempdir().unwrap();
     let state = || Some("\u{feff}{\"current_phase\":\"flow-learn\"}".to_string());
     let repo = || Some("owner/name".to_string());
@@ -918,10 +911,7 @@ fn gate_allows_when_state_is_empty_string() {
     let state = || Some(String::new());
     let repo = || Some("owner/name".to_string());
     let (value, _code) = run_impl_main(default_args(), dir.path(), &state, &repo);
-    assert!(!value["message"]
-        .as_str()
-        .unwrap_or("")
-        .contains("Code Review"));
+    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
 }
 
 #[test]
@@ -930,10 +920,7 @@ fn gate_allows_when_state_is_whitespace_only() {
     let state = || Some("   \n  ".to_string());
     let repo = || Some("owner/name".to_string());
     let (value, _code) = run_impl_main(default_args(), dir.path(), &state, &repo);
-    assert!(!value["message"]
-        .as_str()
-        .unwrap_or("")
-        .contains("Code Review"));
+    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
 }
 
 #[test]
@@ -943,17 +930,17 @@ fn gate_blocks_when_current_phase_is_whitespace_padded() {
     let repo = || Some("owner/name".to_string());
     let (value, code) = run_impl_main(default_args(), dir.path(), &state, &repo);
     assert_eq!(code, 1);
-    assert!(value["message"].as_str().unwrap().contains("Code Review"));
+    assert!(value["message"].as_str().unwrap().contains("Review"));
 }
 
 #[test]
 fn gate_blocks_when_current_phase_is_uppercase() {
     let dir = tempfile::tempdir().unwrap();
-    let state = || Some(r#"{"current_phase":"FLOW-CODE-REVIEW"}"#.to_string());
+    let state = || Some(r#"{"current_phase":"FLOW-REVIEW"}"#.to_string());
     let repo = || Some("owner/name".to_string());
     let (value, code) = run_impl_main(default_args(), dir.path(), &state, &repo);
     assert_eq!(code, 1);
-    assert!(value["message"].as_str().unwrap().contains("Code Review"));
+    assert!(value["message"].as_str().unwrap().contains("Review"));
 }
 
 #[test]
@@ -963,7 +950,7 @@ fn gate_blocks_when_current_phase_has_trailing_nul() {
     let repo = || Some("owner/name".to_string());
     let (value, code) = run_impl_main(default_args(), dir.path(), &state, &repo);
     assert_eq!(code, 1);
-    assert!(value["message"].as_str().unwrap().contains("Code Review"));
+    assert!(value["message"].as_str().unwrap().contains("Review"));
 }
 
 #[test]
@@ -974,7 +961,7 @@ fn gate_blocks_when_current_phase_duplicate_key_serde_last_wins() {
     let repo = || Some("owner/name".to_string());
     let (value, code) = run_impl_main(default_args(), dir.path(), &state, &repo);
     assert_eq!(code, 1);
-    assert!(value["message"].as_str().unwrap().contains("Code Review"));
+    assert!(value["message"].as_str().unwrap().contains("Review"));
 }
 
 #[test]
@@ -985,7 +972,7 @@ fn gate_blocks_when_duplicate_key_in_reverse_order() {
     let repo = || Some("owner/name".to_string());
     let (value, code) = run_impl_main(default_args(), dir.path(), &state, &repo);
     assert_eq!(code, 1);
-    assert!(value["message"].as_str().unwrap().contains("Code Review"));
+    assert!(value["message"].as_str().unwrap().contains("Review"));
 }
 
 #[test]
@@ -1115,30 +1102,27 @@ fn run_impl_main_state_file_no_repo_no_resolver_errors() {
 }
 
 #[test]
-fn run_impl_main_blocked_by_code_review_returns_error_tuple() {
+fn run_impl_main_blocked_by_review_returns_error_tuple() {
     let dir = tempfile::tempdir().unwrap();
     let state = || Some(r#"{"current_phase":"flow-review"}"#.to_string());
     let repo = || Some("owner/name".to_string());
     let (value, code) = run_impl_main(default_args(), dir.path(), &state, &repo);
     assert_eq!(value["status"], "error");
     assert_eq!(code, 1);
-    assert!(value["message"].as_str().unwrap().contains("Code Review"));
+    assert!(value["message"].as_str().unwrap().contains("Review"));
 }
 
 #[test]
-fn gate_override_bypasses_code_review_block() {
+fn gate_override_bypasses_review_block() {
     // Covers the `if override_flag { return None; }` early return.
     let dir = tempfile::tempdir().unwrap();
     let state = || Some(r#"{"current_phase":"flow-review"}"#.to_string());
     let repo = || Some("owner/name".to_string());
     let mut args = default_args();
-    args.override_code_review_ban = true;
+    args.override_review_ban = true;
     let (value, _code) = run_impl_main(args, dir.path(), &state, &repo);
-    // Gate passed — no Code Review message.
-    assert!(!value["message"]
-        .as_str()
-        .unwrap_or("")
-        .contains("Code Review"));
+    // Gate passed — no Review message.
+    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
 }
 
 #[test]

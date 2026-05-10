@@ -37,7 +37,7 @@ Optional thread-per-feature notifications give your team passive awareness of fe
 ## The Workflow
 
 ```text
-Start → Code → Code Review → Learn → Complete
+Start → Code → Review → Learn → Complete
   1       2         3            4          5
 ```
 
@@ -45,7 +45,7 @@ Start → Code → Code Review → Learn → Complete
 |-------|---------|-------------|
 | **1: Start** | `/flow-start <#issue>` | Lock, pull the integration branch, `bin/ci` baseline, upgrade dependencies, `bin/ci` post-deps, commit to the integration branch, unlock, new worktree + PR — ci-fixer sub-agent handles failures. Plan is extracted from the issue body's `<!-- FLOW-PLAN-BEGIN -->`/`<!-- FLOW-PLAN-END -->` sentinels. |
 | **2: Code** | `/flow-code` | Test-first per task, diff review before `bin/ci`, commit per task, 100% coverage enforced |
-| **3: Code Review** | `/flow-review` | Four steps — gather artifacts, launch four cognitively isolated agents in parallel (reviewer, pre-mortem, adversarial, documentation), triage findings, fix in-scope issues |
+| **3: Review** | `/flow-review` | Four steps — gather artifacts, launch four cognitively isolated agents in parallel (reviewer, pre-mortem, adversarial, documentation), triage findings, fix in-scope issues |
 | **4: Learn** | `/flow-learn` | Learnings routed to CLAUDE.md, rules, and memory — plugin gaps noted |
 | **5: Complete** | `/flow-complete` | Close issues referenced in prompt, PR merged, worktree removed, state file deleted, feature done |
 
@@ -54,7 +54,7 @@ Start → Code → Code Review → Learn → Complete
 ## Guardrails
 
 - **`bin/ci` is the universal gate** — must be green before every commit and every phase transition. Recommend keeping guardrails under 2 minutes for tight feedback loops.
-- **100% test coverage required** — Code phase cannot advance to Code Review without it.
+- **100% test coverage required** — Code phase cannot advance to Review without it.
 - **TDD always** — test must fail before implementation is written; test must pass before commit.
 - **No lint suppression** — fix the code, not the linter. No exclusions, no suppression comments.
 - **Worktree isolation** — your team's trunk (`main`/`staging`/whatever your repo's default branch is) is never touched directly; multiple features run in parallel.
@@ -77,7 +77,7 @@ Start fully manual. As your comfort grows, dial up autonomy per skill. Go fully 
 |-------|--------------|
 | **Fully autonomous** | All skills auto for both axes — zero prompts |
 | **Fully manual** | Every diff reviewed, every phase transition confirmed |
-| **Recommended** | Auto where safe (Code Review), manual where judgment matters (Code) |
+| **Recommended** | Auto where safe (Review), manual where judgment matters (Code) |
 | **Customize** | Choose per skill and per axis |
 
 ### Runtime overrides
@@ -203,7 +203,7 @@ The next time you open a Claude Code session, the session-start hook delivers a 
 
 ### Sub-Agent Architecture
 
-Start and Complete use a ci-fixer sub-agent for CI failures. Plan invokes the `decompose` plugin (`decompose:decompose`) for DAG-based task decomposition. Code Review launches four cognitively isolated agents in parallel: `reviewer` (context-rich — receives diff + plan + CLAUDE.md + rules, covers architecture, simplicity, and correctness including security), `pre-mortem` (context-sparse — receives only the diff, investigates failure modes including security), `adversarial` (context-sparse — writes tests designed to break the implementation), and `documentation` (context-sparse — assesses maintainability and documentation accuracy). The parent session gathers context, triages findings, and fixes. Code has no sub-agent. Learn uses `learn-analyst` (cognitively isolated compliance audit).
+Start and Complete use a ci-fixer sub-agent for CI failures. Plan invokes the `decompose` plugin (`decompose:decompose`) for DAG-based task decomposition. Review launches four cognitively isolated agents in parallel: `reviewer` (context-rich — receives diff + plan + CLAUDE.md + rules, covers architecture, simplicity, and correctness including security), `pre-mortem` (context-sparse — receives only the diff, investigates failure modes including security), `adversarial` (context-sparse — writes tests designed to break the implementation), and `documentation` (context-sparse — assesses maintainability and documentation accuracy). The parent session gathers context, triages findings, and fixes. Code has no sub-agent. Learn uses `learn-analyst` (cognitively isolated compliance audit).
 
 ```text
 Main conversation          Sub-agent (custom plugin)
@@ -294,7 +294,7 @@ Phases that allow it offer back-navigation when something was missed:
 
 | Phase | Can return to |
 |-------|--------------|
-| Code Review | Code |
+| Review | Code |
 
 When returning, state is reset appropriately. Later phases are invalidated. Prior findings are preserved and extended — never discarded.
 

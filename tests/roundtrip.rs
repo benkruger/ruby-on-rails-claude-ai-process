@@ -47,7 +47,7 @@ const STATE_JSON: &str = r#"{
       "visit_count": 1
     },
     "flow-review": {
-      "name": "Code Review",
+      "name": "Review",
       "status": "pending",
       "started_at": null,
       "completed_at": null,
@@ -114,7 +114,7 @@ fn deserialize_real_state_file() {
     let code = state.phases.get(&Phase::FlowCode).unwrap();
     assert_eq!(code.status, PhaseStatus::InProgress);
 
-    let review = state.phases.get(&Phase::FlowCodeReview).unwrap();
+    let review = state.phases.get(&Phase::FlowReview).unwrap();
     assert_eq!(review.status, PhaseStatus::Pending);
 
     // Notes

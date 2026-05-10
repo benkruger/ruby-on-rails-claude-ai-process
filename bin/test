@@ -80,7 +80,7 @@ else
   set --
 fi
 
-# --- Code Review adversarial probe path ---
+# --- Review adversarial probe path ---
 #
 # Phase 4 calls this BEFORE running the suite to learn where the
 # adversarial agent should write its probe. The path is relative to

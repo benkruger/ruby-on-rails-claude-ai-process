@@ -641,8 +641,8 @@ status in your response (not via Bash) inside a single fenced code block:
 ````
 
 The summary already includes the feature name, prompt, PR: <pr_url>,
-per-phase timeline (Start:, Plan:, Code:, Code Review:, Learn:,
-Complete:, Total:), Code Review Findings and Learn Findings sections
+per-phase timeline (Start:, Plan:, Code:, Review:, Learn:,
+Complete:, Total:), Review Findings and Learn Findings sections
 (each finding with its outcome marker and reasoning), the Token Cost
 section (per-phase token totals + cost in USD, plus a Total row; an
 optional By Model breakdown when 2+ models contributed; an optional

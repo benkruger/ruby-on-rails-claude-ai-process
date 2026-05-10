@@ -7,4 +7,4 @@ never user-level `~/.claude/` paths.
 - Instructions go to `<project>/CLAUDE.md`
 - Reading user-level files (`~/.claude/rules/`, `~/.claude/CLAUDE.md`)
   is fine — writing to them is not
-- This applies to every FLOW phase: Plan, Code, Code Review, Learn
+- This applies to every FLOW phase: Plan, Code, Review, Learn

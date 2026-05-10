@@ -103,7 +103,7 @@ pub fn validate(state_path: Option<&Path>) -> (bool, String, Option<Value>) {
     // `phase_complete()` has advanced `current_phase` to the next phase but
     // before `phase_enter()` has set its status to in_progress — remain
     // allowed. Without that scope, a manual→auto transition (e.g., Code=manual
-    // with Code Review=auto in the Recommended preset) would deadlock: the
+    // with Review=auto in the Recommended preset) would deadlock: the
     // completing skill's HARD-GATE fires `AskUserQuestion` to approve the
     // transition, but the hook sees the next phase's auto config and blocks
     // the approval.

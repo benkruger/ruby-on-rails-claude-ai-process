@@ -132,9 +132,9 @@ treat `None` as a structured-error path, OR pre-validate via
 is supplied). Any new CLI subcommand that accepts `--branch` and
 constructs a `FlowPaths` must follow the same discipline.
 
-### Code Review enforcement
+### Review enforcement
 
-During Code Review, the reviewer agent and adversarial agent check
+During Review, the reviewer agent and adversarial agent check
 for violations of this rule. The reviewer checks that new
 constructors with input-validation invariants expose a fallible
 variant and that git-sourced callsites pattern-match on it. The

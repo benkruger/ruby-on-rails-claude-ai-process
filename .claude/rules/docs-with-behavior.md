@@ -58,8 +58,8 @@ table MUST enumerate every affected agent file by path — not "the
 four review agents" or "the agents that take the diff," but each
 one by name (e.g. `agents/reviewer.md`, `agents/pre-mortem.md`,
 `agents/adversarial.md`, `agents/documentation.md`). A universal
-quantifier on a code family must carry a named list. The Code
-Review reviewer agent cross-checks plan Exploration against the
+quantifier on a code family must carry a named list. The Review
+reviewer agent cross-checks plan Exploration against the
 agents whose Input sections appear in the staged diff and flags
 any agent that was modified but not enumerated as a Real finding.
 
@@ -160,7 +160,7 @@ because they assert the delegation contract independently of the
 helper's internal behavior.
 
 A plan that names tests and a PR that does not add them is a
-Code Review finding — the reviewer agent correctly flags "plan
+Review finding — the reviewer agent correctly flags "plan
 said add X but X is not there."
 
 The rule applies equally to documentation tasks: if a plan task
@@ -298,16 +298,15 @@ that will be modified, open each file and note every module-level
 doc comment and every public item's doc comment. If the planned
 change alters the described behavior, add a task — or extend an
 existing task — to update those doc comments in the same commit
-as the code change. Do not leave source-local doc updates to Code
-Review.
+as the code change. Do not leave source-local doc updates to Review.
 
 During the Code phase, when a task modifies a skill SKILL.md or
 adds a new `bin/flow` subcommand, check whether any doc file
 describes the old behavior. If so, update it in the same task —
-do not defer to Code Review or Learn.
+do not defer to Review or Learn.
 
-During Code Review triage, every documentation finding caused by
-the PR's own changes is fixed in the same PR. The Code Review rule
+During Review triage, every documentation finding caused by
+the PR's own changes is fixed in the same PR. The Review rule
 (`.claude/rules/review-scope.md`) removes the filing path
 entirely — documentation drift introduced by the PR's changes is
 a Real finding that gets fixed in Step 4.

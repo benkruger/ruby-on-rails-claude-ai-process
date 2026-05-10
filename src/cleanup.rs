@@ -227,7 +227,7 @@ fn resolve_probe_inside_worktree(probe_path: &Path, wt_canon: &Path) -> Option<P
     }
 }
 
-/// Remove the Code Review adversarial probe file from the worktree
+/// Remove the Review adversarial probe file from the worktree
 /// before `git worktree remove` disposes of the worktree directory.
 /// Per `.claude/rules/ephemeral-file-cleanup.md`, running this step
 /// BEFORE worktree removal makes the disposal explicit in the JSON
@@ -350,7 +350,7 @@ pub fn cleanup(
         steps.insert("pr_close".to_string(), "skipped".to_string());
     }
 
-    // Dispose of the Code Review adversarial probe explicitly before
+    // Dispose of the Review adversarial probe explicitly before
     // worktree removal so the disposal lands in the steps JSON as an
     // audit trail entry rather than a silent side-effect of
     // `git worktree remove`. Must run BEFORE the worktree-removal
@@ -445,7 +445,7 @@ pub fn cleanup(
     // `commit-msg.txt`, `commit-msg-content.txt`, `start-prompt`)
     // lives under `branch_dir()`, so one `remove_dir_all` covers the
     // full set and naturally handles future per-branch additions
-    // without code changes. Code Review's adversarial probe lives
+    // without code changes. Review's adversarial probe lives
     // inside the worktree's test tree (declared per-project via
     // `bin/test --adversarial-path`) and is disposed of by
     // `git worktree remove` later in this same cleanup pass — no

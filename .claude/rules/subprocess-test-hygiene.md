@@ -118,7 +118,7 @@ When a plan task adds a test that spawns a subprocess:
 A subprocess test that omits a required neutralizer is a
 Plan-phase gap.
 
-## How to Apply (Code Review)
+## How to Apply (Review)
 
 When the reviewer, pre-mortem, or adversarial agents find a
 subprocess test lacking env neutralization:

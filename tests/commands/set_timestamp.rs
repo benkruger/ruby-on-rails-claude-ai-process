@@ -30,16 +30,11 @@ fn flow_rs() -> Command {
 
 /// Each named step counter returns `true` from the helper. Locks
 /// the closed enumeration that decides whether to capture a
-/// `StepSnapshot` after a `set-timestamp` mutation. Both
-/// `review_step` (canonical, written by current skills) and
-/// `code_review_step` (legacy alias from older plugin versions)
-/// are recognized so neither name silently skips the snapshot
-/// capture during the compat window.
+/// `StepSnapshot` after a `set-timestamp` mutation.
 #[test]
 fn is_step_counter_field_returns_true_for_each_named_field() {
     assert!(is_step_counter_field("code_task"));
     assert!(is_step_counter_field("review_step"));
-    assert!(is_step_counter_field("code_review_step"));
     assert!(is_step_counter_field("learn_step"));
     assert!(is_step_counter_field("complete_step"));
 }

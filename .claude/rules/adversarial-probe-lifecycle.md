@@ -1,16 +1,16 @@
 # Adversarial Probe Lifecycle
 
-Code Review's adversarial agent writes test functions that prove a
+Review's adversarial agent writes test functions that prove a
 finding by failing against the current implementation. The probe
 lives in the worktree's test tree and is removed at Phase 5 Complete
-as a side effect of `git worktree remove`. When Code Review Step 4
+as a side effect of `git worktree remove`. When Review Step 4
 fixes a finding the probe surfaced, the probe's assertions become
-outdated and must be reconciled in the same Code Review pass — a
+outdated and must be reconciled in the same Review pass — a
 probe asserting an outdated bug fails CI and blocks the commit.
 
 ## The Rule
 
-When Code Review Step 4 applies a fix that resolves a finding the
+When Review Step 4 applies a fix that resolves a finding the
 adversarial probe surfaced, the probe's assertions are no longer
 valid (they assert the bug exists). Reconcile in Step 4 by one of:
 
@@ -36,7 +36,7 @@ The adversarial probe path is owned by the project (declared via
 `bin/test --adversarial-path`). It typically lives at a stable path
 (`tests/test_adversarial_flow.rs` for cargo, `test/adversarial_flow_test.rb`
 for Rails, etc.) tracked on the integration branch as a
-doc-comment-only stub. The Code Review session writes assertions
+doc-comment-only stub. The Review session writes assertions
 into the file in the worktree's copy. Restoring the file to the
 integration-branch content keeps `git status` clean when no probe
 assertions belong on the integration branch:
@@ -56,7 +56,7 @@ findings are recorded elsewhere.
 
 ## How to Apply
 
-**Code Review Step 4.** After fixing every Real finding from Step 3,
+**Review Step 4.** After fixing every Real finding from Step 3,
 audit the adversarial probe file. For each test in the probe:
 
 1. Re-run the test against the fixed implementation
@@ -72,5 +72,5 @@ audit the adversarial probe file. For each test in the probe:
    more to confirm the probe-free state passes the coverage gate.
 
 The default is delete. The probe's purpose is to surface findings
-during Code Review, not to live as a long-lived regression guard.
+during Review, not to live as a long-lived regression guard.
 Regression guards belong in `tests/<path>/<name>.rs`.

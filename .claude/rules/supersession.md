@@ -3,7 +3,7 @@
 When a PR introduces code that makes other code elsewhere in the
 repository permanently redundant, the redundant code must be deleted
 in the same PR. This rule runs in two phases: Plan catches supersession
-by construction; Code Review catches it by triage.
+by construction; Review catches it by triage.
 
 ## The Test
 
@@ -100,13 +100,13 @@ infrastructure to delete in the same atomic commit as the
 producer.
 
 A removal plan that fails the cascading deletion analysis ships
-orphan code into main. Code Review will catch it (the supersession
+orphan code into main. Review will catch it (the supersession
 test in Step 3 fires regardless of which file the orphan lives
-in), but the catch costs a full Code Review cycle plus a deletion
+in), but the catch costs a full Review cycle plus a deletion
 commit that the Plan phase could have included in the original
 removal commit.
 
-## Code Review Phase
+## Review Phase
 
 When triaging findings from agents, apply the supersession test
 BEFORE the Real / False positive classification (see

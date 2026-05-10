@@ -171,7 +171,7 @@ state-derived string and uses it in path construction:
    NUL byte, prefix-escape, oversized read. The tests live
    alongside the validator, not at the consumer.
 
-**Code Review phase.** The reviewer agent and adversarial
+**Review phase.** The reviewer agent and adversarial
 agent check every new state-derived path-construction site
 AND every new filesystem walk for the validator and the byte
 cap. Findings tagged "path traversal via X", "arbitrary file

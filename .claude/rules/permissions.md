@@ -32,7 +32,7 @@ commit message or PR description so the audit trail is preserved.
 Example commit message:
 
 ```text
-Add Read(//tmp/*.diff) permission for code-review plugin
+Add Read(//tmp/*.diff) permission for review plugin
 ```
 
 This makes the allow list auditable — any pattern can be traced
@@ -95,7 +95,7 @@ coverage" subsection naming:
 commit must include the matching allow-list addition + the
 `CURRENT_CONFIG_HASH` bump.
 
-**Code Review phase.** The reviewer agent cross-checks every new
+**Review phase.** The reviewer agent cross-checks every new
 SKILL.md bash command in the diff against the diff's allow-list
 changes. A SKILL.md bash command without a matching allow-list
 entry is a Real finding fixed in Step 4.
@@ -145,7 +145,7 @@ patterns to `FLOW_DENY`. For every proposed pattern:
    that required a non-empty path slot.
 
 A plan that proposes new `FLOW_DENY` regex patterns without this
-enumeration is incomplete. Code Review's adversarial agent will
+enumeration is incomplete. Review's adversarial agent will
 catch the bypass — but at the cost of a full review cycle, a
 pattern revert, and a structural-layer rewrite that the Plan
 phase could have produced directly.
@@ -194,7 +194,7 @@ the Plan must enumerate the upgrade-window gap explicitly:
 
 A plan that removes a settings-based guard without naming all
 four (protection, replacement, settings dependency, closure
-strategy) is incomplete. Code Review's pre-mortem agent will
+strategy) is incomplete. Review's pre-mortem agent will
 catch the gap as a security regression — but at the cost of a
 review cycle that the Plan phase could have prevented.
 

@@ -3,7 +3,7 @@
   "phases": {
     "flow-start":    { "name": "Start",       "command": "/flow:flow-start",    "can_return_to": [] },
     "flow-code":     { "name": "Code",        "command": "/flow:flow-code",     "can_return_to": [] },
-    "flow-review":   { "name": "Code Review", "command": "/flow:flow-review",   "can_return_to": ["flow-code"] },
+    "flow-review":   { "name": "Review",      "command": "/flow:flow-review",   "can_return_to": ["flow-code"] },
     "flow-learn":    { "name": "Learn",       "command": "/flow:flow-learn",    "can_return_to": [] },
     "flow-complete": { "name": "Complete",    "command": "/flow:flow-complete", "can_return_to": [] }
   }

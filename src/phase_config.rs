@@ -36,7 +36,7 @@ pub fn phase_names() -> IndexMap<String, String> {
     let mut m = IndexMap::new();
     m.insert("flow-start".into(), "Start".into());
     m.insert("flow-code".into(), "Code".into());
-    m.insert("flow-review".into(), "Code Review".into());
+    m.insert("flow-review".into(), "Review".into());
     m.insert("flow-learn".into(), "Learn".into());
     m.insert("flow-complete".into(), "Complete".into());
     m
@@ -175,7 +175,7 @@ pub fn build_initial_phases(current_time: &str) -> IndexMap<Phase, PhaseState> {
     let phase_variants = [
         Phase::FlowStart,
         Phase::FlowCode,
-        Phase::FlowCodeReview,
+        Phase::FlowReview,
         Phase::FlowLearn,
         Phase::FlowComplete,
     ];

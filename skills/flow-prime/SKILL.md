@@ -47,7 +47,7 @@ FLOW has two independent axes for skills that support them:
 - **Commit** — controls per-task review in phase skills (auto = skip review prompts, manual = require explicit approval before each commit).
 - **Continue** — whether to auto-advance to the next phase or prompt first.
 
-Phase skills that commit (code, code-review, learning) have both axes. Phase skills that don't commit (start) only have continue. Utility skills (complete, abort) have a single mode value.
+Phase skills that commit (code, review, learning) have both axes. Phase skills that don't commit (start) only have continue. Utility skills (complete, abort) have a single mode value.
 
 Ask the user how much autonomy FLOW should have using AskUserQuestion:
 
@@ -76,7 +76,7 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 {"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-complete": "auto", "flow-abort": "auto"}
 ```
 
-**Customize** — ask per skill, in this order: start, code, code-review, learn, complete, abort. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
+**Customize** — ask per skill, in this order: start, code, review, learn, complete, abort. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
 
 For **start** (continue only), ask one AskUserQuestion:
 
@@ -101,7 +101,7 @@ Second question:
 > - **Manual (Recommended)** — "Prompt before advancing"
 > - **Auto** — "Auto-advance to next phase"
 
-For **code-review** (commit and continue), ask two AskUserQuestions:
+For **review** (commit and continue), ask two AskUserQuestions:
 
 First question:
 
@@ -460,7 +460,7 @@ Display the skills configuration as a pipe-delimited markdown table with exactly
 | start       | —      | manual   |
 | plan        | —      | auto     |
 | code        | manual | manual   |
-| code-review | auto   | auto     |
+| review | auto   | auto     |
 | learning    | auto   | auto     |
 | complete    | auto   | —        |
 | abort       | auto   | —        |

@@ -114,7 +114,7 @@ for fast-tracking through the Plan phase.
 
 ## Verify Before Filing
 
-When filing a bug discovered during a FLOW phase (Code Review
+When filing a bug discovered during a FLOW phase (Review
 tech debt, Learn process gaps), read the relevant source code
 and verify the root cause before filing. A hypothesis about
 what might be happening is not evidence. The issue body must
@@ -127,7 +127,7 @@ without re-doing the investigation.
 
 Before filing any issue derived from a FLOW phase finding,
 apply the same value test that
-`.claude/rules/review-scope.md` applies to Code Review
+`.claude/rules/review-scope.md` applies to Review
 findings — adapted for the issue-filing decision:
 
 > **Was the gap caught by another phase gate AND remediated in
@@ -139,7 +139,7 @@ findings — adapted for the issue-filing decision:
 > - If no → the gap is open. File it.
 
 The trap to avoid: framing "Plan phase didn't catch X but Code
-Review did" as a process gap. Code Review IS part of the
+Review did" as a process gap. Review IS part of the
 process. The cognitive-isolation design (four sub-agents)
 exists precisely to catch what the Plan author missed. A
 Code-Review-caught-and-fixed violation is the system working,

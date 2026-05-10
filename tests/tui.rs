@@ -81,7 +81,7 @@ fn make_flow(feature: &str, phase: &str, phase_num: usize) -> FlowSummary {
             },
             TimelineEntry {
                 key: "flow-review".to_string(),
-                name: "Code Review".to_string(),
+                name: "Review".to_string(),
                 number: 3,
                 status: "pending".to_string(),
                 time: String::new(),
@@ -310,7 +310,7 @@ fn make_flow_with_token_snapshots() -> FlowSummary {
                 "window_at_complete": snap_complete
             },
             "flow-review": {
-                "name": "Code Review", "status": "pending", "started_at": null,
+                "name": "Review", "status": "pending", "started_at": null,
                 "completed_at": null, "session_started_at": null,
                 "cumulative_seconds": 0, "visit_count": 0
             },
@@ -634,7 +634,7 @@ fn test_render_issues_view_with_entries() {
         title: "Refactor auth".to_string(),
         url: "https://github.com/test/repo/issues/5".to_string(),
         ref_str: "#5".to_string(),
-        phase_name: "Code Review".to_string(),
+        phase_name: "Review".to_string(),
     }];
     app.flows = vec![flow];
     app.view = View::Issues;
@@ -1371,20 +1371,17 @@ fn test_list_row_label_code_missing() {
 }
 
 #[test]
-fn test_list_row_label_code_review_present() {
-    let c = pc("Code Review", 3, 2, 4);
+fn test_list_row_label_review_present() {
+    let c = pc("Review", 3, 2, 4);
     assert_eq!(
-        list_row_phase_label(3, "Code Review", Some(&c), ""),
-        "3: Code Review 2/4"
+        list_row_phase_label(3, "Review", Some(&c), ""),
+        "3: Review 2/4"
     );
 }
 
 #[test]
-fn test_list_row_label_code_review_missing() {
-    assert_eq!(
-        list_row_phase_label(3, "Code Review", None, ""),
-        "3: Code Review"
-    );
+fn test_list_row_label_review_missing() {
+    assert_eq!(list_row_phase_label(3, "Review", None, ""), "3: Review");
 }
 
 #[test]

@@ -9,8 +9,8 @@ by accident.
 
 This rule applies to every gate that reads string input from the
 CLI or from a state file and decides whether to permit or reject
-an action. Examples in this codebase: `code_review_filing_gate`
-in `src/add_finding.rs`, `should_reject_for_code_review` in
+an action. Examples in this codebase: `review_filing_gate`
+in `src/add_finding.rs`, `should_reject_for_review` in
 `src/issue.rs`. Future gates should follow the same discipline.
 
 ## Normalize Before Comparing
@@ -212,8 +212,8 @@ Step 4 per `.claude/rules/review-scope.md`.
 When a plan task adds a string-input gate, the test task that
 precedes it must enumerate bypass variants explicitly in the
 plan's Risks or test-notes section. The adversarial agent will
-find these variants during Code Review if the tests do not cover
-them — which wastes a Code Review cycle on work the Plan phase
+find these variants during Review if the tests do not cover
+them — which wastes a Review cycle on work the Plan phase
 could have prevented.
 
 Minimum variant checklist for every string-input gate:

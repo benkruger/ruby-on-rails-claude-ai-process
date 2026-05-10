@@ -93,7 +93,7 @@ external input, the plan's Risks section must enumerate:
    - Asserts the injected substring does NOT appear in the output
      in a position where the target interpreter would execute it
 
-## How to Apply (Code Review Phase)
+## How to Apply (Review Phase)
 
 When the reviewer agent or adversarial agent finds an interpolation
 of external input, verify:

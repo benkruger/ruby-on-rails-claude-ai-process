@@ -59,7 +59,7 @@ on implicit ordering of state mutations — an implicit dependency
 is a latent bug that surfaces the first time a new phase-transition
 path is added.
 
-**Code Review phase.** The pre-mortem agent should explicitly check
+**Review phase.** The pre-mortem agent should explicitly check
 "can this hook fire in a state where `current_phase` has advanced
 but the new phase hasn't been entered yet?" as part of its
 state-consistency review. See `agents/pre-mortem.md` for the

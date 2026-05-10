@@ -147,7 +147,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/flow log orchestrate "[Orchestrate] Starting #<issue_n
 
 Invoke `flow:flow-start --auto <title> #<issue_number>` using the Skill tool.
 
-This runs the full lifecycle: Start, Plan, Code, Code Review, Learn, Complete.
+This runs the full lifecycle: Start, Plan, Code, Review, Learn, Complete.
 
 **Detect outcome:**
 

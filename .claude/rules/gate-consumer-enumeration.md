@@ -110,7 +110,7 @@ change in the same PR. A producer that emits a new reason and a
 consumer that does not handle it is an internally-inconsistent
 PR.
 
-**Code Review phase.** The reviewer agent cross-checks every
+**Review phase.** The reviewer agent cross-checks every
 new error reason in the diff against the consumer enumeration
 table. A consumer that the table marked "Add a new branch" but
 the diff did not extend is a Real finding fixed in Step 4.

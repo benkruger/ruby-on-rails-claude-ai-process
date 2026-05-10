@@ -17,7 +17,7 @@ description: "Phase 2: Code — execute plan tasks one at a time with TDD. Revie
 ```
 
 - `/flow:flow-code` — uses configured mode from the state file (default: manual)
-- `/flow:flow-code --auto` — streamline mode active from task 1 (skip per-task approval, still show diffs), auto-advance to Code Review
+- `/flow:flow-code --auto` — streamline mode active from task 1 (skip per-task approval, still show diffs), auto-advance to Review
 - `/flow:flow-code --manual` — requires explicit approval for each task
 - `/flow:flow-code --continue-step` — self-invocation: skip Announce and Update State, dispatch to the next task via Resume Check
 
@@ -563,7 +563,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/flow ci
 Repeat until `coverage/uncovered.txt` is empty.
 
 <HARD-GATE>
-Do NOT transition to Code Review until `bin/flow ci` is green AND coverage/uncovered.txt
+Do NOT transition to Review until `bin/flow ci` is green AND coverage/uncovered.txt
 is empty. 100% coverage is mandatory.
 </HARD-GATE>
 
@@ -612,7 +612,7 @@ to determine how to advance.
       ```
 
    b. Use AskUserQuestion:
-      "Phase 2: Code is complete. Ready to begin Phase 3: Code Review?"
+      "Phase 2: Code is complete. Ready to begin Phase 3: Review?"
       Options: "Yes, start Phase 3 now", "Not yet",
       "I have a correction or learning to capture"
    c. If "I have a correction or learning to capture":

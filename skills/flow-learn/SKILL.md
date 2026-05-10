@@ -297,11 +297,11 @@ routing:
 
 If yes → the system already closed the gap. Record it in the commit
 message and the Learn report. Do NOT route to Step 6. Dismiss with
-the rationale "caught by Code Review and remediated in this PR — no
+the rationale "caught by Review and remediated in this PR — no
 open gap." If no → real gap, route to Step 6.
 
-The trap: framing "Plan phase didn't catch X but Code Review did"
-as a process gap. Code Review IS part of the process. The
+The trap: framing "Plan phase didn't catch X but Review did"
+as a process gap. Review IS part of the process. The
 cognitive-isolation design exists precisely to catch what the Plan
 author missed. A Code-Review-caught-and-fixed violation is the
 system working, not a gap.

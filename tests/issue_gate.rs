@@ -1,8 +1,8 @@
-//! Integration tests for the Code Review filing gate in
+//! Integration tests for the Review filing gate in
 //! `flow-rs issue`. Unit tests in `src/issue.rs` cover the pure
 //! helper. These tests exercise the full binary path:
 //! `issue::run` → `project_root` → `resolve_branch` →
-//! `fs::read_to_string` → `should_reject_for_code_review` →
+//! `fs::read_to_string` → `should_reject_for_review` →
 //! `process::exit(1)`. A refactor that accidentally skips the
 //! gate in `run()` (e.g. moving the state-file read after repo
 //! resolution or gating on the wrong field) would be caught
@@ -71,7 +71,7 @@ fn run_issue(dir: &Path, args: &[&str]) -> (i32, String) {
 }
 
 #[test]
-fn issue_binary_rejects_during_code_review() {
+fn issue_binary_rejects_during_review() {
     let dir = tempfile::tempdir().unwrap();
     init_git(dir.path(), "test-feature");
     write_state(
@@ -88,16 +88,16 @@ fn issue_binary_rejects_during_code_review() {
         dir.path(),
         &["--title", "Should be blocked", "--repo", "fake/repo"],
     );
-    assert_ne!(code, 0, "gate must fail the process during Code Review");
+    assert_ne!(code, 0, "gate must fail the process during Review");
     assert!(
-        combined.contains("disabled during Code Review"),
+        combined.contains("disabled during Review"),
         "expected rejection message; got: {}",
         combined
     );
 }
 
 #[test]
-fn issue_binary_allows_override_during_code_review() {
+fn issue_binary_allows_override_during_review() {
     let dir = tempfile::tempdir().unwrap();
     init_git(dir.path(), "test-feature");
     write_state(
@@ -117,7 +117,7 @@ fn issue_binary_allows_override_during_code_review() {
             "Override",
             "--repo",
             "fake/repo",
-            "--override-code-review-ban",
+            "--override-review-ban",
         ],
     );
     // With the override set the gate is bypassed, so the command
@@ -126,7 +126,7 @@ fn issue_binary_allows_override_during_code_review() {
     // rejection message must NOT appear; that is the bypass
     // under test.
     assert!(
-        !combined.contains("disabled during Code Review"),
+        !combined.contains("disabled during Review"),
         "override must bypass the gate; got: {}",
         combined
     );
@@ -150,8 +150,8 @@ fn issue_binary_allows_during_other_phases() {
         let (_code, combined) =
             run_issue(dir.path(), &["--title", "Allowed", "--repo", "fake/repo"]);
         assert!(
-            !combined.contains("disabled during Code Review"),
-            "phase {} must not hit the Code Review gate; got: {}",
+            !combined.contains("disabled during Review"),
+            "phase {} must not hit the Review gate; got: {}",
             phase,
             combined
         );
@@ -169,7 +169,7 @@ fn issue_binary_allows_when_no_state_file() {
         &["--title", "Outside flow", "--repo", "fake/repo"],
     );
     assert!(
-        !combined.contains("disabled during Code Review"),
+        !combined.contains("disabled during Review"),
         "out-of-flow invocation must not hit the gate; got: {}",
         combined
     );
@@ -211,8 +211,8 @@ fn issue_binary_blocks_whitespace_padded_phase() {
         combined
     );
     assert!(
-        combined.contains("disabled during Code Review"),
-        "expected Code Review rejection; got: {}",
+        combined.contains("disabled during Review"),
+        "expected Review rejection; got: {}",
         combined
     );
 }

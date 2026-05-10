@@ -291,7 +291,7 @@ pub fn run(
     let commit_format = commit_format_owned.as_deref();
 
     // Detect base_branch from the user's current git branch. flow-start
-    // creates the worktree off this branch, Code Review diffs against
+    // creates the worktree off this branch, Review diffs against
     // origin/<base_branch>, and Complete merges back into it. Detached
     // HEAD or non-git cwd cannot produce a valid base — surface that as
     // a structured error rather than silently picking the wrong trunk.

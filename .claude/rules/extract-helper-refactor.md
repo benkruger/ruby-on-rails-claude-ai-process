@@ -117,10 +117,10 @@ blocks a Plan phase from completing without a Branch Enumeration
 Table. The enforcement layers are:
 
 1. **The rule file itself** — the primary instrument.
-2. **The Code Review reviewer agent** — cross-references the plan's
+2. **The Review reviewer agent** — cross-references the plan's
    Branch Enumeration Table against the landed tests and raises a
    Real finding when a plan-named test is missing.
-3. **The adversarial agent in Code Review** — writes failing tests
+3. **The adversarial agent in Review** — writes failing tests
    against uncovered branches.
 
 ## Opt-Out Grammar
@@ -159,7 +159,7 @@ implementation. For every panicking constructor in the extracted
 block, replace the call with the fallible variant per the
 Constructor Invariant Audit.
 
-**Code Review phase.** The reviewer agent cross-references the plan's
+**Review phase.** The reviewer agent cross-references the plan's
 Branch Enumeration Table against the landed tests. Any plan-named
 test function missing from the codebase is a Real finding fixed in
 Step 4.

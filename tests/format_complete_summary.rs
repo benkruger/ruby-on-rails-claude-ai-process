@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 
 mod common;
 
-const PHASE_NAMES_LIST: [&str; 5] = ["Start", "Code", "Code Review", "Learn", "Complete"];
+const PHASE_NAMES_LIST: [&str; 5] = ["Start", "Code", "Review", "Learn", "Complete"];
 
 fn all_complete_state() -> Value {
     let mut phases = serde_json::Map::new();
@@ -442,7 +442,7 @@ fn summary_with_issues() {
             "title": "Refactor X",
             "url": "https://github.com/test/test/issues/2",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:00:00-08:00",
         },
     ]);
@@ -571,7 +571,7 @@ fn summary_with_resolved_and_filed() {
             "title": "Refactor X",
             "url": "https://github.com/test/test/issues/50",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:00:00-08:00",
         },
     ]);
@@ -631,7 +631,7 @@ fn summary_with_unknown_outcome_falls_back_to_question_marker() {
             "reason": "uses a not-yet-handled outcome",
             "outcome": "deferred",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:00:00-08:00",
         },
     ]);
@@ -698,7 +698,7 @@ fn issues_links_without_url() {
             "title": "Missing test",
             "url": "",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:00:00-08:00",
         },
     ]);
@@ -932,7 +932,7 @@ fn run_impl_closed_content_malformed_omits_resolved() {
 // --- findings ---
 
 #[test]
-fn summary_with_code_review_findings() {
+fn summary_with_review_findings() {
     let mut state = all_complete_state();
     state["findings"] = json!([
         {
@@ -940,7 +940,7 @@ fn summary_with_code_review_findings() {
             "reason": "False positive from macro expansion",
             "outcome": "dismissed",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:30:00-08:00",
         },
         {
@@ -948,14 +948,14 @@ fn summary_with_code_review_findings() {
             "reason": "Could panic on malformed input",
             "outcome": "fixed",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:31:00-08:00",
         },
     ]);
 
     let result = format_complete_summary(&state, None);
 
-    assert!(result.summary.contains("Code Review Findings"));
+    assert!(result.summary.contains("Review Findings"));
     assert!(result.summary.contains("Unused variable in handler"));
     assert!(result.summary.contains("Missing null check in parser"));
     assert!(result.summary.contains("✗"));
@@ -996,7 +996,7 @@ fn summary_with_both_phase_findings() {
             "reason": "Fixed inline",
             "outcome": "fixed",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:30:00-08:00",
         },
         {
@@ -1011,7 +1011,7 @@ fn summary_with_both_phase_findings() {
 
     let result = format_complete_summary(&state, None);
 
-    assert!(result.summary.contains("Code Review Findings"));
+    assert!(result.summary.contains("Review Findings"));
     assert!(result.summary.contains("Learn Findings"));
 }
 
@@ -1021,12 +1021,12 @@ fn summary_no_findings_hides_sections() {
     state["findings"] = json!([]);
 
     let result_empty = format_complete_summary(&state, None);
-    assert!(!result_empty.summary.contains("Code Review Findings"));
+    assert!(!result_empty.summary.contains("Review Findings"));
     assert!(!result_empty.summary.contains("Learn Findings"));
 
     let state_no_key = all_complete_state();
     let result_missing = format_complete_summary(&state_no_key, None);
-    assert!(!result_missing.summary.contains("Code Review Findings"));
+    assert!(!result_missing.summary.contains("Review Findings"));
     assert!(!result_missing.summary.contains("Learn Findings"));
 }
 
@@ -1039,7 +1039,7 @@ fn summary_findings_all_outcomes() {
             "reason": "r1",
             "outcome": "fixed",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:30:00-08:00",
         },
         {
@@ -1047,7 +1047,7 @@ fn summary_findings_all_outcomes() {
             "reason": "r2",
             "outcome": "dismissed",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:31:00-08:00",
         },
         {
@@ -1055,7 +1055,7 @@ fn summary_findings_all_outcomes() {
             "reason": "r3",
             "outcome": "filed",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "issue_url": "https://github.com/test/test/issues/99",
             "timestamp": "2026-01-01T00:32:00-08:00",
         },
@@ -1095,7 +1095,7 @@ fn summary_findings_with_existing_artifacts() {
             "reason": "Fixed it",
             "outcome": "fixed",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:30:00-08:00",
         },
     ]);
@@ -1105,14 +1105,14 @@ fn summary_findings_with_existing_artifacts() {
             "title": "Refactor X",
             "url": "https://github.com/test/test/issues/50",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
             "timestamp": "2026-01-01T00:00:00-08:00",
         },
     ]);
 
     let result = format_complete_summary(&state, None);
 
-    assert!(result.summary.contains("Code Review Findings"));
+    assert!(result.summary.contains("Review Findings"));
     assert!(result.summary.contains("Issues filed: 1"));
 }
 

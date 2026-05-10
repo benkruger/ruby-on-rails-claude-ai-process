@@ -417,7 +417,7 @@ fn walker_rejects_path_outside_home_prefix() {
 
 // --- Adversarial regression tests ---
 //
-// Each test below locks in a fix surfaced by the Code Review
+// Each test below locks in a fix surfaced by the Review
 // adversarial / pre-mortem agents. Adding the test here protects
 // against future regression.
 

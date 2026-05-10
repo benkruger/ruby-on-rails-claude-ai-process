@@ -191,7 +191,7 @@ fn state_file_has_all_5_phases() {
     let phases = state["phases"].as_object().unwrap();
     assert_eq!(phases.len(), 5);
     assert_eq!(phases["flow-start"]["name"], "Start");
-    assert_eq!(phases["flow-review"]["name"], "Code Review");
+    assert_eq!(phases["flow-review"]["name"], "Review");
 }
 
 #[test]
@@ -1155,7 +1155,7 @@ fn lib_create_state_has_six_phases() {
     assert_eq!(phases.len(), 5);
     assert_eq!(phases["flow-start"]["name"], "Start");
     assert_eq!(phases["flow-code"]["name"], "Code");
-    assert_eq!(phases["flow-review"]["name"], "Code Review");
+    assert_eq!(phases["flow-review"]["name"], "Review");
     assert_eq!(phases["flow-learn"]["name"], "Learn");
     assert_eq!(phases["flow-complete"]["name"], "Complete");
 }

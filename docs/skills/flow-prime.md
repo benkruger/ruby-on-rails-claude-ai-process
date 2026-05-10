@@ -64,7 +64,7 @@ The chosen configuration is stored in `.flow.json` under a `skills` key:
 }
 ```
 
-Phase skills that commit (Code, Code Review, Learn) have both axes as a nested object. Phase skills that don't commit (Start, Plan) have only the continue axis. Utility skills (Abort, Complete) have a single string value.
+Phase skills that commit (Code, Review, Learn) have both axes as a nested object. Phase skills that don't commit (Start, Plan) have only the continue axis. Utility skills (Abort, Complete) have a single string value.
 
 Phase skills can be overridden at invocation time with `--auto` or `--manual` flags, regardless of the `.flow.json` configuration.
 

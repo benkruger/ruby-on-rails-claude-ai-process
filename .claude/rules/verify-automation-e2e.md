@@ -31,7 +31,7 @@ When the carve-out applies, the deferral must satisfy ALL of:
    testing, and what command the user must run after merge to
    verify (e.g., manually running the lifecycle from start to
    complete in a fresh Claude Code session against a target
-   project). The log entry serves three readers: Code Review's
+   project). The log entry serves three readers: Review's
    reviewer agent (which checks deferral discipline), the Learn
    analyst (which audits whether the deferral was reasonable),
    and the user (post-merge action).
@@ -74,7 +74,7 @@ current session is using:
 4. If the feature is security-sensitive (see list above),
    redesign instead of deferring.
 
-**Code Review phase.** The reviewer agent checks that any
+**Review phase.** The reviewer agent checks that any
 deferred E2E test has a matching log entry AND commit message
 body entry. A deferral without both is a Real finding fixed in
 Step 4 by adding the missing record.

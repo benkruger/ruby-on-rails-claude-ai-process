@@ -1226,6 +1226,44 @@ fn start_init_session_id_remains_null_when_home_unset() {
 }
 
 #[test]
+fn start_init_session_id_remains_null_when_capture_file_has_invalid_utf8() {
+    // Covers `read_captured_session`'s read_to_string-failure
+    // branch: the capture file opens cleanly but its bytes are
+    // not valid UTF-8 (interrupted write left a partial multibyte
+    // sequence; or a binary file landed at the path). `take(CAP)`
+    // then `read_to_string` returns Err(InvalidData), the `?`
+    // short-circuits to `None`, and seed leaves session_id Null.
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    write_flow_json(&repo, &current_plugin_version(), None);
+    let stub_dir = create_default_gh_stub(&repo);
+    let home = dir.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+    let home = home.canonicalize().unwrap();
+    let capture_path = capture_file_path(&home);
+    fs::create_dir_all(capture_path.parent().unwrap()).unwrap();
+    // 0xFF is never valid as the leading byte of a UTF-8 sequence;
+    // read_to_string returns InvalidData.
+    fs::write(&capture_path, [0xFFu8, 0xFE, 0xFD]).unwrap();
+
+    let output = run_start_init_with_home(&repo, "invalid-utf8-capture", &home, &stub_dir);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let data = parse_output(&output);
+    let branch = data["branch"].as_str().unwrap();
+    let state = read_state_for_branch(&repo, branch);
+    assert!(
+        state["session_id"].is_null(),
+        "invalid-utf8 capture file must leave session_id null; got: {}",
+        state["session_id"]
+    );
+}
+
+#[test]
 fn start_init_session_id_remains_null_when_capture_file_unparseable() {
     // Covers `read_captured_session`'s parse-failure branch — capture
     // file exists but contains non-JSON bytes (interrupted hook write,

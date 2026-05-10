@@ -167,3 +167,137 @@ fn capture_session_handles_unparseable_stdin() {
         "no file when stdin is unparseable"
     );
 }
+
+#[test]
+fn capture_session_rejects_oversized_session_id() {
+    // `is_safe_session_id` caps session id length at SESSION_ID_MAX_LEN
+    // (256). A 257-char string should fail validation and the hook
+    // should write no capture file. Defends against hostile producers
+    // who could otherwise pass arbitrary-length payloads through the
+    // alphanumeric character class.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let huge_sid: String = "a".repeat(257);
+    let stdin = format!(r#"{{"session_id":"{}"}}"#, huge_sid);
+    let code = run_capture_session(Some(&home), stdin.as_bytes());
+    assert_eq!(code, Some(0));
+    assert!(
+        !capture_file(&home).exists(),
+        "session_id over 256 bytes must be rejected; capture file must not be written"
+    );
+}
+
+#[test]
+fn capture_session_caps_stdin_payload_size() {
+    // STDIN_BYTE_CAP truncates the read at 64 KiB. A multi-megabyte
+    // stdin payload that would otherwise produce a multi-megabyte
+    // capture file is truncated mid-string, fails JSON parse, and
+    // the hook returns without writing. The parent's write_all may
+    // raise BrokenPipe once the child closes its read end (cap hit
+    // before parent finishes writing) — that is the cap working as
+    // designed; tolerate the error and assert on the file outcome.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let huge_sid: String = "a".repeat(5 * 1024 * 1024);
+    let stdin = format!(r#"{{"session_id":"{}"}}"#, huge_sid);
+
+    let mut cmd = flow_rs_no_recursion();
+    cmd.args(["hook", "capture-session"])
+        .env("HOME", &home)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = cmd.spawn().expect("spawn capture-session");
+    // Best-effort write — BrokenPipe is the expected outcome when
+    // the cap fires before the parent finishes the multi-MB write.
+    let _ = child
+        .stdin
+        .as_mut()
+        .expect("piped stdin")
+        .write_all(stdin.as_bytes());
+    let output = child.wait_with_output().expect("wait capture-session");
+    assert_eq!(output.status.code(), Some(0));
+
+    let path = capture_file(&home);
+    if path.exists() {
+        let written = fs::metadata(&path).unwrap().len();
+        assert!(
+            written < 1024 * 1024,
+            "stdin cap must bound the written capture file; got {} bytes",
+            written
+        );
+    }
+}
+
+#[test]
+fn capture_session_overwrites_existing_regular_file() {
+    // Symlink-safe gate's `else` arm: when fs::symlink_metadata
+    // returns Ok AND the entry is a regular file (not a symlink),
+    // remove_file is skipped and fs::write overwrites in place.
+    // Exercised on every second-and-later hook invocation against
+    // the same HOME.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let path = capture_file(&home);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(&path, br#"{"session_id":"stale","transcript_path":null}"#).unwrap();
+
+    let stdin = r#"{"session_id":"fresh-sid"}"#;
+    let code = run_capture_session(Some(&home), stdin.as_bytes());
+    assert_eq!(code, Some(0));
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(parsed["session_id"], "fresh-sid");
+    let meta = fs::symlink_metadata(&path).unwrap();
+    assert!(
+        meta.file_type().is_file(),
+        "regular file remains a regular file after overwrite"
+    );
+}
+
+#[test]
+fn capture_session_replaces_existing_symlink_at_capture_path() {
+    // Symlink-safe write: a pre-existing symlink at the capture path
+    // must NOT be followed (otherwise an attacker who can plant a
+    // symlink under ~/.claude/ gains an arbitrary-write primitive).
+    // The hook detects the symlink via fs::symlink_metadata and
+    // removes it before writing, so the result is a regular file
+    // and the symlink's target is untouched.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    fs::create_dir_all(home.join(".claude")).unwrap();
+
+    // Plant a sentinel at a third-party path. The symlink will
+    // point at this. After the hook runs, the sentinel must be
+    // unchanged — the hook MUST NOT have followed the symlink.
+    let sentinel_target = dir.path().join("sentinel.txt");
+    fs::write(&sentinel_target, b"untouched").unwrap();
+    let sentinel_canon = sentinel_target.canonicalize().unwrap();
+
+    let path = capture_file(&home);
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&sentinel_canon, &path).unwrap();
+
+    let stdin = r#"{"session_id":"abc-123"}"#;
+    let code = run_capture_session(Some(&home), stdin.as_bytes());
+    assert_eq!(code, Some(0));
+
+    // Sentinel must be unchanged — hook MUST NOT have written through the symlink.
+    let sentinel_after = fs::read_to_string(&sentinel_canon).unwrap();
+    assert_eq!(
+        sentinel_after, "untouched",
+        "fs::write must not have followed the symlink to overwrite the target"
+    );
+
+    // Capture path must now be a regular file (the symlink was removed).
+    let meta = fs::symlink_metadata(&path).unwrap();
+    assert!(
+        meta.file_type().is_file(),
+        "capture path must be a regular file after symlink-safe write; got {:?}",
+        meta.file_type()
+    );
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(parsed["session_id"], "abc-123");
+}

@@ -608,3 +608,32 @@ fn deltas_from_snapshots_some_then_none_then_some_treated_as_three_sessions() {
     );
     assert_eq!(report.cost_delta_usd, None);
 }
+
+/// Regression: the synthetic per-index key for a None session_id is
+/// prefixed with NUL (`\0__none_<i>`). The NUL prefix makes the
+/// synthetic-key namespace disjoint from any real `session_id` —
+/// `is_safe_session_id` rejects NUL — so a captured session_id of
+/// shape `__none_0` (which DOES pass the alphanumeric+underscore
+/// validator) can never collide with the synthetic key for snapshot
+/// 0 of a different flow.
+#[test]
+fn deltas_from_snapshots_synthetic_key_disjoint_from_real_underscore_id() {
+    let mut s0 = snap("ignored", 5);
+    s0.session_id = None; // → synthetic key "\0__none_0"
+    s0.session_cost_usd = Some(0.50);
+
+    // Real session_id literally equal to "__none_0" — passes
+    // is_safe_session_id (alphanumeric + underscore) but is
+    // distinct from the synthetic "\0__none_0".
+    let mut s1 = snap("__none_0", 12);
+    s1.session_cost_usd = Some(2.00);
+
+    let phase = phase_with_snapshots(Some(s0), vec![], Some(s1));
+    let report = phase_delta(&phase).expect("populated");
+    assert_eq!(
+        report.cost_delta_usd, None,
+        "synthetic key for None session_id must not collide with a real \
+         session_id of shape `__none_0`; got cost={:?}",
+        report.cost_delta_usd
+    );
+}

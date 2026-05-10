@@ -37,15 +37,13 @@ use crate::state::{FlowState, ModelTokens, PhaseState, WindowSnapshot};
 /// displaying the latest absolute pct instead.
 ///
 /// `cost_delta_usd: Option<f64>` — `None` means cost is unknown
-/// for this report (no Some-Some pair contributed). Aggregation
-/// in [`DeltaReport::add`] sums Some contributions and sets
+/// for this report (no Some-Some pair contributed). A delta is
+/// produced only when both endpoints carry a populated cost;
+/// any missing endpoint leaves cost as `None` so renderers can
+/// display `—` instead of inventing a number. Aggregation in
+/// [`DeltaReport::add`] sums Some contributions and sets
 /// `total_partial = true` when any folded contribution was
-/// `None`. Renderers display `Some(c)` as `${c:.3}` and `None`
-/// as `—` (issue #1410). The asymmetric pre-fix arms (Some,
-/// None → end_value; None, Some → end_value) silently
-/// fabricated deltas from cumulative session totals; the new
-/// (Some, Some) → Some(diff), else → None semantics make the
-/// missing-data condition explicit.
+/// `None`, signalling renderers to mark the total as approximate.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeltaReport {
     pub input_tokens_delta: i64,
@@ -200,10 +198,14 @@ pub fn by_model_rollup(state: &FlowState) -> IndexMap<String, ModelTokens> {
 /// report — a single snapshot has no anchor pair to subtract.
 ///
 /// Each snapshot whose `session_id` is `None` is given a synthetic
-/// per-index key (`__none_<i>`), so two consecutive None snapshots
-/// are treated as distinct sessions rather than collapsed into one
-/// empty-string session that would fabricate a cross-snapshot
-/// delta from cumulative session totals (issue #1410).
+/// per-index key prefixed with NUL (`\0__none_<i>`), so two
+/// consecutive None snapshots are treated as distinct sessions
+/// rather than collapsed into one empty-string session that would
+/// fabricate a cross-snapshot delta from cumulative session totals
+/// (issue #1410). The NUL prefix makes the synthetic-key namespace
+/// disjoint from any real `session_id` — `is_safe_session_id`
+/// rejects NUL so a captured id can never collide with a synthetic
+/// key of the same shape.
 fn deltas_from_snapshots(snapshots: &[&WindowSnapshot]) -> DeltaReport {
     let mut total = DeltaReport::zero();
     if snapshots.len() < 2 {
@@ -212,7 +214,7 @@ fn deltas_from_snapshots(snapshots: &[&WindowSnapshot]) -> DeltaReport {
     let key_for = |i: usize, snap: &WindowSnapshot| -> String {
         snap.session_id
             .clone()
-            .unwrap_or_else(|| format!("__none_{}", i))
+            .unwrap_or_else(|| format!("\0__none_{}", i))
     };
     // Walk consecutive snapshots looking for session boundaries.
     // Within each session: subtract the first session-snapshot from
@@ -258,12 +260,9 @@ fn pair_delta(start: &WindowSnapshot, end: &WindowSnapshot) -> DeltaReport {
         start.session_cache_read_tokens,
     );
     // Cost is reported only when BOTH endpoints carry a populated
-    // value. Previous arms fabricated deltas: (Some, None) returned
-    // the end's cumulative value as if it were a delta; (None, Some)
-    // dropped the start. Both shapes silently miscounted (issue
-    // #1410). Now: only `(Some, Some)` produces `Some(end - start)`;
-    // every other shape produces `None` so renderers can mark the
-    // missing data with `—` instead of inventing a number.
+    // value. Any missing endpoint produces `None` so renderers can
+    // mark the partial-data span with `—` instead of inventing a
+    // number from a cumulative session total.
     let cost_delta_usd = match (start.session_cost_usd, end.session_cost_usd) {
         (Some(s), Some(e)) => Some(e - s),
         _ => None,

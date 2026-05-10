@@ -213,7 +213,7 @@ fn is_safe_skill_name_rejects_malformed() {
 fn run_set_main_returns_ok_envelope_on_success() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap();
-    let (value, code) = run_set_main(&home, TEST_SKILL, TEST_SESSION);
+    let (value, code) = run_set_main(&home, TEST_SKILL, Some(TEST_SESSION));
     assert_eq!(code, 0, "exit code must be 0 (business outcome via JSON)");
     assert_eq!(value["status"], "ok");
     assert!(value["path"].is_string());
@@ -228,7 +228,7 @@ fn run_set_main_returns_ok_envelope_on_success() {
 fn run_set_main_returns_error_envelope_on_invalid_skill() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap();
-    let (value, code) = run_set_main(&home, "../bad", TEST_SESSION);
+    let (value, code) = run_set_main(&home, "../bad", Some(TEST_SESSION));
     assert_eq!(code, 0, "business errors stay at exit 0");
     assert_eq!(value["status"], "error");
     assert!(
@@ -241,11 +241,72 @@ fn run_set_main_returns_error_envelope_on_invalid_skill() {
 }
 
 #[test]
+fn run_set_main_returns_error_envelope_when_no_session_id_available() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // No --session-id passed AND no capture file at <home>/.claude/
+    // flow-current-session.json — exercises the resolve_session_id
+    // None-fallthrough arm.
+    let (value, code) = run_set_main(&home, TEST_SKILL, None);
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "error");
+    assert!(
+        value["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("no session_id available"),
+        "error must name the missing session_id condition"
+    );
+}
+
+#[test]
+fn run_set_main_falls_back_to_capture_file_when_session_id_omitted() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // Seed the SessionStart capture file with a known session_id.
+    let claude = home.join(".claude");
+    fs::create_dir_all(&claude).unwrap();
+    let capture = claude.join("flow-current-session.json");
+    fs::write(&capture, format!(r#"{{"session_id": "{}"}}"#, TEST_SESSION)).unwrap();
+
+    let (value, code) = run_set_main(&home, TEST_SKILL, None);
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "ok");
+    let path_str = value["path"].as_str().unwrap();
+    assert!(
+        path_str.ends_with(&format!("utility-in-progress-{}.json", TEST_SESSION)),
+        "fallback must use the captured session_id"
+    );
+}
+
+#[test]
+fn run_set_main_treats_empty_explicit_session_id_as_omitted() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // Seed the capture file so the fallback resolves to a value.
+    let claude = home.join(".claude");
+    fs::create_dir_all(&claude).unwrap();
+    let capture = claude.join("flow-current-session.json");
+    fs::write(&capture, format!(r#"{{"session_id": "{}"}}"#, TEST_SESSION)).unwrap();
+    // Passing Some("") (e.g., a clap flag with empty value) must fall
+    // through to the capture-file branch — not write a marker keyed
+    // by the empty string.
+    let (value, code) = run_set_main(&home, TEST_SKILL, Some(""));
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "ok");
+    let path_str = value["path"].as_str().unwrap();
+    assert!(
+        path_str.ends_with(&format!("utility-in-progress-{}.json", TEST_SESSION)),
+        "Some(\"\") must be treated as omitted and use the capture file"
+    );
+}
+
+#[test]
 fn run_clear_main_returns_ok_envelope_when_marker_exists() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap();
     write_marker(&home, TEST_SKILL, TEST_SESSION).expect("write_marker ok");
-    let (value, code) = run_clear_main(&home, TEST_SKILL, TEST_SESSION);
+    let (value, code) = run_clear_main(&home, TEST_SKILL, Some(TEST_SESSION));
     assert_eq!(code, 0);
     assert_eq!(value["status"], "ok");
     assert_eq!(value["removed"], true);
@@ -255,7 +316,7 @@ fn run_clear_main_returns_ok_envelope_when_marker_exists() {
 fn run_clear_main_returns_ok_envelope_when_marker_absent() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap();
-    let (value, code) = run_clear_main(&home, TEST_SKILL, TEST_SESSION);
+    let (value, code) = run_clear_main(&home, TEST_SKILL, Some(TEST_SESSION));
     assert_eq!(code, 0);
     assert_eq!(value["status"], "ok");
     assert_eq!(value["removed"], false, "absent marker reports not-removed");
@@ -265,13 +326,43 @@ fn run_clear_main_returns_ok_envelope_when_marker_absent() {
 fn run_clear_main_returns_error_envelope_on_invalid_session_id() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap();
-    let (value, code) = run_clear_main(&home, TEST_SKILL, "..");
+    let (value, code) = run_clear_main(&home, TEST_SKILL, Some(".."));
     assert_eq!(code, 0);
     assert_eq!(value["status"], "error");
     assert!(value["message"]
         .as_str()
         .unwrap_or("")
         .contains("invalid session_id"));
+}
+
+#[test]
+fn run_clear_main_returns_error_envelope_when_no_session_id_available() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let (value, code) = run_clear_main(&home, TEST_SKILL, None);
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "error");
+    assert!(value["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("no session_id available"));
+}
+
+#[test]
+fn run_clear_main_falls_back_to_capture_file_when_session_id_omitted() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let claude = home.join(".claude");
+    fs::create_dir_all(&claude).unwrap();
+    let capture = claude.join("flow-current-session.json");
+    fs::write(&capture, format!(r#"{{"session_id": "{}"}}"#, TEST_SESSION)).unwrap();
+    // Pre-populate the marker so the clear hits the Ok(true) branch.
+    write_marker(&home, TEST_SKILL, TEST_SESSION).expect("seed marker");
+
+    let (value, code) = run_clear_main(&home, TEST_SKILL, None);
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "ok");
+    assert_eq!(value["removed"], true);
 }
 
 // --- error path: write fails when parent isn't writable ---

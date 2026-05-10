@@ -37,6 +37,17 @@ At the very start, output the following banner in your response (not via Bash) i
 ```
 ````
 
+Immediately after the banner, write the per-session "utility skill in
+progress" marker so the Stop hook refuses turn-end while this skill is
+running. The marker keys off the active Claude Code session_id captured
+by the SessionStart hook (see issue #1412 — without this, the model
+returns control to the user when the decompose:decompose Skill tool
+returns mid-pipeline). The clear is invoked at every exit path below.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow set-utility-in-progress --skill flow:flow-create-issue
+```
+
 ---
 
 ## Conversation Gate
@@ -61,7 +72,13 @@ discover them.
 
 <HARD-GATE>
 
-If no brainstorming context exists, output this guidance and stop:
+If no brainstorming context exists, clear the utility-in-progress
+marker so the Stop hook does not refuse turn-end after the rejection,
+then output this guidance and stop:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue
+```
 
 > "This skill captures a brainstormed solution as a pre-planned issue.
 > Start by running `/decompose:decompose` to research the problem,
@@ -279,8 +296,14 @@ Classification"); editing a draft built on a misaligned decompose ships
 an incorrect Implementation Plan. After revising, re-present the draft
 and ask the same AskUserQuestion. Iterate as many times as needed.
 
-**If "Cancel"** → stop without filing. Do not write the body file. Do
-not output the COMPLETE banner.
+**If "Cancel"** → clear the utility-in-progress marker so the Stop
+hook does not refuse turn-end after cancellation, then stop without
+filing. Do not write the body file. Do not output the COMPLETE
+banner.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue
+```
 
 </HARD-GATE>
 
@@ -300,6 +323,13 @@ Record the issue in the state file (no-op if no FLOW feature is active):
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/bin/flow add-issue --label decomposed --title "<issue_title>" --url "<issue_url>" --phase flow-create-issue
+```
+
+Clear the utility-in-progress marker so the Stop hook stops refusing
+turn-end now that the skill has completed its work:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue
 ```
 
 Display the issue URL to the user, then output the COMPLETE banner:

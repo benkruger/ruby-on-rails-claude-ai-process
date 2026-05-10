@@ -270,26 +270,30 @@ enum Commands {
     /// Write a per-session marker indicating that a multi-step
     /// utility skill is in progress. The Stop hook reads the
     /// marker and refuses voluntary turn-end while it exists.
+    /// When `--session-id` is omitted, falls back to the
+    /// SessionStart capture file at
+    /// `<home>/.claude/flow-current-session.json`.
     #[command(name = "set-utility-in-progress")]
     SetUtilityInProgress {
         /// Skill name (e.g. flow:flow-create-issue)
         #[arg(long)]
         skill: String,
-        /// Claude Code session_id from hook input
+        /// Claude Code session_id (optional — defaults to capture file)
         #[arg(long = "session-id")]
-        session_id: String,
+        session_id: Option<String>,
     },
 
     /// Remove the per-session utility-in-progress marker. Idempotent —
     /// missing marker is reported as `removed: false`, not an error.
+    /// Same `--session-id` fallback as `set-utility-in-progress`.
     #[command(name = "clear-utility-in-progress")]
     ClearUtilityInProgress {
         /// Skill name (e.g. flow:flow-create-issue)
         #[arg(long)]
         skill: String,
-        /// Claude Code session_id from hook input
+        /// Claude Code session_id (optional — defaults to capture file)
         #[arg(long = "session-id")]
-        session_id: String,
+        session_id: Option<String>,
     },
 
     /// Serialize flow-start with a queue directory.
@@ -721,13 +725,14 @@ fn main() {
         }
         Some(Commands::SetUtilityInProgress { skill, session_id }) => {
             let home = utility_marker_home();
-            let (value, code) = commands::utility_marker::run_set_main(&home, &skill, &session_id);
+            let (value, code) =
+                commands::utility_marker::run_set_main(&home, &skill, session_id.as_deref());
             flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::ClearUtilityInProgress { skill, session_id }) => {
             let home = utility_marker_home();
             let (value, code) =
-                commands::utility_marker::run_clear_main(&home, &skill, &session_id);
+                commands::utility_marker::run_clear_main(&home, &skill, session_id.as_deref());
             flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::StartLock {

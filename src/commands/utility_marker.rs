@@ -130,11 +130,43 @@ pub fn clear_marker(home: &Path, skill: &str, session_id: &str) -> Result<bool, 
     }
 }
 
+/// Resolve the session_id for a CLI invocation. When the caller passed
+/// `--session-id`, use it directly. When the caller omitted it,
+/// fall back to the capture file written at SessionStart by
+/// `crate::hooks::capture_session::run` — that file holds the active
+/// Claude Code session_id and is the only path by which the skill can
+/// reach a session_id matching what the Stop hook receives in its
+/// stdin payload.
+fn resolve_session_id(home: &Path, explicit: Option<&str>) -> Option<String> {
+    if let Some(s) = explicit {
+        if !s.is_empty() {
+            return Some(s.to_string());
+        }
+    }
+    crate::hooks::capture_session::read_captured_session(home).map(|(sid, _)| sid)
+}
+
 /// CLI entry for `bin/flow set-utility-in-progress`. Accepts the
 /// resolved HOME directory as a parameter so tests can drive the
-/// real production path with a `TempDir` fixture.
-pub fn run_set_main(home: &Path, skill: &str, session_id: &str) -> (Value, i32) {
-    match write_marker(home, skill, session_id) {
+/// real production path with a `TempDir` fixture. When `session_id`
+/// is `None`, falls back to the SessionStart capture file so the
+/// skill (which has no env-var path to Claude Code's session_id)
+/// can omit the flag and still get a marker keyed by the active
+/// session.
+pub fn run_set_main(home: &Path, skill: &str, session_id: Option<&str>) -> (Value, i32) {
+    let resolved = match resolve_session_id(home, session_id) {
+        Some(s) => s,
+        None => {
+            return (
+                json!({
+                    "status": "error",
+                    "message": "no session_id available: pass --session-id or run inside an active Claude Code session with a populated capture file",
+                }),
+                0,
+            );
+        }
+    };
+    match write_marker(home, skill, &resolved) {
         Ok(path) => (json!({"status": "ok", "path": path.to_string_lossy()}), 0),
         Err(message) => (json!({"status": "error", "message": message}), 0),
     }
@@ -142,9 +174,22 @@ pub fn run_set_main(home: &Path, skill: &str, session_id: &str) -> (Value, i32) 
 
 /// CLI entry for `bin/flow clear-utility-in-progress`. Same shape as
 /// `run_set_main` — returns JSON to stdout and exit code 0 for
-/// business outcomes per the project convention.
-pub fn run_clear_main(home: &Path, skill: &str, session_id: &str) -> (Value, i32) {
-    match clear_marker(home, skill, session_id) {
+/// business outcomes per the project convention. Same capture-file
+/// fallback for `--session-id`.
+pub fn run_clear_main(home: &Path, skill: &str, session_id: Option<&str>) -> (Value, i32) {
+    let resolved = match resolve_session_id(home, session_id) {
+        Some(s) => s,
+        None => {
+            return (
+                json!({
+                    "status": "error",
+                    "message": "no session_id available: pass --session-id or run inside an active Claude Code session with a populated capture file",
+                }),
+                0,
+            );
+        }
+    };
+    match clear_marker(home, skill, &resolved) {
         Ok(removed) => (json!({"status": "ok", "removed": removed}), 0),
         Err(message) => (json!({"status": "error", "message": message}), 0),
     }

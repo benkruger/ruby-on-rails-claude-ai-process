@@ -4323,3 +4323,30 @@ fn flow_skills_admin_and_maintainer_match_user_only() {
         }
     }
 }
+
+// --- persistence-routing rule invariant ---
+//
+// `validate-claude-paths` block message points the model at this rule
+// when an Edit/Write under `~/.claude/projects/` is rejected. The
+// message asserts the rule names "Rules are the default" and
+// "Memory is the exception" — locking in those two phrases as the
+// load-bearing invariants future readers consult when deciding where
+// to persist a behavioral constraint vs. user preference.
+
+#[test]
+fn persistence_routing_rule_states_rules_are_default() {
+    let path = common::repo_root()
+        .join(".claude")
+        .join("rules")
+        .join("persistence-routing.md");
+    let content =
+        std::fs::read_to_string(&path).expect(".claude/rules/persistence-routing.md must exist");
+    assert!(
+        content.contains("Rules are the default"),
+        ".claude/rules/persistence-routing.md must state 'Rules are the default' as the load-bearing invariant"
+    );
+    assert!(
+        content.contains("Memory is the exception"),
+        ".claude/rules/persistence-routing.md must state 'Memory is the exception' as the corollary"
+    );
+}

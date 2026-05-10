@@ -113,7 +113,17 @@ pub fn phase_step_counter(state: &Value) -> Option<PhaseStepCounter> {
         state.get(key).and_then(tolerant_i64_opt)
     }
 
-    let phase_key = state.get("current_phase").and_then(|v| v.as_str())?;
+    let raw_phase_key = state.get("current_phase").and_then(|v| v.as_str())?;
+    // Normalize the legacy `flow-code-review` value to the canonical
+    // `flow-review` key (renamed in PR #1402) so step-name lookups
+    // and total counts resolve against the single canonical entry in
+    // `step_names()`. Mirrors the serde alias on `FlowState::phase`
+    // in `src/state.rs`.
+    let phase_key = if raw_phase_key == "flow-code-review" {
+        "flow-review"
+    } else {
+        raw_phase_key
+    };
     let names_map = step_names();
     let lookup_name = |cur: i64| -> Option<String> {
         names_map
@@ -144,8 +154,16 @@ pub fn phase_step_counter(state: &Value) -> Option<PhaseStepCounter> {
                 .map(|s| s.to_string());
             ("Code", 2, cur, tot, nm)
         }
-        "flow-code-review" => {
-            let cur = read(state, "code_review_step")?;
+        "flow-review" => {
+            // Read the canonical `review_step` key first; fall back
+            // to the legacy `code_review_step` so state files
+            // written by older plugin versions still surface step
+            // progress. Mirrors the serde alias on
+            // `FlowState::review_step` in `src/state.rs`.
+            let cur = state
+                .get("review_step")
+                .or_else(|| state.get("code_review_step"))
+                .and_then(tolerant_i64_opt)?;
             let tot = names_map
                 .get(phase_key)
                 .map(|m| m.len() as i64)

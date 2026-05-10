@@ -75,6 +75,8 @@ fn all_subcommands_have_working_help() {
         "init-state",
         "log",
         "generate-id",
+        "set-utility-in-progress",
+        "clear-utility-in-progress",
         "start-lock",
         "start-step",
         "start-finalize",
@@ -1238,6 +1240,26 @@ fn main_arm_invocations_cover_dispatch() {
         ("log", &["test-fixture", "msg"], None),
         ("generate-id", &[], None),
         (
+            "set-utility-in-progress",
+            &[
+                "--skill",
+                "flow:flow-create-issue",
+                "--session-id",
+                "abc12345",
+            ],
+            None,
+        ),
+        (
+            "clear-utility-in-progress",
+            &[
+                "--skill",
+                "flow:flow-create-issue",
+                "--session-id",
+                "abc12345",
+            ],
+            None,
+        ),
+        (
             "start-finalize",
             &["--branch", "test-fixture", "--pr-url", "u"],
             None,
@@ -1351,6 +1373,103 @@ fn main_arm_invocations_cover_dispatch() {
             stderr
         );
     }
+}
+
+/// `bin/flow set-utility-in-progress` writes the marker JSON under
+/// `<HOME>/.claude/flow/`. Driving through the real CLI with HOME
+/// set to a tempdir verifies the dispatch arm and the `Ok` envelope
+/// from `run_set_main`.
+#[test]
+fn set_utility_in_progress_dispatch_writes_marker() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let home = tmp.path().canonicalize().expect("canonicalize");
+    let output = flow_rs_no_recursion()
+        .args([
+            "set-utility-in-progress",
+            "--skill",
+            "flow:flow-create-issue",
+            "--session-id",
+            "abc12345",
+        ])
+        .env("HOME", &home)
+        .output()
+        .expect("spawn flow-rs");
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "exit 0 on success\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim()).expect("JSON");
+    assert_eq!(json["status"], "ok");
+    let marker = home
+        .join(".claude")
+        .join("flow")
+        .join("utility-in-progress-abc12345.json");
+    assert!(marker.exists(), "marker must be written");
+}
+
+/// `bin/flow clear-utility-in-progress` removes the marker JSON.
+/// Pre-creates the marker so the dispatch arm exercises the
+/// removal Ok branch (rather than the idempotent Ok(false) branch).
+#[test]
+fn clear_utility_in_progress_dispatch_removes_marker() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let home = tmp.path().canonicalize().expect("canonicalize");
+    let claude_flow = home.join(".claude").join("flow");
+    std::fs::create_dir_all(&claude_flow).unwrap();
+    let marker = claude_flow.join("utility-in-progress-abc12345.json");
+    std::fs::write(
+        &marker,
+        r#"{"skill":"flow:flow-create-issue","session_id":"abc12345"}"#,
+    )
+    .unwrap();
+
+    let output = flow_rs_no_recursion()
+        .args([
+            "clear-utility-in-progress",
+            "--skill",
+            "flow:flow-create-issue",
+            "--session-id",
+            "abc12345",
+        ])
+        .env("HOME", &home)
+        .output()
+        .expect("spawn flow-rs");
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(stdout.trim()).expect("JSON");
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["removed"], true);
+    assert!(!marker.exists());
+}
+
+/// `bin/flow set-utility-in-progress` with HOME unset exercises the
+/// `unwrap_or_else(|| PathBuf::from("/"))` fallback closure in
+/// `utility_marker_home`. Falling back to `/` means the create-dir
+/// step on `/.claude/flow` typically fails (root not writable), but
+/// the test only asserts that the fallback closure is reached and
+/// the dispatch arm returns a JSON envelope.
+#[test]
+fn set_utility_in_progress_falls_back_when_home_unset() {
+    let output = flow_rs_no_recursion()
+        .args([
+            "set-utility-in-progress",
+            "--skill",
+            "flow:flow-create-issue",
+            "--session-id",
+            "abc12345",
+        ])
+        .env_remove("HOME")
+        .output()
+        .expect("spawn flow-rs");
+    assert_eq!(output.status.code(), Some(0));
+    // Clean up in the rare environment where `/.claude/flow/` is
+    // writable so future test runs start clean.
+    let stray = std::path::Path::new("/.claude/flow/utility-in-progress-abc12345.json");
+    let _ = std::fs::remove_file(stray);
 }
 
 /// `flow-rs upgrade-check` with `FLOW_PLUGIN_JSON` pointing at a

@@ -1,0 +1,365 @@
+//! Tests for `src/commands/utility_marker.rs`.
+//!
+//! Exercises the marker-file lifecycle for multi-step utility skills:
+//! `write_marker` creates the per-session marker under
+//! `<home>/.claude/flow/utility-in-progress-<session_id>.json`, and
+//! `clear_marker` removes it idempotently. Both helpers validate
+//! `skill` and `session_id` per `.claude/rules/external-input-validation.md`
+//! and `.claude/rules/external-input-path-construction.md` so a hostile
+//! or corrupted state-file value cannot escape the canonical directory.
+
+use std::fs;
+
+use flow_rs::commands::utility_marker::{
+    clear_marker, is_safe_skill_name, marker_path, run_clear_main, run_set_main, write_marker,
+};
+
+const TEST_SKILL: &str = "flow:flow-create-issue";
+const TEST_SESSION: &str = "abc12345";
+
+// --- write_marker ---
+
+#[test]
+fn set_utility_in_progress_writes_marker_with_session_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let path = write_marker(&home, TEST_SKILL, TEST_SESSION).expect("write_marker ok");
+    assert!(path.exists(), "marker file must exist after write_marker");
+
+    // Path layout: <home>/.claude/flow/utility-in-progress-<session>.json
+    let expected = home
+        .join(".claude")
+        .join("flow")
+        .join(format!("utility-in-progress-{}.json", TEST_SESSION));
+    assert_eq!(path, expected);
+
+    let content = fs::read_to_string(&path).expect("read marker");
+    let json: serde_json::Value = serde_json::from_str(&content).expect("parse marker JSON");
+    assert_eq!(json["skill"], TEST_SKILL);
+    assert_eq!(json["session_id"], TEST_SESSION);
+    assert!(json["started_at"].is_string(), "started_at must be present");
+}
+
+#[test]
+fn set_utility_in_progress_creates_directory_if_missing() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let claude_flow = home.join(".claude").join("flow");
+    assert!(!claude_flow.exists(), "directory must be missing pre-write");
+    write_marker(&home, TEST_SKILL, TEST_SESSION).expect("write_marker ok");
+    assert!(
+        claude_flow.is_dir(),
+        "write_marker must create .claude/flow"
+    );
+}
+
+// --- clear_marker ---
+
+#[test]
+fn clear_utility_in_progress_removes_marker() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let path = write_marker(&home, TEST_SKILL, TEST_SESSION).expect("write_marker ok");
+    assert!(path.exists());
+    let removed = clear_marker(&home, TEST_SKILL, TEST_SESSION).expect("clear_marker ok");
+    assert!(
+        removed,
+        "clear_marker must report removal when file existed"
+    );
+    assert!(
+        !path.exists(),
+        "marker file must be gone after clear_marker"
+    );
+}
+
+#[test]
+fn clear_utility_in_progress_is_idempotent_when_marker_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let removed = clear_marker(&home, TEST_SKILL, TEST_SESSION).expect("clear_marker ok");
+    assert!(
+        !removed,
+        "clear_marker on missing file must report not-removed (no error)"
+    );
+}
+
+// --- skill validation ---
+
+#[test]
+fn set_utility_in_progress_validates_skill_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+
+    // Empty
+    assert!(
+        write_marker(&home, "", TEST_SESSION).is_err(),
+        "empty skill must reject"
+    );
+    // Path traversal
+    assert!(
+        write_marker(&home, "../etc/passwd", TEST_SESSION).is_err(),
+        "traversal in skill name must reject"
+    );
+    // Slash
+    assert!(
+        write_marker(&home, "flow/create-issue", TEST_SESSION).is_err(),
+        "slash in skill name must reject"
+    );
+    // NUL byte
+    assert!(
+        write_marker(&home, "flow:flow\0create-issue", TEST_SESSION).is_err(),
+        "NUL in skill name must reject"
+    );
+    // Backslash
+    assert!(
+        write_marker(&home, "flow:flow\\create", TEST_SESSION).is_err(),
+        "backslash in skill name must reject"
+    );
+}
+
+// --- session_id validation ---
+
+#[test]
+fn set_utility_in_progress_validates_session_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+
+    // Empty
+    assert!(
+        write_marker(&home, TEST_SKILL, "").is_err(),
+        "empty session_id must reject"
+    );
+    // Dot / parent
+    assert!(
+        write_marker(&home, TEST_SKILL, ".").is_err(),
+        "dot session_id must reject"
+    );
+    assert!(
+        write_marker(&home, TEST_SKILL, "..").is_err(),
+        "parent session_id must reject"
+    );
+    // Slash
+    assert!(
+        write_marker(&home, TEST_SKILL, "abc/def").is_err(),
+        "slash in session_id must reject"
+    );
+    // NUL byte
+    assert!(
+        write_marker(&home, TEST_SKILL, "abc\0def").is_err(),
+        "NUL in session_id must reject"
+    );
+}
+
+// --- marker_path ---
+
+#[test]
+fn marker_path_returns_some_for_valid_session_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let path = marker_path(&home, TEST_SESSION).expect("valid session_id must produce a path");
+    let expected = home
+        .join(".claude")
+        .join("flow")
+        .join(format!("utility-in-progress-{}.json", TEST_SESSION));
+    assert_eq!(path, expected);
+}
+
+#[test]
+fn marker_path_returns_none_for_invalid_session_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    assert!(
+        marker_path(&home, "..").is_none(),
+        "marker_path must reject `..`"
+    );
+    assert!(
+        marker_path(&home, "abc/def").is_none(),
+        "marker_path must reject slash"
+    );
+    assert!(
+        marker_path(&home, "").is_none(),
+        "marker_path must reject empty"
+    );
+}
+
+// --- is_safe_skill_name ---
+
+#[test]
+fn is_safe_skill_name_accepts_canonical_flow_skill() {
+    assert!(is_safe_skill_name("flow:flow-create-issue"));
+    assert!(is_safe_skill_name("flow:flow-start"));
+    assert!(is_safe_skill_name("a"));
+    assert!(is_safe_skill_name("a_b-c:d"));
+}
+
+#[test]
+fn is_safe_skill_name_rejects_malformed() {
+    assert!(!is_safe_skill_name(""), "empty rejects");
+    assert!(!is_safe_skill_name("."), "dot rejects");
+    assert!(!is_safe_skill_name(".."), "parent rejects");
+    assert!(!is_safe_skill_name("flow/foo"), "slash rejects");
+    assert!(!is_safe_skill_name("flow\\foo"), "backslash rejects");
+    assert!(!is_safe_skill_name("flow\0foo"), "NUL rejects");
+    assert!(!is_safe_skill_name("a b"), "space rejects");
+    assert!(
+        !is_safe_skill_name(&"a".repeat(65)),
+        "over 64 chars rejects"
+    );
+}
+
+// --- run_set_main / run_clear_main ---
+
+#[test]
+fn run_set_main_returns_ok_envelope_on_success() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let (value, code) = run_set_main(&home, TEST_SKILL, TEST_SESSION);
+    assert_eq!(code, 0, "exit code must be 0 (business outcome via JSON)");
+    assert_eq!(value["status"], "ok");
+    assert!(value["path"].is_string());
+    let path_str = value["path"].as_str().unwrap();
+    assert!(
+        path_str.ends_with(&format!("utility-in-progress-{}.json", TEST_SESSION)),
+        "path must reference the canonical marker filename"
+    );
+}
+
+#[test]
+fn run_set_main_returns_error_envelope_on_invalid_skill() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let (value, code) = run_set_main(&home, "../bad", TEST_SESSION);
+    assert_eq!(code, 0, "business errors stay at exit 0");
+    assert_eq!(value["status"], "error");
+    assert!(
+        value["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("invalid skill"),
+        "error message must name the invalid skill"
+    );
+}
+
+#[test]
+fn run_clear_main_returns_ok_envelope_when_marker_exists() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_marker(&home, TEST_SKILL, TEST_SESSION).expect("write_marker ok");
+    let (value, code) = run_clear_main(&home, TEST_SKILL, TEST_SESSION);
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "ok");
+    assert_eq!(value["removed"], true);
+}
+
+#[test]
+fn run_clear_main_returns_ok_envelope_when_marker_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let (value, code) = run_clear_main(&home, TEST_SKILL, TEST_SESSION);
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "ok");
+    assert_eq!(value["removed"], false, "absent marker reports not-removed");
+}
+
+#[test]
+fn run_clear_main_returns_error_envelope_on_invalid_session_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let (value, code) = run_clear_main(&home, TEST_SKILL, "..");
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "error");
+    assert!(value["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("invalid session_id"));
+}
+
+// --- error path: write fails when parent isn't writable ---
+
+#[test]
+fn write_marker_returns_err_when_parent_not_writable() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // Make .claude/flow exist but read-only so fs::write fails.
+    let claude_flow = home.join(".claude").join("flow");
+    fs::create_dir_all(&claude_flow).unwrap();
+    let mut perms = fs::metadata(&claude_flow).unwrap().permissions();
+    perms.set_mode(0o500);
+    fs::set_permissions(&claude_flow, perms).unwrap();
+    let result = write_marker(&home, TEST_SKILL, TEST_SESSION);
+    // Restore so TempDir can clean up.
+    let mut restore = fs::metadata(&claude_flow).unwrap().permissions();
+    restore.set_mode(0o700);
+    fs::set_permissions(&claude_flow, restore).unwrap();
+    assert!(
+        result.is_err(),
+        "write_marker must surface fs::write errors"
+    );
+    let msg = result.unwrap_err();
+    assert!(
+        msg.contains("write failed"),
+        "error message must name the failure step: {}",
+        msg
+    );
+}
+
+#[test]
+fn write_marker_returns_err_when_create_dir_fails() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // Make .claude exist but read-only so fs::create_dir_all(.claude/flow)
+    // cannot create the missing leaf — exercises the create_dir_all
+    // map_err arm in write_marker.
+    let claude = home.join(".claude");
+    fs::create_dir_all(&claude).unwrap();
+    let mut perms = fs::metadata(&claude).unwrap().permissions();
+    perms.set_mode(0o500);
+    fs::set_permissions(&claude, perms).unwrap();
+    let result = write_marker(&home, TEST_SKILL, TEST_SESSION);
+    // Restore so TempDir can clean up.
+    let mut restore = fs::metadata(&claude).unwrap().permissions();
+    restore.set_mode(0o700);
+    fs::set_permissions(&claude, restore).unwrap();
+    assert!(result.is_err(), "write_marker must surface mkdir errors");
+    let msg = result.unwrap_err();
+    assert!(
+        msg.contains("create dir failed"),
+        "error message must name the create-dir step: {}",
+        msg
+    );
+}
+
+#[test]
+fn clear_marker_returns_err_on_invalid_skill_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let result = clear_marker(&home, "../bad", TEST_SESSION);
+    assert!(result.is_err(), "clear_marker must validate skill name");
+    assert!(
+        result.unwrap_err().contains("invalid skill"),
+        "error must name the invalid skill"
+    );
+}
+
+#[test]
+fn clear_marker_surfaces_io_error_when_path_is_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // Create a directory at the marker path so fs::remove_file fails
+    // with a non-NotFound error (IsADirectory or PermissionDenied).
+    let path = marker_path(&home, TEST_SESSION).expect("valid session_id");
+    fs::create_dir_all(&path).unwrap();
+    let result = clear_marker(&home, TEST_SKILL, TEST_SESSION);
+    // Clean up before asserting so the TempDir drop succeeds.
+    let _ = fs::remove_dir(&path);
+    assert!(
+        result.is_err(),
+        "clear_marker must surface non-NotFound IO errors"
+    );
+    assert!(
+        result.unwrap_err().contains("remove failed"),
+        "error must name the remove step"
+    );
+}

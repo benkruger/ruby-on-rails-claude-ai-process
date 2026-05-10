@@ -37,6 +37,40 @@ At the very start, output the following banner in your response (not via Bash) i
 ```
 ````
 
+Immediately after the banner, capture the active Claude Code
+session_id and write the per-session "utility skill in progress"
+marker so the Stop hook refuses turn-end while this skill is running.
+Without the marker the model returns control to the user when the
+decompose:decompose Skill tool returns mid-pipeline, breaking the
+unattended-flow contract this skill promises.
+
+Capture the session_id ONCE here. Reading the SessionStart capture
+file on every set/clear call is a race surface: a concurrent Claude
+Code session's SessionStart overwrites the capture file mid-skill,
+so set-time and clear-time would resolve to different session_ids
+and the marker would orphan. Pass the captured value explicitly to
+every set/clear invocation below — including the error-exit paths
+in the Conversation Gate and the File Cancel branch.
+
+Run `bin/flow current-session-id` and capture its stdout as the
+literal `<session_id>` to substitute into every subsequent
+set-utility-in-progress and clear-utility-in-progress invocation:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow current-session-id
+```
+
+If the captured value is empty (no SessionStart capture file
+present), skip the set call entirely — proceed without the marker.
+The Stop hook treats a missing marker as a non-block, so the skill
+runs without protection but does not break.
+
+When the captured value is non-empty, write the marker:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow set-utility-in-progress --skill flow:flow-create-issue --session-id <session_id>
+```
+
 ---
 
 ## Conversation Gate
@@ -61,7 +95,13 @@ discover them.
 
 <HARD-GATE>
 
-If no brainstorming context exists, output this guidance and stop:
+If no brainstorming context exists, clear the utility-in-progress
+marker so the Stop hook does not refuse turn-end after the rejection,
+then output this guidance and stop:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue --session-id <session_id>
+```
 
 > "This skill captures a brainstormed solution as a pre-planned issue.
 > Start by running `/decompose:decompose` to research the problem,
@@ -101,25 +141,32 @@ re-analyze or re-explore, just distill what was already discussed:
 
 ## Decompose
 
-Check the conversation for prior `/decompose:decompose` output that is
-implementation-focused. Implementation-focused output contains all of:
-task nodes with file targets, implementation ordering (dependency graph
-or sequential tasks), and concrete code changes or insertion points.
-Problem-analysis output — containing only analysis, questions, or
-high-level framing without actionable task structure — does not qualify.
+Check the conversation for **substantive exploration** of the problem
+and solution. Substantive exploration contains all three signals:
 
-**If the conversation contains implementation-focused decompose output
-AND `--force-decompose` was NOT passed:** the existing decompose
-synthesis is sufficient. Skip the decompose invocation below and
-proceed directly to Transform + Draft.
+- **Named files** — the conversation references specific file paths
+  in the codebase that the change will touch
+- **Identified root cause** — specific code references, line numbers,
+  or a concrete bug mechanism (not just symptoms or speculation)
+- **Agreed approach** — the user has confirmed direction on how to
+  proceed (a chosen design, a concrete plan of attack)
 
-**If the conversation contains only problem-analysis decompose output
-(no tasks, no file targets), or no prior decompose output exists, or
-`--force-decompose` was passed:** invoke `decompose:decompose` via the
-Skill tool with an implementation-focused prompt. The prompt must make
-clear that the problem and solution are already agreed — decompose
-should structure the implementation into tasks, not re-analyze the
-problem.
+A prior `/decompose:decompose` invocation in the conversation is a
+strong signal of substantive exploration but is not required —
+extended back-and-forth that produces the three signals above
+qualifies on its own.
+
+**If the conversation contains substantive exploration AND
+`--force-decompose` was NOT passed:** the existing context is
+sufficient. Skip the decompose invocation below and proceed
+directly to Transform + Draft.
+
+**If the conversation lacks one or more of the substantive-exploration
+signals, or `--force-decompose` was passed:** invoke
+`decompose:decompose` via the Skill tool with an implementation-focused
+prompt. The prompt must make clear that the problem and solution are
+already agreed — decompose should structure the implementation into
+tasks, not re-analyze the problem.
 
 Example prompt structure:
 
@@ -133,6 +180,26 @@ Example prompt structure:
 
 The decompose output produces a structured DAG with nodes, dependencies,
 and a synthesis — this becomes the foundation for the Implementation Plan.
+
+<HARD-GATE>
+
+When the Skill tool returns from the decompose:decompose invocation,
+you are still inside flow-create-issue. The Skill tool's return is
+NOT a stopping point — it is a mid-skill handoff. Do not stop, do
+not summarize, do not ask the user "want me to continue?", do not
+return control to the user. Proceed immediately to Transform + Draft
+below using the decompose output you just received.
+
+If you stop here, the user must prompt you again to continue, which
+breaks the unattended flow that flow-create-issue promises to its
+consumers. The whole point of the skill is that one invocation
+produces a filed issue without further user input.
+
+This gate fires whether the Decompose step invoked decompose:decompose
+or skipped it. Either path lands at Transform + Draft as the next
+action — no pause, no acknowledgement, no summary.
+
+</HARD-GATE>
 
 ---
 
@@ -252,8 +319,14 @@ Classification"); editing a draft built on a misaligned decompose ships
 an incorrect Implementation Plan. After revising, re-present the draft
 and ask the same AskUserQuestion. Iterate as many times as needed.
 
-**If "Cancel"** → stop without filing. Do not write the body file. Do
-not output the COMPLETE banner.
+**If "Cancel"** → clear the utility-in-progress marker so the Stop
+hook does not refuse turn-end after cancellation, then stop without
+filing. Do not write the body file. Do not output the COMPLETE
+banner.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue --session-id <session_id>
+```
 
 </HARD-GATE>
 
@@ -273,6 +346,13 @@ Record the issue in the state file (no-op if no FLOW feature is active):
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/bin/flow add-issue --label decomposed --title "<issue_title>" --url "<issue_url>" --phase flow-create-issue
+```
+
+Clear the utility-in-progress marker so the Stop hook stops refusing
+turn-end now that the skill has completed its work:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue --session-id <session_id>
 ```
 
 Display the issue URL to the user, then output the COMPLETE banner:

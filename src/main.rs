@@ -66,6 +66,18 @@ struct Cli {
     command: Option<Commands>,
 }
 
+/// Resolve the user's HOME directory for utility-marker file operations.
+/// Falls back to `/` when `$HOME` is unset so the validator inside
+/// `utility_marker::write_marker` can reject the resulting path
+/// uniformly (it never resolves to a writable location). The marker
+/// path lives under `<HOME>/.claude/flow/` per
+/// `commands::utility_marker::UTILITY_MARKER_SUBDIR`.
+fn utility_marker_home() -> std::path::PathBuf {
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("/"))
+}
+
 #[derive(Subcommand)]
 enum Commands {
     /// Bump the FLOW plugin version across all files.
@@ -254,6 +266,42 @@ enum Commands {
     /// Generate an 8-character hex session ID
     #[command(name = "generate-id")]
     GenerateId,
+
+    /// Write a per-session marker indicating that a multi-step
+    /// utility skill is in progress. The Stop hook reads the
+    /// marker and refuses voluntary turn-end while it exists.
+    /// When `--session-id` is omitted, falls back to the
+    /// SessionStart capture file at
+    /// `<home>/.claude/flow-current-session.json`.
+    #[command(name = "set-utility-in-progress")]
+    SetUtilityInProgress {
+        /// Skill name (e.g. flow:flow-create-issue)
+        #[arg(long)]
+        skill: String,
+        /// Claude Code session_id (optional — defaults to capture file)
+        #[arg(long = "session-id")]
+        session_id: Option<String>,
+    },
+
+    /// Remove the per-session utility-in-progress marker. Idempotent —
+    /// missing marker is reported as `removed: false`, not an error.
+    /// Same `--session-id` fallback as `set-utility-in-progress`.
+    #[command(name = "clear-utility-in-progress")]
+    ClearUtilityInProgress {
+        /// Skill name (e.g. flow:flow-create-issue)
+        #[arg(long)]
+        skill: String,
+        /// Claude Code session_id (optional — defaults to capture file)
+        #[arg(long = "session-id")]
+        session_id: Option<String>,
+    },
+
+    /// Print the captured Claude Code session_id (empty if unavailable).
+    /// Skills capture this ONCE at Announce and pass it explicitly to
+    /// every set-utility-in-progress / clear-utility-in-progress call
+    /// so the SessionStart capture file's value cannot drift mid-skill.
+    #[command(name = "current-session-id")]
+    CurrentSessionId,
 
     /// Serialize flow-start with a queue directory.
     #[command(name = "start-lock")]
@@ -681,6 +729,23 @@ fn main() {
         }
         Some(Commands::GenerateId) => {
             commands::generate_id::run();
+        }
+        Some(Commands::SetUtilityInProgress { skill, session_id }) => {
+            let home = utility_marker_home();
+            let (value, code) =
+                commands::utility_marker::run_set_main(&home, &skill, session_id.as_deref());
+            flow_rs::dispatch::dispatch_json(value, code);
+        }
+        Some(Commands::ClearUtilityInProgress { skill, session_id }) => {
+            let home = utility_marker_home();
+            let (value, code) =
+                commands::utility_marker::run_clear_main(&home, &skill, session_id.as_deref());
+            flow_rs::dispatch::dispatch_json(value, code);
+        }
+        Some(Commands::CurrentSessionId) => {
+            let home = utility_marker_home();
+            let (text, code) = commands::utility_marker::run_current_session_id_main(&home);
+            flow_rs::dispatch::dispatch_text(&text, code);
         }
         Some(Commands::StartLock {
             acquire,

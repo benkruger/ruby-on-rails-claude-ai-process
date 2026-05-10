@@ -18,6 +18,7 @@ mod common;
 mod init_state;
 mod set_timestamp;
 mod start_lock;
+mod utility_marker;
 
 #[allow(dead_code)]
 fn main() {}

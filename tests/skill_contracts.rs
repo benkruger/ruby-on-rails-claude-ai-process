@@ -2707,11 +2707,54 @@ fn create_issue_has_implementation_plan_section() {
 }
 
 #[test]
-fn create_issue_has_prior_decompose_detection() {
-    // Bound the assertion to the `## Decompose` section so a future
-    // edit that removed the prior-decompose branching cannot pass via
-    // the skill's name, the `--force-decompose` flag prose, or the
-    // `/decompose:decompose` Skill invocation references elsewhere.
+fn create_issue_usage_documents_force_decompose() {
+    let c = common::read_skill("flow-create-issue");
+    assert!(
+        c.contains("--force-decompose"),
+        "Usage must document --force-decompose flag"
+    );
+}
+
+#[test]
+fn flow_create_issue_skip_decompose_criterion_accepts_substantive_exploration() {
+    // The Decompose section's skip rule must recognize substantive
+    // exploration as sufficient context — named files, identified
+    // root cause, agreed approach — not only literal prior decompose
+    // output. This eliminates the Skill-tool roundtrip for the common
+    // case where the user has already discussed the problem in the
+    // current conversation, which is the failure surface where the
+    // model returns control to the user instead of continuing.
+    let c = common::read_skill("flow-create-issue");
+    let tail = c
+        .split_once("\n## Decompose\n")
+        .map(|(_, t)| t)
+        .expect("flow-create-issue must have a `## Decompose` section");
+    let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
+    let lower = section.to_ascii_lowercase();
+    assert!(
+        lower.contains("substantive exploration"),
+        "`## Decompose` skip rule must accept substantive exploration"
+    );
+    assert!(
+        lower.contains("named files"),
+        "`## Decompose` skip rule must list named files as a signal"
+    );
+    assert!(
+        lower.contains("root cause"),
+        "`## Decompose` skip rule must list identified root cause as a signal"
+    );
+    assert!(
+        lower.contains("agreed approach") || lower.contains("approach"),
+        "`## Decompose` skip rule must list an agreed approach as a signal"
+    );
+}
+
+#[test]
+fn flow_create_issue_skip_decompose_criterion_rejects_bare_invocation() {
+    // When the conversation lacks substantive exploration, the
+    // Decompose section must still invoke decompose:decompose. The
+    // skip path is a fast-track for the common case, not a bypass
+    // that hides bare invocations.
     let c = common::read_skill("flow-create-issue");
     let tail = c
         .split_once("\n## Decompose\n")
@@ -2719,21 +2762,71 @@ fn create_issue_has_prior_decompose_detection() {
         .expect("flow-create-issue must have a `## Decompose` section");
     let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
     assert!(
-        section.contains("implementation-focused decompose output"),
-        "`## Decompose` must check for prior implementation-focused decompose output"
+        section.contains("decompose:decompose"),
+        "`## Decompose` must still invoke decompose:decompose when context is missing"
     );
     assert!(
         section.contains("--force-decompose"),
-        "`## Decompose` must document the --force-decompose escape branch"
+        "`## Decompose` must document the --force-decompose override"
     );
 }
 
 #[test]
-fn create_issue_usage_documents_force_decompose() {
+fn flow_create_issue_decompose_has_hard_gate_after_skill_invocation() {
+    // When decompose:decompose is invoked via the Skill tool, the
+    // Decompose section must close with a HARD-GATE that prevents the
+    // model from stopping, summarizing, or returning control to the
+    // user once the Skill tool returns. The HARD-GATE is the
+    // mechanical defense for the failure mode where Claude treats the
+    // Skill tool's return as a natural stopping point — the same
+    // surface that produced the original bug this issue tracks.
     let c = common::read_skill("flow-create-issue");
+    let tail = c
+        .split_once("\n## Decompose\n")
+        .map(|(_, t)| t)
+        .expect("flow-create-issue must have a `## Decompose` section");
+    let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
     assert!(
-        c.contains("--force-decompose"),
-        "Usage must document --force-decompose flag"
+        section.contains("<HARD-GATE>"),
+        "`## Decompose` must include a HARD-GATE block"
+    );
+    assert!(
+        section.contains("</HARD-GATE>"),
+        "`## Decompose` HARD-GATE block must be closed"
+    );
+    let lower = section.to_ascii_lowercase();
+    assert!(
+        lower.contains("do not stop") || lower.contains("must not stop"),
+        "`## Decompose` HARD-GATE must prohibit stopping after Skill return"
+    );
+    assert!(
+        lower.contains("skill tool returns") || lower.contains("when the skill returns"),
+        "`## Decompose` HARD-GATE must reference the Skill tool's return point"
+    );
+}
+
+#[test]
+fn flow_create_issue_hard_gate_names_consequence() {
+    // The HARD-GATE prose must name the consequence so a future
+    // maintainer reading the gate understands why it exists. Without
+    // a named consequence, the gate looks like an arbitrary stylistic
+    // restriction and is at risk of being weakened or removed. Per
+    // .claude/rules/forward-facing-authoring.md, the prose names the
+    // current invariant (unattended completion breaks if the model
+    // stops here) without citing the originating issue.
+    let c = common::read_skill("flow-create-issue");
+    let tail = c
+        .split_once("\n## Decompose\n")
+        .map(|(_, t)| t)
+        .expect("flow-create-issue must have a `## Decompose` section");
+    let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
+    let lower = section.to_ascii_lowercase();
+    assert!(
+        lower.contains("unattended")
+            || lower.contains("user must prompt")
+            || lower.contains("breaks the flow")
+            || lower.contains("returns control"),
+        "`## Decompose` HARD-GATE prose must name the consequence (unattended flow breaks)"
     );
 }
 

@@ -1,4 +1,4 @@
-//! Stop hook composed of four predicates that may refuse a turn-end.
+//! Stop hook composed of five predicates that may refuse a turn-end.
 //!
 //! `run()` evaluates them in order:
 //!
@@ -8,7 +8,15 @@
 //! 2. `check_continue` — on subsequent stops, forces continuation
 //!    when `_continue_pending=<skill_name>` is set, supporting
 //!    multi-child-skill chains.
-//! 3. `check_prose_pause_at_task_entry` — at a Code-phase task-entry
+//! 3. `check_in_progress_utility_skill` — when a multi-step utility
+//!    skill (e.g. `flow:flow-create-issue`) wrote a per-session
+//!    marker at `<home>/.claude/flow/utility-in-progress-<id>.json`,
+//!    refuses turn-end so the model continues past the
+//!    Skill-tool-return handoff that otherwise breaks the unattended
+//!    contract these skills promise. Composed BEFORE
+//!    `check_prose_pause_at_task_entry` so its marker-specific block
+//!    message wins for that shape.
+//! 4. `check_prose_pause_at_task_entry` — at a Code-phase task-entry
 //!    boundary in autonomous mode, refuses a voluntary turn-end when
 //!    the most recent assistant message contains a prose question
 //!    outside code blocks and produced no tool_use. Targeted catch
@@ -16,7 +24,7 @@
 //!    in its block message. See
 //!    `.claude/rules/autonomous-phase-discipline.md` "Prose-Based
 //!    Pauses Bypass AskUserQuestion".
-//! 4. `check_autonomous_in_progress` — when the current phase is
+//! 5. `check_autonomous_in_progress` — when the current phase is
 //!    in-progress AND configured `auto` AND `_continue_pending` is
 //!    empty, refuses a voluntary turn-end. Closes the
 //!    text-only-stop hole that PreToolUse hooks cannot reach. Runs
@@ -28,6 +36,7 @@
 //! no block output), but writes a diagnostic to stderr and attempts to
 //! log to `.flow-states/<branch>.log` for post-mortem visibility.
 
+use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -676,6 +685,108 @@ pub fn check_autonomous_in_progress(state_path: &Path) -> ContinueResult {
     }
 }
 
+/// Refuse a voluntary turn-end while a multi-step utility skill is
+/// in progress for the current Claude Code session.
+///
+/// Multi-step utility skills (currently `flow:flow-create-issue`)
+/// invoke the Skill tool mid-pipeline. The Skill tool's return is a
+/// structural surface where the model often treats the handoff as a
+/// natural stopping point and returns control to the user — breaking
+/// the unattended-flow contract these skills promise to their
+/// consumers. The skill writes a per-session marker file at
+/// `<home>/.claude/flow/utility-in-progress-<session_id>.json` at
+/// its Announce banner and clears it at the COMPLETE banner; this
+/// predicate refuses turn-end while the marker exists.
+///
+/// Composed into `run()` AFTER `check_continue` (so multi-child-skill
+/// chains route through `check_continue` first) and BEFORE
+/// `check_prose_pause_at_task_entry` so its marker-specific block
+/// message wins for that shape.
+///
+/// The marker is keyed by Claude Code session_id. A marker for a
+/// different session is treated as orphaned (e.g., a crashed
+/// concurrent session) and ignored — the predicate only blocks when
+/// the marker matches the current session_id BOTH in the path AND
+/// in the JSON `session_id` field, defending against a hostile or
+/// corrupted file that claims to belong to another session.
+///
+/// Symlink-safe per `.claude/rules/rust-patterns.md` "Symlink-Safe
+/// Existence Checks Before Writes": existence is probed via
+/// `fs::symlink_metadata` (which does NOT follow symlinks). When the
+/// path exists as a symlink the predicate treats it as no marker so
+/// a hostile or accidental symlink at the marker path cannot
+/// redirect the hook's read to an arbitrary file the running user
+/// can read.
+///
+/// Fail-open on every error class: empty session_id, invalid
+/// session_id (path traversal etc.), missing marker, marker that is
+/// a symlink, unparseable marker JSON, marker naming a skill outside
+/// the allowlist. The Stop hook must never panic — a hook crash
+/// terminates the user's session — and the recovery path is "no
+/// block."
+pub fn check_in_progress_utility_skill(session_id: &str, home: &Path) -> ContinueResult {
+    let no_block = || ContinueResult {
+        should_block: false,
+        skill: None,
+        context: None,
+    };
+    if session_id.is_empty() {
+        return no_block();
+    }
+    let path = match crate::commands::utility_marker::marker_path(home, session_id) {
+        Some(p) => p,
+        None => return no_block(),
+    };
+    // Symlink-safe existence check: `symlink_metadata` does NOT
+    // follow symlinks. Reject both missing entries and symlinks
+    // pointing outside `<home>/.claude/flow/`. A regular file at
+    // the marker path passes through and is read below.
+    let meta = match fs::symlink_metadata(&path) {
+        Ok(m) => m,
+        Err(_) => return no_block(),
+    };
+    if meta.file_type().is_symlink() || !meta.file_type().is_file() {
+        return no_block();
+    }
+    // Bound the marker read with the same byte cap as the state file
+    // so a corrupted or hostile marker cannot OOM the hook on Stop.
+    let marker: Value = match File::open(&path).ok().and_then(|f| {
+        let mut buf = String::new();
+        let _ = BufReader::new(f.take(STATE_FILE_BYTE_CAP)).read_to_string(&mut buf);
+        serde_json::from_str::<Value>(&buf).ok()
+    }) {
+        Some(v) => v,
+        None => return no_block(),
+    };
+    let skill = marker.get("skill").and_then(|v| v.as_str()).unwrap_or("");
+    let marker_session = marker
+        .get("session_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if marker_session != session_id {
+        return no_block();
+    }
+    if !crate::commands::utility_marker::MULTI_STEP_UTILITY_SKILLS.contains(&skill) {
+        return no_block();
+    }
+    ContinueResult {
+        should_block: true,
+        skill: Some("utility-in-progress".to_string()),
+        context: Some(format!(
+            "Multi-step utility skill `{}` is in progress (session marker present). \
+             Stop refused.\n\n\
+             The skill has invoked the Skill tool mid-pipeline and the model must \
+             continue from where it stopped — do not return control to the user. \
+             Per .claude/rules/autonomous-phase-discipline.md, this skill's \
+             contract requires unattended completion: a single user invocation \
+             produces a filed issue without further prompting.\n\n\
+             If you genuinely need to abort, the user may type /flow:flow-abort or \
+             send an explicit stop directive.",
+            skill
+        )),
+    }
+}
+
 /// Returns true when `body` contains a `?` outside fenced code
 /// blocks (` ``` ... ``` `) and inline code spans (` `...` `) AND
 /// the `?` is not embedded in a URL-like token.
@@ -1018,6 +1129,25 @@ pub fn run() {
     // subsequent child skill completions need check_continue to fire.
     if !result.should_block {
         result = check_continue(&hook_input, &state_path);
+    }
+
+    // Utility-skill marker guard: when a multi-step utility skill
+    // (e.g. flow:flow-create-issue) is in progress for the current
+    // Claude Code session, refuse turn-end so the model continues
+    // past the Skill-tool-return handoff that otherwise breaks the
+    // unattended-flow contract. Composed AFTER check_continue
+    // (multi-child-skill chains run first) and BEFORE
+    // check_prose_pause_at_task_entry (so the marker block message
+    // wins for that specific failure shape). Reads `session_id`
+    // from the hook input and `home` from $HOME via the shared
+    // `home_dir_or_empty` helper.
+    if !result.should_block {
+        let session_id = hook_input
+            .get("session_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let home = crate::window_snapshot::home_dir_or_empty();
+        result = check_in_progress_utility_skill(session_id, &home);
     }
 
     // Prose-pause task-entry guard: a more targeted catch for

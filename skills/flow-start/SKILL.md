@@ -288,8 +288,18 @@ literal sentinel pair `<!-- FLOW-PLAN-BEGIN -->` and
 
 Parse the JSON output and branch on `status`:
 
-**If `"status": "ok"`** — the plan file has been written. Continue to
-Step 6.
+**If `"status": "ok"`** — the plan file has been written. Parse the
+`tasks_total` field from the `plan-from-issue` envelope and persist it
+to the state file so the TUI can render the Code-phase X-of-Y task
+counter:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set code_tasks_total=<tasks_total>
+```
+
+If `tasks_total` is absent or is not a non-negative integer (defensive
+check against a malformed envelope), skip the `set-timestamp` call.
+Then continue to Step 6.
 
 **If `"status": "error"`** — the response contains a `reason` field.
 Show the `message` to the user and stop. Each reason maps to a

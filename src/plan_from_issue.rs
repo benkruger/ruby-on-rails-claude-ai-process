@@ -273,6 +273,8 @@ pub fn run_impl_main(args: &Args, root: &Path) -> (serde_json::Value, i32) {
         }
     };
 
+    let tasks_total = count_tasks(&plan_content);
+
     let plan_path = match write_plan(root, &args.branch, &plan_content) {
         Ok(p) => p,
         Err(WriteError::InvalidBranch(b)) => {
@@ -305,6 +307,7 @@ pub fn run_impl_main(args: &Args, root: &Path) -> (serde_json::Value, i32) {
             "plan_path": plan_path.to_string_lossy(),
             "branch": args.branch,
             "issue": args.issue,
+            "tasks_total": tasks_total,
         }),
         0,
     )
@@ -362,4 +365,86 @@ pub fn extract_plan(body: &str) -> Result<&str, ExtractError> {
         return Err(ExtractError::Empty);
     }
     Ok(content)
+}
+
+/// Count `#### Task N:` headings outside fenced code blocks.
+///
+/// Strips a leading UTF-8 BOM from each line (editor artifacts can
+/// leave a BOM after the FLOW-PLAN-BEGIN sentinel's newline as well
+/// as at byte 0 of the body), then scans line-by-line tracking
+/// CommonMark-style fenced code blocks (§4.5). A fence opener is a
+/// line whose leading non-whitespace bytes are 3+ backticks or 3+
+/// tildes followed by an info string with no inner fence character.
+/// A closer is a line of the same fence character at least as long
+/// as the opener, with no info string. This shape correctly skips
+/// nested triple-backtick fences inside quad-backtick fences, and
+/// correctly identifies prose lines that merely begin with backticks
+/// (such as `\`\`\`inline\`\`\`-style markers`) as non-fences.
+///
+/// Outside any fence, a line counts when it begins with the literal
+/// prefix `#### Task ` followed by at least one ASCII digit.
+///
+/// Consumed by `run_impl_main` to populate the `tasks_total` field
+/// of the success envelope, which `flow-start` Step 5 reads to
+/// write `code_tasks_total` into the per-branch state file.
+fn count_tasks(plan_body: &str) -> usize {
+    let mut fence: Option<(char, usize)> = None;
+    let mut count = 0;
+    for raw_line in plan_body.lines() {
+        let line = raw_line.strip_prefix('\u{FEFF}').unwrap_or(raw_line);
+        let trimmed = line.trim_start();
+        let marker = parse_fence_marker(trimmed);
+        if let Some((fence_char, opener_count)) = fence {
+            // Inside a fence: close iff the marker is the same fence
+            // character with count >= opener and no trailing content
+            // (CommonMark §4.5). Any line that fails — not a marker,
+            // wrong char, count too small, or non-empty rest — leaves
+            // the fence open.
+            if let Some((c, n, rest)) = marker {
+                if c == fence_char && n >= opener_count && rest.is_empty() {
+                    fence = None;
+                }
+            }
+            continue;
+        }
+        // Outside any fence: open iff a 3+ run of the same fence
+        // character followed by an info string that contains no
+        // inner fence character (CommonMark §4.5 forbids backticks
+        // in a backtick-fence info string and tildes in a tilde-
+        // fence info string). Other shapes — including prose lines
+        // that begin with three backticks but carry inline code
+        // spans on the same line — fall through to the heading check.
+        if let Some((c, n, rest)) = marker {
+            if !rest.contains(c) {
+                fence = Some((c, n));
+                continue;
+            }
+        }
+        if let Some(rest) = line.strip_prefix("#### Task ") {
+            if rest.chars().next().is_some_and(|ch| ch.is_ascii_digit()) {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+/// Parse a line's leading run of fence characters.
+///
+/// Returns `Some((fence_char, count, rest))` when the trimmed
+/// content begins with at least 3 consecutive backticks or tildes.
+/// `rest` is the trimmed content after the fence run — for openers
+/// it is the info string, for closers it must be empty. Returns
+/// `None` for any line that lacks the required fence prefix.
+fn parse_fence_marker(s: &str) -> Option<(char, usize, &str)> {
+    let bytes = s.as_bytes();
+    let first = *bytes.first()?;
+    if first != b'`' && first != b'~' {
+        return None;
+    }
+    let count = bytes.iter().take_while(|&&b| b == first).count();
+    if count < 3 {
+        return None;
+    }
+    Some((first as char, count, s[count..].trim()))
 }

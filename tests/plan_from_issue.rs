@@ -545,6 +545,319 @@ fn plan_from_issue_returns_plan_too_large_when_body_exceeds_cap() {
     assert_eq!(data["reason"], "plan_too_large");
 }
 
+// --- tasks_total in success envelope ---
+
+#[test]
+fn plan_from_issue_returns_tasks_total_when_body_has_three_task_headings() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\n\\n#### Task 1: First\\nBody one.\\n\\n#### Task 2: Second\\nBody two.\\n\\n#### Task 3: Third\\nBody three.\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "11", "--branch", "feat-tasks-three"],
+        &stub_dir,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 3);
+}
+
+#[test]
+fn plan_from_issue_returns_tasks_total_zero_when_body_has_no_task_headings() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\n\\nNo tasks here, just prose.\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "12", "--branch", "feat-tasks-none"],
+        &stub_dir,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 0);
+}
+
+/// Tilde-fenced (`~~~`) example blocks must be recognized as fences so
+/// task-shaped lines inside them do not inflate `tasks_total`. Plan
+/// authors documenting Markdown shapes use tilde fences to avoid
+/// backtick-nesting headaches.
+#[test]
+fn plan_from_issue_tasks_total_skips_headings_inside_tilde_fenced_blocks() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\n\\n#### Task 1: Real\\n\\n~~~markdown\\n#### Task 99: Doc example\\n#### Task 100: Another fake\\n~~~\\n\\n#### Task 2: Another real\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "13", "--branch", "feat-tilde"],
+        &stub_dir,
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 2);
+}
+
+/// A prose paragraph wrapped onto a line beginning with three
+/// backticks (followed by inline-code-span markers) must NOT
+/// open a fence. Real task headings on subsequent lines must still
+/// count.
+#[test]
+fn plan_from_issue_tasks_total_does_not_treat_inline_code_span_as_fence() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\n\\nThe decompose step uses\\n```inline-token```-style markers to disambiguate.\\n\\n#### Task 1: First\\n#### Task 2: Second\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "14", "--branch", "feat-prose-tick"],
+        &stub_dir,
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 2);
+}
+
+/// A UTF-8 BOM at the start of the extracted plan body must not
+/// hide the first task heading. BOM-emitting editors prepend the
+/// `\u{FEFF}` sequence; the count must still match the visible
+/// task structure.
+#[test]
+fn plan_from_issue_tasks_total_handles_utf8_bom_prefix() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    // ﻿ is the JSON escape for the UTF-8 BOM, which serde_json
+    // decodes into the body string. The BOM lands immediately after
+    // the FLOW-PLAN-BEGIN sentinel and the newline, becoming the
+    // first byte of the extracted plan content.
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n\\uFEFF#### Task 1: First\\n#### Task 2: Second\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(&repo, &["--issue", "15", "--branch", "feat-bom"], &stub_dir);
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 2);
+}
+
+/// Quad-backtick (` ```` `) fences enclose nested triple-backtick
+/// fences; the outer fence's closer requires at least 4 backticks.
+/// Task headings inside the outer fence must not count, even when
+/// a 3-backtick line appears mid-block.
+#[test]
+fn plan_from_issue_tasks_total_handles_nested_triple_backtick_inside_quad_fence() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\n\\n#### Task 1: Real\\n\\n````markdown\\n```\\n#### Task 99: Inside nested fence\\n```\\n````\\n\\n#### Task 2: Another real\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "16", "--branch", "feat-nested"],
+        &stub_dir,
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 2);
+}
+
+/// Triple-backtick fences with no info string still open and close
+/// correctly; task-shaped lines inside them must not count. Locks
+/// in the baseline fence-handling contract that the adversarial
+/// regression suite extends.
+#[test]
+fn plan_from_issue_tasks_total_skips_headings_inside_plain_triple_backtick_fence() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\n\\n#### Task 1: Real\\n\\n```\\n#### Task 99: Inside fence\\n```\\n\\n#### Task 2: Another real\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "17", "--branch", "feat-plain-fence"],
+        &stub_dir,
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 2);
+}
+
+/// Headings at non-`####` depths must not match. Locks in the
+/// `#### Task ` prefix discipline so a future loosening of the
+/// scanner cannot silently match `### Task 1` or `##### Task 2`.
+#[test]
+fn plan_from_issue_tasks_total_rejects_other_heading_depths() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\n\\n### Task 1: Too shallow\\n##### Task 2: Too deep\\n#### Task 3: Just right\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "18", "--branch", "feat-depth"],
+        &stub_dir,
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 1);
+}
+
+/// Lines that begin with one or two fence characters (e.g., a
+/// line opening with a single backtick for an inline code span)
+/// must not be treated as fences. A 3+ run is required by
+/// CommonMark §4.5; below that, the line falls through to the
+/// task-heading check.
+#[test]
+fn plan_from_issue_tasks_total_ignores_lines_with_fewer_than_three_fence_chars() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\n\\n`solo` backtick prose\\n``two-tick`` prose\\n~ single tilde\\n#### Task 1: Real\\n#### Task 2: Real\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "20", "--branch", "feat-short-tick"],
+        &stub_dir,
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 2);
+}
+
+/// A line beginning with 3+ fence chars but followed by non-
+/// whitespace content is NOT a valid closer (CommonMark §4.5).
+/// The fence stays open, so task headings between the fake-closer
+/// and the real closer are correctly skipped.
+#[test]
+fn plan_from_issue_tasks_total_fence_stays_open_when_closer_has_trailing_content() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n#### Task 1: Real\\n\\n```\\n#### Task 99: Inside fence\\n``` not-a-closer\\n#### Task 100: Still inside fence\\n```\\n\\n#### Task 2: Real\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "21", "--branch", "feat-bad-closer"],
+        &stub_dir,
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 2);
+}
+
+/// `#### Task ` followed by non-digit must not count. Locks in
+/// the digit-required discipline that distinguishes a real task
+/// heading from a prose heading like `#### Task summary`.
+#[test]
+fn plan_from_issue_tasks_total_requires_digit_after_task_prefix() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n#### Task summary: prose-only heading\\n#### Task : missing number\\n#### Task 1: real\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(
+        &repo,
+        &["--issue", "19", "--branch", "feat-digit"],
+        &stub_dir,
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+    assert_eq!(data["tasks_total"], 1);
+}
+
 #[test]
 fn plan_from_issue_rejects_oversized_gh_stdout_before_parse() {
     // Tenant 4 (Correctness): Code Review pre-mortem flagged that an

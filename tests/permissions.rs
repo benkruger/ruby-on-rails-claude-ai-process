@@ -134,6 +134,7 @@ const PLACEHOLDER_SUBS: &[(&str, &str)] = &[
         "~/.claude/projects/-tmp-test/abc123.jsonl",
     ),
     ("<issue_number>", "107"),
+    ("<tasks_total>", "7"),
     ("<issue_url>", "https://github.com/test/test/issues/1"),
     ("<n>", "3"),
     ("<file>", "lib/foo.py"),

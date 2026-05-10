@@ -1752,6 +1752,81 @@ fn start_references_phase_finalize() {
     );
 }
 
+/// Locks in the `code_tasks_total` writer at flow-start. The TUI
+/// X-of-Y rendering paths (PR #1407) silently no-op when
+/// `code_tasks_total` is missing from the per-branch state file, so
+/// a future skill rewrite that drops the writer would re-introduce
+/// the unreachable-counter bug closed by PR #1417. The adjacency
+/// check requires the `set-timestamp` invocation to sit in a bash
+/// block whose preceding non-blank prose references
+/// `plan-from-issue`, anchoring the writer to the step that
+/// computes the count.
+#[test]
+fn flow_start_writes_code_tasks_total() {
+    let content = common::read_skill("flow-start");
+    const NEEDLE: &str = "set-timestamp --set code_tasks_total=";
+    const ADJACENT: &str = "plan-from-issue";
+    const WINDOW_NON_BLANK_LINES: usize = 5;
+
+    assert!(
+        content.contains(NEEDLE),
+        "flow-start must invoke `bin/flow {}` so code_tasks_total \
+         is written into the per-branch state file. The TUI's \
+         X-of-Y rendering paths consume this field; without the \
+         writer they silently no-op.",
+        NEEDLE
+    );
+
+    let lines: Vec<&str> = content.lines().collect();
+    let mut in_bash = false;
+    let mut bash_body = String::new();
+    let mut prev_prose: Vec<String> = Vec::new();
+    let mut found_with_adjacent_plan_from_issue = false;
+
+    for (idx, line) in lines.iter().enumerate() {
+        let trimmed_left = line.trim_start();
+        if !in_bash && trimmed_left.starts_with("```bash") {
+            in_bash = true;
+            bash_body.clear();
+            prev_prose.clear();
+            let mut j = idx;
+            while j > 0 && prev_prose.len() < WINDOW_NON_BLANK_LINES {
+                j -= 1;
+                let prev = lines[j];
+                let prev_t = prev.trim();
+                if prev_t.is_empty() {
+                    continue;
+                }
+                if prev_t.starts_with("```") {
+                    break;
+                }
+                prev_prose.push(prev.to_string());
+            }
+            continue;
+        }
+        if in_bash && trimmed_left.starts_with("```") {
+            in_bash = false;
+            if bash_body.contains(NEEDLE) && prev_prose.iter().any(|l| l.contains(ADJACENT)) {
+                found_with_adjacent_plan_from_issue = true;
+            }
+            bash_body.clear();
+            continue;
+        }
+        if in_bash {
+            bash_body.push_str(line);
+            bash_body.push('\n');
+        }
+    }
+
+    assert!(
+        found_with_adjacent_plan_from_issue,
+        "flow-start must invoke `{}` in a bash block whose \
+         preceding {} non-blank prose lines reference `{}` — \
+         anchors the writer to the step that computes the count.",
+        NEEDLE, WINDOW_NON_BLANK_LINES, ADJACENT
+    );
+}
+
 #[test]
 fn phase_enter_skills_no_action_enter() {
     for name in PHASE_ENTER_PHASES {

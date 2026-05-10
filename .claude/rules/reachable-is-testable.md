@@ -56,17 +56,18 @@ claim against the full `bin/flow ci` 100/100/100 result — is a
 fourth invalid completion state. The per-file gate
 (`bin/test tests/<path>/<name>.rs`) compiles a single test binary
 and only sees coverage from that binary's tests; it does not see
-contributions from `tests/hooks.rs`, `tests/main_dispatch.rs`, or
-any other binary. A line uncovered in the per-file report may
-still hit 100% in the full-CI aggregate — but only if a specific
-test in another binary actually exercises it.
+contributions from `tests/hooks/dispatcher.rs`,
+`tests/main_dispatch.rs`, or any other binary. A line uncovered
+in the per-file report may still hit 100% in the full-CI
+aggregate — but only if a specific test in another binary
+actually exercises it.
 
 The required investigation:
 
 1. **Name the test that covers the line.** If you assert "covered
    elsewhere," you must name the specific test function and its
    binary (e.g.,
-   `tests/hooks.rs::validate_worktree_paths_shared_config_edit_gitignore_blocked`).
+   `tests/hooks/dispatcher.rs::validate_worktree_paths_shared_config_edit_gitignore_blocked`).
 2. **Verify the full-CI aggregate.** Run `bin/flow ci` end-to-end
    and confirm the TOTAL row reads `100.00%` for regions,
    functions, and lines. The aggregate is the gate; the per-file

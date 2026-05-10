@@ -259,7 +259,7 @@ When developing FLOW itself, point Claude Code at the local plugin source via `c
 - All changes require `bin/flow ci` green before committing — tests are the gate.
 - New skills are automatically covered by `tests/skill_contracts.rs`.
 - Namespace is `flow:` — plugin.json name is `"flow"`.
-- Never rebase — merge only.
+- Never rebase — branch protection requires merge-only.
 - **Skills must never instruct Claude to compute values** — no timestamp generation, no time arithmetic, no counter increments. All computation goes through `bin/flow` subcommands.
 - **All timestamps use Pacific Time** — `src/utils.rs::now()` returns Pacific Time ISO 8601. All Rust code uses this function.
 - **Prefer dedicated tools over Bash** — see `.claude/rules/worktree-commands.md`.

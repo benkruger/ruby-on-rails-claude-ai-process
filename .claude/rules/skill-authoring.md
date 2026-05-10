@@ -125,11 +125,10 @@ the decompose must see the complete algorithm.
 
 When writing a SKILL.md instruction that prohibits a specific string
 (e.g. "do not use --comment"), phrase the prohibition without including
-the literal prohibited string. Contract tests like
-`test_code_review_does_not_use_comment_flag` scan the entire SKILL.md
-content — the prohibition text itself will trigger the assertion failure.
-Use paraphrased instructions such as "invoke with no flags or arguments"
-instead of "do not pass the --comment flag."
+the literal prohibited string. A contract test that scans the entire
+SKILL.md content would otherwise be tripped by the prohibition text
+itself. Use paraphrased instructions such as "invoke with no flags or
+arguments" instead of "do not pass the --comment flag."
 
 ## Codebase-Wide Renames
 
@@ -250,21 +249,21 @@ task.
 
 ## State-Dependent Gate Ordering in Multi-Step Skills
 
-When a SKILL.md step invokes a gate command (`bin/flow plan-check`,
-`bin/flow check-phase`, `bin/flow <anything that reads state>`), the
-gate has an implicit precondition: every state field the gate reads
-must already be written by a prior step. Instruction-level gates do
-not assert this precondition — they run the command, parse the output,
-and branch on the result. If the field was never set, the gate sees an
-empty value and either passes trivially or errors in a way the skill
-does not anticipate.
+When a SKILL.md step invokes a gate command (`bin/flow check-phase`,
+`bin/flow <anything that reads state>`), the gate has an implicit
+precondition: every state field the gate reads must already be
+written by a prior step. Instruction-level gates do not assert this
+precondition — they run the command, parse the output, and branch on
+the result. If the field was never set, the gate sees an empty value
+and either passes trivially or errors in a way the skill does not
+anticipate.
 
-**Plan-phase verification.** When a plan task adds a gate command to a
-SKILL.md step, the plan's Risks section must enumerate (a) every state
-field the gate reads, and (b) every prior step that must write that
-field. The Code phase task description must state the textual order
-explicitly: "After `set-timestamp --set <field>`, before any gate that
-reads `<field>`."
+**When authoring the plan.** When a plan task adds a gate command
+to a SKILL.md step, the plan's Risks section must enumerate (a)
+every state field the gate reads, and (b) every prior step that
+must write that field. The Code phase task description must state
+the textual order explicitly: "After `set-timestamp --set <field>`,
+before any gate that reads `<field>`."
 
 **Contract test discipline.** Every state-dependent gate needs a
 contract test in `tests/skill_contracts.rs` that asserts BOTH
@@ -324,19 +323,20 @@ values and are easy to miss when the plan only lists code locations.
 
 When an issue body asserts specific script behavior (e.g. "field X is
 populated after Step Y"), verify the assertion by reading the script
-source during the Plan phase. Issue authors — including Claude in prior
-sessions — can be wrong about what a script does internally. A single
-grep of the script for the relevant field or function catches false
-assumptions before they become bugs in the implementation.
+source before writing the implementation. Issue authors — including
+Claude in prior sessions — can be wrong about what a script does
+internally. A single grep of the script for the relevant field or
+function catches false assumptions before they become bugs in the
+implementation.
 
 ## Verify Command References in Issues
 
 When an issue body or plan references a `/flow:<skill-name>` command as
 a user directive, verify `skills/<skill-name>/` exists in the repo
-during the Plan phase. Prior-session issue authors — including Claude —
-can reference skills that have since been removed. A single glob for
-the skill directory catches stale references before they become error
-messages that direct users to non-existent commands.
+before writing the implementation. Prior-session issue authors —
+including Claude — can reference skills that have since been removed.
+A single glob for the skill directory catches stale references before
+they become error messages that direct users to non-existent commands.
 
 ## Verify Test Function References in Issues
 
@@ -345,12 +345,12 @@ functions, helper functions, or test fixtures by name —
 `tests/<file>.rs::<function_name>`, "the existing
 `parse_settings_allow_list` helper", "extract the category list from
 the test fixture" — verify the named entity exists in the current
-codebase during Plan phase via Grep. Issue authors — including
-Claude in prior sessions — can name test functions that were
-renamed, never created, or carried forward from a different
+codebase before writing the implementation via Grep. Issue authors —
+including Claude in prior sessions — can name test functions that
+were renamed, never created, or carried forward from a different
 codebase generation. Building a plan task on a non-existent fixture
-produces an unfounded scope-drop deviation in Code phase that the
-Plan-phase verification could have prevented.
+produces an unfounded scope-drop deviation in Code phase that
+pre-Code verification could have prevented.
 
 The cheapest signal: for every backtick-quoted test or function
 identifier in the issue body or `## Implementation Plan` section,
@@ -414,9 +414,7 @@ design that makes it reachable.
 
 Every `bin/flow` call in a plugin skill bash block must use
 `${CLAUDE_PLUGIN_ROOT}/bin/flow`. Bare `bin/flow` only
-resolves in the FLOW repo itself — target projects do not have
-it. CI enforces this via
-`test_plugin_skills_use_plugin_root_for_bin_flow`.
+resolves in the FLOW repo itself — target projects do not have it.
 
 ## Worktree bin/flow for Repo-Modifying Commands
 
@@ -445,7 +443,7 @@ the worktree: `.flow-states/`, `.flow-issue-body`, and other
 branch-scoped artifacts in the main repo directory.
 
 CI enforces this via
-`test_skills_no_repo_tracked_files_at_project_root`.
+`skills_no_repo_tracked_files_at_project_root`.
 
 ## Last-Line JSON Parsing for Child-Inheriting Scripts
 
@@ -480,11 +478,11 @@ implementation's integration tests automatically. Planning a "port
 the tests" task in this case wastes plan effort and produces no
 artifact.
 
-How to apply: in the Plan phase, before adding a test-migration
-task, verify whether existing tests at the entry-point level already
-cover the new delegation path. If yes, replace the migration task
-with a single verification task (run the existing tests and confirm
-they pass against the new implementation).
+How to apply: before adding a test-migration task, verify whether
+existing tests at the entry-point level already cover the new
+delegation path. If yes, replace the migration task with a single
+verification task (run the existing tests and confirm they pass
+against the new implementation).
 
 ## Placeholder Consistency in Parameterized Tables
 
@@ -531,7 +529,7 @@ succeeds with no effect, and the real file orphans.
    It is fine to describe a file conceptually in prose, but the
    actual `rm`, `Write`, or `Read` call must use a path that resolves
    to the real bytes on disk.
-4. **Plan phase verification.** When a plan adds or modifies a skill
+4. **Pre-Code verification.** When a plan adds or modifies a skill
    that writes a temp file and cleans it up later, grep both the
    writer's and cleaner's references to the placeholder and confirm
    the resolved path matches byte-for-byte.

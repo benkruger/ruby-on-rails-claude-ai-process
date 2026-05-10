@@ -2,7 +2,7 @@
 //!
 //! Two entry shapes:
 //!
-//! - **Per-branch (`--branch`)** — used by `/flow:flow-complete` (Phase 6)
+//! - **Per-branch (`--branch`)** — used by `/flow:flow-complete` (Phase 5)
 //!   and `/flow:flow-abort`. Closes the PR, removes the worktree, deletes
 //!   branches, removes the branch directory, and sweeps the start-lock
 //!   queue entry for the named branch.
@@ -435,7 +435,7 @@ pub fn cleanup(
         let _ = append_log(
             project_root,
             branch,
-            "[Phase 6] cleanup — in progress (branch directory will be removed next)",
+            "[Phase 5] cleanup — in progress (branch directory will be removed next)",
         );
     }
 

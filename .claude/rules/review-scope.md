@@ -157,9 +157,8 @@ violation class is:
   already touching. Sweeping is nearly free; deferring just moves
   the same edit to a later phase.
 - **Cheap to verify** — the rule or skill has a mechanical enforcer
-  (`bin/flow plan-check`, `tests/*.rs` contract test, hook) that
-  will run during `bin/flow ci` and immediately surface the
-  violation.
+  (`tests/*.rs` contract test, hook) that will run during
+  `bin/flow ci` and immediately surface the violation.
 
 Defer to Code Review when the violation class is:
 

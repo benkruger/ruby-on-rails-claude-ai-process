@@ -12,9 +12,9 @@ use std::process::{Command, Stdio};
 use flow_rs::commands::clear_blocked::clear_blocked;
 use flow_rs::hooks::stop_continue::{
     body_has_question_outside_code, capture_session_id, check_autonomous_in_progress,
-    check_continue, check_discussion_mode, check_first_stop, check_prose_pause_at_task_entry,
-    format_block_output, format_conditional_continue_reason, set_blocked_idle, set_tab_color,
-    DISCUSSION_BLOCK_REASON,
+    check_continue, check_discussion_mode, check_first_stop, check_in_progress_utility_skill,
+    check_prose_pause_at_task_entry, format_block_output, format_conditional_continue_reason,
+    set_blocked_idle, set_tab_color, DISCUSSION_BLOCK_REASON,
 };
 use serde_json::{json, Value};
 
@@ -2697,4 +2697,199 @@ fn prose_pause_allows_when_skills_key_missing() {
         dir.path(),
     );
     assert!(!result.should_block);
+}
+
+// --- check_in_progress_utility_skill ---
+
+const UTIL_SKILL: &str = "flow:flow-create-issue";
+const UTIL_SESSION: &str = "abc12345";
+
+fn write_utility_marker(home: &Path, skill: &str, session_id: &str) {
+    let dir = home.join(".claude").join("flow");
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(format!("utility-in-progress-{}.json", session_id));
+    let payload = json!({
+        "skill": skill,
+        "session_id": session_id,
+        "started_at": "2026-05-09T12:00:00-07:00",
+    });
+    fs::write(&path, serde_json::to_string(&payload).unwrap()).unwrap();
+}
+
+#[test]
+fn check_in_progress_utility_skill_refuses_stop_when_marker_present() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    assert!(
+        result.should_block,
+        "marker present must refuse turn-end during multi-step utility skill"
+    );
+    assert_eq!(result.skill.as_deref(), Some("utility-in-progress"));
+}
+
+#[test]
+fn check_in_progress_utility_skill_allows_stop_when_marker_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    assert!(
+        !result.should_block,
+        "no marker → no block (the skill is not running)"
+    );
+    assert!(result.skill.is_none());
+    assert!(result.context.is_none());
+}
+
+#[test]
+fn check_in_progress_utility_skill_ignores_orphan_marker_from_different_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // Marker for a different session_id (e.g., a crashed concurrent
+    // Claude Code session) must not affect THIS session.
+    write_utility_marker(&home, UTIL_SKILL, "other_session_id");
+    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    assert!(
+        !result.should_block,
+        "marker for different session_id must be ignored as orphaned"
+    );
+}
+
+#[test]
+fn check_in_progress_utility_skill_block_message_names_skill_and_rule() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    assert!(result.should_block);
+    let context = result.context.expect("context must be populated on block");
+    assert!(
+        context.contains(UTIL_SKILL),
+        "block message must name the in-progress skill: {}",
+        context
+    );
+    assert!(
+        context.contains("#1412") || context.contains("autonomous-phase-discipline"),
+        "block message must cite either issue #1412 or the recovery rule: {}",
+        context
+    );
+}
+
+#[test]
+fn check_in_progress_utility_skill_predicate_runs_after_check_continue() {
+    // Ordering invariant: the predicate must be composed AFTER
+    // `check_continue` (so multi-child-skill chains route through
+    // check_continue first) and BEFORE
+    // `check_prose_pause_at_task_entry` (so the more specific
+    // task-entry message wins for that shape). Per the plan, the
+    // predicate slots between those two predicates in `run()`.
+    let src_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("hooks")
+        .join("stop_continue.rs");
+    let content = fs::read_to_string(&src_path).expect("read stop_continue.rs");
+    // Bound the search to the body of `pub fn run()` so a stray
+    // mention in a doc comment cannot satisfy the assertion.
+    let tail = content
+        .split_once("pub fn run() {")
+        .map(|(_, t)| t)
+        .expect("stop_continue.rs must define `pub fn run()`");
+    let body = tail.split_once("\n}\n").map(|(b, _)| b).unwrap_or(tail);
+    let idx_continue = body
+        .find("check_continue(")
+        .expect("run() must call check_continue");
+    let idx_utility = body
+        .find("check_in_progress_utility_skill(")
+        .expect("run() must call check_in_progress_utility_skill");
+    let idx_prose = body
+        .find("check_prose_pause_at_task_entry(")
+        .expect("run() must call check_prose_pause_at_task_entry");
+    assert!(
+        idx_continue < idx_utility,
+        "check_in_progress_utility_skill must run AFTER check_continue"
+    );
+    assert!(
+        idx_utility < idx_prose,
+        "check_in_progress_utility_skill must run BEFORE check_prose_pause_at_task_entry"
+    );
+}
+
+#[test]
+fn check_in_progress_utility_skill_no_block_when_session_id_empty() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let result = check_in_progress_utility_skill("", &home);
+    assert!(
+        !result.should_block,
+        "empty session_id → no marker path → no block"
+    );
+}
+
+#[test]
+fn check_in_progress_utility_skill_no_block_when_session_id_invalid() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // Path-traversal session_id must be rejected by marker_path
+    // BEFORE filesystem access so a hostile hook input cannot
+    // redirect the read.
+    let result = check_in_progress_utility_skill("..", &home);
+    assert!(!result.should_block);
+    let result = check_in_progress_utility_skill("abc/def", &home);
+    assert!(!result.should_block);
+}
+
+#[test]
+fn check_in_progress_utility_skill_no_block_when_marker_unparseable() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let marker_dir = home.join(".claude").join("flow");
+    fs::create_dir_all(&marker_dir).unwrap();
+    let marker = marker_dir.join(format!("utility-in-progress-{}.json", UTIL_SESSION));
+    // Corrupted JSON must not cause the predicate to panic or block.
+    fs::write(&marker, "{not json").unwrap();
+    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    assert!(
+        !result.should_block,
+        "corrupted marker must fail-open (no block)"
+    );
+}
+
+#[test]
+fn check_in_progress_utility_skill_no_block_when_skill_not_in_known_set() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    // A marker that names a skill OUTSIDE the MULTI_STEP_UTILITY_SKILLS
+    // allowlist must not block — a future skill or a stale marker from
+    // a removed feature must not silently keep blocking.
+    write_utility_marker(&home, "flow:flow-some-other-skill", UTIL_SESSION);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    assert!(
+        !result.should_block,
+        "marker naming an unknown skill must not block"
+    );
+}
+
+#[test]
+fn check_in_progress_utility_skill_no_block_when_marker_session_id_mismatches() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    let marker_dir = home.join(".claude").join("flow");
+    fs::create_dir_all(&marker_dir).unwrap();
+    // Hand-craft a marker file whose path session_id matches but
+    // whose internal `session_id` field does not — defends against
+    // a hostile or corrupted file that claims to belong to another
+    // session.
+    let marker = marker_dir.join(format!("utility-in-progress-{}.json", UTIL_SESSION));
+    let payload = json!({
+        "skill": UTIL_SKILL,
+        "session_id": "different",
+        "started_at": "2026-05-09T12:00:00-07:00",
+    });
+    fs::write(&marker, serde_json::to_string(&payload).unwrap()).unwrap();
+    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    assert!(
+        !result.should_block,
+        "marker whose internal session_id mismatches must not block"
+    );
 }

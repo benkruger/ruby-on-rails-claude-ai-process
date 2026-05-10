@@ -384,10 +384,10 @@ pub fn elapsed_since(started_at: Option<&str>, now_override: Option<DateTime<Fix
 
 // --- Branch and feature name functions ---
 
-/// Maximum branch-name length in characters. Wider than the legacy
-/// 32-char cap so issue titles and feature descriptions survive into the
-/// branch and PR title without losing meaning, while staying well under
-/// filesystem and git branch-name limits.
+/// Maximum branch-name length in characters. Long enough for issue
+/// titles and feature descriptions to survive into the branch and PR
+/// title as readable English, while staying well under filesystem and
+/// git branch-name limits.
 const BRANCH_MAX_LEN: usize = 60;
 
 /// Trailing connectives that produce dangling branch endings like `-and`
@@ -454,8 +454,9 @@ pub fn branch_name(feature_words: &str) -> String {
 fn strip_trailing_stop_words(s: &str) -> String {
     let mut current = s.to_string();
     loop {
-        let last_segment = match current.rfind('-') {
-            Some(pos) => &current[pos + 1..],
+        let pos = current.rfind('-');
+        let last_segment = match pos {
+            Some(p) => &current[p + 1..],
             None => current.as_str(),
         };
         let is_stop = TRAILING_STOP_WORDS
@@ -464,8 +465,8 @@ fn strip_trailing_stop_words(s: &str) -> String {
         if !is_stop {
             break;
         }
-        match current.rfind('-') {
-            Some(pos) => current.truncate(pos),
+        match pos {
+            Some(p) => current.truncate(p),
             None => {
                 current.clear();
                 break;

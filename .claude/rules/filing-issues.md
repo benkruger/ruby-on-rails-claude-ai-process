@@ -152,7 +152,7 @@ the friction feels excessive in a single flow. Specifically,
 none of the following count as Tenant 1 findings:
 
 - "The scanner over-fired and I had to add N opt-out comments."
-- "Plan-check rejected my plan twice before it cleared."
+- "A contract test rejected my change twice before it cleared."
 - "The rule required me to enumerate X items in a table."
 - "I had to write a manual workaround the rule documents."
 
@@ -167,9 +167,9 @@ A friction report becomes filable only when ALL three hold:
    findings, not anticipated as one-off in the current flow.
 2. **Cost is disproportionate.** The opt-out count, repair
    rounds, or workaround steps exceed what the rule's design
-   intended (read the rule file's Plan-phase Trigger section —
-   if the friction is what the rule names as the cost, it is
-   intended).
+   intended (read the rule file's "How to Apply" or "Trigger"
+   section — if the friction is what the rule names as the
+   cost, it is intended).
 3. **A concrete cheaper enforcement exists.** The filer can
    name a specific scanner refinement, opt-out grammar
    extension, or rule-vocabulary change that would reduce

@@ -44,8 +44,8 @@ even conditionally. The following prose patterns violate this rule:
   is "file a waiver"
 
 A plan that includes any of these is not "going to consider waivers
-as a last resort" — it is *already proposing waivers*. The plan
-phase rejects such plans.
+as a last resort" — it is *already proposing waivers*. Such a plan
+is incomplete and must be rewritten.
 
 ## Measurement-Only Task Antipattern
 
@@ -75,11 +75,11 @@ must:
 A task that writes "record the achievable baseline" or "accept the
 current measurement as the achievable target" violates this rule.
 
-**Plan-phase verification.** When a plan's acceptance criteria state
+**When authoring the plan.** When a plan's acceptance criteria state
 "all N files reach 100%" but the plan's tasks only verify the
 aggregate TOTAL without per-file iteration, the plan is incomplete.
-The Plan-phase reviewer must either strengthen the verification task
-to hard-gate on per-file 100% or revise the acceptance criteria to
+The plan author must either strengthen the verification task to
+hard-gate on per-file 100% or revise the acceptance criteria to
 match what the tasks actually produce.
 
 ## Why
@@ -96,18 +96,15 @@ trust the test suite to catch regressions across the entire surface.
 ## Enforcement
 
 This rule is the project's gate against waiver drift. It is
-enforced at four layers:
+enforced at three layers:
 
 1. **Rule prose** (this file). The first instrument is the rule
    itself — every plan author must read this file when designing
    coverage strategy.
-2. **Plan-check scanner**. `bin/flow plan-check` should scan plan
-   prose for waiver-suggestion phrases and reject plans that
-   contain them.
-3. **Code Review reviewer agent**. The reviewer agent flags any
+2. **Code Review reviewer agent**. The reviewer agent flags any
    diff that adds a `test_coverage.md` entry as a Real finding to
    be deleted in Step 4.
-4. **Coverage gate in `bin/test`**. Every `bin/flow ci` full-suite
+3. **Coverage gate in `bin/test`**. Every `bin/flow ci` full-suite
    run passes `--fail-under-lines 100 --fail-under-regions 100
    --fail-under-functions 100` to `cargo llvm-cov nextest`. Any
    uncovered region, function, or line fails CI and blocks the
@@ -116,7 +113,7 @@ enforced at four layers:
    `bin/test`, so every CI run by every engineer on every branch
    inherits the same gate.
 
-## How to Apply (Plan Phase)
+## How to Apply (When Authoring the Plan)
 
 When designing a plan that touches code:
 

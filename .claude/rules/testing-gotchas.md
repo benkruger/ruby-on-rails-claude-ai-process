@@ -202,9 +202,9 @@ fn test_absolute_path_matches() {
 }
 ```
 
-How to apply: during Plan phase, enumerate every `ends_with` pattern
-the implementation will use, then add one test per pattern for each
-form (bare + absolute).
+How to apply: before writing the implementation, enumerate every
+`ends_with` pattern the implementation will use, then add one test
+per pattern for each form (bare + absolute).
 
 ## Subsection-Local Assertions in Contract Tests
 
@@ -358,9 +358,9 @@ A newcomer adding a test to the same file must be able to discover
 the helper's contract without reading its body or tracing the
 production code it emulates. The reference pattern is
 `setup_worktree_fixture` and `setup_pretool_fixture` in
-`tests/hooks.rs`, whose doc comments call out the `.git` marker
-rationale, the `with_state_file` branch, and the `allow_patterns`
-format.
+`tests/hooks/dispatcher.rs`, whose doc comments call out the `.git`
+marker rationale, the `with_state_file` branch, and the
+`allow_patterns` format.
 
 ## Timing-Sensitive Test Isolation
 
@@ -379,8 +379,8 @@ time per CI run, compounding across the test corpus.
 
 - **Filesystem mtime** — use `filetime::set_file_mtime` to
   backdate or forward-date entries. Reference: the `start_lock`
-  tests in `tests/start_lock.rs` use `FileTime` to simulate stale
-  queue entries without sleeping.
+  tests in `tests/commands/start_lock.rs` use `FileTime` to
+  simulate stale queue entries without sleeping.
 - **Wall-clock functions** — accept an injectable `now_fn`
   closure parameter so tests can return a controlled timestamp.
 - **Retry/timeout loops** — accept an injectable `sleep_fn`

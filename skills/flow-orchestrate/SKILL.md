@@ -5,7 +5,7 @@ description: "Process decomposed issues sequentially overnight via flow-start --
 
 # FLOW Orchestrate
 
-Fetch all open issues labeled "Decomposed", filter out issues already in progress, and process each sequentially via `flow-start --auto`. Each invocation runs the full Start-Plan-Code-Review-Learn-Complete lifecycle. After all issues are processed, generate a summary report.
+Fetch all open issues labeled "Decomposed", filter out issues already in progress, and process each sequentially via `flow-start --auto`. Each invocation runs the full Start → Code → Review → Learn → Complete lifecycle. After all issues are processed, generate a summary report.
 
 ## Usage
 
@@ -147,7 +147,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/flow log orchestrate "[Orchestrate] Starting #<issue_n
 
 Invoke `flow:flow-start --auto <title> #<issue_number>` using the Skill tool.
 
-This runs the full lifecycle: Start, Plan, Code, Code Review, Learn, Complete.
+This runs the full lifecycle: Start, Plan, Code, Review, Learn, Complete.
 
 **Detect outcome:**
 

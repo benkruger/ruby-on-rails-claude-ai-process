@@ -25,7 +25,7 @@ fn phase_order_has_five_phases() {
 fn phase_names_match_order() {
     let names = phase_names();
     assert_eq!(names.get("flow-start").unwrap(), "Start");
-    assert_eq!(names.get("flow-review").unwrap(), "Code Review");
+    assert_eq!(names.get("flow-review").unwrap(), "Review");
     assert_eq!(names.len(), 5);
 }
 
@@ -227,7 +227,7 @@ fn build_initial_phases_preserves_insertion_order() {
         vec![
             &Phase::FlowStart,
             &Phase::FlowCode,
-            &Phase::FlowCodeReview,
+            &Phase::FlowReview,
             &Phase::FlowLearn,
             &Phase::FlowComplete,
         ]

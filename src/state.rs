@@ -8,8 +8,8 @@ pub enum Phase {
     FlowStart,
     #[serde(rename = "flow-code")]
     FlowCode,
-    #[serde(alias = "flow-code-review", rename = "flow-review")]
-    FlowCodeReview,
+    #[serde(rename = "flow-review")]
+    FlowReview,
     #[serde(rename = "flow-learn")]
     FlowLearn,
     #[serde(rename = "flow-complete")]
@@ -121,12 +121,10 @@ pub struct WindowSnapshot {
 ///
 /// Appended to `PhaseState.step_snapshots[]` by `set_timestamp` when
 /// the mutated field is one of the four named step counters
-/// (`code_task`, `review_step`, `learn_step`,
-/// `complete_step`). The `review_step` field accepts the legacy
-/// `code_review_step` alias for state files written by older
-/// plugin versions. `step` records the counter value and `field`
-/// records which counter; the snapshot fields are flattened into the
-/// outer JSON so each entry is one flat object.
+/// (`code_task`, `review_step`, `learn_step`, `complete_step`).
+/// `step` records the counter value and `field` records which
+/// counter; the snapshot fields are flattened into the outer JSON
+/// so each entry is one flat object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StepSnapshot {
     pub step: i64,
@@ -276,17 +274,10 @@ pub struct FlowState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub code_task_name: Option<String>,
 
-    // Code Review phase TUI progress.
-    //
-    // The serde `alias` accepts the legacy `code_review_step` JSON key
-    // emitted by older plugin versions while `rename` writes the new
-    // `review_step` key. State files round-tripped under the new code
-    // converge to the new key without losing in-flight progress for
-    // flows started under the old plugin version.
+    // Review phase TUI progress.
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        alias = "code_review_step",
         rename = "review_step"
     )]
     pub review_step: Option<i64>,

@@ -25,7 +25,7 @@ fn make_state(current_phase: &str, phase_statuses: &[(&str, &str)]) -> Value {
     let names = [
         ("flow-start", "Start"),
         ("flow-code", "Code"),
-        ("flow-review", "Code Review"),
+        ("flow-review", "Review"),
         ("flow-learn", "Learn"),
         ("flow-complete", "Complete"),
     ];
@@ -323,7 +323,7 @@ fn run_impl_main_loads_frozen_phase_config_when_present() {
         "phases": {
             "flow-start": {"name": "Start", "command": "/flow:flow-start"},
             "flow-code": {"name": "Code", "command": "/flow:flow-code"},
-            "flow-review": {"name": "Code Review", "command": "/flow:flow-review"},
+            "flow-review": {"name": "Review", "command": "/flow:flow-review"},
             "flow-learn": {"name": "Learn", "command": "/flow:flow-learn"},
             "flow-complete": {"name": "Complete", "command": "/flow:flow-complete"},
         }

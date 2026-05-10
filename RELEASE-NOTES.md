@@ -17,7 +17,7 @@
 - **Sub-agents pinned to Sonnet** — all review sub-agents use Sonnet model with tuned maxTurns for large diffs (#667, #660).
 - **TUI overhaul** — column headers, phase elapsed time, step/task names, responsive columns, blocked detection, cost/usage display (#701, #692, #631, #639, #605, #569, #703).
 - **Learn system** — session separation for review/learn, learn-analyst two-tier context model, routing decision procedure (#654, #671, #520).
-- **Removed external code-review plugin dependency** (#623).
+- **Removed external review plugin dependency** (#623).
 - **CLAUDE.md reduced 57%** — from 41KB to 18KB without content loss.
 
 ### Fixes
@@ -142,7 +142,7 @@
   make bump with Edit RELEASE-NOTES.md, and eliminating the
   redundant git push tag step (#276).
 - Convert prose tool instructions to explicit bash blocks across
-  flow-start, flow-plan, flow-code, and flow-code-review skills
+  flow-start, flow-plan, flow-code, and flow-review skills
   for consistent permission matching (#286).
 - Simplify flow-issues display by removing redundant status column
   and streamlining category table output (#284).
@@ -171,7 +171,7 @@
 
 ### Improvements
 
-- Replace `/simplify` background agents with foreground review agents in Code Review Step 1 for reliable processing before PR merge.
+- Replace `/simplify` background agents with foreground review agents in Review Step 1 for reliable processing before PR merge.
 - Fold file count sub-step into batch detection to eliminate empty instruction step.
 - Add `code_task` single-increment rule to CLAUDE.md State Mutations section.
 
@@ -189,20 +189,20 @@
 - **Skill renamed** — `/create-issue` renamed to `/flow-create-issue` for namespace consistency.
 - **Start setup log dedup** — eliminated duplicate log entries during the Start phase setup.
 
-## v0.34.0 — Create Issue skill, Start optimization, Code Review config
+## v0.34.0 — Create Issue skill, Start optimization, Review config
 
 - **New skill:** `/flow-create-issue` decomposes problems into work-ready GitHub issues, giving flow-start fully detailed issues to run autonomously.
 - **Improvement:** Optimize Flow Start phase for faster worktree setup and PR creation.
-- **Improvement:** Prime Code Review plugin config into `.flow.json` during flow-prime, so the code review plugin axis is pre-configured.
+- **Improvement:** Prime Review plugin config into `.flow.json` during flow-prime, so the code review plugin axis is pre-configured.
 
 ## v0.33.1 — Concurrency awareness and safety guards
 
 ### Improvements
 
 - Add concurrency context to all 12 phase and auxiliary skills — establishes N×N×N model (state isolation, branch scoping, GitHub idempotency) at runtime
-- Add "never discard uncommitted changes" safety guard to flow-complete, flow-commit, and flow-code-review
+- Add "never discard uncommitted changes" safety guard to flow-complete, flow-commit, and flow-review
 - Split concurrency-model.md — architecture principles moved to CLAUDE.md, developer checklists stay as rule
-- Code Review plugin mode now configurable via `code_review_plugin` axis ("always", "auto", "never")
+- Review plugin mode now configurable via `review_plugin` axis ("always", "auto", "never")
 - Sub-skill continuation hardened — stop-continue hook enforces self-invocation loops across built-in skill boundaries
 - Skill authoring rules expanded — negative-assertion test compatibility, codebase-wide renames, config chain integrity
 - Strengthen skill instructions with explicit hard rules and gate enforcement
@@ -267,11 +267,11 @@
 - PR artifacts: improved section rendering and content handling.
 - Complete phase banner now includes the feature name.
 
-## v0.32.1 — Fix Code Review dropping background agent findings
+## v0.32.1 — Fix Review dropping background agent findings
 
 ### Fixes
 
-- Code Review steps now wait for all background agents to complete before
+- Review steps now wait for all background agents to complete before
   evaluating findings. Previously, built-in skills (/simplify, /review,
   /security-review) launched background agents whose findings were silently
   dropped because the stop-continue hook resumed the parent skill before
@@ -290,13 +290,13 @@
 ### Fixes
 
 - Learn phase in manual mode no longer stops prematurely (#204)
-- Code Review phase timing no longer shows 0 seconds (#200)
+- Review phase timing no longer shows 0 seconds (#200)
 - Finalize-commit handles rev-parse and timeouts correctly (#201)
 - Allow reading /tmp diff files for commit review (#203)
 - Phase timing table no longer shows stale "or" formatting (#195)
 - Complete banner formatting improved (#196)
 - Flow commit message file cleanup after finalize (#198)
-- Code Review Step 1 (Simplify) invocation fixed (#199)
+- Review Step 1 (Simplify) invocation fixed (#199)
 
 ### Improvements
 
@@ -489,7 +489,7 @@
 - Restructured README and marketing site around three core goals (Unobtrusive,
   Autonomous or Manual, Safe for Local Env) with dedicated Guardrails, Autonomy,
   and Commands sections
-- Fixed Code Review description from "three lenses" to "four lenses" across
+- Fixed Review description from "three lenses" to "four lenses" across
   docs/skills/index.md, README, and index.html
 - Start and Complete now auto-invoke `/loop` when CI is pending instead of
   stopping and telling the user to do it
@@ -527,7 +527,7 @@
 ## v0.28.10 — Safety and permission fixes
 
 - **Block git restore .** — PreToolUse hook now blocks blanket `git restore .`
-  to prevent silent loss of uncommitted changes. Code Review skill updated to
+  to prevent silent loss of uncommitted changes. Review skill updated to
   use per-file restores instead.
 - **Restore Read(/tmp/*.txt) permission** — recovered permission entry that was
   accidentally lost during a Complete phase cleanup.
@@ -535,7 +535,7 @@
   changes require version bumps. ci-fixer now uses `rubocop -A` for RuboCop
   violations.
 - **Issue filing improvements** — `bin/flow issue` and `bin/flow add-issue`
-  for tracking issues filed during Learn and Code Review phases.
+  for tracking issues filed during Learn and Review phases.
 - **Settings.json runtime whitelist** — PreToolUse hook enforces the allow list
   as a whitelist, blocking commands not matching any pattern.
 
@@ -550,15 +550,15 @@ Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous 
 | Rule | Learn | Rule additions/updates for `.claude/rules/` — deferred to a future session |
 | Flow | Learn | FLOW process gaps (previously labeled `learning`) |
 | Flaky Test | Code | Intermittent test failures with reproduction data |
-| Tech Debt | Code Review | Pre-existing, out-of-scope code quality issues |
-| Documentation Drift | Code Review, Learn | Docs out of sync with actual behavior |
+| Tech Debt | Review | Pre-existing, out-of-scope code quality issues |
+| Documentation Drift | Review, Learn | Docs out of sync with actual behavior |
 
 ### Changes
 
 - Learn Step 3: `.claude/rules/` edits now filed as "Rule" issues instead of editing files directly
 - Learn Step 6: label changed from `learning` to `Flow`, added Documentation Drift issue filing
 - Code CI Gate: flaky test detection — files "Flaky Test" issue on retry-pass
-- Code Review: out-of-scope findings classified as Tech Debt or Documentation Drift and filed as issues
+- Review: out-of-scope findings classified as Tech Debt or Documentation Drift and filed as issues
 - Complete Step 6: "Issues Filed" table added to PR body when issues exist
 - Complete Done banner: shows issues count breakdown when issues were filed
 - flow-issues skill: five label-based categories (Rule, Flow, Flaky Test, Tech Debt, Documentation Drift) with Bug/Enhancement/Other as content-based fallbacks
@@ -643,7 +643,7 @@ Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous 
 - Preserve raw start prompt in state file via `--prompt` flag, so `#N` issue
   references survive branch-name sanitization and issues close correctly at
   completion.
-- Add `Read(~/.claude/rules/*)` permission so code-review plugin sub-agents
+- Add `Read(~/.claude/rules/*)` permission so review plugin sub-agents
   can read user rules without prompting.
 - Add Mode Resolution to flow-plan skill so `continue=auto` in `.flow.json`
   auto-advances Plan→Code without prompting.
@@ -707,14 +707,14 @@ Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous 
 ### New
 
 - **Stop hook** (`lib/stop-continue.py`) forces the model to continue after
-  child skills (/simplify, /review, /security-review, code-review:code-review,
+  child skills (/simplify, /review, /security-review, review:review,
   /flow:flow-commit) return. Uses a `_continue_pending` flag in the state
   file — set before invoking, cleared by the hook when it blocks the stop.
   Fail-open design ensures normal operation is never disrupted.
 
 ### Fixes
 
-- Code Review no longer halts between steps when a child skill returns
+- Review no longer halts between steps when a child skill returns
   (#86, #87, #88, #96, #97, #98).
 - Code phase no longer halts after /flow:flow-commit returns between
   tasks (#101).
@@ -756,11 +756,11 @@ Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous 
 - Fix pymarkdown MD018 violation in RELEASE-NOTES.md where issue references
   at the start of a continuation line were flagged as possible Atx headings.
 
-## v0.24.7 — Fix Phase 4 Code Review halting bugs
+## v0.24.7 — Fix Phase 4 Review halting bugs
 
 ### Fixes
 
-- Phase 4 Code Review no longer halts between steps. Each step now
+- Phase 4 Review no longer halts between steps. Each step now
   self-invokes via `--continue-step` instead of relying on HARD-GATEs
   that the model ignores at Skill tool turn boundaries.
   Fixes #86, #87, #88.
@@ -792,11 +792,11 @@ Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous 
 
 - Fix Complete skill running from worktree instead of project root, which caused merge checkout failures (#79).
 
-## v0.24.3 — Bug fixes for Code Review and Plan phases
+## v0.24.3 — Bug fixes for Review and Plan phases
 
 ### Fixes
 
-- Fix Code Review step stalling when sub-agents encounter errors (#64, #65, #66, #67).
+- Fix Review step stalling when sub-agents encounter errors (#64, #65, #66, #67).
 - Fix PR body rendering literal `\n` instead of newlines (#71).
 
 ### Improvements
@@ -821,7 +821,7 @@ Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous 
 - Fix bin/flow commands failing when run from the main repo root instead of a worktree (#53).
 - Fix Start pausing for confirmation after branch name truncation instead of proceeding automatically.
 - Fix Learn phase hanging when an Edit tool call is denied — rejected learnings now skip gracefully (#54).
-- Fix Code Review losing step progress after context compaction — completed steps are now tracked and skipped on resume (#50).
+- Fix Review losing step progress after context compaction — completed steps are now tracked and skipped on resume (#50).
 - Block pipe operators in PreToolUse hook to prevent sub-agent piped commands from bypassing permission matching (#55).
 
 ### Improvements
@@ -829,16 +829,16 @@ Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous 
 - Route GitHub issue creation through bin/flow issue for consistent permission matching.
 - Enforce /flow:flow-commit routing in flow-prime and exclude bin/dependencies from bin/ci.
 
-## v0.24.0 — Code Review plugin integration
+## v0.24.0 — Review plugin integration
 
 ### New features
 
-- **Code Review Step 4** — Phase 4 now includes a 4th step that invokes
-  the `code-review:code-review` plugin for multi-agent validation with
+- **Review Step 4** — Phase 4 now includes a 4th step that invokes
+  the `review:review` plugin for multi-agent validation with
   CLAUDE.md compliance checking. Four parallel agents with a confidence
   threshold filter for high-signal findings only.
-- **flow-prime installs code-review plugin** — New projects get the
-  code-review plugin installed automatically during `/flow-prime`.
+- **flow-prime installs review plugin** — New projects get the
+  review plugin installed automatically during `/flow-prime`.
 
 ### Fixes
 
@@ -856,7 +856,7 @@ Replace direct `.claude/rules/` edits with GitHub issues to keep the autonomous 
 - **Global PreToolUse hook** — `validate-ci-bash.py` is now registered
   globally in `hooks/hooks.json` for all Bash calls, not just ci-fixer.
   This prevents user-facing permission prompts when `/simplify` sub-agents
-  use compound commands during Code Review.
+  use compound commands during Review.
 - **CI sentinel fix** — The dirty-check sentinel now survives commits and
   is scoped per branch, fixing false "already green" skips after a commit.
 
@@ -893,7 +893,7 @@ requiring manual merge.
 ## v0.22.0 — Rename Phase 5: Learning → Learn
 
 Rename Phase 5 from "Learning" to "Learn" to match the verb pattern
-of the other phases (Start, Plan, Code, Code Review, Learn, Cleanup).
+of the other phases (Start, Plan, Code, Review, Learn, Cleanup).
 
 ### Breaking changes
 
@@ -930,7 +930,7 @@ of the other phases (Start, Plan, Code, Code Review, Learn, Cleanup).
 - `tests/test_prime_check.py`: added assertions for `old_version` and
   `new_version` in `test_auto_upgrades_when_config_hash_matches`.
 
-## v0.21.3 — CI fixer sub-agent, Code Review fix, docs improvements
+## v0.21.3 — CI fixer sub-agent, Review fix, docs improvements
 
 ### Fixes
 
@@ -939,7 +939,7 @@ of the other phases (Start, Plan, Code, Code Review, Learn, Cleanup).
   phase CI fixes. Uses a `PreToolUse` hook (`lib/validate-ci-bash.py`) to enforce
   tool restrictions at the system level instead of unreliable prompt-level rules.
   Closes #35 and #44.
-- Fix Code Review stopping after a no-findings sub-skill returns a blank prompt
+- Fix Review stopping after a no-findings sub-skill returns a blank prompt
   instead of continuing to the next review lens. Closes #43.
 
 ### Improvements

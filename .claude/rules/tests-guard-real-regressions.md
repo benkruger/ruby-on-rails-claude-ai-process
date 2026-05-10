@@ -292,7 +292,7 @@ the specific regression or delete the test. For corpus contract
 tests, run the viability check as the first action; if the count
 is ≥ 5, defer the test and document the deferral in the rule file.
 
-**Code Review phase.** The reviewer agent treats any test that
+**Review phase.** The reviewer agent treats any test that
 cannot be traced to a named regression as a Real finding. The fix
 is either tightening the test to a specific invariant or
 deleting it.

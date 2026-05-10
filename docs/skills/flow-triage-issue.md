@@ -92,8 +92,8 @@ design conversation.
   print the next-step hint. The PM types the next command.
 - **Never triages closed issues.** v1 refuses closed issues with an
   out-of-scope envelope.
-- **Never triages PRs.** PR review is `/code-review:code-review`'s
-  domain.
+- **Never triages PRs.** PR review is handled by separate review
+  skills.
 
 ---
 

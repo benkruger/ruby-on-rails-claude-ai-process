@@ -1,9 +1,9 @@
 ---
 name: flow-review
-description: "Phase 3: Code Review — six tenants assessed by four cognitively isolated agents (reviewer, pre-mortem, adversarial, documentation) launched in parallel. Parent session gathers context, triages findings, and fixes."
+description: "Phase 3: Review — six tenants assessed by four cognitively isolated agents (reviewer, pre-mortem, adversarial, documentation) launched in parallel. Parent session gathers context, triages findings, and fixes."
 ---
 
-# FLOW Code Review — Phase 3: Code Review
+# FLOW Review — Phase 3: Review
 
 ## Usage
 
@@ -60,7 +60,7 @@ cd "<worktree_cwd>"
 
 ## Six Tenants
 
-The Code Review phase assesses the work through six tenants. Every
+The Review phase assesses the work through six tenants. Every
 finding from every agent must map to one of these tenants. Findings
 that do not map to a tenant are dropped.
 
@@ -122,7 +122,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ````markdown
 ```text
 ──────────────────────────────────────────────────
-  FLOW v1.1.0 — Phase 3: Code Review — STARTING
+  FLOW v1.1.0 — Phase 3: Review — STARTING
 ──────────────────────────────────────────────────
 ```
 ````
@@ -268,12 +268,12 @@ defensively.
 If `bin/test` exits 2, surface the stderr message and halt — the
 project must configure `bin/test --adversarial-path` (uncomment
 the runner block and set the matching path comment in `bin/test`)
-before Code Review can run. Do NOT proceed to Step 2.
+before Review can run. Do NOT proceed to Step 2.
 
 This is an infrastructure halt, not a decision point. There is a
 single option only — fix the unconfigured stub: uncomment the
 runner block in `bin/test` and set the matching path comment, then
-re-run Code Review. Do NOT enumerate alternatives ("(1) skip the
+re-run Review. Do NOT enumerate alternatives ("(1) skip the
 adversarial agent, (2) abort the workflow, (3) configure
 `bin/test`") — every non-fix path silently weakens the quality
 gate.
@@ -472,7 +472,7 @@ If a re-invocation itself returns without the completion marker,
 that is double-truncation — the partition was still too large.
 Note the agent as truncated in the triage summary (Step 3)
 rather than splitting infinitely. The user decides whether to
-accept partial coverage or rerun Code Review on a smaller
+accept partial coverage or rerun Review on a smaller
 subset of the diff.
 
 The probe file lives inside the worktree's test tree, so worktree removal at Phase 5 Complete (or `/flow:flow-abort`) disposes of it automatically as a side effect of `git worktree remove`. The basename glob is also pre-listed in `.git/info/exclude` (`test_adversarial_flow.*`, `*_adversarial_flow_test.rb`) so the throwaway probe never appears in a user's `git status` output alongside intentional changes.
@@ -559,7 +559,7 @@ rationale inside a fenced code block:
 ````markdown
 ```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  FLOW — Code Review — Step 3: Triage — SUMMARY
+  FLOW — Review — Step 3: Triage — SUMMARY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Reviewer
@@ -652,7 +652,7 @@ could resurrect the deleted code.
 
 ### Back navigation
 
-If a finding is too significant to fix in Code Review:
+If a finding is too significant to fix in Review:
 
 If commit=auto, fix it directly without asking.
 
@@ -718,7 +718,7 @@ Output in your response (not via Bash) inside a fenced code block:
 ````markdown
 ```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✓ FLOW v1.1.0 — Phase 3: Code Review — COMPLETE (<formatted_time>)
+  ✓ FLOW v1.1.0 — Phase 3: Review — COMPLETE (<formatted_time>)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 ````
@@ -744,7 +744,7 @@ to determine how to advance.
       ```
 
    b. Use AskUserQuestion:
-      "Phase 3: Code Review is complete. Ready to begin Phase 4: Learn?"
+      "Phase 3: Review is complete. Ready to begin Phase 4: Learn?"
       Options: "Yes, start Phase 4 now", "Not yet",
       "I have a correction or learning to capture"
    c. If "I have a correction or learning to capture":
@@ -773,14 +773,14 @@ Do NOT skip this check. Do NOT auto-advance when the mode is manual.
 
 ## Hard Rules
 
-- Always run `bin/flow ci` after any fix made during Code Review
+- Always run `bin/flow ci` after any fix made during Review
 - Never transition to Learn unless `bin/flow ci` is green
 - Fix every real finding from agent triage — do not leave findings unaddressed
 - Follow the project CLAUDE.md conventions when fixing
 - All analysis comes from cognitively isolated agents — the parent session never reviews the diff itself
 - Parent session gathers, launches, triages, and fixes — it does not analyze
 - Every finding must map to one of the six tenants — findings that do not map are dropped
-- One commit for all Code Review fixes (Step 4), not one commit per finding
+- One commit for all Review fixes (Step 4), not one commit per finding
 - After each step completes, advance to the next step via self-invocation — never pause or wait for user input between steps (Gather, Launch, Triage, Fix advance automatically; only the Done HARD-GATE can pause)
 - Never use Bash to print banners — output them as text in your response
 - Never use Bash for file reads — use Glob, Read, and Grep tools instead of ls, cat, head, tail, find, or grep

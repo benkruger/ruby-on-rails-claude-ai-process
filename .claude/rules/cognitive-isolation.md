@@ -148,7 +148,7 @@ A re-invocation that itself returns without the marker is a
 double-truncation — the partition was still too large. The skill
 surfaces the truncated agent in the triage summary rather than
 splitting infinitely. The user decides whether to accept partial
-coverage or rerun Code Review against a smaller subset of the
+coverage or rerun Review against a smaller subset of the
 diff.
 
 ## Never Break the Session
@@ -172,7 +172,7 @@ Its prompt explicitly states it has no knowledge of the conversation
 that produced the changes.
 
 The documentation agent (`agents/documentation.md`) demonstrates the
-context-sparse pattern in Code Review (Phase 3): it assesses
+context-sparse pattern in Review (Phase 3): it assesses
 maintainability (comprehension barriers) and documentation accuracy
 (drift between docs and code behavior).
 

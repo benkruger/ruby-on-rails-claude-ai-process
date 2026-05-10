@@ -37,7 +37,7 @@ violations, files another issue, and the process repeats. Three to
 four iterations of this pattern — each one identical in shape — is
 the signal that scope was the wrong dimension to bound on. Expanding
 once, landing the guard once, and moving on is strictly cheaper than
-running the Plan → Code → Code Review → Learn → Complete cycle
+running the Plan → Code → Review → Learn → Complete cycle
 three times on the same underlying class of problem.
 
 The cost of expanding is PR size and review time. The cost of NOT

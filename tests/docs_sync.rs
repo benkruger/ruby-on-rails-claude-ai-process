@@ -126,7 +126,7 @@ fn every_phase_has_a_docs_page() {
         // Derive the doc filename from the phase identifier (key)
         // rather than the display name. The phase identifier is the
         // canonical short name (`flow-review` → `review`); the display
-        // name (`Code Review`) preserves human-readable labeling but
+        // name (`Review`) preserves human-readable labeling but
         // is decoupled from the filename.
         let short = key.strip_prefix("flow-").unwrap_or(key);
         let doc = common::docs_dir()

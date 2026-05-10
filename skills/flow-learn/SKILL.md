@@ -267,7 +267,7 @@ dismissed:
    AND remediated in this PR (code fix, rule clarification, or
    new rule), the system already closed the gap. Drop it. Per
    `.claude/rules/filing-issues.md` "Value Test Before Filing":
-   a Code-Review-caught-and-fixed violation is the system
+   a Review-caught-and-fixed violation is the system
    working, not a gap.
 
 For each dropped finding, record the dismissal:
@@ -297,13 +297,13 @@ routing:
 
 If yes → the system already closed the gap. Record it in the commit
 message and the Learn report. Do NOT route to Step 6. Dismiss with
-the rationale "caught by Code Review and remediated in this PR — no
+the rationale "caught by Review and remediated in this PR — no
 open gap." If no → real gap, route to Step 6.
 
-The trap: framing "Plan phase didn't catch X but Code Review did"
-as a process gap. Code Review IS part of the process. The
+The trap: framing "Plan phase didn't catch X but Review did"
+as a process gap. Review IS part of the process. The
 cognitive-isolation design exists precisely to catch what the Plan
-author missed. A Code-Review-caught-and-fixed violation is the
+author missed. A Review-caught-and-fixed violation is the
 system working, not a gap.
 
 **Tenant 2 — Rule compliance.** Findings where an existing rule was

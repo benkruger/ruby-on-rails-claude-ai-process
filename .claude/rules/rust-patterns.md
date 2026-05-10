@@ -391,7 +391,7 @@ fn try_delete_matching(dir: &Path, prefix: &str) -> String {
 ```
 
 **Plan phase checklist for `fs::read_dir` + delete loops.** Enumerate
-these three risks explicitly in the Risks section before Code Review
+these three risks explicitly in the Risks section before Review
 catches them:
 
 - Non-file entries that happen to match the filter prefix

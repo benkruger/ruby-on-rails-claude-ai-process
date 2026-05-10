@@ -90,7 +90,7 @@ log <branch> "[Phase 2] Mechanical recovery: <what failed> →
 <retry shape>"` so the Learn-phase audit can confirm the
 discipline.
 
-**During Code Review phase.** When a sub-agent's output shows it
+**During Review phase.** When a sub-agent's output shows it
 hit a mechanical failure and recovered, that is the rule working —
 not a finding. When the agent prompted the user for a mechanical
 failure, surface it as a process gap: the gap is in the agent's

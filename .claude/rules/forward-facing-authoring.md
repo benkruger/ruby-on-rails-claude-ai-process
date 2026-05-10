@@ -84,7 +84,7 @@ incident that spawned it, the finding is too
 incident-specific to codify. Record it in the commit message
 and discard — do not create a rule file.
 
-## How Code Review Applies This
+## How Review Applies This
 
 Fixes in Step 4 that add doc comments or rule updates must be
 forward-facing before commit. A rule addition or doc comment

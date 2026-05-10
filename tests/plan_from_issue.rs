@@ -860,7 +860,7 @@ fn plan_from_issue_tasks_total_requires_digit_after_task_prefix() {
 
 #[test]
 fn plan_from_issue_rejects_oversized_gh_stdout_before_parse() {
-    // Tenant 4 (Correctness): Code Review pre-mortem flagged that an
+    // Tenant 4 (Correctness): Review pre-mortem flagged that an
     // adversarial gh response could grow the parsed `Value` allocation
     // unbounded. fetch_issue_body now checks raw stdout length against
     // GH_STDOUT_BYTE_CAP before invoking serde_json::from_str. Stub gh

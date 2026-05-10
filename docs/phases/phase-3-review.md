@@ -1,9 +1,9 @@
 ---
-title: "Phase 3: Code Review"
+title: "Phase 3: Review"
 nav_order: 4
 ---
 
-# Phase 3: Code Review
+# Phase 3: Review
 
 **Command:** `/flow-review`
 
@@ -69,7 +69,7 @@ Review — see `.claude/rules/review-scope.md`. Mechanical
 enforcement blocks filing: `bin/flow add-finding` rejects
 `--outcome filed` for `--phase flow-review`, and `bin/flow issue`
 refuses to create issues while `current_phase == "flow-review"`
-unless `--override-code-review-ban` is passed.
+unless `--override-review-ban` is passed.
 
 The supersession test from `.claude/rules/supersession.md` runs
 before classification — code the PR has made permanently redundant
@@ -83,7 +83,7 @@ Fix all real findings, run `bin/flow ci`, commit once.
 
 ## bin/flow ci Rule
 
-`bin/flow ci` runs after all fixes in Step 4. Code Review does not
+`bin/flow ci` runs after all fixes in Step 4. Review does not
 transition to Learn until `bin/flow ci` is green.
 
 ---

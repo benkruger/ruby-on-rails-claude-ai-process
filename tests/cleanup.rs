@@ -1248,7 +1248,7 @@ fn cleanup_all_queue_sweep_total_failure() {
     );
 }
 
-// --- is_safe_worktree_rel rejection paths (Code Review fixes) ---
+// --- is_safe_worktree_rel rejection paths (Review fixes) ---
 
 /// Helper for the rejection tests: run cleanup_all over a single
 /// flow with the given malformed worktree value and assert the
@@ -1310,7 +1310,7 @@ fn cleanup_all_rejects_worktree_with_dot_segment() {
     assert_worktree_rejected(json!(".worktrees/./foo"), "dot-wt");
 }
 
-// --- run_impl_main mutual-exclusion errors (Code Review fixes) ---
+// --- run_impl_main mutual-exclusion errors (Review fixes) ---
 
 #[test]
 fn cleanup_all_with_branch_returns_error() {
@@ -1437,7 +1437,7 @@ fn cleanup_all_state_json_invalid_utf8_reports_read_error() {
     );
 }
 
-// --- tolerant_i64_opt for pr_number string fixture (Code Review F2 fix) ---
+// --- tolerant_i64_opt for pr_number string fixture (Review F2 fix) ---
 
 #[test]
 fn cleanup_all_pr_number_string_coerces_via_tolerant_i64() {
@@ -1473,7 +1473,7 @@ fn cleanup_all_pr_number_string_coerces_via_tolerant_i64() {
 
 // --- delete_adversarial_probe ---
 //
-// Phase 6 cleanup explicitly disposes of the Code Review adversarial
+// Phase 6 cleanup explicitly disposes of the Review adversarial
 // probe before `git worktree remove` removes the worktree directory.
 // The step's outcome surfaces in the `steps` JSON as
 // `"adversarial_probe"` so users have an audit-trail entry of the

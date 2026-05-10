@@ -137,7 +137,7 @@ bin/flow log <branch> "[Phase 2] Plan signature deviation: run_impl_with_notifie
 ```
 
 The log entry serves three readers: (1) the immediate Code phase as
-a reminder when composing the commit message, (2) Code Review's
+a reminder when composing the commit message, (2) Review's
 reviewer agent when cross-referencing plan vs. implementation, and
 (3) the Learn phase audit when distinguishing "plan said X, code has
 Y, Learn should investigate" from "plan said X, code has Y, this was
@@ -172,7 +172,7 @@ It is NOT required for:
   primitives, or other refactorings that leave the public signature,
   return type, and observable behavior unchanged. These are routine
   Code-phase implementation choices — not "interface prototype"
-  deviations. Code Review may still flag them as architecture or
+  deviations. Review may still flag them as architecture or
   simplicity findings, but they do not require a `bin/flow log`
   entry to satisfy this rule. The trigger for logging is a change
   the Plan phase would have written differently if it had known —

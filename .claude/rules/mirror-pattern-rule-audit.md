@@ -5,7 +5,7 @@ When a plan's Exploration or Approach section says the new code will
 comparisons, fail-open posture, or any other pattern from an existing
 function — the plan must also enumerate whether sibling X currently
 complies with every applicable rule. A literal mirror inherits any
-pre-existing rule violations as new code, and Code Review will flag
+pre-existing rule violations as new code, and Review will flag
 them in the new file even though they were copied verbatim from an
 older one.
 
@@ -110,7 +110,7 @@ table's compliance column:
   documenting source in a code comment so future readers see the
   rule tension explicitly.
 
-**Code Review phase.** The reviewer agent cross-checks the audit
+**Review phase.** The reviewer agent cross-checks the audit
 table against the landed code. A finding tagged "mirror inherited
 a known violation" routed to Step 4 either fixes the new code or
 records a Plan-phase gap (the audit was missing or incomplete).
@@ -121,7 +121,7 @@ This rule is enforcement-light: no mechanical scanner currently
 catches missing audit tables, because mirror-pattern phrasings
 are too common in legitimate prose ("mirror this in tests" is
 not the same as "mirror sibling X exactly"). The Plan-phase
-exploration is where the audit happens; the Code Review reviewer
+exploration is where the audit happens; the Review reviewer
 agent is the safety net.
 
 ## Cross-References

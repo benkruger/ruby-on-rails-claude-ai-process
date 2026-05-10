@@ -1,8 +1,8 @@
-# Code Review Scope — All Real Findings Fixed In PR
+# Review Scope — All Real Findings Fixed In PR
 
 ## The Rule
 
-Every real Code Review finding is fixed during Step 4. Triage has
+Every real Review finding is fixed during Step 4. Triage has
 two outcomes:
 
 - **Real** → fix in Step 4
@@ -21,17 +21,15 @@ context; a future session starts from zero.
 Mechanical enforcement ensures the path is absent:
 
 - `bin/flow add-finding` applies a positive allowlist: the outcome
-  must be in `{fixed, dismissed}` when `--phase flow-review` (the
-  legacy `flow-code-review` identifier is also accepted on the gate
-  for state files written by older plugin versions). Both inputs
-  are normalized (whitespace trimmed, NULs stripped, ASCII-
+  must be in `{fixed, dismissed}` when `--phase flow-review`. Both
+  inputs are normalized (whitespace trimmed, NULs stripped, ASCII-
   lowercased) before comparison.
 - `bin/flow issue` blocks issue creation when the state file shows
-  `current_phase == "flow-review"` (or the legacy alias
-  `"flow-code-review"`). The gate fails CLOSED when a non-empty
-  state file exists but its `current_phase` cannot be determined.
-  The `--override-code-review-ban` flag bypasses the gate and is
-  the deliberate-friction escape hatch for exceptional cases.
+  `current_phase == "flow-review"`. The gate fails CLOSED when a
+  non-empty state file exists but its `current_phase` cannot be
+  determined. The `--override-review-ban` flag bypasses the gate
+  and is the deliberate-friction escape hatch for exceptional
+  cases.
 
 ## Supersession Exception
 
@@ -106,7 +104,7 @@ decision to the user when uncertain.
 
 ### Cross-reference
 
-`.claude/rules/forward-facing-authoring.md` "How Code Review
+`.claude/rules/forward-facing-authoring.md` "How Review
 Applies This" governs the *form* of documentation fixes that pass
 this triage. This rule governs whether a documentation fix should
 be applied at all.
@@ -125,7 +123,7 @@ The same retroactive-fix discipline applies when a rule update OR a
 skill update lands on **the base branch** (the integration branch
 the flow coordinates against — `main` for standard repos,
 `staging`/`develop`/etc. for non-main-trunk repos) during an active
-Code or Code Review phase on an already-started branch. Both rule
+Code or Review phase on an already-started branch. Both rule
 files and skill files flow into the current session via the
 auto-inserted `system-reminder` that surfaces edited files — the
 Code phase sees the updated text even though the feature branch
@@ -140,7 +138,7 @@ When this happens, the Code phase has a decision to make:
 
 1. **Proactively sweep the files the branch is already modifying**
    for pre-existing violations of the new rule or skill, or
-2. **Defer the sweep to Code Review**, where the Reviewer and
+2. **Defer the sweep to Review**, where the Reviewer and
    Adversarial agents will catch the same violations under the new
    rule's or skill's lens.
 
@@ -160,7 +158,7 @@ violation class is:
   (`tests/*.rs` contract test, hook) that will run during
   `bin/flow ci` and immediately surface the violation.
 
-Defer to Code Review when the violation class is:
+Defer to Review when the violation class is:
 
 - **Incidental** — style, documentation shape, comment quality.
 - **Wide-blast-radius** — the rule or skill flags code across many
@@ -174,7 +172,7 @@ Defer to Code Review when the violation class is:
 
 **Whichever path you take, log the decision** via
 `bin/flow log <branch> "[Phase N] <Rule | Skill> drift: <file> landed
-on the base branch. Decision: <proactive sweep | defer to Code Review>.
+on the base branch. Decision: <proactive sweep | defer to Review>.
 Reason: <criterion>"`. The log entry is what distinguishes "Claude
 noticed the change and consciously chose a path" from "Claude
 ignored the change". The Learn phase analyst reads the log when

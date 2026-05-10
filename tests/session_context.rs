@@ -72,7 +72,7 @@ fn make_state() -> Value {
                 "visit_count": 1
             },
             "flow-review": {
-                "name": "Code Review",
+                "name": "Review",
                 "status": "pending",
                 "started_at": null,
                 "completed_at": null,

@@ -73,7 +73,7 @@ CI will fail if a skill directory does not start with `flow-`.
 
 ## State File Updates
 
-**On phase entry (Code, Code Review, Learn):**
+**On phase entry (Code, Review, Learn):**
 
 ```bash
 bin/flow phase-enter --phase <name> --steps-total <n>
@@ -85,7 +85,7 @@ bin/flow phase-enter --phase <name> --steps-total <n>
 bin/flow phase-transition --phase <name> --action enter
 ```
 
-**On phase exit (Start, Code, Code Review, Learn):**
+**On phase exit (Start, Code, Review, Learn):**
 
 ```bash
 bin/flow phase-finalize --phase <name> --branch <branch> --thread-ts <ts>
@@ -141,7 +141,7 @@ use supported keys — unsupported keys like `hooks` can cause loading failures.
 
 Start and Complete use ci-fixer for CI failure diagnosis and fix.
 Plan invokes the `decompose` plugin for DAG-based task decomposition.
-Code Review launches four agents in parallel — reviewer, pre-mortem,
+Review launches four agents in parallel — reviewer, pre-mortem,
 adversarial, and documentation — for cognitively isolated analysis.
 The parent session gathers context, triages findings, and fixes.
 Code has no sub-agents.

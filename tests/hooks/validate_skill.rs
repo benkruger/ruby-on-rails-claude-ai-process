@@ -140,7 +140,7 @@ fn validate_blocks_when_user_only_skill_and_no_transcript_path() {
 
 // --- Adversarial regression tests for gate normalization ---
 //
-// Each test below locks in a Code Review fix that closed a Layer 1
+// Each test below locks in a Review fix that closed a Layer 1
 // bypass — case variation, trailing whitespace, NUL padding. The
 // `normalize_gate_input` helper now strips all three before the
 // `USER_ONLY_SKILLS` membership check.

@@ -768,7 +768,7 @@ fn install_bin_stubs_skips_existing() {
 
 /// `bin/test --adversarial-path` on a freshly-primed project must
 /// fail closed: exit code 2, a stderr message naming the
-/// configuration step, and empty stdout. The Code Review skill
+/// configuration step, and empty stdout. The Review skill
 /// halts on exit 2, so the contract is what stops the adversarial
 /// agent from running with an unconfigured probe path.
 #[test]

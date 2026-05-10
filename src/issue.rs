@@ -49,38 +49,34 @@ pub struct Args {
     #[arg(long)]
     pub milestone: Option<String>,
 
-    /// Override the Code Review filing ban (requires explicit reason)
-    #[arg(long = "override-code-review-ban")]
-    pub override_code_review_ban: bool,
+    /// Override the Review filing ban (requires explicit reason)
+    #[arg(long = "override-review-ban")]
+    pub override_review_ban: bool,
 }
 
-/// Phase identifiers that the Code Review issue-filing gate fires
-/// on. Both the canonical `flow-review` (written by current skills)
-/// and the legacy alias `flow-code-review` (from older plugin
-/// versions or in-flight state files) are recognized so the gate
-/// cannot be bypassed by either form during the compat window.
-const CODE_REVIEW_PHASES: &[&str] = &["flow-review", "flow-code-review"];
+/// Phase identifiers that the Review issue-filing gate fires on.
+const REVIEW_PHASES: &[&str] = &["flow-review"];
 
-/// Returns a rejection message when the active flow is in Phase 4
-/// Code Review and the override flag is not set. Enforces the
-/// review-scope rule: Code Review triage has two outcomes (Real,
+/// Returns a rejection message when the active flow is in Phase 3
+/// Review and the override flag is not set. Enforces the
+/// review-scope rule: Review triage has two outcomes (Real,
 /// False positive); there is no filing path. The ban ensures real
 /// findings are fixed while context is fresh — filing defers work that
 /// a future session would rediscover from zero at full lifecycle cost.
 /// The override exists as a deliberate-friction escape hatch for
 /// exceptional cases the rule allows (e.g., a FLOW process gap raised
-/// inside a Code Review that genuinely cannot wait for Phase 5 Learn).
+/// inside a Review that genuinely cannot wait for Phase 4 Learn).
 ///
 /// - `state_json` is the raw contents of the current branch's state
 ///   file. `None` when no flow is active — the command is also used
 ///   outside FLOW, so that case passes.
-/// - `override_flag` is the value of `--override-code-review-ban`.
+/// - `override_flag` is the value of `--override-review-ban`.
 ///
 /// The gate fails CLOSED when a state file exists but its
 /// `current_phase` cannot be determined (parse failure, wrong type,
 /// missing key). A state file that exists but is unreadable means a
 /// flow is running — the safe default is reject, not silent pass.
-pub(crate) fn should_reject_for_code_review(
+pub(crate) fn should_reject_for_review(
     state_json: Option<&str>,
     override_flag: bool,
 ) -> Option<String> {
@@ -97,9 +93,9 @@ pub(crate) fn should_reject_for_code_review(
     // bypass the gate when the parsed value is read normally. Scan
     // the raw content for ANY occurrence of `"current_phase"`
     // followed by a value that normalizes to one of
-    // `CODE_REVIEW_PHASES`. If any match, reject.
-    if raw_contains_code_review_phase(content) {
-        return Some(code_review_block_message());
+    // `REVIEW_PHASES`. If any match, reject.
+    if raw_contains_review_phase(content) {
+        return Some(review_block_message());
     }
     let phase_norm = match serde_json::from_str::<serde_json::Value>(content) {
         Ok(state) => match state.get("current_phase").and_then(|v| v.as_str()) {
@@ -116,23 +112,23 @@ pub(crate) fn should_reject_for_code_review(
             ));
         }
     };
-    if CODE_REVIEW_PHASES.contains(&phase_norm.as_str()) {
-        Some(code_review_block_message())
+    if REVIEW_PHASES.contains(&phase_norm.as_str()) {
+        Some(review_block_message())
     } else {
         None
     }
 }
 
-fn code_review_block_message() -> String {
-    "bin/flow issue is disabled during Code Review. All real \
+fn review_block_message() -> String {
+    "bin/flow issue is disabled during Review. All real \
      findings must be fixed in Step 4. If this is a FLOW \
-     process gap, file it during Phase 5 Learn. If truly \
-     needed, pass --override-code-review-ban with an \
+     process gap, file it during Phase 4 Learn. If truly \
+     needed, pass --override-review-ban with an \
      explicit reason."
         .to_string()
 }
 
-fn raw_contains_code_review_phase(content: &str) -> bool {
+fn raw_contains_review_phase(content: &str) -> bool {
     let needle = "\"current_phase\"";
     let mut start = 0;
     while let Some(pos) = content[start..].find(needle) {
@@ -144,7 +140,7 @@ fn raw_contains_code_review_phase(content: &str) -> bool {
                 if let Some(end_quote) = value_body.find('"') {
                     let value = &value_body[..end_quote];
                     let normalized = value.replace('\0', "").trim().to_ascii_lowercase();
-                    if CODE_REVIEW_PHASES.contains(&normalized.as_str()) {
+                    if REVIEW_PHASES.contains(&normalized.as_str()) {
                         return true;
                     }
                 }
@@ -159,7 +155,7 @@ fn fail_closed_message(detail: &str) -> String {
     format!(
         "bin/flow issue cannot determine the current FLOW phase ({}). \
          Refusing to file while phase is unknown. Fix the state file, \
-         finish the flow, or pass --override-code-review-ban with an \
+         finish the flow, or pass --override-review-ban with an \
          explicit reason.",
         detail
     )
@@ -338,7 +334,7 @@ pub fn extract_error(stderr: &str, stdout: &str) -> String {
 /// Main-arm dispatcher: compute the issue-create result and pair it with
 /// an exit code. Returns `(value, 0)` on success, `(error_value, 1)` on
 /// any failure path. All previously `process::exit`-bearing branches
-/// (Code Review filing block, repo-detect failure, body-file read
+/// (Review filing block, repo-detect failure, body-file read
 /// failure, gh-create failure) return the error tuple instead.
 ///
 /// Closure parameters seam off the production dependencies:
@@ -353,11 +349,9 @@ pub fn run_impl_main(
     state_reader: &dyn Fn() -> Option<String>,
     repo_resolver: &dyn Fn() -> Option<String>,
 ) -> (serde_json::Value, i32) {
-    // Code Review filing gate.
+    // Review filing gate.
     let state_json = state_reader();
-    if let Some(msg) =
-        should_reject_for_code_review(state_json.as_deref(), args.override_code_review_ban)
-    {
+    if let Some(msg) = should_reject_for_review(state_json.as_deref(), args.override_review_ban) {
         return (json!({"status": "error", "message": msg}), 1);
     }
 

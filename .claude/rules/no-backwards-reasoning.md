@@ -144,7 +144,7 @@ durable output:
   cases where backward-facing reasoning slips into the prose
   despite the primary discipline.
 - **Code phase is too late.** Once the implementation is
-  written from a backward-facing premise, Code Review can
+  written from a backward-facing premise, Review can
   catch the symptom but not the reasoning. The rule fires in
   the Plan and earlier phases, not after the diff exists.
 

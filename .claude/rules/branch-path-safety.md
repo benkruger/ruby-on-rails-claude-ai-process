@@ -70,7 +70,7 @@ Callers that hold a branch already validated upstream chain
 sanitizer. Never write `format!(".flow-states/{}", branch)` or
 `format!(".worktrees/{}", branch)` without the guard.
 
-**Code Review phase.**
+**Review phase.**
 The reviewer agent and adversarial agent check every new
 path-construction site for the guard. The adversarial agent
 writes failing tests against each of the four rejected inputs

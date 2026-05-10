@@ -37,10 +37,11 @@ the request.
 
 ```rust
 #[test]
-fn test_code_review_no_plugin_step() {
+fn test_review_no_plugin_step() {
     // Tombstone: removed in PR #587. Must not return.
-    let content = common::read_skill("flow-code-review");
-    assert!(!content.contains("code-review:code-review"));
+    let content = common::read_skill("flow-review");
+    let forbidden = concat!("example", "-plugin:", "example");
+    assert!(!content.contains(forbidden));
 }
 ```
 
@@ -72,12 +73,11 @@ tombstone for each:
   source-content check that asserts the removed entry's exact
   string does NOT appear in the config file.
 - **External plugin dependency.** A reference to another
-  Claude Code plugin (`code-review:code-review`,
-  `decompose:decompose`), a third-party MCP server, or any
-  other named external integration the skill or hook used to
-  invoke. Tombstone shape: scan the SKILL.md or hook script
-  for the integration's invocation surface and assert it does
-  not appear.
+  Claude Code plugin (`decompose:decompose` is one example), a
+  third-party MCP server, or any other named external integration
+  the skill or hook used to invoke. Tombstone shape: scan the
+  SKILL.md or hook script for the integration's invocation
+  surface and assert it does not appear.
 - **Numbered step.** A step in a phase skill (`### Step 7`)
   that was removed. Tombstone shape: scan the skill's content
   and assert the step header is absent. Pair with a check that
@@ -90,8 +90,8 @@ Every category benefits from a stability argument per
 ## Naming Convention
 
 `test_<scope>_no_<removed_thing>` — e.g.,
-`test_code_review_no_plugin_step`,
-`test_code_review_no_plugin_config_axis`.
+`test_review_no_plugin_step`,
+`test_review_no_plugin_config_axis`.
 
 ## Error Messages
 
@@ -286,7 +286,7 @@ on 2024-06-01, then tombstone PR #839 is stale — no branch could
 have been created before 2024-01-15 and still be open today, so
 the deleted code cannot be resurrected via merge conflict.
 
-Code Review Step 1 runs the audit automatically; Step 4 removes
+Review Step 1 runs the audit automatically; Step 4 removes
 stale tombstones.
 
 ## Enforcement
@@ -315,7 +315,7 @@ attribute cannot bypass enforcement.
   (case-insensitive). The fourth checklist question — whether
   the literal can be split into multiple `.arg()` calls — is
   not mechanically enforced; it is left to author judgment and
-  Code Review reviewer-agent inspection. The doc-block walker
+  Review reviewer-agent inspection. The doc-block walker
   tolerates one or more blank lines between the `///` block and
   the `#[test]` attribute (rustdoc still attaches the doc block
   across one blank line). When multiple `Tombstone:.*?PR #N`

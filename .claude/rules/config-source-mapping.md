@@ -133,7 +133,7 @@ the plan's mapping was wrong, log the deviation per
 `.claude/rules/plan-commit-atomicity.md` and update the plan or
 the canonical mapping table above.
 
-**Code Review phase.** The reviewer agent checks every
+**Review phase.** The reviewer agent checks every
 config-modification task in the diff against the plan's cited
 consumers. A modification with no cited consumer or with a
 consumer that does not actually read the modified value is a

@@ -92,7 +92,7 @@ fn create_state(repo: &Path, branch: &str, current_phase: &str, skills_continue:
                 "visit_count": if current_phase == "flow-code" { 1 } else { 0 }
             },
             "flow-review": {
-                "name": "Code Review",
+                "name": "Review",
                 "status": if current_phase == "flow-review" { "in_progress" } else { "pending" },
                 "started_at": if current_phase == "flow-review" { Some("2026-01-01T00:03:00-08:00") } else { None },
                 "completed_at": null,
@@ -314,7 +314,7 @@ fn test_code_phase() {
 }
 
 #[test]
-fn test_code_review_phase() {
+fn test_review_phase() {
     let dir = tempfile::tempdir().unwrap();
     let branch = "cr-fin";
     let repo = create_git_repo(dir.path());
@@ -444,7 +444,7 @@ fn test_frozen_phase_config_used() {
         "phase_names": {
             "flow-start": "Start",
             "flow-code": "Code",
-            "flow-review": "Code Review",
+            "flow-review": "Review",
             "flow-learn": "Learn",
             "flow-complete": "Complete"
         }
@@ -994,7 +994,7 @@ fn finalize_loads_frozen_config_when_present() {
         "phases": {
             "flow-start": {"name": "Start", "command": "/flow:flow-start"},
             "flow-code": {"name": "Code", "command": "/flow:flow-code"},
-            "flow-review": {"name": "Code Review", "command": "/flow:flow-review"},
+            "flow-review": {"name": "Review", "command": "/flow:flow-review"},
             "flow-learn": {"name": "Learn", "command": "/flow:flow-learn"},
             "flow-complete": {"name": "Complete", "command": "/flow:flow-complete"},
         }

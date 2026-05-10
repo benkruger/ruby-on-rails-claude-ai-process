@@ -1,7 +1,7 @@
 # Ephemeral File Cleanup
 
 When a FLOW phase writes an ephemeral artifact inside the worktree
-that does not survive the flow lifecycle (the Code Review
+that does not survive the flow lifecycle (the Review
 adversarial probe is the canonical example), the cleanup pass that
 disposes of the artifact follows a small set of invariants so the
 disposal is explicit, audit-trailed, and permission-safe.
@@ -11,11 +11,11 @@ disposal is explicit, audit-trailed, and permission-safe.
 An ephemeral artifact has exactly one creating phase and exactly
 one disposing phase. For the adversarial probe:
 
-- **Code Review (Phase 3) creates.** The adversarial agent writes
+- **Review (Phase 3) creates.** The adversarial agent writes
   the probe at the path resolved by `bin/test --adversarial-path`
   (a project-owned bash script that prints the canonical probe path
   for the project's language).
-- **Code Review Step 4 may rewrite or delete.** When a Step 4 fix
+- **Review Step 4 may rewrite or delete.** When a Step 4 fix
   invalidates the probe's assertions, the probe is reconciled per
   `.claude/rules/adversarial-probe-lifecycle.md` — either deleted
   (default) or updated to assert the post-fix invariant.
@@ -102,7 +102,7 @@ upstream (`bin/test` exited non-zero, worktree absent).
 
 ## Update-vs-Delete When Step 4 Invalidates Assertions
 
-When Code Review Step 4 fixes a finding the adversarial probe
+When Review Step 4 fixes a finding the adversarial probe
 surfaced, the probe's assertions become stale. Per
 `.claude/rules/adversarial-probe-lifecycle.md` "How to Apply", the
 default reconciliation is **delete** — remove the file from the

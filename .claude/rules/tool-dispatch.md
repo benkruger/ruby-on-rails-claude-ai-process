@@ -189,6 +189,6 @@ project to re-run `/flow:flow-prime` on the next version upgrade. This
 is the intended upgrade signal — but it is expensive when iterated
 within one PR. **Three or more `CURRENT_CONFIG_HASH` bumps in a single
 PR is a Plan-phase signal that the design was not enumerated upfront.**
-The Code Review reviewer agent should flag a third bump as a
+The Review reviewer agent should flag a third bump as a
 process-gap finding and prompt the author to add a per-language
 enumeration table to the plan in a follow-up.

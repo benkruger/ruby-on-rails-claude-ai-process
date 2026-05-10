@@ -180,14 +180,14 @@ fn test_phase_step_counter_code_missing() {
 }
 
 #[test]
-fn test_phase_step_counter_code_review_present() {
-    let mut state = make_state("flow-code-review", &[("flow-code-review", "in_progress")]);
-    state["code_review_step"] = json!(2);
+fn test_phase_step_counter_review_present() {
+    let mut state = make_state("flow-review", &[("flow-review", "in_progress")]);
+    state["review_step"] = json!(2);
     let got = phase_step_counter(&state).expect("counter present");
     assert_eq!(
         got,
         PhaseStepCounter {
-            phase_label: "Code Review",
+            phase_label: "Review",
             phase_number: 3,
             current: 2,
             total: 4,
@@ -197,8 +197,8 @@ fn test_phase_step_counter_code_review_present() {
 }
 
 #[test]
-fn test_phase_step_counter_code_review_missing() {
-    let state = make_state("flow-code-review", &[("flow-code-review", "in_progress")]);
+fn test_phase_step_counter_review_missing() {
+    let state = make_state("flow-review", &[("flow-review", "in_progress")]);
     assert_eq!(phase_step_counter(&state), None);
 }
 
@@ -316,7 +316,7 @@ fn test_step_names_start_has_entries() {
 }
 
 #[test]
-fn test_step_names_code_review_has_entries() {
+fn test_step_names_review_has_entries() {
     let names = step_names();
     let cr = names.get("flow-review").unwrap();
     for key in 1..=4 {
@@ -642,7 +642,7 @@ fn test_phase_timeline_code_task_name_empty_string() {
     assert_eq!(timeline[1].annotation, "task 2 of 3");
 }
 
-// --- phase_timeline: Code Review ---
+// --- phase_timeline: Review ---
 
 #[test]
 fn test_phase_timeline_review_step_zero() {
@@ -659,7 +659,7 @@ fn test_phase_timeline_review_step_zero() {
 }
 
 #[test]
-fn test_phase_timeline_code_review_annotation() {
+fn test_phase_timeline_review_annotation() {
     let mut state = make_state(
         "flow-review",
         &[
@@ -674,7 +674,7 @@ fn test_phase_timeline_code_review_annotation() {
 }
 
 #[test]
-fn test_phase_timeline_code_review_complete() {
+fn test_phase_timeline_review_complete() {
     let mut state = make_state(
         "flow-review",
         &[
@@ -1005,7 +1005,7 @@ fn test_flow_summary_issues_populated() {
             "title": "Extract helper for date parsing",
             "url": "https://github.com/test/test/issues/42",
             "phase": "flow-review",
-            "phase_name": "Code Review",
+            "phase_name": "Review",
         },
         {
             "label": "Flaky Test",
@@ -1024,7 +1024,7 @@ fn test_flow_summary_issues_populated() {
         "https://github.com/test/test/issues/42"
     );
     assert_eq!(summary.issues[0].ref_str, "#42");
-    assert_eq!(summary.issues[0].phase_name, "Code Review");
+    assert_eq!(summary.issues[0].phase_name, "Review");
     assert_eq!(summary.issues[1].ref_str, "#55");
 }
 
@@ -1649,7 +1649,7 @@ fn test_load_all_flows_sorted_by_phase_then_feature() {
         std::fs::create_dir_all(state_dir.join(name)).unwrap();
     }
 
-    // Flow in Code Review phase (phase 3) — branch "alpha" sorts first alphabetically
+    // Flow in Review phase (phase 3) — branch "alpha" sorts first alphabetically
     let mut code_state = make_state(
         "flow-review",
         &[

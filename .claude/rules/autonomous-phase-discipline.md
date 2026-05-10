@@ -61,7 +61,7 @@ latency.
 ## Scope
 
 This rule applies to every phase that can be autonomous: Start,
-Plan, Code, Code Review, Learn, Complete. The `continue: auto`
+Plan, Code, Review, Learn, Complete. The `continue: auto`
 configuration is readable in every phase's `phase-enter`
 response.
 
@@ -88,7 +88,7 @@ sets it to `"in_progress"`. Scoping the block to `"in_progress"`
 keeps the transition-boundary window open so the completing
 skill's HARD-GATE can fire `AskUserQuestion` to approve the
 transition (e.g., in mixed-mode flows where Code is manual and
-Code Review is auto). Without this scope, the approval prompt
+Review is auto). Without this scope, the approval prompt
 would be blocked and the flow would deadlock.
 
 Ordering inside the hook: the block path runs before the
@@ -160,7 +160,7 @@ The pattern surfaces in three shapes, all forbidden:
 1. `phases.<current_phase>.status == "in_progress"`
 2. `skills.<current_phase>.continue == "auto"`
 3. `current_phase == "flow-code"` (Code phase scope only — Plan,
-   Code Review, and Learn boundaries each have their own task
+   Review, and Learn boundaries each have their own task
    shape and need separate analysis before this guard extends to
    them)
 4. `code_task == 0` (no Code-phase task has been committed yet —

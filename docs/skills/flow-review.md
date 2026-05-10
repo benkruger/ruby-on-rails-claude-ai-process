@@ -6,7 +6,7 @@ parent: Skills
 
 # /flow-review
 
-**Phase:** 4 — Code Review
+**Phase:** 4 — Review
 
 **Usage:** `/flow-review`, `/flow-review --auto`, or `/flow-review --manual`
 
@@ -77,9 +77,9 @@ location.
 
 There is no filing path. All real findings are fixed in Step 4 —
 see `.claude/rules/review-scope.md`. `bin/flow add-finding`
-rejects `--outcome filed` during Code Review, and `bin/flow issue`
+rejects `--outcome filed` during Review, and `bin/flow issue`
 refuses to create issues while `current_phase == "flow-review"`
-unless `--override-code-review-ban` is passed.
+unless `--override-review-ban` is passed.
 
 ### Step 4 — Fix
 
@@ -114,7 +114,7 @@ Check which dispatches to the next step.
 
 ## Gates
 
-- Code phase must be complete before Code Review can start
+- Code phase must be complete before Review can start
 - `bin/flow ci` must be green after all fixes
 - `bin/flow ci` must be green before transitioning to Learn
 - Can return to Code or Plan

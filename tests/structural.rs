@@ -949,9 +949,9 @@ fn test_checksum_version_invariant() {
 
 // --- Adversarial probe must not be tracked by git ---
 
-/// The Code Review adversarial probe at `tests/test_adversarial_flow.rs`
-/// is an ephemeral file: the adversarial agent writes it during Code
-/// Review, and `src/cleanup.rs::delete_adversarial_probe` removes it
+/// The Review adversarial probe at `tests/test_adversarial_flow.rs`
+/// is an ephemeral file: the adversarial agent writes it during the
+/// Review phase, and `src/cleanup.rs::delete_adversarial_probe` removes it
 /// from the worktree at Phase 5 Complete. The path is excluded from
 /// staging via the `test_adversarial_flow.*` pattern in
 /// `src/prime_check.rs::EXCLUDE_ENTRIES`.
@@ -980,8 +980,8 @@ fn adversarial_probe_must_not_be_tracked() {
     assert!(
         stdout.trim().is_empty(),
         "tests/test_adversarial_flow.rs must not be tracked by git. \
-         The file is the Code Review adversarial probe — it is \
-         written ephemerally during Code Review and disposed of by \
+         The file is the Review adversarial probe — it is \
+         written ephemerally during the Review phase and disposed of by \
          `src/cleanup.rs::delete_adversarial_probe` at Phase 5. \
          A tracked stub or committed probe defeats the cleanup. \
          Found in git ls-files: {}",

@@ -582,7 +582,7 @@ fn run_impl_propagates_write_error_in_auto_upgrade_path() {
 // every user to re-prime. The following tests guard the contract.
 
 /// `EXCLUDE_ENTRIES` carries the per-language basename patterns
-/// that match the Code Review adversarial agent's probe test files
+/// that match the Review adversarial agent's probe test files
 /// inside the project's test tree. The patterns land in
 /// `.git/info/exclude` at prime time so user `git status` output
 /// does not surface the throwaway probe alongside intentional

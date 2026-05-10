@@ -696,7 +696,7 @@ fn capture_with_unknown_model_returns_none_context_window_pct() {
     assert_eq!(snap.context_at_last_turn_tokens, Some(100));
 }
 
-// --- Validation guards introduced in Code Review (Step 4) ---
+// --- Validation guards introduced in Review (Step 4) ---
 
 /// Empty `home` makes `read_rate_limits` short-circuit so a
 /// committed `.claude/rate-limits.json` in a worktree cannot be
@@ -840,7 +840,7 @@ fn capture_for_active_state_rejects_transcript_path_outside_projects_prefix() {
 
 /// `append_step_snapshot` auto-heals when `state.phases` holds a
 /// non-object value (number / string / array). Drives the per-level
-/// guard added in Code Review per `.claude/rules/state-files.md`
+/// guard added in Review per `.claude/rules/state-files.md`
 /// "Corruption Resilience".
 #[test]
 fn append_step_snapshot_auto_heals_non_object_phases() {

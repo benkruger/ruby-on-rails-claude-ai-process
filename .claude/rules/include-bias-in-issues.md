@@ -8,7 +8,7 @@ reason, the work belongs in scope.
 ## Lifecycle Cost
 
 Every concern split out of an issue spawns a full Plan → Code →
-Code Review → Learn → Complete cycle on the same files the
+Review → Learn → Complete cycle on the same files the
 original flow already explored. Splitting compounds: the second
 flow re-reads the same code, re-derives the same context, and
 runs the same gates. Including is bounded — one extra task in
@@ -21,7 +21,7 @@ The math:
   already covers the files. Code-phase TDD adds one cycle.
 - **Splitting** an adjacent concern: O(N) — a new issue, a new
   flow lifecycle, redundant exploration of the same files,
-  another Code Review pass, another Learn audit, another merge.
+  another Review pass, another Learn audit, another merge.
 
 The lifecycle cost is the persuasive hook. When the cost of
 inclusion fits in the current flow's exploration budget, the
@@ -117,7 +117,7 @@ design conversation, log the deferral via `bin/flow log` per
 `.claude/rules/plan-commit-atomicity.md` "Plan Signature
 Deviations Must Be Logged" and file a follow-up.
 
-### Code Review Phase
+### Review Phase
 
 When triaging findings, apply the supersession test from
 `.claude/rules/supersession.md` first — code the PR has made
@@ -141,7 +141,7 @@ effort optimization dressed up as scope discipline.
   discipline. Include-bias is the upstream principle; filing
   rules are the downstream mechanics (cold-start writing,
   evidence verification, repo routing).
-- `.claude/rules/review-scope.md` — Code Review's
+- `.claude/rules/review-scope.md` — Review's
   every-real-finding-fixed-in-PR rule. The same lifecycle-cost
   framing motivates both: filing what you can fix is more
   expensive than fixing it.

@@ -33,12 +33,12 @@ pub fn step_names() -> HashMap<&'static str, HashMap<i64, &'static str>> {
     start.insert(5, "finalizing");
     map.insert("flow-start", start);
 
-    let mut code_review = HashMap::new();
-    code_review.insert(1, "simplifying");
-    code_review.insert(2, "reviewing");
-    code_review.insert(3, "security review");
-    code_review.insert(4, "agent reviews");
-    map.insert("flow-review", code_review);
+    let mut review = HashMap::new();
+    review.insert(1, "simplifying");
+    review.insert(2, "reviewing");
+    review.insert(3, "security review");
+    review.insert(4, "agent reviews");
+    map.insert("flow-review", review);
 
     let mut learn = HashMap::new();
     learn.insert(1, "gathering sources");
@@ -113,17 +113,7 @@ pub fn phase_step_counter(state: &Value) -> Option<PhaseStepCounter> {
         state.get(key).and_then(tolerant_i64_opt)
     }
 
-    let raw_phase_key = state.get("current_phase").and_then(|v| v.as_str())?;
-    // Normalize the legacy `flow-code-review` value to the canonical
-    // `flow-review` key (renamed in PR #1402) so step-name lookups
-    // and total counts resolve against the single canonical entry in
-    // `step_names()`. Mirrors the serde alias on `FlowState::phase`
-    // in `src/state.rs`.
-    let phase_key = if raw_phase_key == "flow-code-review" {
-        "flow-review"
-    } else {
-        raw_phase_key
-    };
+    let phase_key = state.get("current_phase").and_then(|v| v.as_str())?;
     let names_map = step_names();
     let lookup_name = |cur: i64| -> Option<String> {
         names_map
@@ -155,20 +145,12 @@ pub fn phase_step_counter(state: &Value) -> Option<PhaseStepCounter> {
             ("Code", 2, cur, tot, nm)
         }
         "flow-review" => {
-            // Read the canonical `review_step` key first; fall back
-            // to the legacy `code_review_step` so state files
-            // written by older plugin versions still surface step
-            // progress. Mirrors the serde alias on
-            // `FlowState::review_step` in `src/state.rs`.
-            let cur = state
-                .get("review_step")
-                .or_else(|| state.get("code_review_step"))
-                .and_then(tolerant_i64_opt)?;
+            let cur = read(state, "review_step")?;
             let tot = names_map
                 .get(phase_key)
                 .map(|m| m.len() as i64)
                 .unwrap_or(0);
-            ("Code Review", 3, cur, tot, lookup_name(cur))
+            ("Review", 3, cur, tot, lookup_name(cur))
         }
         "flow-learn" => {
             let cur = read(state, "learn_step")?;
@@ -255,13 +237,8 @@ pub fn phase_timeline(state: &Value, now: Option<DateTime<FixedOffset>>) -> Vec<
         .get("code_task_name")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    // Read the canonical `review_step` key first; fall back to the
-    // legacy `code_review_step` so state files written by older plugin
-    // versions still surface step progress in the timeline. Mirrors
-    // the serde alias on `FlowState::review_step` in `src/state.rs`.
     let review_step = state
         .get("review_step")
-        .or_else(|| state.get("code_review_step"))
         .and_then(|v| v.as_i64())
         .unwrap_or(0);
     let learn_step = state

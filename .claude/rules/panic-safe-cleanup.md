@@ -154,7 +154,7 @@ survive panic.
 4. Document the guard's Drop behavior in its type doc comment —
    what gets cleaned up, what errors are swallowed, why.
 
-## How to Apply (Code Review Phase)
+## How to Apply (Review Phase)
 
 When the reviewer agent or pre-mortem agent finds resource
 acquisition in production code, verify:

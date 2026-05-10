@@ -101,7 +101,7 @@ enforced at three layers:
 1. **Rule prose** (this file). The first instrument is the rule
    itself — every plan author must read this file when designing
    coverage strategy.
-2. **Code Review reviewer agent**. The reviewer agent flags any
+2. **Review reviewer agent**. The reviewer agent flags any
    diff that adds a `test_coverage.md` entry as a Real finding to
    be deleted in Step 4.
 3. **Coverage gate in `bin/test`**. Every `bin/flow ci` full-suite
@@ -140,7 +140,7 @@ When implementing code that has a hard-to-reach branch:
 3. Commit the test or refactor in the same task as the code that
    would otherwise be uncovered.
 
-## How to Apply (Code Review Phase)
+## How to Apply (Review Phase)
 
 When triaging findings:
 

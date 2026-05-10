@@ -69,7 +69,7 @@ fn test_all_complete() {
     );
     assert!(result.contains("| Start |"), "Result:\n{}", result);
     assert!(result.contains("| Code |"), "Result:\n{}", result);
-    assert!(result.contains("| Code Review |"), "Result:\n{}", result);
+    assert!(result.contains("| Review |"), "Result:\n{}", result);
     assert!(result.contains("| **Total** |"), "Result:\n{}", result);
 }
 
@@ -112,7 +112,7 @@ fn test_started_only() {
     let result = format_timings_table(&state, true);
     assert!(result.contains("| Start |"), "Result:\n{}", result);
     assert!(result.contains("| Code |"), "Result:\n{}", result);
-    assert!(!result.contains("| Code Review |"), "Result:\n{}", result);
+    assert!(!result.contains("| Review |"), "Result:\n{}", result);
     assert!(!result.contains("| Learn |"), "Result:\n{}", result);
     assert!(!result.contains("| Complete |"), "Result:\n{}", result);
     assert!(result.contains("| **Total** |"), "Result:\n{}", result);

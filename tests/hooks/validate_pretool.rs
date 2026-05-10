@@ -1551,7 +1551,7 @@ fn test_allows_ampersand_in_flag_name() {
 //                            empty -c/-C values
 //   - t17-t20              — documented v1 boundaries (Task 9):
 //                            detached HEAD, non-git, alias, xargs
-//   - t26                  — bin/flow flag-skip bypass (Code Review)
+//   - t26                  — bin/flow flag-skip bypass (Review)
 //
 // The fixture pattern mirrors the existing `run_agent_path_blocked_*`
 // tests: `tempfile::tempdir()` + `canonicalize()` per

@@ -689,7 +689,7 @@ fn format_status_run_impl_main_loads_frozen_phase_config() {
         "phases": {
             "flow-start": {"name": "Start", "command": "/flow:flow-start"},
             "flow-code": {"name": "Custom Code Name", "command": "/flow:flow-code-custom"},
-            "flow-review": {"name": "Code Review", "command": "/flow:flow-review"},
+            "flow-review": {"name": "Review", "command": "/flow:flow-review"},
             "flow-learn": {"name": "Learn", "command": "/flow:flow-learn"},
             "flow-complete": {"name": "Complete", "command": "/flow:flow-complete"}
         }

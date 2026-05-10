@@ -17,19 +17,7 @@ pub struct Update {
 /// source of truth — code reads this when deciding whether to
 /// append to `phases.<n>.step_snapshots[]` after a
 /// `set-timestamp` call.
-///
-/// Both `review_step` (canonical, written by current skills) and
-/// `code_review_step` (legacy alias, accepted from skill text
-/// shipped by older plugin versions and from in-flight state files)
-/// are recognized so neither name silently skips the snapshot
-/// capture during the compat window.
-const STEP_COUNTER_FIELDS: &[&str] = &[
-    "code_task",
-    "review_step",
-    "code_review_step",
-    "learn_step",
-    "complete_step",
-];
+const STEP_COUNTER_FIELDS: &[&str] = &["code_task", "review_step", "learn_step", "complete_step"];
 
 /// Returns `true` when `field` names one of the recognized step
 /// counters. Whitespace and case are not normalized — callers pass

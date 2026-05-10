@@ -21,7 +21,7 @@ fn make_state(current_phase: &str, phase_statuses: &[(&str, &str)]) -> String {
     let names = [
         ("flow-start", "Start"),
         ("flow-code", "Code"),
-        ("flow-review", "Code Review"),
+        ("flow-review", "Review"),
         ("flow-learn", "Learn"),
         ("flow-complete", "Complete"),
     ];
@@ -651,7 +651,7 @@ fn enter_flow_complete() {
 }
 
 #[test]
-fn enter_non_code_review_does_not_set_review_step() {
+fn enter_non_review_does_not_set_review_step() {
     let mut state = make_state_value("flow-start", &[("flow-start", "complete")]);
     phase_enter(&mut state, "flow-code", None);
 

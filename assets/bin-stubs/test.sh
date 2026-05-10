@@ -8,12 +8,12 @@
 #   bin/test --adversarial-path              — print canonical adversarial test path
 #   bin/test [extra args...]                 — extra args forwarded as filters
 #
-# `--adversarial-path` returns the path the Code Review adversarial
+# `--adversarial-path` returns the path the Review adversarial
 # agent writes its probe test to. The path must live inside the
 # project's test tree so the language test runner can discover and
 # execute it; worktree removal at Phase 6 Complete disposes of the
 # file as a side effect of removing the worktree directory. The
-# unconfigured default exits 2 with a stderr message so Code Review
+# unconfigured default exits 2 with a stderr message so Review
 # halts cleanly until the project owner sets a real path.
 #
 # Recommended per-language values are listed alongside each example

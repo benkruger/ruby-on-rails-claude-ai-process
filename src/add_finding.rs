@@ -56,45 +56,41 @@ pub struct Args {
     pub branch: Option<String>,
 }
 
-/// Outcomes the Code Review phase accepts. The gate enforces this as a
+/// Outcomes the Review phase accepts. The gate enforces this as a
 /// positive allowlist so any outcome beyond the two-outcome triage model
 /// (Real → fixed, False positive → dismissed) is rejected — including
 /// new outcomes that might be added to `VALID_OUTCOMES` in the future.
-const CODE_REVIEW_ALLOWED_OUTCOMES: &[&str] = &["fixed", "dismissed"];
+const REVIEW_ALLOWED_OUTCOMES: &[&str] = &["fixed", "dismissed"];
+
+/// Phase identifiers that the Review filing gate fires on.
+const REVIEW_GATE_PHASES: &[&str] = &["flow-review"];
 
 /// Returns a rejection message when the (outcome, phase) tuple violates
-/// the Code Review filing ban. Inputs are normalized (trimmed, NULs
+/// the Review filing ban. Inputs are normalized (trimmed, NULs
 /// stripped, ASCII-lowercased) so whitespace or case drift in CLI args
 /// cannot bypass the gate.
 ///
-/// During Code Review, only outcomes in `CODE_REVIEW_ALLOWED_OUTCOMES`
+/// During Review, only outcomes in `REVIEW_ALLOWED_OUTCOMES`
 /// pass. Any other outcome (including `"filed"`, and any outcome added
 /// to `VALID_OUTCOMES` later that semantically means "defer") is
 /// rejected. Other phases pass unchanged.
 ///
-/// Phase identifiers that the Code Review filing gate fires on.
-/// Both the canonical `flow-review` (written by current skills) and
-/// the legacy alias `flow-code-review` (from older plugin versions
-/// or in-flight state files) are recognized so the gate cannot be
-/// bypassed by either form during the compat window.
-const CODE_REVIEW_GATE_PHASES: &[&str] = &["flow-review", "flow-code-review"];
-
-/// See `.claude/rules/review-scope.md` — Code Review triage has
+/// See `.claude/rules/review-scope.md` — Review triage has
 /// two outcomes (Real / False positive); there is no filing path.
-fn code_review_filing_gate(outcome: &str, phase: &str) -> Option<String> {
+fn review_filing_gate(outcome: &str, phase: &str) -> Option<String> {
     let phase_norm = normalize_gate_input(phase);
-    if !CODE_REVIEW_GATE_PHASES.contains(&phase_norm.as_str()) {
+    if !REVIEW_GATE_PHASES.contains(&phase_norm.as_str()) {
         return None;
     }
     let outcome_norm = normalize_gate_input(outcome);
-    if CODE_REVIEW_ALLOWED_OUTCOMES.contains(&outcome_norm.as_str()) {
+    if REVIEW_ALLOWED_OUTCOMES.contains(&outcome_norm.as_str()) {
         return None;
     }
     Some(format!(
         "Outcome '{}' is not valid for phase 'flow-review'. \
-         Code Review triage has two outcomes: 'fixed' (real findings, \
+         Review triage has two outcomes: 'fixed' (real findings, \
          fix in Step 4) and 'dismissed' (false positives). All real \
-         findings are fixed during Code Review — there is no filing \
+         findings are fixed during Review — there is no filing \
          path.",
         outcome
     ))
@@ -135,7 +131,7 @@ pub fn run_impl_with_root_resolver(
         ));
     }
 
-    if let Some(msg) = code_review_filing_gate(&args.outcome, &args.phase) {
+    if let Some(msg) = review_filing_gate(&args.outcome, &args.phase) {
         return Err(msg);
     }
 

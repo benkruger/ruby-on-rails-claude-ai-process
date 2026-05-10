@@ -5,7 +5,7 @@ description: "Process decomposed issues sequentially overnight via flow-start --
 
 # FLOW Orchestrate
 
-Fetch all open issues labeled "Decomposed", filter out issues already in progress, and process each sequentially via `flow-start --auto`. Each invocation runs the full Start-Plan-Code-Review-Learn-Complete lifecycle. After all issues are processed, generate a summary report.
+Fetch all open issues labeled "Decomposed", filter out issues already in progress, and process each sequentially via `flow-start --auto`. Each invocation runs the full Start → Code → Review → Learn → Complete lifecycle. After all issues are processed, generate a summary report.
 
 ## Usage
 

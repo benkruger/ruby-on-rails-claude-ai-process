@@ -1338,17 +1338,33 @@ fn scan_for_flow_label_arg(dir: &Path, ext: &str) -> Vec<PathBuf> {
 // Phase 3 was renamed from `Code Review` to `Review` for naming
 // consistency across the 5-phase family. The corpus tombstone below
 // asserts that NO tracked file in the working tree contains any of
-// the four forbidden fragments that the rename eliminates. The
+// the nine forbidden case variants the rename eliminates. The
 // corpus tombstone is the single gate that catches every drift
 // surface: phase-identifier strings, display labels, Rust symbols,
 // the `--override-code-review-ban` CLI flag, prose in skills/docs/
 // rules, and any future surface.
 
+/// Per-file byte cap on the corpus tombstone walk (10 MiB).
+///
+/// Bounds I/O so a committed generated artifact, golden fixture, or
+/// hostile commit containing a multi-megabyte tracked file cannot
+/// OOM the test process. Per
+/// `.claude/rules/external-input-path-construction.md` "Enforce a
+/// documented size cap on every external read" — applies to
+/// filesystem walks that read each yielded file. 10 MiB is generous
+/// for prose corpora; any tracked file beyond it is almost certainly
+/// a generated artifact and silently skipping it is the correct
+/// fail-open behavior for a tombstone scanner whose job is to flag
+/// legitimate prose drift.
+const CORPUS_TOMBSTONE_BYTE_CAP: u64 = 10 * 1024 * 1024;
+
 /// Tombstone: removed in PR #1430. Must not return.
 ///
-/// Asserts the corpus of tracked files contains none of the four
-/// forbidden fragments — `Code Review`, `code-review`, `code_review`,
-/// `CodeReview` — anywhere in the working tree. The walker invokes
+/// Asserts the corpus of tracked files contains none of the nine
+/// forbidden case variants — `Code Review`, `Code-Review`,
+/// `Code-review`, `code-review`, `Code_Review`, `code_review`,
+/// `CODE_REVIEW`, `CODE-REVIEW`, `CodeReview` — anywhere in the
+/// working tree. The walker invokes
 /// `git ls-files` via `std::process::Command` so the scan respects
 /// `.gitignore` and skips untracked artifacts (build output, IDE
 /// scratch files, `.flow-states/`).
@@ -1387,6 +1403,8 @@ fn scan_for_flow_label_arg(dir: &Path, ext: &str) -> Vec<PathBuf> {
 ///      the value.
 #[test]
 fn test_corpus_no_old_code_review_identifiers() {
+    use std::io::Read;
+
     let root = common::repo_root();
     let scanner_path = root
         .join("tests")
@@ -1396,11 +1414,26 @@ fn test_corpus_no_old_code_review_identifiers() {
 
     // Build forbidden literals via concat! so the source of this
     // test file itself does not contain the substrings being
-    // searched for.
-    let forbidden: [&str; 4] = [
+    // searched for. The eight variants cover every case shape the
+    // PR sweep needs to catch:
+    //   1. Title case + space     — `Code Review` (prose, banners)
+    //   2. Title case + hyphen    — `Code-Review` (markdown headings)
+    //   3. Mixed case + hyphen    — `Code-review` (accidental case)
+    //   4. lowercase + hyphen     — `code-review` (slugs, CLI flags)
+    //   5. Title case + underscore — `Code_Review` (rare but possible)
+    //   6. lowercase + underscore — `code_review` (Rust snake_case)
+    //   7. ALL CAPS + underscore  — `CODE_REVIEW` (Rust consts)
+    //   8. ALL CAPS + hyphen      — `CODE-REVIEW` (env vars, uppercase CLI)
+    //   9. PascalCase no separator — `CodeReview` (Rust enum variants)
+    let forbidden: [&str; 9] = [
         concat!("Code", " ", "Review"),
+        concat!("Code", "-", "Review"),
+        concat!("Code", "-", "review"),
         concat!("code", "-", "review"),
+        concat!("Code", "_", "Review"),
         concat!("code", "_", "review"),
+        concat!("CODE", "_", "REVIEW"),
+        concat!("CODE", "-", "REVIEW"),
         concat!("Code", "Review"),
     ];
 
@@ -1436,10 +1469,24 @@ fn test_corpus_no_old_code_review_identifiers() {
             continue;
         }
 
-        let content = match fs::read_to_string(&abs) {
-            Ok(s) => s,
+        // Read with a documented byte cap so a multi-megabyte
+        // tracked file cannot OOM the test process. Files larger
+        // than the cap are silently skipped — a tombstone scanner's
+        // job is to flag prose drift, not to police generated
+        // artifacts. Per
+        // `.claude/rules/external-input-path-construction.md`.
+        let mut content = String::new();
+        let file = match std::fs::File::open(&abs) {
+            Ok(f) => f,
             Err(_) => continue,
         };
+        if file
+            .take(CORPUS_TOMBSTONE_BYTE_CAP)
+            .read_to_string(&mut content)
+            .is_err()
+        {
+            continue;
+        }
 
         for phrase in &forbidden {
             if content.contains(phrase) {

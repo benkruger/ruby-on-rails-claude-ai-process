@@ -10,7 +10,7 @@ parent: Skills
 
 **Usage:** `/flow-orchestrate`
 
-Processes decomposed issues sequentially overnight via `flow-start --auto`. Fetches open issues labeled "Decomposed", filters out in-progress issues, and runs the full Start-Plan-Code-Review-Learn-Complete lifecycle for each one. Generates a morning report with results.
+Processes decomposed issues sequentially overnight via `flow-start --auto`. Fetches open issues labeled "Decomposed", filters out in-progress issues, and runs the full Start → Code → Review → Learn → Complete lifecycle for each one. Generates a morning report with results.
 
 ---
 

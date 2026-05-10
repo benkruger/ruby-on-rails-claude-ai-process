@@ -831,7 +831,10 @@ fn gate_allows_in_learn_phase_with_stubbed_gh() {
     let repo = || Some("owner/name".to_string());
     let (value, _code) = run_impl_main(default_args(), dir.path(), &state, &repo);
     // gate pass proven by absence of Review message.
-    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
+    assert!(!value["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("disabled during Review"));
 }
 
 #[test]
@@ -840,7 +843,10 @@ fn gate_allows_when_no_state_file() {
     let state = || None;
     let repo = || Some("owner/name".to_string());
     let (value, _code) = run_impl_main(default_args(), dir.path(), &state, &repo);
-    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
+    assert!(!value["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("disabled during Review"));
 }
 
 #[test]
@@ -911,7 +917,10 @@ fn gate_allows_when_state_is_empty_string() {
     let state = || Some(String::new());
     let repo = || Some("owner/name".to_string());
     let (value, _code) = run_impl_main(default_args(), dir.path(), &state, &repo);
-    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
+    assert!(!value["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("disabled during Review"));
 }
 
 #[test]
@@ -920,7 +929,10 @@ fn gate_allows_when_state_is_whitespace_only() {
     let state = || Some("   \n  ".to_string());
     let repo = || Some("owner/name".to_string());
     let (value, _code) = run_impl_main(default_args(), dir.path(), &state, &repo);
-    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
+    assert!(!value["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("disabled during Review"));
 }
 
 #[test]
@@ -1122,7 +1134,10 @@ fn gate_override_bypasses_review_block() {
     args.override_review_ban = true;
     let (value, _code) = run_impl_main(args, dir.path(), &state, &repo);
     // Gate passed — no Review message.
-    assert!(!value["message"].as_str().unwrap_or("").contains("Review"));
+    assert!(!value["message"]
+        .as_str()
+        .unwrap_or("")
+        .contains("disabled during Review"));
 }
 
 #[test]

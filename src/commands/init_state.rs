@@ -82,7 +82,7 @@ fn seed_session_id_from_capture(project_root: &Path, branch: &str) {
 /// ([`run`]) reads it from [`current_branch_in`] at flow-start time so
 /// it equals whatever `git branch --show-current` would report. Persisted
 /// into the state file so downstream `start-gate`, `start-workspace`,
-/// `complete-fast`, and the Code-Review/Plan/Learn diff commands target
+/// `complete-fast`, and the Review/Learn diff commands target
 /// the same trunk on every repo — `main`, `staging`, `develop`, or
 /// anything else the team works from.
 #[allow(clippy::too_many_arguments)]

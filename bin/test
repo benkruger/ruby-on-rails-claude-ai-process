@@ -25,9 +25,9 @@
 #                                               .claude/rules/per-file-coverage-iteration.md
 #                                               "Phantom misses").
 #   bin/test --module <name>                  — per-module lib coverage (dev)
-#   bin/test --adversarial-path               — print canonical Code
-#                                               Review adversarial probe
-#                                               test path on stdout (used
+#   bin/test --adversarial-path               — print canonical Review
+#                                               adversarial probe test
+#                                               path on stdout (used
 #                                               by Phase 4 to discover
 #                                               where the adversarial
 #                                               agent should write its

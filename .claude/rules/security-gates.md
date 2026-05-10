@@ -54,8 +54,8 @@ silently passes the gate.
 Example (correct — positive allowlist):
 
 ```rust
-const CODE_REVIEW_ALLOWED_OUTCOMES: &[&str] = &["fixed", "dismissed"];
-if !CODE_REVIEW_ALLOWED_OUTCOMES.contains(&outcome_norm.as_str()) {
+const REVIEW_ALLOWED_OUTCOMES: &[&str] = &["fixed", "dismissed"];
+if !REVIEW_ALLOWED_OUTCOMES.contains(&outcome_norm.as_str()) {
     return reject();
 }
 ```
@@ -199,7 +199,7 @@ if !canonicalize_for_gate(&args.path)? {
 write_rule(&args.path, &content)?; // BUG: re-resolved against process cwd
 ```
 
-### Code-Review Discipline
+### Review Discipline
 
 The reviewer agent and the adversarial agent both audit
 post-gate actions for "uses the transformed value, not the raw

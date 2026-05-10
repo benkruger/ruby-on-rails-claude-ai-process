@@ -142,7 +142,7 @@ The trap to avoid: framing "Plan phase didn't catch X but Code
 Review did" as a process gap. Review IS part of the
 process. The cognitive-isolation design (four sub-agents)
 exists precisely to catch what the Plan author missed. A
-Code-Review-caught-and-fixed violation is the system working,
+Review-caught-and-fixed violation is the system working,
 not a gap.
 
 A real Tenant 1 process gap looks like one of:

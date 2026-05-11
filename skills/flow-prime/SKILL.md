@@ -34,9 +34,12 @@ If `--reprime` was passed:
 
 1. Use the Read tool to read `.flow.json` from the project root.
    - If the file does not exist, stop with: "No existing config to reprime from. Run `/flow:flow-prime` instead."
-2. Extract `skills` and `commit_format` from the JSON.
-3. Run `claude plugin list` to check plugin state (needed for Step 4).
-4. Skip Steps 1–2 entirely. Jump to Step 3 with the extracted values.
+2. Extract `skills`, `commit_format`, and `role` from the JSON. The
+   `role` field is optional — `.flow.json` files written before the
+   role-selection step omit it, in which case treat it as unset and
+   omit `--role` from the setup-script call.
+3. Run `claude plugin list` to check plugin state (needed for Step 5).
+4. Skip Steps 1–3 entirely. Jump to Step 4 with the extracted values.
 
 ## Steps
 
@@ -140,7 +143,7 @@ For **complete** and **abort** (single mode), ask one AskUserQuestion each:
 > - **Auto (Recommended)** — "Skip confirmation prompt"
 > - **Manual** — "Require confirmation prompt"
 
-Store the result as `skills_dict` for Step 3.
+Store the result as `skills_dict` for Step 4.
 
 ### Step 2 — Choose commit message format
 
@@ -161,13 +164,39 @@ Store the result as `commit_format`:
 - "Title only" → `"title-only"`
 - "Full format" → `"full"`
 
-### Step 3 — Run prime setup script
+### Step 3 — Choose primary role
+
+The user's primary role sets a default planning persona for future
+planning conversations — a PM user gets the Tech Lead voice by
+default, a Tech Lead user gets the PM voice, founder/solo users wear
+multiple hats and get no default. The field is optional; skipping
+records no default and lets each conversation choose its own persona.
+
+Ask the user which role to record with AskUserQuestion:
+
+> "What is your primary role? (Optional — sets a default planning persona.)"
+>
+> - **PM** — Product / project management role
+> - **Tech Lead** — Engineering lead role
+> - **Founder / Solo Dev** — Wear multiple hats
+> - **Skip** — No default; choose per conversation
+
+Store the result as `role_value`:
+
+- "PM" → `"pm"`
+- "Tech Lead" → `"tech-lead"`
+- "Founder / Solo Dev" → `"founder-solo"`
+- "Skip" → omit `--role` from the setup-script call below
+
+### Step 4 — Run prime setup script
 
 Serialize `skills_dict` from Step 1 as a JSON string for the `--skills-json` argument.
 Pass the `commit_format` value from Step 2 via `--commit-format`.
+Pass the `role_value` from Step 3 via `--role` when it is set; omit
+`--role` entirely when the user chose "Skip".
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow prime-setup <project_root> --skills-json '<skills_dict_json>' --commit-format <commit_format> --plugin-root ${CLAUDE_PLUGIN_ROOT}
+${CLAUDE_PLUGIN_ROOT}/bin/flow prime-setup <project_root> --skills-json '<skills_dict_json>' --commit-format <commit_format> --role <role_value> --plugin-root ${CLAUDE_PLUGIN_ROOT}
 ```
 
 The script handles everything in a single call:
@@ -404,7 +433,7 @@ All universal permissions written to `.claude/settings.json` for reference:
 }
 ```
 
-### Step 4 — Install plugins
+### Step 5 — Install plugins
 
 Run `claude plugin list` to check the current plugin state.
 
@@ -424,7 +453,7 @@ claude plugin install decompose@decompose-marketplace
 
 If all plugins are already present, skip silently.
 
-### Step 5 — Commit generated files
+### Step 6 — Commit generated files
 
 Check if the working tree has changes by running `git status`. If the output contains "working tree clean", skip to Done.
 
@@ -449,7 +478,7 @@ Report:
 - Git excludes configured for `.flow-states/`, `.worktrees/`, `.flow.json`, `.claude/cost/`, and `.claude/scheduled_tasks.lock`
 - Pre-commit hook installed — blocks direct `git commit`, requires `/flow:flow-commit`
 - Global launcher installed at `~/.local/bin/flow` — run `flow tui` from any primed project
-- bin/* stubs installed (list whichever names appear in `stubs_installed` from Step 3); remind the user to edit each one to wire it to their actual toolchain
+- bin/* stubs installed (list whichever names appear in `stubs_installed` from Step 4); remind the user to edit each one to wire it to their actual toolchain
 - Slack notifications: configured via plugin userConfig (token in system keychain)
 - Generated files committed and pushed
 

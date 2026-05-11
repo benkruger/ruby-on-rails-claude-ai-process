@@ -360,12 +360,14 @@ pub fn merge_settings_with(existing: Value, flow_allow: &[&str], flow_deny: &[&s
 /// and rewritten on every prime/upgrade. Consumers ignore unknown
 /// fields, so older `.flow.json` files with extra keys continue to
 /// parse cleanly during an in-place upgrade.
+#[allow(clippy::too_many_arguments)]
 pub fn write_version_marker(
     project_root: &Path,
     version: &str,
     config_hash: Option<&str>,
     setup_hash: Option<&str>,
     commit_format: Option<&str>,
+    role: Option<&str>,
     plugin_root_path: Option<&str>,
     skills: Option<&Value>,
 ) -> Result<(), String> {
@@ -380,6 +382,9 @@ pub fn write_version_marker(
     }
     if let Some(f) = commit_format {
         data["commit_format"] = json!(f);
+    }
+    if let Some(r) = role {
+        data["role"] = json!(r);
     }
     if let Some(p) = plugin_root_path {
         data["plugin_root"] = json!(p);
@@ -537,6 +542,10 @@ pub struct Args {
     #[arg(long = "commit-format")]
     pub commit_format: Option<String>,
 
+    /// User's primary role (pm, tech-lead, founder-solo)
+    #[arg(long = "role")]
+    pub role: Option<String>,
+
     /// Plugin root path for launcher installation
     #[arg(long = "plugin-root")]
     pub plugin_root: Option<String>,
@@ -611,6 +620,7 @@ pub fn run_impl(args: &Args) -> Result<Value, Value> {
         Some(&config_hash),
         Some(&setup_hash),
         args.commit_format.as_deref(),
+        args.role.as_deref(),
         args.plugin_root.as_deref(),
         skills.as_ref(),
     )

@@ -63,6 +63,84 @@ fn write_state_file(dir: &Path) -> PathBuf {
 
 use common::{add_phase_snapshots, snapshot_value};
 
+/// Integration check: when every phase has both enter and complete
+/// snapshots — the state shape the fixed `start_init`,
+/// `complete_finalize`, and `complete_fast` writers produce —
+/// `phase_delta` returns `Some(_)` for every phase, and the Token
+/// Cost section renders real token + cost data for all five rows.
+/// Without the dual write, the renderer's None branch produced a
+/// placeholder row with tokens=0 and cost=`—` for any phase whose
+/// snapshot pair was missing.
+///
+/// Depends on the fixes in Tasks 2 (start_init), 4 (complete_finalize),
+/// and 6 (complete_fast); locks in the end-to-end summary contract.
+#[test]
+fn summary_shows_data_for_all_five_phases_when_capture_complete() {
+    let mut state = all_complete_state();
+    // Populate every phase with enter+complete snapshots so
+    // `phase_delta` returns `Some(_)` for each one. The scaling
+    // factor (enter_n -> complete_n) produces a positive token
+    // delta and a positive cost delta per `snapshot_value`'s
+    // schema.
+    add_phase_snapshots(&mut state, "flow-start", 0, 5);
+    add_phase_snapshots(&mut state, "flow-code", 5, 15);
+    add_phase_snapshots(&mut state, "flow-review", 15, 20);
+    add_phase_snapshots(&mut state, "flow-learn", 20, 25);
+    add_phase_snapshots(&mut state, "flow-complete", 25, 30);
+
+    let result = format_complete_summary(&state, None);
+
+    // Scope assertions to the Token Cost subsection. The summary
+    // also contains a Timeline section with phase name + duration
+    // rows ("Start:  <1m") that share the "Start:" prefix, so a
+    // raw search would match the timing row instead of the cost
+    // row. The bounded slice ensures the cost-row assertions
+    // target the intended section only.
+    let tail_at_header = result
+        .summary
+        .split_once("Token Cost")
+        .map(|(_, tail)| tail)
+        .unwrap_or_else(|| panic!("Token Cost header missing; summary:\n{}", result.summary));
+    let token_cost_section = tail_at_header
+        .split_once("\n  Artifacts")
+        .map(|(section, _)| section)
+        .unwrap_or(tail_at_header);
+
+    // Every named phase row must render with a real cost cell, not
+    // the missing-snapshot placeholder `—`. The None branch in
+    // `token_cost_section` produces `(0, None, false, true)`,
+    // which renders the row's cost column as `—` and no `$` sign.
+    for &name in &PHASE_NAMES_LIST {
+        let row_marker = format!("{}:", name);
+        let line = token_cost_section
+            .lines()
+            .find(|l| l.trim_start().starts_with(&row_marker))
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing Token Cost row for {}; section:\n{}",
+                    name, token_cost_section
+                )
+            });
+        assert!(
+            line.contains('$'),
+            "{} row missing cost cell — phase_delta likely returned None; line: {:?}",
+            name,
+            line
+        );
+        // The em-dash placeholder lives at the cost column position.
+        // Stripping the leading "  <Name>:" prefix isolates the
+        // tokens + cost suffix; assert no em-dash appears there.
+        let suffix = line.trim_start_matches(|c: char| c.is_whitespace());
+        let after_name = suffix.trim_start_matches(&*row_marker);
+        assert!(
+            !after_name.contains('—'),
+            "{} row carries placeholder em-dash from missing-snapshot path; line: {:?}",
+            name,
+            line
+        );
+    }
+}
+
 /// Full data: every phase carries enter+complete snapshots.
 /// The Token Cost section renders header + per-phase rows + total.
 #[test]

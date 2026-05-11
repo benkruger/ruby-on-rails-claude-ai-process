@@ -4957,6 +4957,42 @@ fn flow_decompose_project_step3_validates_before_issue() {
     );
 }
 
+#[test]
+fn flow_decompose_project_step4_validates_before_issue() {
+    // The Step 4 per-child filing loop must invoke
+    // `bin/flow validate-issue-body` BEFORE `bin/flow issue` for
+    // each child. Same gate-contract as Step 3 — every child body
+    // that `bin/flow plan-from-issue` cannot consume at flow-start
+    // is rejected before it reaches GitHub. The per-child loop
+    // pattern means an un-gated Step 4 would file an entire issue
+    // graph of unconsumable children, requiring manual cleanup of
+    // every one.
+    //
+    // End delimiter `\n## Step ` bounds to Step 4 even when
+    // intra-section subheadings appear.
+    let c = common::read_skill("flow-decompose-project");
+    let tail = c
+        .split_once("\n## Step 4")
+        .map(|(_, t)| t)
+        .expect("flow-decompose-project must have a `## Step 4` section");
+    let section = tail
+        .split_once("\n## Step ")
+        .map(|(s, _)| s)
+        .unwrap_or(tail);
+    let validate_pos = section
+        .find("bin/flow validate-issue-body")
+        .expect("`## Step 4` must invoke `bin/flow validate-issue-body`");
+    let issue_pos = section
+        .find("bin/flow issue")
+        .expect("`## Step 4` must invoke `bin/flow issue`");
+    assert!(
+        validate_pos < issue_pos,
+        "`bin/flow validate-issue-body` (at {}) must appear BEFORE `bin/flow issue` (at {}) in the `## Step 4` section",
+        validate_pos,
+        issue_pos
+    );
+}
+
 // --- include-bias-in-issues rule content contract ---
 //
 // The contract test below pins four load-bearing invariants in

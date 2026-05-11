@@ -456,8 +456,45 @@ Use the Read tool to read the session state and approved issue list.
 
 Create each child issue in topological order (leaves first). For each:
 
-Write the issue body to `.flow-states/decompose-project-<id>-issue-body`
-using the Write tool, then create the issue:
+Write the child issue body to
+`.flow-states/decompose-project-<id>-issue-body` using the Write
+tool.
+
+Validate the child body through the pre-filing validator before
+asking the filer subcommand to send it to GitHub. The validator
+runs the same sentinel-extraction logic that `bin/flow
+plan-from-issue` applies at flow-start; any body that fails this
+gate is unconsumable downstream and must NOT be filed:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow validate-issue-body --body-file .flow-states/decompose-project-<id>-issue-body
+```
+
+Parse the JSON output. If `status` is `ok`, proceed to the filer
+invocation below. If `status` is `error`, do NOT file this child.
+Surface the validator's `message` field to the user via
+AskUserQuestion with three options:
+
+- **"Revise this child body and retry"** — ask what to change, edit
+  the Write tool output at
+  `.flow-states/decompose-project-<id>-issue-body`, then re-run
+  `bin/flow validate-issue-body` from the top of this iteration.
+  Loop until the validator returns `status:ok`, then continue to
+  the filer call for this child.
+- **"Skip filing this child"** — record the skip and continue to
+  the next child in the topological order. The blocked-by graph
+  in Step 5 will surface as partial coverage in the Step 6
+  report; the user can re-run decomposition for the missing
+  child later.
+- **"Cancel the whole skill"** — clear the utility-in-progress
+  marker so the Stop hook releases turn-end, then stop without
+  filing any remaining children:
+
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-decompose-project
+  ```
+
+Once the validator returns `ok` for this child, file it:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/bin/flow issue --repo <repo> --title "<title>" --body-file .flow-states/decompose-project-<id>-issue-body --label decomposed --milestone "<project_name>"

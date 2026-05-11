@@ -3806,20 +3806,32 @@ fn review_mentions_tombstone_audit() {
 #[test]
 fn review_collects_substantive_diff() {
     let c = common::read_skill("flow-review");
+    // Review Step 1 captures the substantive diff via `bin/flow
+    // capture-diff` (which runs `git diff origin/<base_branch>...HEAD -w`
+    // internally and writes the bytes to a canonical
+    // `.flow-states/<branch>/substantive-diff.diff` file). The contract
+    // is that Step 1 invokes capture-diff with the branch+base args; the
+    // skill no longer embeds the `git diff` command literally because
+    // agents read the diff via the Read tool on the returned path.
     assert!(
-        c.contains("git diff origin/<base_branch>...HEAD -w"),
-        "Review Step 1 must collect a substantive diff \
-         (`git diff origin/<base_branch>...HEAD -w`) for context-sparse agents"
+        c.contains("capture-diff --branch <branch> --base <base_branch>"),
+        "Review Step 1 must invoke `bin/flow capture-diff --branch <branch> --base <base_branch>` \
+         so context-sparse agents receive the substantive diff via file handoff"
     );
 }
 
 #[test]
 fn review_routes_substantive_diff_to_context_sparse_agents() {
     let c = common::read_skill("flow-review");
+    // Each of the three context-sparse agents receives the substantive
+    // diff via the `SUBSTANTIVE_DIFF_FILE: <substantive_diff_file>`
+    // file-path handoff. The skill body must mention the handoff token
+    // for each agent so a contract regression that drops the file-path
+    // form for any agent fails CI.
     for agent in &["Pre-mortem", "Adversarial", "Documentation"] {
         assert!(
-            c.contains("substantive diff output"),
-            "Review Step 2 must route substantive diff to {} agent",
+            c.contains("SUBSTANTIVE_DIFF_FILE: <substantive_diff_file>"),
+            "Review Step 2 must route substantive diff via SUBSTANTIVE_DIFF_FILE handoff to {} agent",
             agent
         );
     }

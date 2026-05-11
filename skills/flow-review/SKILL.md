@@ -177,27 +177,29 @@ standard repo produces `<base_branch> = main`.
 ${CLAUDE_PLUGIN_ROOT}/bin/flow base-branch
 ```
 
-**Get the full branch diff.** Substitute `<base_branch>` with the
-value you just captured.
+**Capture both diffs to files.** `bin/flow capture-diff` runs both
+`git diff origin/<base_branch>...HEAD` (full) and the `-w` variant
+(substantive — whitespace-only changes filtered out) and writes the
+results to canonical paths under `.flow-states/<branch>/`. The agents
+read those files via the Read tool instead of receiving the diff
+bytes inline in their prompts, keeping the parent skill's prompt
+budget bounded as PR size grows. Substitute `<branch>` with the
+flow's branch name and `<base_branch>` with the value captured
+above.
 
 ```bash
-git diff origin/<base_branch>...HEAD
+${CLAUDE_PLUGIN_ROOT}/bin/flow capture-diff --branch <branch> --base <base_branch>
 ```
 
-This is the **full diff** — used by the reviewer agent (context-rich).
-
-**Get the substantive diff.** Same `<base_branch>` substitution.
-
-```bash
-git diff origin/<base_branch>...HEAD -w
-```
-
-This is the **substantive diff** — whitespace-only changes filtered out.
-Context-sparse agents (pre-mortem, adversarial, documentation) receive
-this diff instead of the full diff. On PRs where formatters (cargo fmt,
-prettier, black) reformat many files, the substantive diff excludes
-formatting noise and preserves the agents' turn budget for behavioral
-analysis.
+Parse the JSON output. The `full` field is the path to the full
+diff file — call it `<full_diff_file>` and pass it to the reviewer
+agent (context-rich). The `substantive` field is the path to the
+substantive diff file — call it `<substantive_diff_file>` and pass
+it to the pre-mortem, adversarial, and documentation agents
+(context-sparse). On PRs where formatters (cargo fmt, prettier,
+black) reformat many files, the substantive diff excludes
+formatting noise and preserves the agents' turn budget for
+behavioral analysis.
 
 **Compute affected doc paths.**
 
@@ -357,10 +359,11 @@ Use the Agent tool with:
 - `subagent_type`: `"flow:reviewer"`
 - `description`: `"Context-isolated code review"`
 
-Provide all artifacts in the prompt with labeled sections:
+Provide all artifacts in the prompt with labeled sections. The diff
+is passed as a file path the agent reads via the Read tool rather
+than as inline bytes:
 
-> DIFF:
-> (full diff output)
+> DIFF_FILE: <full_diff_file>
 >
 > PLAN:
 > (full plan file content)
@@ -373,10 +376,11 @@ Provide all artifacts in the prompt with labeled sections:
 
 Prefix the prompt with:
 
-> "You are reviewing code you did not write. The full diff, the plan,
-> the project CLAUDE.md, and all project rules are provided inline below.
-> Review the diff for architecture adherence, simplicity, correctness,
-> and security."
+> "You are reviewing code you did not write. The path to the full
+> diff (DIFF_FILE) is provided below; Read it via the Read tool
+> before analyzing. The plan, the project CLAUDE.md, and all project
+> rules are provided inline. Review the diff for architecture
+> adherence, simplicity, correctness, and security."
 
 **Pre-mortem agent** — context-sparse (receives only the substantive diff):
 
@@ -385,12 +389,15 @@ Use the Agent tool with:
 - `subagent_type`: `"flow:pre-mortem"`
 - `description`: `"Pre-mortem incident analysis"`
 
-Provide the substantive diff output in the prompt, prefixed with:
+Provide the substantive diff as a file path the agent reads via
+the Read tool. Embed `SUBSTANTIVE_DIFF_FILE: <substantive_diff_file>`
+in the prompt and prefix with:
 
-> "This PR was merged and caused a production incident. The substantive
-> diff (whitespace-only changes filtered) is below. Investigate the
-> codebase and write the incident report. Security failure modes are
-> explicitly in scope."
+> "This PR was merged and caused a production incident. The path to
+> the substantive diff (whitespace-only changes filtered) is provided
+> below (SUBSTANTIVE_DIFF_FILE). Read the file via the Read tool
+> before analyzing. Investigate the codebase and write the incident
+> report. Security failure modes are explicitly in scope."
 
 **Adversarial agent** — context-sparse (receives substantive diff, temp
 file path, test command, CLAUDE.md path, branch name). Always launch.
@@ -405,12 +412,16 @@ Use the Agent tool with:
 - `subagent_type`: `"flow:adversarial"`
 - `description`: `"Adversarial test generation"`
 
-Provide the substantive diff output in the prompt, along with:
+Provide the substantive diff as a file path the agent reads via
+the Read tool. Embed `SUBSTANTIVE_DIFF_FILE: <substantive_diff_file>`
+in the prompt, along with:
 
 - The temp test file path (`<temp_test_file>`, including extension)
 - The test command (`<test_command>`)
 - The path to the project CLAUDE.md
 - The branch name
+
+The agent must Read the substantive diff file before analyzing.
 
 **Documentation agent** — context-sparse (receives substantive diff,
 narrowed doc-paths list, doc roots):
@@ -420,7 +431,9 @@ Use the Agent tool with:
 - `subagent_type`: `"flow:documentation"`
 - `description`: `"Documentation and maintainability review"`
 
-Provide the substantive diff output in the prompt, along with:
+Provide the substantive diff as a file path the agent reads via
+the Read tool. Embed `SUBSTANTIVE_DIFF_FILE: <substantive_diff_file>`
+in the prompt, along with:
 
 - The narrowed list of doc paths (`<doc_paths>` from Step 1) — embed
   inline, one path per line, under a `DOC_PATHS:` header
@@ -432,12 +445,14 @@ Provide the substantive diff output in the prompt, along with:
 Prefix the prompt with:
 
 > "You are a new team member reading this PR for the first time. The
-> substantive diff (whitespace-only changes filtered) is below, along
-> with a NARROWED LIST of doc paths likely affected by this PR (under
-> the DOC_PATHS header). Read each listed doc path and check it against
-> the diff for drift. Do NOT walk the full `<worktree>/docs/` tree —
-> the listed paths are exhaustive for documentation drift in this PR.
-> Investigate the codebase for comprehension barriers as usual."
+> path to the substantive diff (whitespace-only changes filtered) is
+> provided below (SUBSTANTIVE_DIFF_FILE). Read the diff file via the
+> Read tool before analyzing, along with the NARROWED LIST of doc
+> paths likely affected by this PR (under the DOC_PATHS header). Read
+> each listed doc path and check it against the diff for drift. Do
+> NOT walk the full `<worktree>/docs/` tree — the listed paths are
+> exhaustive for documentation drift in this PR. Investigate the
+> codebase for comprehension barriers as usual."
 
 Wait for all agents to return.
 

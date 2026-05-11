@@ -6,6 +6,7 @@ pub mod append_note;
 pub mod auto_close_parent;
 pub mod base_branch_cmd;
 pub mod bump_version;
+pub mod capture_diff;
 pub mod check_freshness;
 pub mod check_phase;
 pub mod ci;

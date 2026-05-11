@@ -10,6 +10,7 @@ use flow_rs::append_note;
 use flow_rs::auto_close_parent;
 use flow_rs::base_branch_cmd;
 use flow_rs::bump_version;
+use flow_rs::capture_diff;
 use flow_rs::check_freshness;
 use flow_rs::check_phase;
 use flow_rs::ci;
@@ -87,6 +88,11 @@ enum Commands {
         /// New version (semver: X.Y.Z)
         version: Option<String>,
     },
+
+    /// Capture full + substantive diffs against `origin/<base>` to canonical
+    /// `.flow-states/<branch>/` files for the Review sub-agents.
+    #[command(name = "capture-diff")]
+    CaptureDiff(capture_diff::Args),
 
     /// Pre-merge freshness check: fetch main, verify branch is up-to-date.
     #[command(name = "check-freshness")]
@@ -530,6 +536,12 @@ fn main() {
             let (msg, code) =
                 bump_version::run_impl_main(version.as_deref(), flow_rs::utils::plugin_root());
             flow_rs::dispatch::dispatch_text(&msg, code);
+        }
+        Some(Commands::CaptureDiff(args)) => {
+            let cwd = std::env::current_dir().unwrap_or(std::path::PathBuf::from("."));
+            let root = project_root();
+            let (value, code) = capture_diff::run_impl(&args, &root, &cwd);
+            flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::CheckFreshness { raw_args }) => {
             let cwd = std::env::current_dir().unwrap_or(std::path::PathBuf::from("."));

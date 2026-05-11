@@ -35,11 +35,20 @@ use crate::session_metrics::is_safe_session_id;
 use crate::utils::now;
 
 /// The set of multi-step utility skills the Stop hook protects from
-/// mid-skill turn-end. Currently only `flow:flow-create-issue` because
-/// that is the only skill that delegates to another Skill tool
-/// invocation mid-pipeline. Add to this list when a future utility
-/// skill grows the same shape.
-pub const MULTI_STEP_UTILITY_SKILLS: &[&str] = &["flow:flow-create-issue"];
+/// mid-skill turn-end. Add a skill here when it writes a
+/// per-session utility-in-progress marker via
+/// `bin/flow set-utility-in-progress --skill <name>` and delegates
+/// to another Skill tool invocation (or sub-agent dispatch) mid-pipeline
+/// — without registration, the Stop hook's `check_in_progress_utility_skill`
+/// predicate silently drops the marker and turn-end is not refused.
+/// The `every_marker_writing_skill_is_in_multi_step_allowlist` contract
+/// test in `tests/skill_contracts.rs` scans every SKILL.md and locks
+/// this invariant in mechanically.
+pub const MULTI_STEP_UTILITY_SKILLS: &[&str] = &[
+    "flow:flow-create-issue",
+    "flow:flow-decompose-project",
+    "flow:flow-plan",
+];
 
 /// Subdirectory under HOME where markers live. A future expansion to
 /// other FLOW machine-global state can share this directory.

@@ -5361,3 +5361,186 @@ fn persistence_routing_rule_states_rules_are_default() {
         ".claude/rules/persistence-routing.md must state 'Memory is the exception' as the corollary"
     );
 }
+
+// --- flow-plan skill content contracts ---
+//
+// The `flow-plan` skill drives discussion-mode planning conversations
+// and dispatches to PM/Tech Lead/CTO sub-agents on explicit user
+// request. The four assertions below pin the load-bearing invariants
+// the SKILL.md must hold so a future paraphrase or refactor cannot
+// silently weaken them:
+//
+// 1. Refusals surface verbatim — when an agent returns a `## SCOPE
+//    REFUSAL` block, the skill renders the block as-is and waits for
+//    user direction. Auto-escalation, soft-re-prompting, or
+//    silently-performing-the-refused-analysis would defeat the
+//    scope-authority hierarchy the planning-tier agents enforce.
+// 2. No state-file writes — the skill carries planning context via
+//    the shared session conversation, never via `.flow-states/`
+//    artifacts. A future addition of state writes would couple the
+//    skill to per-branch persistence it does not need.
+// 3. Role-read from `.flow.json` — the skill reads the optional
+//    `role` field at session start to suggest a complementary
+//    planning default. A future paraphrase that dropped the
+//    role-read would break the default-persona signal.
+// 4. Utility-in-progress marker — the skill sets the per-session
+//    marker so the Stop hook refuses turn-end while the skill is
+//    running, and clears it on every exit boundary. A future
+//    paraphrase that dropped either side would either leave the
+//    session deadlocked (missing clear) or break the unattended
+//    contract (missing set).
+
+#[test]
+fn flow_plan_skill_surfaces_refusals_verbatim() {
+    // Regression: a future edit weakens the refusal-handling
+    // HARD-GATE so the model auto-escalates, re-prompts the agent
+    // with softer framing, or performs the refused analysis itself
+    // instead of surfacing the `## SCOPE REFUSAL` block verbatim.
+    //
+    // Consumer: planning-tier scope authority. PM/Tech Lead/CTO
+    // produce structured refusals to escalate decisions; the skill
+    // must surface them as-is so the user — not the orchestrating
+    // model — chooses the next move.
+    let c = common::read_skill("flow-plan");
+    let mut found_gate = false;
+    for (idx, _) in c.match_indices("<HARD-GATE>") {
+        let tail = &c[idx..];
+        let window: String = tail.lines().take(30).collect::<Vec<_>>().join("\n");
+        let lower = window.to_ascii_lowercase();
+        if lower.contains("render")
+            && lower.contains("verbatim")
+            && window.contains("SCOPE REFUSAL")
+        {
+            found_gate = true;
+            break;
+        }
+    }
+    assert!(
+        found_gate,
+        "skills/flow-plan/SKILL.md must contain a `<HARD-GATE>` block whose body within 30 lines names `render`, `verbatim`, and `SCOPE REFUSAL` so the refusal-surfacing discipline is locked in"
+    );
+}
+
+#[test]
+fn flow_plan_skill_no_state_writes() {
+    // Regression: a future edit introduces writes to per-branch
+    // FLOW state files. The skill is stateless beyond the
+    // utility-in-progress marker (which lives under
+    // `~/.claude/flow/`, not `.flow-states/`); planning context
+    // flows downstream to `flow-create-issue` via the shared
+    // session conversation, not via persisted artifacts.
+    //
+    // Consumer: the cross-skill hand-off contract. Coupling
+    // `flow-plan` to `.flow-states/` would create branch-scoped
+    // state the discussion-mode skill does not need and complicate
+    // the lifecycle (cleanup, concurrency, resume).
+    let c = common::read_skill("flow-plan");
+    assert!(
+        !c.contains(".flow-states/"),
+        "skills/flow-plan/SKILL.md must not reference `.flow-states/` — the skill is stateless beyond the utility-in-progress marker (which lives under the user's Claude home, not project state)"
+    );
+}
+
+#[test]
+fn flow_plan_skill_reads_role_from_flow_json() {
+    // Regression: a future edit drops the `.flow.json` `role` read
+    // at session start. Without the role read, the skill cannot
+    // suggest a complementary planning default (PM → Tech Lead,
+    // Tech Lead → PM, founder-solo → no preset) and the per-user
+    // role-selection captured by `/flow:flow-prime` becomes
+    // invisible to the discussion-mode entry point.
+    //
+    // Consumer: the user's primary-role selection in `.flow.json`,
+    // written by `/flow:flow-prime` Step 3 and consumed by this
+    // skill at session start.
+    let c = common::read_skill("flow-plan");
+    assert!(
+        c.contains(".flow.json"),
+        "skills/flow-plan/SKILL.md must reference `.flow.json` so the role-read step is locked in"
+    );
+    assert!(
+        c.contains("role"),
+        "skills/flow-plan/SKILL.md must name the `role` field so the complementary-default mapping is locked in"
+    );
+}
+
+#[test]
+fn every_marker_writing_skill_is_in_multi_step_allowlist() {
+    // Regression: a future utility skill writes a per-session
+    // marker via `bin/flow set-utility-in-progress --skill flow:<n>`
+    // but is not registered in
+    // `src/commands/utility_marker.rs::MULTI_STEP_UTILITY_SKILLS`.
+    // The Stop hook's `check_in_progress_utility_skill` predicate
+    // (src/hooks/stop_continue.rs) silently drops markers naming
+    // skills outside the allowlist — the unattended-flow contract
+    // breaks the first time a Skill tool returns mid-pipeline.
+    //
+    // Consumer: the Stop hook predicate above. Every skill that
+    // sets a marker depends on the allowlist to honor it; without
+    // the allowlist entry the marker is invisible to the hook and
+    // the model returns control to the user mid-skill.
+    use regex::Regex;
+    let allowlist_path = common::repo_root()
+        .join("src")
+        .join("commands")
+        .join("utility_marker.rs");
+    let allowlist_src = std::fs::read_to_string(&allowlist_path)
+        .expect("src/commands/utility_marker.rs must exist");
+    let anchor = "MULTI_STEP_UTILITY_SKILLS";
+    let tail = allowlist_src
+        .split_once(anchor)
+        .map(|(_, t)| t)
+        .expect("src/commands/utility_marker.rs must declare MULTI_STEP_UTILITY_SKILLS");
+    let value = tail
+        .split_once(';')
+        .map(|(v, _)| v)
+        .expect("MULTI_STEP_UTILITY_SKILLS declaration must end with `;`");
+    let marker_re = Regex::new(r"set-utility-in-progress\s+--skill\s+(flow:[a-z0-9-]+)")
+        .expect("regex must compile");
+    let mut missing: Vec<(String, String)> = Vec::new();
+    for skill_name in common::all_skill_names() {
+        let content = common::read_skill(&skill_name);
+        for cap in marker_re.captures_iter(&content) {
+            let skill_id = cap.get(1).unwrap().as_str().to_string();
+            let needle = format!("\"{}\"", skill_id);
+            if !value.contains(&needle) {
+                missing.push((skill_name.clone(), skill_id));
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "Every utility skill that writes a per-session marker must be registered in MULTI_STEP_UTILITY_SKILLS so the Stop hook honors the marker. Missing entries: {:?}. Current allowlist value: `{}`",
+        missing,
+        value.trim()
+    );
+}
+
+#[test]
+fn flow_plan_skill_uses_utility_in_progress_marker() {
+    // Regression: a future edit drops either the set or the clear
+    // side of the per-session utility-in-progress marker. Without
+    // `set-utility-in-progress`, the Stop hook returns control to
+    // the user mid-conversation when a sub-agent Skill tool returns
+    // — breaking the unattended-discussion contract. Without
+    // `clear-utility-in-progress`, the session deadlocks because
+    // the Stop hook keeps refusing turn-end after the skill has
+    // already completed or cancelled.
+    //
+    // Consumer: the Stop hook's `check_in_progress_utility_skill`
+    // predicate, which refuses turn-end while a per-session marker
+    // is present for `flow:flow-plan`.
+    let c = common::read_skill("flow-plan");
+    assert!(
+        c.contains("set-utility-in-progress"),
+        "skills/flow-plan/SKILL.md must invoke `bin/flow set-utility-in-progress` so the Stop hook refuses turn-end while the discussion-mode skill is running"
+    );
+    assert!(
+        c.contains("clear-utility-in-progress"),
+        "skills/flow-plan/SKILL.md must invoke `bin/flow clear-utility-in-progress` so the Stop hook releases turn-end after every exit boundary"
+    );
+    assert!(
+        c.contains("--skill flow:flow-plan"),
+        "skills/flow-plan/SKILL.md must pass `--skill flow:flow-plan` so the marker is scoped to this skill's identifier"
+    );
+}

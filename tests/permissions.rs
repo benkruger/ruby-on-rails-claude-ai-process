@@ -178,6 +178,12 @@ const PLACEHOLDER_SUBS: &[(&str, &str)] = &[
     // the test only needs a concrete value that exercises the
     // add-skipped-agent allow-list pattern.
     ("<classified>", "rate_limit"),
+    // Consumed by skills/flow-prime/SKILL.md role-selection step's
+    // `--role <role_value>` invocation. The role-selection step
+    // resolves the placeholder to one of the concrete role names
+    // (pm, tech-lead, founder-solo); the test only needs a value
+    // that exercises the prime-setup allow-list pattern.
+    ("<role_value>", "pm"),
 ];
 
 fn substitute_placeholders(line: &str) -> Option<String> {

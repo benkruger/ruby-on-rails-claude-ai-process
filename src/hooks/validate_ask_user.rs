@@ -192,8 +192,13 @@ pub fn user_only_skill_carve_out_applies(transcript_path: Option<&Path>, home: &
 /// side effect in `run()`.
 #[derive(Debug)]
 enum HookAction {
-    /// Exit 0, no side effects. Used when the hook cannot resolve a
-    /// state file (no stdin input, no branch, slash branch).
+    /// Exit 0, emits `{"permissionDecision":"defer"}` on stdout, no
+    /// state-file side effects. Used when the hook cannot resolve a
+    /// state file (no stdin input, no branch, slash branch). The
+    /// explicit defer signal tells Claude Code the hook has no
+    /// opinion on this tool call, routing it through normal
+    /// permission handling without relying on empty-stdout implicit
+    /// semantics.
     Allow,
     /// Exit 2, stderr message. Autonomous-phase block.
     Block(String),
@@ -293,7 +298,10 @@ pub fn run() {
     let root = project_root();
     let home = home_dir_or_empty();
     match run_impl_main(hook_input, branch, &root, &home) {
-        HookAction::Allow => std::process::exit(0),
+        HookAction::Allow => {
+            println!("{}", json!({"permissionDecision": "defer"}));
+            std::process::exit(0);
+        }
         HookAction::Block(msg) => {
             eprintln!("{}", msg);
             std::process::exit(2);

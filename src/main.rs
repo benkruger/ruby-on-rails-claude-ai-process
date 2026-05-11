@@ -298,9 +298,16 @@ enum Commands {
     },
 
     /// Print the captured Claude Code session_id (empty if unavailable).
-    /// Skills capture this ONCE at Announce and pass it explicitly to
-    /// every set-utility-in-progress / clear-utility-in-progress call
-    /// so the SessionStart capture file's value cannot drift mid-skill.
+    ///
+    /// Production skills should prefer `$CLAUDE_CODE_SESSION_ID` from
+    /// the Bash subprocess environment — Claude Code 2.1.132+ supplies
+    /// it to every subprocess, and `set-utility-in-progress` /
+    /// `clear-utility-in-progress` resolve it internally via the CLI
+    /// boundary in `main.rs`. This subcommand persists as a
+    /// backward-compat surface for Claude Code installs without the
+    /// per-subprocess env var and as an explicit override path for
+    /// tests and scripted callers that need to read the SessionStart
+    /// capture file directly.
     #[command(name = "current-session-id")]
     CurrentSessionId,
 

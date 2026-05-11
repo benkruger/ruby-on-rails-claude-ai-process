@@ -213,14 +213,20 @@ pub fn resolve_session_id_from(
 }
 
 /// Print the captured session_id (or empty string if unavailable) and
-/// exit 0. The skill uses this to capture the active Claude Code
-/// session_id ONCE at its Announce banner so subsequent
-/// `set-utility-in-progress` and `clear-utility-in-progress` calls
-/// pass the SAME `--session-id` even when a concurrent session's
-/// SessionStart hook later overwrites the capture file. Stable
-/// session_id across the full skill lifecycle is the invariant
-/// required for the marker write/clear pair to operate on the same
-/// file.
+/// exit 0.
+///
+/// Production skills should prefer `$CLAUDE_CODE_SESSION_ID` from the
+/// Bash subprocess environment; `set-utility-in-progress` and
+/// `clear-utility-in-progress` resolve the active session_id at the
+/// CLI boundary in `main.rs` and forward it through `run_set_main` /
+/// `run_clear_main`. The recommended resolution path is the pure
+/// helper `resolve_session_id_from` defined above.
+///
+/// This subcommand persists as a backward-compat surface for Claude
+/// Code installs without the per-subprocess env var (Claude Code
+/// before 2.1.132) and as an explicit override path for tests and
+/// scripted callers that need to read the SessionStart capture file
+/// directly.
 ///
 /// Empty stdout (no `\n`) means no captured session_id is available;
 /// the skill should treat this as a non-fatal "marker disabled"

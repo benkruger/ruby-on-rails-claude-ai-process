@@ -625,3 +625,7 @@ Output the COMPLETE banner:
 - Phase labels are auto-derived from DAG groupings, not user-specified
 - Milestone due date is required — asked during Step 2 review
 - Sub-issue and blocked-by linking is best-effort — failures do not block the skill
+- Every issue body (epic and children) wraps its Implementation Plan in the FLOW-PLAN sentinel pair so `bin/flow plan-from-issue` can extract the plan at flow-start
+- Tasks within the Implementation Plan use `#### Task N:` headers (not numbered list items) so `count_tasks` recognises the heading shape and populates `code_tasks_total`
+- Always invoke `${CLAUDE_PLUGIN_ROOT}/bin/flow validate-issue-body` before `${CLAUDE_PLUGIN_ROOT}/bin/flow issue` — on validator error, route through the Revise loop in Step 3 (epic) or Step 4 (per child)
+- Paraphrase every prose reference to the FLOW-PLAN sentinel pair — the literal HTML-comment marker strings appear only at the actual delimiters of the wrapped Implementation Plan

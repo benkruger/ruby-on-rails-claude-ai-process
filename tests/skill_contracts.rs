@@ -4958,6 +4958,40 @@ fn flow_decompose_project_step3_validates_before_issue() {
 }
 
 #[test]
+fn flow_decompose_project_hard_rules_name_validator_and_sentinels() {
+    // The Hard Rules section enumerates load-bearing invariants —
+    // a future maintainer reading the section must see the four
+    // discipline anchors the rest of the SKILL.md depends on:
+    // validator-before-filer, FLOW-PLAN sentinel wrap, `#### Task N:`
+    // header format, paraphrase rule. Without these four entries
+    // a future paraphrase of Step 2/3/4 could silently drop the
+    // discipline and the Hard Rules wouldn't reveal the gap.
+    let c = common::read_skill("flow-decompose-project");
+    let tail = c
+        .split_once("\n## Hard Rules\n")
+        .map(|(_, t)| t)
+        .expect("flow-decompose-project must have a `## Hard Rules` section");
+    let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
+    let lower = section.to_ascii_lowercase();
+    assert!(
+        section.contains("validate-issue-body"),
+        "Hard Rules must name `bin/flow validate-issue-body` so the pre-filing gate is locked into the discipline list"
+    );
+    assert!(
+        section.contains("FLOW-PLAN"),
+        "Hard Rules must name the FLOW-PLAN sentinel pair so the wrap discipline is locked in"
+    );
+    assert!(
+        section.contains("#### Task"),
+        "Hard Rules must name the `#### Task N:` header format so the count_tasks-compatible heading shape is locked in"
+    );
+    assert!(
+        lower.contains("paraphrase"),
+        "Hard Rules must name the paraphrase rule for sentinel-marker prose references"
+    );
+}
+
+#[test]
 fn flow_decompose_project_step4_validates_before_issue() {
     // The Step 4 per-child filing loop must invoke
     // `bin/flow validate-issue-body` BEFORE `bin/flow issue` for

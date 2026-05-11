@@ -421,6 +421,58 @@ fn pr_state_merged_returns_already_merged_path() {
     assert_eq!(json["path"], "already_merged");
 }
 
+/// `complete_fast` writes the account-window snapshot to the
+/// phase-scoped `phases.flow-complete.window_at_enter` field when
+/// entering the Complete phase. Without this write,
+/// `format_complete_summary`'s `phase_delta` short-circuits to
+/// `None` for flow-complete because it reads
+/// `phase.window_at_enter`, leaving the Complete row in the Token
+/// Cost section with placeholder data.
+///
+/// Uses `FAKE_PR_STATE=MERGED` so complete_fast hits the
+/// `already_merged` early return immediately after the mutate_state
+/// block runs — state.json persists with the snapshot for the
+/// assertion to read.
+#[test]
+fn complete_fast_writes_phase_scoped_window_at_enter_for_flow_complete() {
+    let fx = setup("complete", "auto");
+    let output = run_complete_fast(
+        &fx.repo,
+        Some(BRANCH),
+        Some("--auto"),
+        &fx.flow_bin,
+        &fx.stubs,
+        &[("FAKE_PR_STATE", "MERGED")],
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json = last_json_line(&stdout);
+    assert_eq!(json["status"], "ok", "stdout: {}", stdout);
+    assert_eq!(json["path"], "already_merged");
+
+    let state_path = fx.repo.join(".flow-states").join(BRANCH).join("state.json");
+    let content = fs::read_to_string(&state_path).expect("state file must exist");
+    let state: Value = serde_json::from_str(&content).expect("state must parse");
+
+    let phase_scoped = &state["phases"]["flow-complete"]["window_at_enter"];
+    assert!(
+        phase_scoped.is_object(),
+        "phases.flow-complete.window_at_enter must be populated; got: {}",
+        phase_scoped
+    );
+
+    // The snapshot carries `captured_at` from `now()` and (when a
+    // valid session_id was available) a session_id field. The
+    // session_id may be null on this fixture because state.json has
+    // no session_id, but captured_at must always be a non-empty
+    // string per `WindowSnapshot`'s schema.
+    let captured_at = phase_scoped["captured_at"].as_str().unwrap_or("");
+    assert!(
+        !captured_at.is_empty(),
+        "captured_at must be populated; got: {}",
+        phase_scoped
+    );
+}
+
 #[test]
 fn pr_state_closed_returns_error() {
     let fx = setup("complete", "auto");

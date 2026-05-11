@@ -372,10 +372,22 @@ pub fn run_impl(args: &Args) -> Result<Value, String> {
     // Phase enter + set step counters. read_state validated the file
     // as object already; mutate_state re-reads under lock but cannot
     // observe a non-object here in this single-writer flow.
+    //
+    // Capture the account-window snapshot adjacent to phase_enter
+    // (mirroring `phase_enter.rs:232-246`) so
+    // `format_complete_summary`'s `phase_delta` reads
+    // `phases.flow-complete.window_at_enter` when rendering the
+    // Complete row. The bare `phase_enter` mutator does not write a
+    // snapshot — only the `phase-enter` subcommand wrapper does —
+    // so complete-fast's wrapper has to handle the write itself.
+    let home = crate::window_snapshot::home_dir_or_empty();
     mutate_state(&state_path, &mut |s| {
         phase_enter(s, "flow-complete", None);
         s["complete_steps_total"] = json!(COMPLETE_STEPS_TOTAL);
         s["complete_step"] = json!(1);
+        let snap = crate::window_snapshot::capture_for_active_state(&home, s, &root);
+        s["phases"]["flow-complete"]["window_at_enter"] =
+            serde_json::to_value(&snap).expect("WindowSnapshot must serialize");
     })
     .expect("state file was validated as object by read_state");
 

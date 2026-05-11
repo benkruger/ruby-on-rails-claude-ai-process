@@ -307,9 +307,10 @@ fn run_impl(args: &Args, root: &Path, cwd: &Path) -> Result<Value, String> {
         // Mirror the snapshot under the phase-scoped key so
         // `format_complete_summary`'s `phase_delta` reads
         // `phases.flow-start.window_at_enter` for the Start row.
-        // `init_state` (called above) populates `phases` with an
-        // object containing `flow-start`, so the IndexMut chain
-        // cannot panic from missing scaffolding here.
+        // `init_state` ran as a subprocess immediately above and
+        // wrote a fresh state file whose `phases.flow-start` is a
+        // structured PhaseState object, so the chained IndexMut is
+        // safe in this single-writer flow.
         state["phases"]["flow-start"]["window_at_enter"] =
             serde_json::to_value(&snap).expect("WindowSnapshot must serialize");
     });

@@ -110,14 +110,22 @@ pub fn run_impl(args: &Args) -> Value {
             // Mirror the snapshot under the phase-scoped key so
             // `format_complete_summary`'s `phase_delta` reads
             // `phases.flow-complete.window_at_complete` for the
-            // Complete row. Precondition: `bin/flow phase-enter
-            // --phase flow-complete` ran upstream of this call (via
-            // `/flow:flow-complete` or `complete_fast`) and
-            // populated `phases.flow-complete` as an object. Same
-            // trust contract as `phase_enter.rs:243-245` and the
-            // sibling per-phase snapshot writes.
-            state["phases"]["flow-complete"]["window_at_complete"] =
-                serde_json::to_value(&snap).expect("WindowSnapshot must serialize");
+            // Complete row. Hand-edited or corrupt state files may
+            // carry non-object values at any level, so per-level
+            // object guards heal the path before the IndexMut chain
+            // per `.claude/rules/rust-patterns.md` "State Mutation
+            // Object Guards" — unguarded IndexMut on a non-object
+            // primitive (number, string, bool, array) panics.
+            if state.is_object() {
+                if !state["phases"].is_object() {
+                    state["phases"] = serde_json::json!({});
+                }
+                if !state["phases"]["flow-complete"].is_object() {
+                    state["phases"]["flow-complete"] = serde_json::json!({});
+                }
+                state["phases"]["flow-complete"]["window_at_complete"] =
+                    serde_json::to_value(&snap).expect("WindowSnapshot must serialize");
+            }
         });
     }
 

@@ -373,13 +373,16 @@ pub fn run_impl(args: &Args) -> Result<Value, String> {
     // as object already; mutate_state re-reads under lock but cannot
     // observe a non-object here in this single-writer flow.
     //
-    // Capture the account-window snapshot adjacent to phase_enter
-    // (mirroring `phase_enter.rs:232-246`) so
+    // Capture the account-window snapshot inside the same
+    // mutate_state closure that calls phase_enter so
     // `format_complete_summary`'s `phase_delta` reads
     // `phases.flow-complete.window_at_enter` when rendering the
     // Complete row. The bare `phase_enter` mutator does not write a
     // snapshot — only the `phase-enter` subcommand wrapper does —
-    // so complete-fast's wrapper has to handle the write itself.
+    // so complete-fast's wrapper handles the write itself. The
+    // chained IndexMut is safe because `phase_enter` ran first in
+    // this closure and heals `state["phases"]` to an object if the
+    // on-disk state file held a non-object value.
     let home = crate::window_snapshot::home_dir_or_empty();
     mutate_state(&state_path, &mut |s| {
         phase_enter(s, "flow-complete", None);

@@ -390,7 +390,41 @@ Parse the JSON output. Record the milestone number.
 Create the parent epic issue. The `--milestone` flag accepts the milestone
 title (not the numeric ID) — use the same `<project_name>` that was passed
 to `create-milestone --title`. Write the epic body to
-`.flow-states/decompose-project-<id>-epic-body` using the Write tool, then:
+`.flow-states/decompose-project-<id>-epic-body` using the Write tool.
+
+Validate the epic body through the pre-filing validator before
+asking the filer subcommand to send it to GitHub. The validator
+runs the same sentinel-extraction logic that `bin/flow
+plan-from-issue` applies at flow-start; any body that fails this
+gate is unconsumable downstream and must NOT be filed:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow validate-issue-body --body-file .flow-states/decompose-project-<id>-epic-body
+```
+
+Parse the JSON output. If `status` is `ok`, proceed to the filer
+invocation below. If `status` is `error`, do NOT file the issue.
+Surface the validator's `message` field to the user via
+AskUserQuestion with three options:
+
+- **"Revise the epic body and retry"** — ask what to change, edit
+  the Write tool output at
+  `.flow-states/decompose-project-<id>-epic-body`, then re-run
+  `bin/flow validate-issue-body` from the top of this step. Loop
+  until the validator returns `status:ok`.
+- **"Cancel filing this issue"** — skip the epic-filing path. The
+  flow halts at Step 3 since the epic is the parent of every
+  child issue; clear the utility-in-progress marker so the Stop
+  hook releases turn-end:
+
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-decompose-project
+  ```
+
+- **"Cancel the whole skill"** — same clear-marker call as above,
+  then stop without filing any issues.
+
+Once the validator returns `ok`, file the epic:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/bin/flow issue --repo <repo> --title "Epic: <project_name>" --body-file .flow-states/decompose-project-<id>-epic-body --milestone "<project_name>"

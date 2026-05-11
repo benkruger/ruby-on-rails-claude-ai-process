@@ -4920,6 +4920,43 @@ fn flow_decompose_project_step2_names_paraphrase_rule() {
     );
 }
 
+#[test]
+fn flow_decompose_project_step3_validates_before_issue() {
+    // The Step 3 epic-body filing path must invoke
+    // `bin/flow validate-issue-body` BEFORE `bin/flow issue` so a
+    // body that `bin/flow plan-from-issue` cannot consume at
+    // flow-start is rejected before it reaches GitHub. Ordering
+    // matters: validating after filing makes the gate post-hoc and
+    // useless. Regression: a future edit that moved the validator
+    // call below `bin/flow issue`, dropped it, or gated it behind
+    // a conditional would surface here. Mirror of
+    // `flow_create_issue_validates_body_before_filing`.
+    //
+    // End delimiter `\n## Step ` bounds to Step 3 even when
+    // intra-section subheadings appear.
+    let c = common::read_skill("flow-decompose-project");
+    let tail = c
+        .split_once("\n## Step 3")
+        .map(|(_, t)| t)
+        .expect("flow-decompose-project must have a `## Step 3` section");
+    let section = tail
+        .split_once("\n## Step ")
+        .map(|(s, _)| s)
+        .unwrap_or(tail);
+    let validate_pos = section
+        .find("bin/flow validate-issue-body")
+        .expect("`## Step 3` must invoke `bin/flow validate-issue-body`");
+    let issue_pos = section
+        .find("bin/flow issue")
+        .expect("`## Step 3` must invoke `bin/flow issue`");
+    assert!(
+        validate_pos < issue_pos,
+        "`bin/flow validate-issue-body` (at {}) must appear BEFORE `bin/flow issue` (at {}) in the `## Step 3` section",
+        validate_pos,
+        issue_pos
+    );
+}
+
 // --- include-bias-in-issues rule content contract ---
 //
 // The contract test below pins four load-bearing invariants in

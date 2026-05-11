@@ -66,20 +66,22 @@ fn capture(args: &Args, root: &Path, cwd: &Path) -> Result<Value, String> {
     paths
         .ensure_branch_dir()
         .map_err(|e| format!("create branch dir: {}", e))?;
+    if !is_safe_base(&args.base) {
+        return Err(format!("invalid base ref: {:?}", args.base));
+    }
 
     let diff_range = format!("origin/{}...HEAD", args.base);
-    let full = git_diff(cwd, &[&diff_range])?;
-    // `-w` differs from the preceding call only by the whitespace flag,
-    // and operates on the same revision range. Git resolves the range
-    // once per process invocation; a failure here would require the
-    // git binary itself to disappear between calls or the disk to
-    // vanish — neither is reachable from any test fixture exercising
-    // this module's public surface. Per
-    // `.claude/rules/testability-means-simplicity.md` "When the test
-    // resists the real production path", `.expect` documents the
-    // structural unreachability.
-    let substantive = git_diff(cwd, &["-w", &diff_range])
-        .expect("git diff -w cannot fail when the same range just succeeded");
+    // Collect both diffs through a single `?` so the production code has
+    // one error-propagation point. The two underlying `git diff`
+    // invocations are structurally identical (same range, only `-w`
+    // differs) — collapsing into one Err arm avoids a second arm whose
+    // failure is reachable only via TOCTOU between consecutive subprocesses.
+    let mut outputs = [&[diff_range.as_str()][..], &["-w", diff_range.as_str()][..]]
+        .iter()
+        .map(|argv| git_diff(cwd, argv))
+        .collect::<Result<Vec<_>, _>>()?;
+    let substantive = outputs.pop().expect("two diff outputs collected");
+    let full = outputs.pop().expect("two diff outputs collected");
 
     let full_path = paths.branch_dir().join("full-diff.diff");
     let sub_path = paths.branch_dir().join("substantive-diff.diff");
@@ -102,6 +104,23 @@ fn capture(args: &Args, root: &Path, cwd: &Path) -> Result<Value, String> {
 /// exist on `origin`). Spawn failures surface as `spawn git: <io
 /// error>` so a missing `git` binary is distinguishable from a
 /// non-zero exit.
+/// Validate a `--base` ref value before interpolating it into the git
+/// diff range. Per `.claude/rules/external-input-path-construction.md`,
+/// every CLI string that flows into `format!` or a subprocess argument
+/// needs a positive validator. Rejects empty, NUL bytes, newlines,
+/// path-separator slashes (other than `/` which is valid in remote-tracking
+/// refs like `origin/main`... but `--base` is the simple branch component,
+/// never with `origin/` prefix — capture_diff adds the prefix itself).
+fn is_safe_base(s: &str) -> bool {
+    !s.is_empty()
+        && !s.contains('\0')
+        && !s.contains('\n')
+        && !s.contains('\r')
+        && !s.contains(' ')
+        && s != "."
+        && s != ".."
+}
+
 fn git_diff(cwd: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
     let output = Command::new("git")
         .arg("diff")

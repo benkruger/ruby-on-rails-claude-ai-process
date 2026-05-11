@@ -467,12 +467,17 @@ recording the agent as skipped.
 **Class 1 — Truncation.** For each high-investigation agent
 (reviewer, learn-analyst, documentation), check whether the
 returned output contains the literal `END-OF-FINDINGS`
-completion marker as the final structural element AND at least
-one partial structured `**Finding` block. Marker absence
-combined with partial findings means the agent was truncated by
-`maxTurns` exhaustion mid-analysis (see
+completion marker as the final structural element. Marker
+absence alone means the agent was truncated by `maxTurns`
+exhaustion — regardless of whether any partial `**Finding`
+block was produced. An agent that exhausts its turn budget
+DURING investigation (before producing any finding) is the
+case the recovery path most needs to catch: requiring a partial
+finding to trigger Class 1 would silently classify
+early-truncation as "found nothing." See
 `.claude/rules/cognitive-isolation.md` "Context Budget +
-Truncation Recovery").
+Truncation Recovery" — "Absence of the marker means the agent
+was truncated, not that it found nothing."
 
 When truncation is detected on an agent:
 
@@ -498,13 +503,29 @@ rather than splitting infinitely. The user decides whether to
 accept partial coverage or rerun Review on a smaller
 subset of the diff.
 
-**Class 2 — External failure.** When truncation does NOT match
-(no partial `**Finding` block) AND the response contains a
-canonical external-failure marker (`rate_limit`, `429`,
-`usage_limit`, `API Error`, `rate limit exceeded`), the agent
-hit an upstream API or quota failure rather than running out of
-turns. The agent has produced no findings the parent can use,
-but a future flow-review re-invocation could succeed.
+**Class 2 — External failure.** When the agent has produced
+zero structured `**Finding` blocks AND no `END-OF-FINDINGS`
+marker AND the response contains a canonical external-failure
+marker (`rate_limit`, `429`, `usage_limit`, `API Error`, `rate
+limit exceeded`), the agent hit an upstream API or quota
+failure rather than running out of turns mid-investigation. The
+agent has produced no findings the parent can use, but a future
+flow-review re-invocation could succeed.
+
+The zero-findings precondition is load-bearing: an agent that
+produced one or more `**Finding` blocks AND mentions
+`rate_limit` in its prose (e.g., a security finding about
+rate-limiting code) is NOT externally-failed — it is a normal
+completion with findings that happen to discuss the term. Class
+2 only fires when the response is structurally empty (no
+findings at all) and the failure marker is the explanation.
+
+Substring match is ASCII-case-insensitive on the agent's full
+response. False positives in this class silently discard
+legitimate findings (the agent gets recorded as skipped and
+its `**Finding` blocks never reach Step 3 triage), so the
+zero-findings precondition exists specifically to prevent the
+substring-in-prose case.
 
 Classify the reason from the marker observed:
 

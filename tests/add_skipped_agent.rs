@@ -36,6 +36,7 @@ fn run_add_skipped_agent(repo: &Path, args: &[&str]) -> Output {
         .args(args)
         .current_dir(repo)
         .env("HOME", repo)
+        .env("GH_TOKEN", "invalid")
         .env("CLAUDE_PLUGIN_ROOT", env!("CARGO_MANIFEST_DIR"))
         .output()
         .unwrap()

@@ -3903,13 +3903,28 @@ fn review_routes_substantive_diff_to_context_sparse_agents() {
     let c = common::read_skill("flow-review");
     // Each of the three context-sparse agents receives the substantive
     // diff via the `SUBSTANTIVE_DIFF_FILE: <substantive_diff_file>`
-    // file-path handoff. The skill body must mention the handoff token
-    // for each agent so a contract regression that drops the file-path
-    // form for any agent fails CI.
+    // file-path handoff. The assertion is per-agent and bounded to
+    // each agent's block (see `.claude/rules/testing-gotchas.md`
+    // "Subsection-Local Assertions in Contract Tests") so a regression
+    // that drops the file-path form from any single agent's block
+    // fails — the loop body checking the same substring against the
+    // full skill would silently pass when one agent loses the handoff
+    // because the other two still mention it.
+    const HANDOFF: &str = "SUBSTANTIVE_DIFF_FILE: <substantive_diff_file>";
     for agent in &["Pre-mortem", "Adversarial", "Documentation"] {
+        let heading = format!("**{} agent**", agent);
+        let tail = c
+            .split_once(heading.as_str())
+            .map(|(_, t)| t)
+            .unwrap_or_else(|| panic!("Review Step 2 must contain `{}` heading", heading));
+        // Bound the slice to this agent's block: the next agent
+        // heading or the post-agent section ("Wait for all agents")
+        // closes the scope.
+        let block = tail.split_once("\n**").map(|(b, _)| b).unwrap_or(tail);
         assert!(
-            c.contains("SUBSTANTIVE_DIFF_FILE: <substantive_diff_file>"),
-            "Review Step 2 must route substantive diff via SUBSTANTIVE_DIFF_FILE handoff to {} agent",
+            block.contains(HANDOFF),
+            "Review Step 2 must route substantive diff via `{}` inside the {} agent's block",
+            HANDOFF,
             agent
         );
     }

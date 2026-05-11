@@ -36,22 +36,36 @@ const REVIEW_AGENTS: &[&str] = &[
 /// comma-separated string to YAML list both pass as long as the token
 /// is present.
 fn frontmatter_tools(content: &str) -> Option<String> {
+    // Walk to the second `---` delimiter before deciding. Returning
+    // early on the first `tools:` line would let a body line that
+    // happens to start with `tools:` masquerade as a frontmatter
+    // value when the frontmatter has no closing delimiter
+    // (malformed file). The contract: only return Some when the
+    // file has a well-formed frontmatter block AND a `tools:` line
+    // inside it.
     let mut in_frontmatter = false;
+    let mut saw_close = false;
+    let mut found: Option<String> = None;
     for line in content.lines() {
         if line.trim() == "---" {
             if !in_frontmatter {
                 in_frontmatter = true;
-                continue;
+            } else {
+                saw_close = true;
+                break;
             }
-            return None;
+            continue;
         }
-        if in_frontmatter {
+        if in_frontmatter && found.is_none() {
             if let Some(rest) = line.strip_prefix("tools:") {
-                return Some(rest.trim().to_string());
+                found = Some(rest.trim().to_string());
             }
         }
     }
-    None
+    if !saw_close {
+        return None;
+    }
+    found
 }
 
 #[test]
@@ -110,4 +124,15 @@ fn frontmatter_tools_returns_value_when_field_present() {
         frontmatter_tools(content),
         Some("Read, Grep, Bash".to_string())
     );
+}
+
+#[test]
+fn frontmatter_tools_returns_none_when_closing_delimiter_missing() {
+    // Malformed file: opening `---` but no closing `---`. A
+    // body-line `tools: Read` must not be promoted to a frontmatter
+    // value just because the file scanner found it while still in
+    // `in_frontmatter` state. The closing delimiter is the structural
+    // boundary the contract depends on.
+    let content = "---\nname: agent\ntools: Read, Grep, Bash\nstill in pseudo-frontmatter\n";
+    assert_eq!(frontmatter_tools(content), None);
 }

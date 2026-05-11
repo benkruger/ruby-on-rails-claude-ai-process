@@ -155,6 +155,50 @@ fn capture_diff_rejects_dot_branch() {
     assert_eq!(data["status"], "error");
 }
 
+/// `is_safe_base` rejects values that would either interpolate
+/// hostile bytes into the diff range or escape the simple-branch
+/// expectation. An empty `--base` is the simplest rejection variant
+/// — it produces `origin/...HEAD` which has no valid meaning and
+/// the gate must short-circuit before the subprocess runs.
+#[test]
+fn capture_diff_rejects_empty_base() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    fixture_with_feature_commit(&repo);
+
+    let output = run_capture_diff(&repo, &["--branch", "feat-empty-base", "--base", ""]);
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "error");
+    assert!(data["message"]
+        .as_str()
+        .unwrap()
+        .contains("invalid base ref"));
+}
+
+/// `is_safe_base` rejects whitespace in the base value because it
+/// would split into multiple shell-style tokens once interpolated
+/// into the diff range. A base like `main with spaces` must be
+/// rejected by the validator before any subprocess fires.
+#[test]
+fn capture_diff_rejects_base_with_space() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    fixture_with_feature_commit(&repo);
+
+    let output = run_capture_diff(
+        &repo,
+        &["--branch", "feat-space-base", "--base", "main staging"],
+    );
+
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "error");
+    assert!(data["message"]
+        .as_str()
+        .unwrap()
+        .contains("invalid base ref"));
+}
+
 // --- Task 2: success envelope shape ---
 
 #[test]

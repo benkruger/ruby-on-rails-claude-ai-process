@@ -1133,6 +1133,67 @@ fn phase_finalize_accepts_when_accept_skipped_agents_flag_set() {
 }
 
 #[test]
+fn phase_finalize_rejects_when_agents_skipped_is_wrong_type() {
+    // Per `.claude/rules/security-gates.md` "Fail Closed When State
+    // Is Unreliable" and `.claude/rules/state-files.md` "Corruption
+    // Resilience": a `phases.<phase>.agents_skipped` field whose
+    // type is not an array (e.g. string, integer, object) must
+    // fail-closed rather than silently advance the phase. A
+    // corrupted or hand-edited state file can produce this shape.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "wrong-type", "flow-review");
+    seed_agents_skipped(
+        root,
+        "wrong-type",
+        "flow-review",
+        json!("rate_limit_was_hit"),
+    );
+
+    let args = phase_finalize_test_args("flow-review", "wrong-type", None, None);
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+
+    assert_eq!(result["status"], "error");
+    assert_eq!(result["reason"], "agents_skipped");
+    assert!(result["message"].as_str().unwrap().contains("wrong type"));
+
+    // The gate must short-circuit before phase_complete runs.
+    let state = phase_finalize_read_state(root, "wrong-type");
+    assert_eq!(state["phases"]["flow-review"]["status"], "in_progress");
+}
+
+#[test]
+fn phase_finalize_agents_skipped_gate_normalizes_mixed_case_phase() {
+    // Per `.claude/rules/security-gates.md` "Normalize Before
+    // Comparing": gate inputs that compare against state-file
+    // canonical lowercase phase keys must be normalized first. A
+    // mixed-case `--phase "Flow-Review"` must still find the
+    // canonical `phases.flow-review.agents_skipped` array and fire
+    // the gate.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "mixed-case", "flow-review");
+    seed_agents_skipped(
+        root,
+        "mixed-case",
+        "flow-review",
+        json!([{
+            "agent": "reviewer",
+            "reason": "rate_limit",
+            "timestamp": "2026-01-01T00:00:00-08:00"
+        }]),
+    );
+
+    // Caller passes Mixed-case phase string; canonical state key is
+    // lowercase.
+    let args = phase_finalize_test_args("Flow-Review", "mixed-case", None, None);
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+
+    assert_eq!(result["status"], "error");
+    assert_eq!(result["reason"], "agents_skipped");
+}
+
+#[test]
 fn phase_finalize_unaffected_when_agents_skipped_empty() {
     // Empty array AND missing field both pass through — the gate only
     // fires when at least one entry is present.

@@ -169,6 +169,14 @@ const PLACEHOLDER_SUBS: &[(&str, &str)] = &[
         "<test_command>",
         "bin/test .flow-states/test-branch-adversarial_test.py",
     ),
+    // Consumed by skills/flow-review/SKILL.md Step 2's failure
+    // classification when invoking `bin/flow add-skipped-agent
+    // --reason <classified>`. The classification maps an
+    // external-failure marker observed in an agent's response to one
+    // of the positive-allowlist values (rate_limit, api_error, other);
+    // the test only needs a concrete value that exercises the
+    // add-skipped-agent allow-list pattern.
+    ("<classified>", "rate_limit"),
 ];
 
 fn substitute_placeholders(line: &str) -> Option<String> {

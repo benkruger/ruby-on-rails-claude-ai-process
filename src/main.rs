@@ -5,6 +5,7 @@ use std::process;
 use flow_rs::add_finding;
 use flow_rs::add_issue;
 use flow_rs::add_notification;
+use flow_rs::add_skipped_agent;
 use flow_rs::analyze_issues;
 use flow_rs::append_note;
 use flow_rs::auto_close_parent;
@@ -152,6 +153,9 @@ enum Commands {
     AddIssue(add_issue::Args),
     /// Record a Slack notification in FLOW state
     AddNotification(add_notification::Args),
+    /// Record a skipped review-agent in FLOW state for phase-finalize gating.
+    #[command(name = "add-skipped-agent")]
+    AddSkippedAgent(add_skipped_agent::Args),
 
     /// FLOW cleanup orchestrator (worktree, branches, state files).
     Cleanup(cleanup::Args),
@@ -619,6 +623,11 @@ fn main() {
         Some(Commands::AddNotification(args)) => {
             let root = project_root();
             let (value, code) = add_notification::run_impl_main(args, &root);
+            flow_rs::dispatch::dispatch_json(value, code);
+        }
+        Some(Commands::AddSkippedAgent(args)) => {
+            let root = project_root();
+            let (value, code) = add_skipped_agent::run_impl_main(&args, &root);
             flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::Issue(args)) => {

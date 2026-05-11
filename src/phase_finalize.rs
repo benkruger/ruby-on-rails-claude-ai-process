@@ -46,6 +46,15 @@ pub struct Args {
     /// PR URL for Slack notification (used when creating a new thread, i.e. Start phase)
     #[arg(long = "pr-url")]
     pub pr_url: Option<String>,
+
+    /// Accept and proceed when `phases.<phase>.agents_skipped` is
+    /// non-empty. Without this flag, phase-finalize returns
+    /// `{"status":"error","reason":"agents_skipped",...}` so the
+    /// caller surfaces the skipped list to the user before
+    /// advancing. Populated by `bin/flow add-skipped-agent` during
+    /// flow-review's failure-classification logic.
+    #[arg(long = "accept-skipped-agents")]
+    pub accept_skipped_agents: bool,
 }
 
 /// Main-arm wrapper: resolves real `root` and `cwd` then delegates to
@@ -101,6 +110,37 @@ pub fn run_impl(
             "status": "error",
             "message": format!("No state file found: {}", state_path.display()),
         }));
+    }
+
+    // agents_skipped gate. When the calling skill recorded one or more
+    // skipped review-agents (via `bin/flow add-skipped-agent` from
+    // flow-review's failure-classification logic), the finalize must
+    // refuse to advance the phase unless the caller has explicitly
+    // accepted the partial coverage via `--accept-skipped-agents`. The
+    // gate runs after the state-file existence check and before any
+    // Slack call or state mutation so a rejection leaves the state
+    // untouched and the caller can retry the skipped agents.
+    let state_snapshot: Option<Value> = std::fs::read_to_string(&state_path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok());
+    if !args.accept_skipped_agents {
+        if let Some(skipped) = state_snapshot
+            .as_ref()
+            .and_then(|s| s["phases"][&args.phase]["agents_skipped"].as_array())
+        {
+            if !skipped.is_empty() {
+                return Ok(json!({
+                    "status": "error",
+                    "reason": "agents_skipped",
+                    "message": format!(
+                        "{} agents skipped during {}; pass --accept-skipped-agents to proceed",
+                        skipped.len(),
+                        args.phase
+                    ),
+                    "skipped": skipped,
+                }));
+            }
+        }
     }
 
     // Load frozen phase config if available

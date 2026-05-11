@@ -1,6 +1,7 @@
 pub mod add_finding;
 pub mod add_issue;
 pub mod add_notification;
+pub mod add_skipped_agent;
 pub mod analyze_issues;
 pub mod append_note;
 pub mod auto_close_parent;

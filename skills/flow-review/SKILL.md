@@ -456,13 +456,21 @@ Prefix the prompt with:
 
 Wait for all agents to return.
 
-**Detect truncation and recover.**
+**Classify each agent's response.** Apply the three classes in
+priority order — truncation first, external failure second,
+normal completion otherwise. Priority order matters because a
+truncated agent's prose may coincidentally contain
+external-failure substrings, but the correct response to
+truncation is re-invocation against a narrowed partition, not
+recording the agent as skipped.
 
-For each high-investigation agent (reviewer, learn-analyst,
-documentation), check whether the returned output contains the
-literal `END-OF-FINDINGS` completion marker as the final
-structural element. Marker absence means the agent was truncated
-by `maxTurns` exhaustion (see
+**Class 1 — Truncation.** For each high-investigation agent
+(reviewer, learn-analyst, documentation), check whether the
+returned output contains the literal `END-OF-FINDINGS`
+completion marker as the final structural element AND at least
+one partial structured `**Finding` block. Marker absence
+combined with partial findings means the agent was truncated by
+`maxTurns` exhaustion mid-analysis (see
 `.claude/rules/cognitive-isolation.md` "Context Budget +
 Truncation Recovery").
 
@@ -489,6 +497,36 @@ Note the agent as truncated in the triage summary (Step 3)
 rather than splitting infinitely. The user decides whether to
 accept partial coverage or rerun Review on a smaller
 subset of the diff.
+
+**Class 2 — External failure.** When truncation does NOT match
+(no partial `**Finding` block) AND the response contains a
+canonical external-failure marker (`rate_limit`, `429`,
+`usage_limit`, `API Error`, `rate limit exceeded`), the agent
+hit an upstream API or quota failure rather than running out of
+turns. The agent has produced no findings the parent can use,
+but a future flow-review re-invocation could succeed.
+
+Classify the reason from the marker observed:
+
+- `rate_limit`, `rate limit exceeded`, `429` → `rate_limit`
+- `API Error`, `usage_limit` → `api_error`
+- Anything else that signals upstream skip → `other`
+
+Then invoke `bin/flow add-skipped-agent` to record the entry so
+`phase-finalize` knows to gate the Done step:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow add-skipped-agent --branch <branch> --agent <name> --reason <classified>
+```
+
+Do not retry the agent in this step. The Done section's handler
+for the `agents_skipped` error reason gives the user the
+retry/accept/abort choice once all agents have been classified.
+
+**Class 3 — Normal completion.** The response contains the
+`END-OF-FINDINGS` marker (high-investigation agents) or has
+exited cleanly (other agents). Findings flow to Step 3 triage
+unchanged.
 
 The probe file lives inside the worktree's test tree, so worktree removal at Phase 5 Complete (or `/flow:flow-abort`) disposes of it automatically as a side effect of `git worktree remove`. The basename glob is also pre-listed in `.git/info/exclude` (`test_adversarial_flow.*`, `*_adversarial_flow_test.rb`) so the throwaway probe never appears in a user's `git status` output alongside intentional changes.
 
@@ -724,7 +762,46 @@ ${CLAUDE_PLUGIN_ROOT}/bin/flow phase-finalize --phase flow-review --branch <bran
 
 Omit `--thread-ts` if `slack_thread_ts` was not returned by `phase-enter`.
 
-Parse the JSON output. If `"status": "error"`, report the error and stop.
+Parse the JSON output.
+
+**Handle the `agents_skipped` error reason.** When the response
+shape is `{"status":"error","reason":"agents_skipped","skipped":[...],"message":"..."}`,
+one or more review agents were classified as skipped in Step 2.
+The phase has not been advanced — the gate ran before any
+state mutation so the user can decide how to proceed.
+
+Present the skipped list inline (one entry per line:
+`<agent> — <reason> @ <timestamp>`), then use AskUserQuestion:
+
+> "Review left <count> agents skipped (<reasons>). How should we
+> proceed?"
+>
+> Options:
+>
+> - **Retry the skipped agents** — re-invoke just the skipped
+>   agents from Step 2 (reusing the same `<full_diff_file>` and
+>   `<substantive_diff_file>` paths captured in Step 1). After
+>   the retry, re-run `phase-finalize` without
+>   `--accept-skipped-agents`; the gate fires again if any
+>   retried agent skips a second time, so the user can iterate.
+> - **Proceed with --accept-skipped-agents** — re-run
+>   `phase-finalize --phase flow-review --branch <branch>
+>   --thread-ts <slack_thread_ts> --accept-skipped-agents`. The
+>   skipped entries stay in state for the Learn phase audit but
+>   Review advances.
+> - **Abort back to Code phase** — invoke
+>   `bin/flow phase-transition --action back --phase flow-code`
+>   to drop Review's in-progress markers and return to Code. The
+>   skipped entries remain in state for forensic purposes; the
+>   next Review entry starts with a fresh classification pass.
+
+Do NOT advance to the COMPLETE banner until the user picks one
+of the three options and the chosen path returns a
+`{"status":"ok",...}` envelope.
+
+When the response is `{"status":"error", ...}` for any OTHER
+reason, report the error and stop.
+
 Use the `formatted_time` field in the COMPLETE banner below. Do not print
 the timing calculation.
 

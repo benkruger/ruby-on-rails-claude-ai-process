@@ -40,39 +40,33 @@ At the very start, output the following banner in your response (not via Bash) i
 ```
 ````
 
-Immediately after the banner, capture the active Claude Code
-session_id and write the per-session "utility skill in progress"
-marker so the Stop hook refuses turn-end while this skill is running.
-Without the marker the model returns control to the user when the
-decompose:decompose Skill tool returns mid-pipeline, breaking the
-unattended-flow contract this skill promises.
+Immediately after the banner, write the per-session "utility skill
+in progress" marker so the Stop hook refuses turn-end while this
+skill is running. Without the marker the model returns control to
+the user when the decompose:decompose Skill tool returns
+mid-pipeline, breaking the unattended-flow contract this skill
+promises.
 
-Capture the session_id ONCE here. Reading the SessionStart capture
-file on every set/clear call is a race surface: a concurrent Claude
-Code session's SessionStart overwrites the capture file mid-skill,
-so set-time and clear-time would resolve to different session_ids
-and the marker would orphan. Pass the captured value explicitly to
-every set/clear invocation below — including the error-exit paths
-in the Conversation Gate and the File Cancel branch.
-
-Run `bin/flow current-session-id` and capture its stdout as the
-literal `<session_id>` to substitute into every subsequent
-set-utility-in-progress and clear-utility-in-progress invocation:
+Rust resolves the active session_id at the CLI boundary by reading
+the `CLAUDE_CODE_SESSION_ID` env var Claude Code supplies to every
+Bash subprocess (Claude Code 2.1.132+); on older Claude Code
+installs it falls back to the SessionStart capture file. The
+per-subprocess env value matches what the Stop hook receives in its
+stdin payload, so set-time and clear-time always resolve to the
+same id even when a concurrent Claude Code session overwrites the
+capture file mid-skill — the explicit session-id flag no longer
+needs to be threaded through the skill.
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow current-session-id
+${CLAUDE_PLUGIN_ROOT}/bin/flow set-utility-in-progress --skill flow:flow-create-issue
 ```
 
-If the captured value is empty (no SessionStart capture file
-present), skip the set call entirely — proceed without the marker.
-The Stop hook treats a missing marker as a non-block, so the skill
-runs without protection but does not break.
-
-When the captured value is non-empty, write the marker:
-
-```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow set-utility-in-progress --skill flow:flow-create-issue --session-id <session_id>
-```
+If the marker-write call returns `status: error` with
+`no session_id available` (no env var AND no capture file — rare,
+only on Claude Code installs without per-subprocess env support and
+without a SessionStart capture file), the skill proceeds without
+the marker. The Stop hook treats a missing marker as a non-block,
+so the skill runs without protection but does not break.
 
 ---
 
@@ -103,7 +97,7 @@ marker so the Stop hook does not refuse turn-end after the rejection,
 then output this guidance and stop:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue --session-id <session_id>
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue
 ```
 
 > "This skill captures a brainstormed solution as a pre-planned issue.
@@ -397,7 +391,7 @@ filing. Do not write the body file. Do not output the COMPLETE
 banner.
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue --session-id <session_id>
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue
 ```
 
 </HARD-GATE>
@@ -449,7 +443,7 @@ Clear the utility-in-progress marker so the Stop hook stops refusing
 turn-end now that the skill has completed its work:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue --session-id <session_id>
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-create-issue
 ```
 
 Display the issue URL to the user, then output the COMPLETE banner:

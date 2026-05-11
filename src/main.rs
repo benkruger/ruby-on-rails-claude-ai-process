@@ -737,14 +737,24 @@ fn main() {
         }
         Some(Commands::SetUtilityInProgress { skill, session_id }) => {
             let home = utility_marker_home();
-            let (value, code) =
-                commands::utility_marker::run_set_main(&home, &skill, session_id.as_deref());
+            let env_sid = std::env::var("CLAUDE_CODE_SESSION_ID").ok();
+            let (value, code) = commands::utility_marker::run_set_main(
+                &home,
+                &skill,
+                session_id.as_deref(),
+                env_sid.as_deref(),
+            );
             flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::ClearUtilityInProgress { skill, session_id }) => {
             let home = utility_marker_home();
-            let (value, code) =
-                commands::utility_marker::run_clear_main(&home, &skill, session_id.as_deref());
+            let env_sid = std::env::var("CLAUDE_CODE_SESSION_ID").ok();
+            let (value, code) = commands::utility_marker::run_clear_main(
+                &home,
+                &skill,
+                session_id.as_deref(),
+                env_sid.as_deref(),
+            );
             flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::CurrentSessionId) => {

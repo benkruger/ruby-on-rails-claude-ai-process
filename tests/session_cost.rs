@@ -75,7 +75,7 @@ fn cost_file_path_resolves_no_extension_under_year_month_dir() {
     let root = tmp.path().canonicalize().expect("canonicalize");
     let now = chrono::Local::now();
     let year_month = now.format("%Y-%m").to_string();
-    let path = cost_file_path(&root, "sid-abc");
+    let path = cost_file_path(&root, "sid-abc").expect("valid sid");
     let expected = root
         .join(".claude")
         .join("cost")
@@ -86,6 +86,36 @@ fn cost_file_path_resolves_no_extension_under_year_month_dir() {
         path.file_name().unwrap().to_string_lossy() == "sid-abc",
         "no extension allowed"
     );
+}
+
+/// `cost_file_path` rejects a traversal-containing session_id at
+/// its own boundary — the pub function validates regardless of
+/// upstream caller discipline.
+#[test]
+fn cost_file_path_rejects_traversal_session_id() {
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    assert_eq!(cost_file_path(&root, "../escape"), None);
+    assert_eq!(cost_file_path(&root, ".."), None);
+    assert_eq!(cost_file_path(&root, "."), None);
+}
+
+/// `cost_file_path` rejects an empty session_id.
+#[test]
+fn cost_file_path_rejects_empty_session_id() {
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    assert_eq!(cost_file_path(&root, ""), None);
+}
+
+/// `cost_file_path` rejects a session_id containing a path
+/// separator — the join would otherwise create a subdirectory
+/// the discovery walkers cannot see.
+#[test]
+fn cost_file_path_rejects_session_id_with_slash() {
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    assert_eq!(cost_file_path(&root, "sid/with/slash"), None);
 }
 
 // --- read_monthly_aggregate ---
@@ -151,4 +181,95 @@ fn read_monthly_aggregate_skips_directory_entries() {
 
     let total = read_monthly_aggregate(&root);
     assert!((total - 1.00).abs() < 1e-9);
+}
+
+// --- byte cap ---
+
+/// Plant a cost file far larger than `COST_FILE_BYTE_CAP` whose
+/// leading bytes parse cleanly as a float. The take-bounded read
+/// completes against the cap rather than loading the entire file
+/// into memory; with space padding after the float, the trimmed
+/// truncated content still parses to the leading value. Proves
+/// the read terminates without OOM on a multi-megabyte file.
+#[test]
+fn read_cost_file_with_oversized_file_completes_bounded() {
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    let path = root.join("oversized-cost");
+    // 2 MB of space padding after a leading "1.50". The take
+    // cap reads ~1024 bytes; trim removes the trailing spaces;
+    // parse succeeds on "1.50".
+    let mut content = String::from("1.50");
+    content.push_str(&" ".repeat(2 * 1024 * 1024));
+    fs::write(&path, &content).expect("write");
+    assert_eq!(read_cost_file(&path), Some(1.50));
+}
+
+/// Plant an oversized cost file under the cost dir and assert
+/// `read_monthly_aggregate` completes without OOM. The per-entry
+/// take cap bounds the walker's worst-case I/O.
+#[test]
+fn read_monthly_aggregate_with_oversized_entry_completes_bounded() {
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    let now = chrono::Local::now();
+    let year_month = now.format("%Y-%m").to_string();
+    let cost_dir = root.join(".claude").join("cost").join(&year_month);
+    fs::create_dir_all(&cost_dir).expect("mkdir");
+    let mut content = String::from("3.25");
+    content.push_str(&" ".repeat(2 * 1024 * 1024));
+    fs::write(cost_dir.join("sid-oversized"), &content).expect("write");
+    let total = read_monthly_aggregate(&root);
+    assert!(
+        (total - 3.25).abs() < 1e-9,
+        "expected 3.25 from truncated read, got {}",
+        total
+    );
+}
+
+/// Plant a cost file containing invalid UTF-8 bytes —
+/// `read_to_string` returns Err on non-UTF-8 input, so the
+/// `take().read_to_string().ok()?` chain returns None without
+/// panicking.
+#[test]
+fn read_cost_file_returns_none_for_non_utf8_content() {
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    let path = root.join("non-utf8-cost");
+    // 0xFF is not a valid UTF-8 lead byte.
+    fs::write(&path, [0xFFu8, 0xFE, 0xFD]).expect("write");
+    assert_eq!(read_cost_file(&path), None);
+}
+
+/// Plant a dangling symlink as a cost-dir entry on Unix —
+/// `fs::File::open` returns Err (ENOENT) and the walker's inner
+/// `if let Ok(file)` branch is skipped (the dangling symlink is
+/// silently dropped without aborting the loop, real files still
+/// contribute).
+#[cfg(unix)]
+#[test]
+fn read_monthly_aggregate_skips_dangling_symlink_entries() {
+    use std::os::unix::fs::symlink;
+
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    let now = chrono::Local::now();
+    let year_month = now.format("%Y-%m").to_string();
+    let cost_dir = root.join(".claude").join("cost").join(&year_month);
+    fs::create_dir_all(&cost_dir).expect("mkdir");
+    fs::write(cost_dir.join("sid-real"), "7.50").expect("write real");
+    // Dangling symlink — points at a nonexistent target so
+    // fs::File::open fails (ENOENT).
+    symlink(
+        cost_dir.join("nonexistent-target"),
+        cost_dir.join("sid-dangling"),
+    )
+    .expect("symlink");
+
+    let total = read_monthly_aggregate(&root);
+    assert!(
+        (total - 7.50).abs() < 1e-9,
+        "expected 7.50 (dangling symlink skipped), got {}",
+        total
+    );
 }

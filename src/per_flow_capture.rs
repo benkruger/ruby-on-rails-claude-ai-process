@@ -64,7 +64,13 @@ pub fn capture_for_active_state(home: &Path, state: &Value, project_root: &Path)
     let mut snap =
         session_metrics::capture(home, transcript_path.as_deref(), session_id.as_deref(), now);
     if let Some(sid) = session_id.as_deref() {
-        let cost_path = session_cost::cost_file_path(project_root, sid);
+        // `session_id` has already passed `is_safe_session_id` on
+        // line 51, and `cost_file_path` uses the same validator, so
+        // this branch is unreachable per
+        // `.claude/rules/reachable-is-testable.md` "When the test
+        // resists the real production path".
+        let cost_path = session_cost::cost_file_path(project_root, sid)
+            .expect("sid passed is_safe_session_id upstream");
         snap.session_cost_usd = session_cost::read_cost_file(&cost_path);
     }
     snap

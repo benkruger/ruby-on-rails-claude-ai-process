@@ -82,6 +82,18 @@ when the topic argument is missing. Every skill-exit boundary
 clears the marker so the Stop hook releases turn-end after the
 skill completes.
 
+On Claude Code installs without the per-subprocess env var, the
+capture-file fallback resolves session_id independently at set and
+clear time. A second Claude Code session whose SessionStart hook
+overwrites the capture file between this skill's set and clear
+calls can leave the marker orphaned at the original id. The same
+orphan shape can occur when an unhandled error in Step 2, Step 3,
+or Step 4 exits the skill before reaching a clear branch — the
+marker persists and the Stop hook keeps refusing turn-end for the
+rest of the session. Recovery in either case is
+`rm ~/.claude/flow/utility-in-progress-*.json` after the skill
+exits; the Stop hook treats a missing marker as a non-block.
+
 ---
 
 ## Step 1 — Conversation Gate
@@ -114,10 +126,19 @@ take any action outside this skill without a topic argument.
 
 ## Step 2 — Role Read
 
-Read `.flow.json` from the project root via the Read tool. The file
-is written by `/flow:flow-prime` and stores per-user preferences,
-including the optional `role` field that records the user's primary
-working role.
+Resolve the project root, then read `.flow.json` from it. The file
+is gitignored and lives only at the main repo root — never in a
+linked worktree — so the read must target the main repo path
+regardless of whether the skill was invoked outside a worktree or
+from inside one.
+
+Run `git worktree list --porcelain`. The path on the first
+`worktree` line is the main repo root. Read `<project_root>/.flow.json`
+via the Read tool.
+
+The file is written by `/flow:flow-prime` and stores per-user
+preferences, including the optional `role` field that records the
+user's primary working role.
 
 Extract the `role` field from the JSON. The field is optional —
 older `.flow.json` files written before the role-selection step

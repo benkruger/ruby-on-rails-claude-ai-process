@@ -5438,6 +5438,58 @@ fn flow_plan_skill_reads_role_from_flow_json() {
 }
 
 #[test]
+fn every_marker_writing_skill_is_in_multi_step_allowlist() {
+    // Regression: a future utility skill writes a per-session
+    // marker via `bin/flow set-utility-in-progress --skill flow:<n>`
+    // but is not registered in
+    // `src/commands/utility_marker.rs::MULTI_STEP_UTILITY_SKILLS`.
+    // The Stop hook's `check_in_progress_utility_skill` predicate
+    // (src/hooks/stop_continue.rs) silently drops markers naming
+    // skills outside the allowlist — the unattended-flow contract
+    // breaks the first time a Skill tool returns mid-pipeline.
+    //
+    // Consumer: the Stop hook predicate above. Every skill that
+    // sets a marker depends on the allowlist to honor it; without
+    // the allowlist entry the marker is invisible to the hook and
+    // the model returns control to the user mid-skill.
+    use regex::Regex;
+    let allowlist_path = common::repo_root()
+        .join("src")
+        .join("commands")
+        .join("utility_marker.rs");
+    let allowlist_src = std::fs::read_to_string(&allowlist_path)
+        .expect("src/commands/utility_marker.rs must exist");
+    let anchor = "MULTI_STEP_UTILITY_SKILLS";
+    let tail = allowlist_src
+        .split_once(anchor)
+        .map(|(_, t)| t)
+        .expect("src/commands/utility_marker.rs must declare MULTI_STEP_UTILITY_SKILLS");
+    let value = tail
+        .split_once(';')
+        .map(|(v, _)| v)
+        .expect("MULTI_STEP_UTILITY_SKILLS declaration must end with `;`");
+    let marker_re = Regex::new(r"set-utility-in-progress\s+--skill\s+(flow:[a-z0-9-]+)")
+        .expect("regex must compile");
+    let mut missing: Vec<(String, String)> = Vec::new();
+    for skill_name in common::all_skill_names() {
+        let content = common::read_skill(&skill_name);
+        for cap in marker_re.captures_iter(&content) {
+            let skill_id = cap.get(1).unwrap().as_str().to_string();
+            let needle = format!("\"{}\"", skill_id);
+            if !value.contains(&needle) {
+                missing.push((skill_name.clone(), skill_id));
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "Every utility skill that writes a per-session marker must be registered in MULTI_STEP_UTILITY_SKILLS so the Stop hook honors the marker. Missing entries: {:?}. Current allowlist value: `{}`",
+        missing,
+        value.trim()
+    );
+}
+
+#[test]
 fn flow_plan_skill_uses_utility_in_progress_marker() {
     // Regression: a future edit drops either the set or the clear
     // side of the per-session utility-in-progress marker. Without

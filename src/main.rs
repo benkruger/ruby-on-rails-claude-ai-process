@@ -47,6 +47,7 @@ use flow_rs::plan_from_issue;
 use flow_rs::prime_check;
 use flow_rs::prime_setup;
 use flow_rs::promote_permissions;
+use flow_rs::record_agent_return;
 use flow_rs::render_pr_body;
 use flow_rs::start_finalize;
 use flow_rs::start_gate;
@@ -155,6 +156,9 @@ enum Commands {
     /// Record a skipped review-agent in FLOW state for phase-finalize gating.
     #[command(name = "add-skipped-agent")]
     AddSkippedAgent(add_skipped_agent::Args),
+    /// Record a verified sub-agent return in FLOW state for phase-finalize gating.
+    #[command(name = "record-agent-return")]
+    RecordAgentReturn(record_agent_return::Args),
 
     /// FLOW cleanup orchestrator (worktree, branches, state files).
     Cleanup(cleanup::Args),
@@ -624,6 +628,12 @@ fn main() {
         Some(Commands::AddSkippedAgent(args)) => {
             let root = project_root();
             let (value, code) = add_skipped_agent::run_impl_main(&args, &root);
+            flow_rs::dispatch::dispatch_json(value, code);
+        }
+        Some(Commands::RecordAgentReturn(args)) => {
+            let root = project_root();
+            let home = flow_rs::session_metrics::home_dir_or_empty();
+            let (value, code) = record_agent_return::run_impl_main(&args, &root, &home);
             flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::Issue(args)) => {

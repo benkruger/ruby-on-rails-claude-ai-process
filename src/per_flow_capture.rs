@@ -91,7 +91,17 @@ pub fn capture_for_active_state(home: &Path, state: &Value, project_root: &Path)
 /// The result is run through `is_safe_transcript_path` by the
 /// caller, so this helper does no validation itself — it only
 /// builds the candidate `PathBuf`.
-fn derive_transcript_path(home: &Path, project_root: &Path, session_id: &str) -> PathBuf {
+///
+/// Consumed by:
+///
+/// - `capture_for_active_state` above (the original consumer) — the
+///   self-heal branch when state's `transcript_path` is null.
+/// - `crate::record_agent_return::run_impl_main` — same self-heal
+///   branch, applied before calling
+///   `verify_agent_returned_in_phase` to ensure the verifier reads
+///   the canonical transcript path even when the state file's
+///   `transcript_path` is missing or null.
+pub fn derive_transcript_path(home: &Path, project_root: &Path, session_id: &str) -> PathBuf {
     let encoded: String = project_root
         .to_string_lossy()
         .chars()

@@ -53,6 +53,7 @@ pub mod prime_check;
 pub mod prime_setup;
 pub mod promote_permissions;
 pub mod protected_paths;
+pub mod record_agent_return;
 pub mod render_pr_body;
 pub mod required_agents;
 pub mod session_cost;

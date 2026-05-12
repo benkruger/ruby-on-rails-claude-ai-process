@@ -198,6 +198,50 @@ fn close_issue_gh_spawn_failure_returns_error() {
     );
 }
 
+#[test]
+fn close_issue_with_comment_passes_comment_to_gh() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    // gh stub records its argv to `.gh-argv` so the test can verify
+    // `--comment <text>` reached gh exactly as passed.
+    let stub_dir = create_gh_stub(
+        &repo,
+        "#!/bin/bash\nprintf '%s\\n' \"$@\" > .gh-argv\nexit 0\n",
+    );
+
+    let output = run_close_issue(
+        &repo,
+        &[
+            "--repo",
+            "owner/name",
+            "--number",
+            "42",
+            "--comment",
+            "Decomposed into #99.",
+        ],
+        &stub_dir,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let argv = std::fs::read_to_string(repo.join(".gh-argv")).expect("gh stub argv recorded");
+    let args: Vec<&str> = argv.lines().collect();
+    assert!(
+        args.contains(&"--comment"),
+        "argv missing --comment: {:?}",
+        args
+    );
+    assert!(
+        args.contains(&"Decomposed into #99."),
+        "argv missing comment text: {:?}",
+        args
+    );
+}
+
 // --- run_impl_main ---
 
 #[test]
@@ -205,6 +249,7 @@ fn close_issue_run_impl_main_no_repo_returns_error_tuple() {
     let args = Args {
         repo: None,
         number: 42,
+        comment: None,
     };
     let resolver = || None;
     let (value, code) = run_impl_main(args, &resolver);

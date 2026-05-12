@@ -24,6 +24,7 @@ use crate::lock::mutate_state;
 use crate::notify_slack;
 use crate::phase_config;
 use crate::phase_transition::phase_complete;
+use crate::required_agents::required_agents_for_phase;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -215,6 +216,86 @@ pub fn run_impl(
                         "phases.{}.agents_skipped has wrong type (expected array); refusing to advance phase",
                         phase_key_for_closure
                     ),
+                }));
+                return;
+            }
+        }
+
+        // Required-agents gate. Compose `agents_returned` (verified
+        // by `bin/flow record-agent-return`) with `agents_skipped`
+        // (verified by `bin/flow add-skipped-agent`) to confirm every
+        // required agent for this phase has been accounted for. A
+        // missing required agent is a model that did not actually
+        // invoke the agent AND did not record a skip reason — the
+        // inline-synthesis bypass the recording subcommand was
+        // designed to close.
+        //
+        // Composes with the agents_skipped gate above: when
+        // `--accept-skipped-agents` is set, the skipped-non-empty
+        // gate is bypassed but this gate still requires every
+        // required agent to appear in EITHER `agents_returned` OR
+        // `agents_skipped`. The flag means "I accept that some
+        // agents were skipped"; it does not mean "I accept that
+        // some required agents were never invoked at all".
+        //
+        // Fail-closed per `.claude/rules/security-gates.md` "Fail
+        // Closed When State Is Unreliable": a wrong-type
+        // `agents_returned` field (string, number, object) cannot
+        // be interpreted as a covering set and must NOT silently
+        // advance the phase.
+        let required = required_agents_for_phase(&phase_key_for_closure);
+        if !required.is_empty() {
+            let returned_field = &state["phases"][&phase_key_for_closure]["agents_returned"];
+            let returned_arr: Option<&Vec<Value>> = returned_field.as_array();
+            if returned_arr.is_none() && !returned_field.is_null() {
+                *gate_response.borrow_mut() = Some(json!({
+                    "status": "error",
+                    "reason": "required_agent_not_returned",
+                    "message": format!(
+                        "phases.{}.agents_returned has wrong type (expected array); refusing to advance phase",
+                        phase_key_for_closure
+                    ),
+                }));
+                return;
+            }
+            let mut accounted: std::collections::HashSet<String> = std::collections::HashSet::new();
+            if let Some(arr) = returned_arr {
+                for entry in arr {
+                    if let Some(name) = entry.get("agent").and_then(|v| v.as_str()) {
+                        accounted.insert(name.to_string());
+                    }
+                }
+            }
+            // Re-read agents_skipped as a Vec<Value> for membership
+            // composition. Wrong-type was handled above by the
+            // agents_skipped gate (when --accept-skipped-agents is
+            // false) — when the flag IS set, a wrong-type field
+            // here is treated as "no skips" (empty set), still
+            // requiring every agent to be returned.
+            if let Some(arr) = state["phases"][&phase_key_for_closure]["agents_skipped"].as_array()
+            {
+                for entry in arr {
+                    if let Some(name) = entry.get("agent").and_then(|v| v.as_str()) {
+                        accounted.insert(name.to_string());
+                    }
+                }
+            }
+            let missing: Vec<&str> = required
+                .iter()
+                .filter(|r| !accounted.contains(**r))
+                .copied()
+                .collect();
+            if !missing.is_empty() {
+                *gate_response.borrow_mut() = Some(json!({
+                    "status": "error",
+                    "reason": "required_agent_not_returned",
+                    "message": format!(
+                        "{} required agents for {} neither returned nor skipped: {:?}",
+                        missing.len(),
+                        phase_key_for_closure,
+                        missing
+                    ),
+                    "missing": missing,
                 }));
                 return;
             }

@@ -98,7 +98,18 @@ fn create_state(repo: &Path, branch: &str, current_phase: &str, skills_continue:
                 "completed_at": null,
                 "session_started_at": if current_phase == "flow-review" { Some("2026-01-01T00:03:00-08:00") } else { None },
                 "cumulative_seconds": 0,
-                "visit_count": if current_phase == "flow-review" { 1 } else { 0 }
+                "visit_count": if current_phase == "flow-review" { 1 } else { 0 },
+                // Pre-populate every required agent so the
+                // required-agents gate added in this PR passes for
+                // tests that don't specifically test the gate.
+                // Tests that DO test the gate override this via
+                // `seed_agents_returned` after `create_state`.
+                "agents_returned": [
+                    {"agent": "reviewer", "timestamp": "2026-01-01T00:03:30-08:00"},
+                    {"agent": "pre-mortem", "timestamp": "2026-01-01T00:03:31-08:00"},
+                    {"agent": "adversarial", "timestamp": "2026-01-01T00:03:32-08:00"},
+                    {"agent": "documentation", "timestamp": "2026-01-01T00:03:33-08:00"}
+                ]
             },
             "flow-learn": {
                 "name": "Learn",
@@ -107,7 +118,10 @@ fn create_state(repo: &Path, branch: &str, current_phase: &str, skills_continue:
                 "completed_at": null,
                 "session_started_at": if current_phase == "flow-learn" { Some("2026-01-01T00:04:00-08:00") } else { None },
                 "cumulative_seconds": 0,
-                "visit_count": if current_phase == "flow-learn" { 1 } else { 0 }
+                "visit_count": if current_phase == "flow-learn" { 1 } else { 0 },
+                "agents_returned": [
+                    {"agent": "learn-analyst", "timestamp": "2026-01-01T00:04:30-08:00"}
+                ]
             },
             "flow-complete": {
                 "name": "Complete",
@@ -588,18 +602,36 @@ fn phase_finalize_write_state(root: &std::path::Path, branch: &str, current_phas
             std::cmp::Ordering::Equal => "in_progress",
             std::cmp::Ordering::Greater => "pending",
         };
-        phases.insert(
-            p.to_string(),
-            json!({
-                "name": p,
-                "status": status,
-                "started_at": if status != "pending" { Some("2026-01-01T00:00:00-08:00") } else { None },
-                "completed_at": if status == "complete" { Some("2026-01-01T00:01:00-08:00") } else { None },
-                "session_started_at": if status == "in_progress" { Some("2026-01-01T00:00:00-08:00") } else { None },
-                "cumulative_seconds": if status == "complete" { 60 } else { 0 },
-                "visit_count": if status == "pending" { 0 } else { 1 }
-            }),
-        );
+        let mut entry = json!({
+            "name": p,
+            "status": status,
+            "started_at": if status != "pending" { Some("2026-01-01T00:00:00-08:00") } else { None },
+            "completed_at": if status == "complete" { Some("2026-01-01T00:01:00-08:00") } else { None },
+            "session_started_at": if status == "in_progress" { Some("2026-01-01T00:00:00-08:00") } else { None },
+            "cumulative_seconds": if status == "complete" { 60 } else { 0 },
+            "visit_count": if status == "pending" { 0 } else { 1 }
+        });
+        // Pre-populate every required agent so the required-agents
+        // gate added in this PR passes for tests that don't
+        // specifically test the gate. Tests that DO test the gate
+        // override this via `seed_agents_returned` after
+        // `phase_finalize_write_state`.
+        let preset_returned: Option<Value> = match *p {
+            "flow-review" => Some(json!([
+                {"agent": "reviewer", "timestamp": "2026-01-01T00:00:30-08:00"},
+                {"agent": "pre-mortem", "timestamp": "2026-01-01T00:00:31-08:00"},
+                {"agent": "adversarial", "timestamp": "2026-01-01T00:00:32-08:00"},
+                {"agent": "documentation", "timestamp": "2026-01-01T00:00:33-08:00"}
+            ])),
+            "flow-learn" => Some(json!([
+                {"agent": "learn-analyst", "timestamp": "2026-01-01T00:00:30-08:00"}
+            ])),
+            _ => None,
+        };
+        if let Some(preset) = preset_returned {
+            entry["agents_returned"] = preset;
+        }
+        phases.insert(p.to_string(), entry);
     }
 
     let state = json!({
@@ -1232,4 +1264,289 @@ fn finalize_no_slack_args_response_omits_slack_key() {
         .map(|v| v.as_array().map(|a| a.is_empty()).unwrap_or(true))
         .unwrap_or(true);
     assert!(notifs_empty);
+}
+
+// --- required-agents gate ---
+
+/// Helper: seed `phases.<phase>.agents_returned` with `entries`
+/// (typically a JSON array of `{agent, timestamp}` objects). Mirrors
+/// `seed_agents_skipped` so tests can populate the field that the
+/// new required-agents gate composes against `agents_skipped`.
+fn seed_agents_returned(root: &std::path::Path, branch: &str, phase: &str, entries: Value) {
+    let path = root.join(".flow-states").join(branch).join("state.json");
+    let mut state: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    state["phases"][phase]["agents_returned"] = entries;
+    fs::write(&path, serde_json::to_string_pretty(&state).unwrap()).unwrap();
+}
+
+fn returned_entry(agent: &str) -> Value {
+    json!({"agent": agent, "timestamp": "2026-01-01T00:00:00-08:00"})
+}
+
+/// Helper: clear `phases.<phase>.agents_returned` so the
+/// required-agents gate sees no recorded returns. Used by tests
+/// that want to test the missing-required branch and need to
+/// override the preset populated by `phase_finalize_write_state`.
+fn clear_agents_returned(root: &std::path::Path, branch: &str, phase: &str) {
+    let path = root.join(".flow-states").join(branch).join("state.json");
+    let mut state: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    if let Some(obj) = state["phases"][phase].as_object_mut() {
+        obj.remove("agents_returned");
+    }
+    fs::write(&path, serde_json::to_string_pretty(&state).unwrap()).unwrap();
+}
+
+fn skipped_entry(agent: &str, reason: &str) -> Value {
+    json!({"agent": agent, "reason": reason, "timestamp": "2026-01-01T00:00:00-08:00"})
+}
+
+#[test]
+fn phase_finalize_rejects_when_required_agents_neither_returned_nor_skipped() {
+    // flow-review requires {reviewer, pre-mortem, adversarial,
+    // documentation}. State has no agents_returned and no
+    // agents_skipped — every required agent is missing. The gate
+    // must short-circuit before phase_complete with reason
+    // required_agent_not_returned and an enumerated `missing`
+    // array.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "missing-all", "flow-review");
+    clear_agents_returned(root, "missing-all", "flow-review");
+
+    let args = phase_finalize_test_args("flow-review", "missing-all", None, None);
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+
+    assert_eq!(result["status"], "error");
+    assert_eq!(result["reason"], "required_agent_not_returned");
+    let missing = result["missing"]
+        .as_array()
+        .expect("missing array in error envelope");
+    let missing_set: std::collections::HashSet<&str> =
+        missing.iter().filter_map(|v| v.as_str()).collect();
+    assert!(missing_set.contains("reviewer"));
+    assert!(missing_set.contains("pre-mortem"));
+    assert!(missing_set.contains("adversarial"));
+    assert!(missing_set.contains("documentation"));
+
+    // The gate must short-circuit before phase_complete runs — the
+    // phase status must remain in_progress so the caller can retry.
+    let state = phase_finalize_read_state(root, "missing-all");
+    assert_eq!(state["phases"]["flow-review"]["status"], "in_progress");
+}
+
+#[test]
+fn phase_finalize_rejects_when_required_agents_partially_missing() {
+    // Three of four required agents returned; the fourth is missing.
+    // The gate must still fire and the `missing` array must name only
+    // the one that wasn't accounted for.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "missing-one", "flow-review");
+    seed_agents_returned(
+        root,
+        "missing-one",
+        "flow-review",
+        json!([
+            returned_entry("reviewer"),
+            returned_entry("pre-mortem"),
+            returned_entry("adversarial"),
+        ]),
+    );
+
+    let args = phase_finalize_test_args("flow-review", "missing-one", None, None);
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+    assert_eq!(result["status"], "error");
+    assert_eq!(result["reason"], "required_agent_not_returned");
+    let missing = result["missing"]
+        .as_array()
+        .expect("missing array in error envelope");
+    assert_eq!(missing.len(), 1);
+    assert_eq!(missing[0], "documentation");
+}
+
+#[test]
+fn phase_finalize_rejects_when_agents_returned_is_wrong_type() {
+    // Per `.claude/rules/security-gates.md` "Fail Closed When State
+    // Is Unreliable": a `phases.<phase>.agents_returned` field whose
+    // type is not an array must fail-closed with the same reason as
+    // missing-required so a corrupted state file cannot silently
+    // advance the phase.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "wrong-type-returned", "flow-review");
+    seed_agents_returned(
+        root,
+        "wrong-type-returned",
+        "flow-review",
+        json!("not_an_array"),
+    );
+
+    let args = phase_finalize_test_args("flow-review", "wrong-type-returned", None, None);
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+
+    assert_eq!(result["status"], "error");
+    assert_eq!(result["reason"], "required_agent_not_returned");
+
+    let state = phase_finalize_read_state(root, "wrong-type-returned");
+    assert_eq!(state["phases"]["flow-review"]["status"], "in_progress");
+}
+
+#[test]
+fn phase_finalize_passes_when_all_required_agents_returned() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "all-returned", "flow-review");
+    seed_agents_returned(
+        root,
+        "all-returned",
+        "flow-review",
+        json!([
+            returned_entry("reviewer"),
+            returned_entry("pre-mortem"),
+            returned_entry("adversarial"),
+            returned_entry("documentation"),
+        ]),
+    );
+
+    let args = phase_finalize_test_args("flow-review", "all-returned", None, None);
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+    assert_eq!(result["status"], "ok");
+
+    let state = phase_finalize_read_state(root, "all-returned");
+    assert_eq!(state["phases"]["flow-review"]["status"], "complete");
+}
+
+#[test]
+fn phase_finalize_passes_when_all_required_agents_skipped_with_flag() {
+    // Every required agent appears in agents_skipped; --accept-skipped-agents
+    // bypasses the agents_skipped non-empty gate. The required-agents
+    // gate composes both fields and finds every required agent
+    // accounted-for (via the skipped path), so the phase advances.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "all-skipped", "flow-review");
+    clear_agents_returned(root, "all-skipped", "flow-review");
+    seed_agents_skipped(
+        root,
+        "all-skipped",
+        "flow-review",
+        json!([
+            skipped_entry("reviewer", "rate_limit"),
+            skipped_entry("pre-mortem", "api_error"),
+            skipped_entry("adversarial", "exhausted_retries"),
+            skipped_entry("documentation", "other"),
+        ]),
+    );
+
+    let mut args = phase_finalize_test_args("flow-review", "all-skipped", None, None);
+    args.accept_skipped_agents = true;
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+    assert_eq!(result["status"], "ok");
+
+    let state = phase_finalize_read_state(root, "all-skipped");
+    assert_eq!(state["phases"]["flow-review"]["status"], "complete");
+}
+
+#[test]
+fn phase_finalize_passes_when_required_agents_split_between_returned_and_skipped() {
+    // Two agents returned, two skipped (with --accept-skipped-agents).
+    // The gate composes both fields — every required agent is
+    // accounted-for, so the phase advances.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "split-coverage", "flow-review");
+    seed_agents_returned(
+        root,
+        "split-coverage",
+        "flow-review",
+        json!([returned_entry("reviewer"), returned_entry("pre-mortem"),]),
+    );
+    seed_agents_skipped(
+        root,
+        "split-coverage",
+        "flow-review",
+        json!([
+            skipped_entry("adversarial", "rate_limit"),
+            skipped_entry("documentation", "api_error"),
+        ]),
+    );
+
+    let mut args = phase_finalize_test_args("flow-review", "split-coverage", None, None);
+    args.accept_skipped_agents = true;
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+    assert_eq!(result["status"], "ok");
+
+    let state = phase_finalize_read_state(root, "split-coverage");
+    assert_eq!(state["phases"]["flow-review"]["status"], "complete");
+}
+
+#[test]
+fn phase_finalize_no_required_agents_gate_for_non_review_learn_phases() {
+    // flow-code has no required-agents entry in REQUIRED_AGENTS, so
+    // the gate is a no-op for flow-code. The phase advances without
+    // any agents_returned or agents_skipped present.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "code-phase", "flow-code");
+    let args = phase_finalize_test_args("flow-code", "code-phase", None, None);
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+    assert_eq!(result["status"], "ok");
+
+    let state = phase_finalize_read_state(root, "code-phase");
+    assert_eq!(state["phases"]["flow-code"]["status"], "complete");
+}
+
+#[test]
+fn phase_finalize_required_agents_gate_skips_entries_without_agent_field() {
+    // Malformed entries in agents_returned / agents_skipped (missing
+    // the `agent` field) must not be treated as accounted-for. The
+    // gate's `if let Some(name) = entry.get("agent")...` branch
+    // tolerates the malformed entry by skipping it; the gate
+    // composes only the valid entries.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "malformed-entries", "flow-review");
+    // Replace the preset with 4 valid entries plus one malformed
+    // (no agent field). agents_skipped also has a malformed entry.
+    seed_agents_returned(
+        root,
+        "malformed-entries",
+        "flow-review",
+        json!([
+            {"timestamp": "2026-01-01T00:00:00-08:00"},
+            returned_entry("reviewer"),
+            returned_entry("pre-mortem"),
+            returned_entry("adversarial"),
+            returned_entry("documentation"),
+        ]),
+    );
+    seed_agents_skipped(
+        root,
+        "malformed-entries",
+        "flow-review",
+        json!([{"timestamp": "2026-01-01T00:00:00-08:00"}]),
+    );
+
+    let mut args = phase_finalize_test_args("flow-review", "malformed-entries", None, None);
+    args.accept_skipped_agents = true;
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+    assert_eq!(result["status"], "ok");
+}
+
+#[test]
+fn phase_finalize_required_agents_gate_fires_for_flow_learn() {
+    // flow-learn requires {learn-analyst}. State has no
+    // agents_returned; the gate must fire with the same reason and
+    // list learn-analyst as missing.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    phase_finalize_write_state(root, "learn-missing", "flow-learn");
+    clear_agents_returned(root, "learn-missing", "flow-learn");
+    let args = phase_finalize_test_args("flow-learn", "learn-missing", None, None);
+    let result = run_impl(root, root, &args).expect("run_impl returns Ok envelope");
+    assert_eq!(result["status"], "error");
+    assert_eq!(result["reason"], "required_agent_not_returned");
+    let missing = result["missing"].as_array().expect("missing array");
+    assert_eq!(missing.len(), 1);
+    assert_eq!(missing[0], "learn-analyst");
 }

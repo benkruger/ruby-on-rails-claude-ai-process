@@ -488,3 +488,45 @@ fn add_skipped_agent_returns_error_when_state_file_is_invalid_json() {
         .unwrap()
         .contains("failed to add skipped-agent"));
 }
+
+#[test]
+fn add_skipped_agent_accepts_exhausted_retries_reason() {
+    // The forthcoming retry-3-then-note loop in flow-review and
+    // flow-learn skills records exhausted-retry agent state through
+    // this subcommand. The reason must pass the ALLOWED_REASONS
+    // allowlist so the recording succeeds and phase-finalize's
+    // required-agents gate composes the entry with the other
+    // skipped-agent records.
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let state = json!({"branch": "b", "phases": {"flow-review": {}}});
+    let state_path = write_state(&repo, "b", &state);
+
+    let output = run_add_skipped_agent(
+        &repo,
+        &[
+            "--branch",
+            "b",
+            "--agent",
+            "reviewer",
+            "--reason",
+            "exhausted_retries",
+        ],
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+
+    let on_disk: Value = serde_json::from_str(&fs::read_to_string(&state_path).unwrap()).unwrap();
+    let skipped = on_disk["phases"]["flow-review"]["agents_skipped"]
+        .as_array()
+        .expect("agents_skipped array");
+    assert_eq!(skipped.len(), 1);
+    assert_eq!(skipped[0]["agent"], "reviewer");
+    assert_eq!(skipped[0]["reason"], "exhausted_retries");
+}

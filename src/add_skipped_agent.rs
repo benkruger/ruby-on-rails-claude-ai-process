@@ -26,7 +26,17 @@ use crate::utils::now;
 /// Reasons an agent may be marked as skipped. Positive allowlist per
 /// `.claude/rules/security-gates.md` "Positive Allowlist, Not Negative
 /// Denylist".
-pub const ALLOWED_REASONS: &[&str] = &["rate_limit", "api_error", "other"];
+///
+/// `exhausted_retries` records an agent that the calling skill
+/// (flow-review Step 2, flow-learn Step 1) tried to invoke but gave
+/// up on after exceeding the retry cap (3 attempts) — the agent
+/// either truncated repeatedly, returned an external-failure marker,
+/// or failed transcript verification through
+/// `record-agent-return`. The phase-finalize required-agents gate
+/// (added in a later task) reads both `agents_returned` and
+/// `agents_skipped` so an exhausted-retry agent counts as
+/// accounted-for in the same way an `api_error`-skipped agent does.
+pub const ALLOWED_REASONS: &[&str] = &["rate_limit", "api_error", "other", "exhausted_retries"];
 
 #[derive(Parser, Debug)]
 #[command(
@@ -99,8 +109,8 @@ pub fn run_impl_main(args: &Args, root: &Path) -> (Value, i32) {
             json!({
                 "status": "error",
                 "message": format!(
-                    "reason must be one of {{rate_limit, api_error, other}}; got {:?}",
-                    args.reason
+                    "reason must be one of {:?}; got {:?}",
+                    ALLOWED_REASONS, args.reason
                 ),
             }),
             0,

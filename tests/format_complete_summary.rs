@@ -671,6 +671,52 @@ fn compute_cost_breakdown_accumulates_by_model() {
     );
 }
 
+/// Per `.claude/rules/security-gates.md` "Normalize Before
+/// Comparing", the status comparison in `compute_cost_breakdown`
+/// must accept case- and whitespace-drifted variants of
+/// `"pending"` (`"PENDING"`, `"Pending"`, `" pending"`,
+/// `"pending "`). State files can be hand-edited or carry
+/// case-drifted values; an un-normalized comparison would flip
+/// those phases from "pending" to "active" and produce phantom
+/// rows.
+#[test]
+fn compute_cost_breakdown_normalizes_status_case_and_whitespace() {
+    let mut state = all_complete_state();
+    state["phases"]["flow-start"]["status"] = json!("PENDING");
+    state["phases"]["flow-code"]["status"] = json!("Pending");
+    state["phases"]["flow-review"]["status"] = json!("pending ");
+    state["phases"]["flow-learn"]["status"] = json!(" pending");
+    state["phases"]["flow-complete"]["status"] = json!("pending");
+
+    assert!(
+        compute_cost_breakdown(&state).is_none(),
+        "every phase is a case/whitespace variant of pending; breakdown should be None"
+    );
+}
+
+/// Empty-string status is semantically equivalent to "missing
+/// field" — it must be treated as pending so no row is produced.
+/// Without this collapse, a hand-edited state file that clears
+/// the status field to `""` flips the phase to "active" and
+/// produces a phantom row.
+#[test]
+fn compute_cost_breakdown_treats_empty_string_status_as_pending() {
+    let mut state = all_complete_state();
+    // Only flow-code carries the empty-string status; the other
+    // phases stay "complete" so they would contribute rows if
+    // the gate is correct. We want to verify the empty-string
+    // status specifically skips flow-code.
+    for key in ["flow-start", "flow-review", "flow-learn", "flow-complete"] {
+        state["phases"][key]["status"] = json!("pending");
+    }
+    state["phases"]["flow-code"]["status"] = json!("");
+
+    assert!(
+        compute_cost_breakdown(&state).is_none(),
+        "empty-string status must be treated as pending; got non-empty breakdown"
+    );
+}
+
 // --- basic summary ---
 
 #[test]

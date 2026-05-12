@@ -339,6 +339,173 @@ fn cost_table_omits_by_model_subtable_when_single_model() {
     );
 }
 
+/// Model names flow from snapshot data (`by_model` keys are
+/// session-captured strings). A model name containing the
+/// Markdown table delimiter `|` must be escaped or the rendered
+/// `| Model | Tokens |` row breaks the table structure — extra
+/// pipe characters produce phantom columns and misaligned cells
+/// on GitHub. Per `.claude/rules/subprocess-argument-escaping.md`,
+/// external strings interpolated into a structural-syntax target
+/// must be escaped before interpolation.
+#[test]
+fn cost_table_escapes_pipe_in_model_name() {
+    let mut state = make_test_state();
+    for key in PHASE_ORDER {
+        state["phases"][key]["status"] = json!("complete");
+    }
+    state["phases"]["flow-code"]["window_at_enter"] = snapshot_value("S1", 0, "claude-opus-4-7");
+    let mut complete = snapshot_value("S1", 50, "claude-opus-4-7");
+    // Two models so the by-model sub-table renders; the second
+    // model carries a literal `|` in its name.
+    complete["by_model"]["claude|injected-evil"] = json!({
+        "input": 1000, "output": 500, "cache_create": 0, "cache_read": 0
+    });
+    state["phases"]["flow-code"]["window_at_complete"] = complete;
+
+    let table = format_cost_table(&state);
+    let evil_row = table
+        .lines()
+        .find(|l| l.contains("injected-evil"))
+        .unwrap_or_else(|| panic!("injected model row missing; table:\n{}", table));
+    // The escape produces `claude\|injected-evil` — GitHub
+    // Markdown's parser treats `\|` inside a table cell as a
+    // literal pipe character and ignores it as a column
+    // delimiter. The rendered cell shows `claude|injected-evil`.
+    assert!(
+        evil_row.contains("claude\\|injected-evil"),
+        "escaped model name must appear in row; got: {:?}",
+        evil_row
+    );
+    // Count UNESCAPED pipes — those preceded by a backslash do
+    // not act as column delimiters. A 2-column markdown table
+    // row has exactly 3 unescaped pipes: leading, separator,
+    // trailing.
+    let bytes = evil_row.as_bytes();
+    let mut unescaped_pipes = 0;
+    for i in 0..bytes.len() {
+        if bytes[i] == b'|' && (i == 0 || bytes[i - 1] != b'\\') {
+            unescaped_pipes += 1;
+        }
+    }
+    assert_eq!(
+        unescaped_pipes, 3,
+        "by-model row must have exactly 3 unescaped pipes; found {} in row {:?}",
+        unescaped_pipes, evil_row
+    );
+}
+
+/// A model name ending in `\` must have the backslash escaped
+/// in the Markdown cell — otherwise the following pipe column
+/// delimiter would be parsed as an escaped pipe and the cell
+/// would absorb the next column's content.
+#[test]
+fn cost_table_escapes_backslash_in_model_name() {
+    let mut state = make_test_state();
+    for key in PHASE_ORDER {
+        state["phases"][key]["status"] = json!("complete");
+    }
+    state["phases"]["flow-code"]["window_at_enter"] = snapshot_value("S1", 0, "claude-opus-4-7");
+    let mut complete = snapshot_value("S1", 50, "claude-opus-4-7");
+    complete["by_model"]["claude\\"] = json!({
+        "input": 100, "output": 50, "cache_create": 0, "cache_read": 0
+    });
+    state["phases"]["flow-code"]["window_at_complete"] = complete;
+
+    let table = format_cost_table(&state);
+    // The escape produces `claude\\` (a literal backslash
+    // doubled) — GitHub Markdown renders `\\` as a single
+    // literal backslash inside a cell.
+    assert!(
+        table.contains("| claude\\\\ |"),
+        "backslash in model name must be escaped as `\\\\`; table:\n{}",
+        table
+    );
+}
+
+/// A model name containing `\n` or `\r` must NOT inject a line
+/// break into the Markdown table — newlines inside cells break
+/// the table structure on GitHub. The escape collapses them to
+/// spaces so the row stays on a single line.
+#[test]
+fn cost_table_escapes_newline_in_model_name() {
+    let mut state = make_test_state();
+    for key in PHASE_ORDER {
+        state["phases"][key]["status"] = json!("complete");
+    }
+    state["phases"]["flow-code"]["window_at_enter"] = snapshot_value("S1", 0, "claude-opus-4-7");
+    let mut complete = snapshot_value("S1", 50, "claude-opus-4-7");
+    complete["by_model"]["claude\nrogue\rmodel"] = json!({
+        "input": 100, "output": 50, "cache_create": 0, "cache_read": 0
+    });
+    state["phases"]["flow-code"]["window_at_complete"] = complete;
+
+    let table = format_cost_table(&state);
+    let rogue_row = table
+        .lines()
+        .find(|l| l.contains("rogue"))
+        .unwrap_or_else(|| panic!("rogue-model row missing; table:\n{}", table));
+    // After escape, the row must NOT contain any literal newline
+    // or carriage return — both should be replaced with spaces.
+    assert!(
+        !rogue_row.contains('\n'),
+        "row must not contain literal newline; row: {:?}",
+        rogue_row
+    );
+    assert!(
+        !rogue_row.contains('\r'),
+        "row must not contain literal carriage return; row: {:?}",
+        rogue_row
+    );
+    // The model name's three segments should appear as
+    // space-separated tokens on the same line.
+    assert!(
+        rogue_row.contains("claude rogue model"),
+        "escaped model name segments must appear on one line; row: {:?}",
+        rogue_row
+    );
+}
+
+/// The Total cost cell is bold-wrapped (`**$X.YYY**`). When
+/// `total_partial == true` AND cost is Some, the partial marker
+/// `*` must NOT land between the closing `**` and the trailing
+/// pipe — that produces `**$X.YYY***`, which GitHub Markdown can
+/// parse ambiguously as bold+emphasis. Escape the marker as
+/// `\*` and place it AFTER the bold wrapper so the cell renders
+/// unambiguously as bold value + literal asterisk.
+#[test]
+fn cost_table_total_partial_marker_does_not_produce_triple_asterisk() {
+    let mut state = make_test_state();
+    for key in PHASE_ORDER {
+        state["phases"][key]["status"] = json!("complete");
+    }
+    add_phase_snapshots(&mut state, "flow-start", 0, 5);
+    // flow-code's enter has null cost → total_partial flips on.
+    let mut enter = snapshot_value("S1", 1, "claude-opus-4-7");
+    let complete = snapshot_value("S1", 5, "claude-opus-4-7");
+    enter["session_cost_usd"] = json!(null);
+    state["phases"]["flow-code"]["window_at_enter"] = enter;
+    state["phases"]["flow-code"]["window_at_complete"] = complete;
+
+    let table = format_cost_table(&state);
+    let total_row = table
+        .lines()
+        .find(|l| l.contains("**Total**"))
+        .expect("Total row");
+    assert!(
+        !total_row.contains("***"),
+        "Total row must not produce three consecutive asterisks; row: {:?}",
+        total_row
+    );
+    // The fix places the partial marker as `\*` after the bold
+    // wrapper, so the row contains the escape sequence rather
+    // than a bare trailing star inside the bold delimiters.
+    assert!(
+        total_row.contains("\\*"),
+        "Total row must carry the escaped partial marker `\\*` after the bold wrapper; row: {:?}",
+        total_row
+    );
+}
+
 /// A phase whose multi-session snapshot fold produces
 /// `Some(cost)` AND `row_partial == true` renders the per-row
 /// cost cell as `${:.3}*` — the dollar value with the partial

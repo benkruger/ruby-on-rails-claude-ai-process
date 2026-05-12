@@ -79,6 +79,29 @@ fn build_artifacts(state: &serde_json::Value) -> Vec<String> {
     items
 }
 
+/// Escape a value that flows into a GitHub Markdown table cell.
+///
+/// Per `.claude/rules/subprocess-argument-escaping.md`, external
+/// strings interpolated into a structural-syntax target must be
+/// escaped. Markdown table cells use `|` as the column delimiter
+/// and `\n`/`\r` as the row delimiter — a model name or other
+/// snapshot-derived string that carries any of these characters
+/// would break the table structure when rendered on GitHub.
+/// `\` is also escaped so a value ending in `\` cannot escape
+/// the closing pipe.
+fn escape_markdown_cell(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '|' => out.push_str("\\|"),
+            '\n' | '\r' => out.push(' '),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 /// Build the Token Cost markdown table from state snapshots.
 ///
 /// Calls [`compute_cost_breakdown`] to fold each phase's window
@@ -130,17 +153,25 @@ pub fn format_cost_table(state: &serde_json::Value) -> String {
         ));
     }
 
-    let total_cost_cell = match breakdown.total_cost {
-        Some(c) => {
-            let partial_marker = if breakdown.total_partial { "*" } else { "" };
-            format!("${:.3}{}", c, partial_marker)
-        }
-        None => "—".to_string(),
+    // The Total cost cell is wrapped in bold delimiters, so the
+    // partial marker `*` must be appended OUTSIDE the closing
+    // `**` and escaped as `\*` — otherwise the trailing
+    // asterisks form `**$X.YYY***`, which GitHub Markdown can
+    // parse ambiguously as bold+emphasis or strong+literal.
+    // Bold the dollar value alone; emit the marker as a
+    // backslash-escaped literal star after the bold wrapper.
+    let (total_cost_bold, total_partial_suffix) = match breakdown.total_cost {
+        Some(c) => (
+            format!("${:.3}", c),
+            if breakdown.total_partial { "\\*" } else { "" },
+        ),
+        None => ("—".to_string(), ""),
     };
     lines.push(format!(
-        "| **Total** | **{}** | **{}** |",
+        "| **Total** | **{}** | **{}**{} |",
         format_tokens(breakdown.total_tokens),
-        total_cost_cell
+        total_cost_bold,
+        total_partial_suffix
     ));
 
     if breakdown.by_model.len() >= 2 {
@@ -153,7 +184,13 @@ pub fn format_cost_table(state: &serde_json::Value) -> String {
                 .saturating_add(mt.output)
                 .saturating_add(mt.cache_create)
                 .saturating_add(mt.cache_read);
-            lines.push(format!("| {} | {} |", model, format_tokens(total_model)));
+            // Escape the model name — it is a state-derived
+            // string and may carry `|` from session capture data.
+            lines.push(format!(
+                "| {} | {} |",
+                escape_markdown_cell(model),
+                format_tokens(total_model)
+            ));
         }
     }
 

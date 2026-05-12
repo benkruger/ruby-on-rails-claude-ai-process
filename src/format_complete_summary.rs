@@ -144,11 +144,22 @@ pub fn compute_cost_breakdown(state: &Value) -> Option<CostBreakdown> {
         let Some(phase_v) = phases_obj.get(key) else {
             continue;
         };
-        let status = phase_v
+        // Normalize the status string before the gate decision per
+        // `.claude/rules/security-gates.md` "Normalize Before
+        // Comparing". A hand-edited or corrupted state file may
+        // carry case-drifted ("PENDING") or whitespace-padded
+        // (" pending ") variants, and an empty string is
+        // semantically equivalent to a missing field. All three
+        // shapes collapse to the canonical "pending" so the gate
+        // produces the same row decision regardless of input
+        // shape.
+        let status_norm = phase_v
             .get("status")
             .and_then(|s| s.as_str())
-            .unwrap_or("pending");
-        if status == "pending" {
+            .map(|s| s.trim().to_ascii_lowercase())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "pending".to_string());
+        if status_norm == "pending" {
             // Phase never started — produce no row to keep noise bounded.
             continue;
         }

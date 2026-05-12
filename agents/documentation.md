@@ -57,6 +57,17 @@ are also provided for cross-reference checks. Use Read, Glob, and
 Grep tools to investigate the surrounding codebase and read the
 listed documentation files.
 
+After you return cleanly, the calling skill records your return via
+`bin/flow record-agent-return --branch <branch> --agent
+documentation --phase flow-review`, which reads the persisted
+Claude Code transcript and confirms an Agent tool_use/tool_result
+pair exists for `subagent_type: "flow:documentation"` after the
+most recent `phase-enter --phase flow-review` Bash marker. The
+recording appends to `phases.flow-review.agents_returned` so the
+`phase-finalize` required-agents gate can confirm you ran. You do
+not invoke this subcommand yourself — it runs in the parent
+session after your `tool_result` lands.
+
 ## Workflow
 
 **Read the diff.** Use the Read tool on the SUBSTANTIVE_DIFF_FILE

@@ -549,6 +549,67 @@ retry/accept/abort choice once all agents have been classified.
 exited cleanly (other agents). Findings flow to Step 3 triage
 unchanged.
 
+### Per-agent accounting (record + retry-3-then-note)
+
+For each of the four agents, after classification, account for
+the agent in state so the `phase-finalize` required-agents gate
+can confirm every required agent is accounted-for.
+
+**Class 3 agents — record the return.** Invoke
+`record-agent-return` to write the verified entry into
+`phases.flow-review.agents_returned`. The subcommand reads the
+persisted Claude Code transcript and confirms an Agent
+tool_use/tool_result pair exists for `subagent_type:
+"flow:<name>"` after the most recent `phase-enter --phase
+flow-review` Bash marker — closing the inline-synthesis bypass
+where a model could write findings without actually invoking the
+agent.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow record-agent-return --branch <branch> --agent <name> --phase flow-review
+```
+
+Parse the JSON output. If `status==ok`, the agent is accounted
+for. If `status==error` (reason `transcript_verification_failed`
+or any other), the agent enters the retry path below.
+
+**Class 1, Class 2, or recording failure — retry up to 3
+attempts, then note.** Read
+`phases.flow-review.agent_retry_counts.<name>` from state
+(default `0` if absent). If the count is less than 3, increment
+it via `bin/flow set-timestamp` and re-invoke the agent (for
+Class 1, use the narrowed partition prompt; for Class 2 or
+recording failure, re-invoke with the original prompt):
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set phases.flow-review.agent_retry_counts.<name>=<count+1>
+```
+
+If the count has reached 3, the agent has exhausted its retries.
+Record the skip and append a state note so Learn surfaces the
+missing analysis:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow add-skipped-agent --branch <branch> --agent <name> --reason exhausted_retries
+```
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow append-note <branch> agent_exhausted_retries "<name> exhausted 3 retries during flow-review"
+```
+
+<HARD-GATE>
+When an agent has exhausted retries, you MUST NOT synthesize
+that agent's findings inline. The agent's analysis is
+unavailable for this Review pass — record the skip via
+`add-skipped-agent` and the note via `append-note`, then move
+to the next agent. Fabricating an agent's analysis from session
+memory defeats cognitive isolation per
+`.claude/rules/cognitive-isolation.md` "Never Supplement Agent
+Work From the Parent Session" and produces an audit trail that
+falsely shows "agent reviewed X" when "parent reviewed X" is
+what actually happened.
+</HARD-GATE>
+
 The probe file lives inside the worktree's test tree, so worktree removal at Phase 5 Complete (or `/flow:flow-abort`) disposes of it automatically as a side effect of `git worktree remove`. The basename glob is also pre-listed in `.git/info/exclude` (`test_adversarial_flow.*`, `*_adversarial_flow_test.rb`) so the throwaway probe never appears in a user's `git status` output alongside intentional changes.
 
 Record step completion:

@@ -33,6 +33,17 @@ investigation on larger PRs.
 Use the diff as your primary evidence. Use Read, Glob, and Grep
 tools to investigate the surrounding codebase for context.
 
+After you return cleanly, the calling skill records your return via
+`bin/flow record-agent-return --branch <branch> --agent pre-mortem
+--phase flow-review`, which reads the persisted Claude Code
+transcript and confirms an Agent tool_use/tool_result pair exists
+for `subagent_type: "flow:pre-mortem"` after the most recent
+`phase-enter --phase flow-review` Bash marker. The recording
+appends to `phases.flow-review.agents_returned` so the
+`phase-finalize` required-agents gate can confirm you ran. You do
+not invoke this subcommand yourself — it runs in the parent
+session after your `tool_result` lands.
+
 ## Design Note
 
 This agent intentionally receives only the substantive diff — not the plan,

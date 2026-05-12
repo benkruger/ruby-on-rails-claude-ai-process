@@ -61,6 +61,17 @@ Your prompt contains these labeled sections:
 Use Read, Glob, and Grep tools to investigate the surrounding codebase
 for additional context.
 
+After you return cleanly, the calling skill records your return via
+`bin/flow record-agent-return --branch <branch> --agent
+learn-analyst --phase flow-learn`, which reads the persisted Claude
+Code transcript and confirms an Agent tool_use/tool_result pair
+exists for `subagent_type: "flow:learn-analyst"` after the most
+recent `phase-enter --phase flow-learn` Bash marker. The recording
+appends to `phases.flow-learn.agents_returned` so the
+`phase-finalize` required-agents gate can confirm you ran. You do
+not invoke this subcommand yourself — it runs in the parent
+session after your `tool_result` lands.
+
 ## Design Note
 
 This agent receives inline context (diff, state file data, plan,

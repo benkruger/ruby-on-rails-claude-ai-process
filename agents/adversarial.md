@@ -44,6 +44,17 @@ the calling skill's cwd). Use the Read tool to read the CLAUDE.md
 for test conventions and patterns. Use Read, Glob, and Grep to
 investigate the codebase.
 
+After you return cleanly, the calling skill records your return via
+`bin/flow record-agent-return --branch <branch> --agent adversarial
+--phase flow-review`, which reads the persisted Claude Code
+transcript and confirms an Agent tool_use/tool_result pair exists
+for `subagent_type: "flow:adversarial"` after the most recent
+`phase-enter --phase flow-review` Bash marker. The recording
+appends to `phases.flow-review.agents_returned` so the
+`phase-finalize` required-agents gate can confirm you ran. You do
+not invoke this subcommand yourself — it runs in the parent
+session after your `tool_result` lands.
+
 ## Temp File
 
 Write all adversarial tests to the single file at `<temp_test_file>`.

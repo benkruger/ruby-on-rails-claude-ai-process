@@ -34,6 +34,17 @@ The PLAN, CLAUDE.MD, and RULES sections are inline — do not spend
 turns re-reading them. The DIFF_FILE path is the ONE input you must
 Read explicitly before analysis begins.
 
+After you return cleanly, the calling skill records your return via
+`bin/flow record-agent-return --branch <branch> --agent reviewer
+--phase flow-review`, which reads the persisted Claude Code
+transcript and confirms an Agent tool_use/tool_result pair exists
+for `subagent_type: "flow:reviewer"` after the most recent
+`phase-enter --phase flow-review` Bash marker. The recording
+appends to `phases.flow-review.agents_returned` so the
+`phase-finalize` required-agents gate can confirm you ran. You do
+not invoke this subcommand yourself — it runs in the parent
+session after your `tool_result` lands.
+
 ## Design Note
 
 This agent receives inline context (plan, CLAUDE.md, rules) to save

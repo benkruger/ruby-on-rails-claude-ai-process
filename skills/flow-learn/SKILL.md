@@ -231,6 +231,64 @@ markers, the agent exhausted its turn budget without producing structured
 output. Note for the Step 2 synthesis: "Learn-analyst agent exhausted
 turn budget without producing structured findings."
 
+### Per-agent accounting (record + retry-3-then-note)
+
+Account for the learn-analyst agent in state so the
+`phase-finalize` required-agents gate can confirm it ran.
+
+**Normal completion — record the return.** When the agent
+produced structured output cleanly, invoke `record-agent-return`
+to write the verified entry into
+`phases.flow-learn.agents_returned`. The subcommand reads the
+persisted Claude Code transcript and confirms the Agent
+tool_use/tool_result pair exists for `subagent_type:
+"flow:learn-analyst"` after the most recent `phase-enter --phase
+flow-learn` Bash marker — closing the inline-synthesis bypass
+where a model could write findings without actually invoking the
+agent.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow record-agent-return --branch <branch> --agent learn-analyst --phase flow-learn
+```
+
+Parse the JSON output. If `status==ok`, the agent is accounted
+for. If `status==error` (reason `transcript_verification_failed`
+or any other), enter the retry path below.
+
+**Truncation, external failure, or recording failure — retry up
+to 3 attempts, then note.** Read
+`phases.flow-learn.agent_retry_counts.learn-analyst` from state
+(default `0`). If the count is less than 3, increment via
+`bin/flow set-timestamp` and re-invoke the agent with the same
+prompt:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow set-timestamp --set phases.flow-learn.agent_retry_counts.learn-analyst=<count+1>
+```
+
+If the count has reached 3, the agent has exhausted its retries.
+Record the skip and append a state note:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow add-skipped-agent --branch <branch> --agent learn-analyst --reason exhausted_retries --phase flow-learn
+```
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow append-note <branch> agent_exhausted_retries "learn-analyst exhausted 3 retries during flow-learn"
+```
+
+<HARD-GATE>
+When the learn-analyst agent has exhausted retries, you MUST NOT
+synthesize its findings inline. The agent's analysis is
+unavailable for this Learn pass — record the skip via
+`add-skipped-agent` and the note via `append-note`, then proceed
+to Step 2 with the explicit acknowledgment that Tenant 1/2/3
+findings were not produced for this PR. Fabricating an agent's
+analysis from session memory defeats cognitive isolation per
+`.claude/rules/cognitive-isolation.md` "Never Supplement Agent
+Work From the Parent Session".
+</HARD-GATE>
+
 ---
 
 ## Step 2 — Synthesize findings

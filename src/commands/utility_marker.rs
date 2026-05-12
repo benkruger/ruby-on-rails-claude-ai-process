@@ -47,6 +47,7 @@ use crate::utils::now;
 pub const MULTI_STEP_UTILITY_SKILLS: &[&str] = &[
     "flow:flow-create-issue",
     "flow:flow-decompose-project",
+    "flow:flow-explore",
     "flow:flow-plan",
 ];
 

@@ -149,6 +149,7 @@ Available at any point in the workflow:
 | `/flow-doc-sync` | Full codebase documentation accuracy review — reports drift between code and docs |
 | `/flow-hygiene` | Audit instruction corpus health — CLAUDE.md, rules, and memory for staleness, misplacement, duplication, and contradictions |
 | `/flow-issues` | Fetch open issues, categorize, prioritize, and display a dashboard. Supports readiness filters |
+| `/flow-explore` | Open a problem-statement conversation (PM voice) — discussion-mode by default, files a vanilla `## What` / `## Why` / `## Acceptance Criteria` issue on user signal |
 | `/flow-plan` | Open a structured planning conversation — discussion mode by default, dispatches to PM/Tech Lead/CTO sub-agents on explicit user request, hands off to `/flow-create-issue` when the user signals "ready" |
 | `/flow-create-issue` | Explore a design question or decompose a concrete problem, iterate until work-ready, then file it |
 | `/flow-decompose-project` | Decompose a large project into linked GitHub issues with sub-issue relationships, blocked-by dependencies, and milestones |

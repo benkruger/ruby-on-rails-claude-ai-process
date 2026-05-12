@@ -41,6 +41,7 @@ These skills are available at any point in the workflow, regardless of phase.
 | [`/flow-doc-sync`](flow-doc-sync.md) | Full codebase documentation accuracy review — reports drift between code and docs |
 | [`/flow-hygiene`](flow-hygiene.md) | Audit instruction corpus health — CLAUDE.md, rules, and memory for staleness, misplacement, duplication, and contradictions |
 | [`/flow-issues`](flow-issues.md) | Fetch open issues, categorize, prioritize, and display a dashboard with recommended work order. Supports readiness filters (`--ready`, `--blocked`, `--decomposed`, `--quick-start`) and narrowing filters (`--label`, `--milestone`) |
+| [`/flow-explore`](flow-explore.md) | Open a problem-statement conversation (PM voice) — discussion-mode by default, files a vanilla `## What` / `## Why` / `## Acceptance Criteria` issue on user signal |
 | [`/flow-plan`](flow-plan.md) | Open a structured planning conversation — discussion-mode by default, dispatches to PM/Tech Lead/CTO sub-agents on explicit user request, hands off to `/flow-create-issue` when ready |
 | [`/flow-create-issue`](flow-create-issue.md) | Capture a brainstormed solution as a pre-planned issue with an Implementation Plan for fast-tracking through Plan |
 | [`/flow-decompose-project`](flow-decompose-project.md) | Decompose a large project into linked GitHub issues with sub-issue relationships, blocked-by dependencies, and milestones |

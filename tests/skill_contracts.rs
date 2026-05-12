@@ -5741,3 +5741,138 @@ fn flow_plan_skill_uses_utility_in_progress_marker() {
         "skills/flow-plan/SKILL.md must pass `--skill flow:flow-plan` so the marker is scoped to this skill's identifier"
     );
 }
+
+// --- flow-explore skill content contracts ---
+//
+// `flow-explore` opens a problem-statement conversation (PM voice)
+// and files a vanilla `## What` / `## Why` / `## Acceptance Criteria`
+// issue. The contracts below pin the discipline that distinguishes
+// it from `/flow:flow-plan #N` (which is the Tech-Lead-default
+// implementation-decomposition pipeline): vanilla bodies must not
+// carry sentinels, must not carry `## Implementation Plan`, must not
+// be filed with the `decomposed` label, must validate via
+// `--mode vanilla`, and must not invoke `decompose:decompose`.
+
+#[test]
+fn flow_explore_skill_does_not_invoke_decompose() {
+    // Regression: a future edit adds a `decompose:decompose` Skill
+    // tool invocation to flow-explore. Decomposition is implementation
+    // work and belongs in `/flow:flow-plan #N` against a filed
+    // problem-statement issue; embedding it in flow-explore would
+    // collapse the role separation the new pipeline depends on.
+    //
+    // Consumer: the role-based pipeline contract — `/flow:flow-explore`
+    // produces a vanilla problem statement; `/flow:flow-plan #N`
+    // produces a decomposed implementation plan. Mixing the two
+    // breaks both `--mode vanilla` validation and the Tech-Lead
+    // role boundary.
+    //
+    // Implementation: scan each line containing `decompose:decompose`
+    // and assert the surrounding context is prohibitive (Hard Rule
+    // mention) rather than imperative (a directive to invoke the
+    // Skill). Prohibitive cues: `never`, `not`, `do not`, `must not`,
+    // `forbids`. Imperative cues that would fail the gate:
+    // `Invoke <name>`, `via the Skill tool`, `using the Skill tool`.
+    let c = common::read_skill("flow-explore");
+    for (line_idx, line) in c.lines().enumerate() {
+        if !line.contains("decompose:decompose") {
+            continue;
+        }
+        let lower = line.to_ascii_lowercase();
+        let prohibitive = lower.contains("never")
+            || lower.contains("not invoke")
+            || lower.contains("must not")
+            || lower.contains("do not")
+            || lower.contains("forbid")
+            || lower.contains("forbids");
+        // Prohibitive context wins: a line whose surface matches an
+        // imperative pattern but which is wrapped in `Never invoke`
+        // / `must not invoke` is prohibitive and acceptable. Only
+        // flag imperative mentions that lack any prohibitive cue.
+        assert!(
+            prohibitive,
+            "skills/flow-explore/SKILL.md line {} mentions `decompose:decompose` outside a prohibitive context. Every mention must be a Hard Rule or in-prose prohibition (containing `never`, `not invoke`, `must not`, `do not`, or `forbid`). Decomposition belongs in `/flow:flow-plan #N`.",
+            line_idx + 1
+        );
+    }
+}
+
+#[test]
+fn flow_explore_skill_uses_vanilla_validator_mode() {
+    // Regression: a future edit drops `--mode vanilla` from the
+    // validate-issue-body invocation, or invokes the validator
+    // without any mode flag (which defaults to `decomposed` and
+    // would reject every flow-explore body for missing FLOW-PLAN
+    // sentinels).
+    //
+    // Consumer: `bin/flow validate-issue-body --mode vanilla` —
+    // the only validator branch that accepts a What/Why/Acceptance
+    // body without sentinels or an Implementation Plan heading.
+    let c = common::read_skill("flow-explore");
+    assert!(
+        c.contains("validate-issue-body --mode vanilla"),
+        "skills/flow-explore/SKILL.md must invoke `bin/flow validate-issue-body --mode vanilla` so vanilla bodies are validated against the problem-statement contract, not the decomposed contract"
+    );
+}
+
+#[test]
+fn flow_explore_skill_files_without_decomposed_label() {
+    // Regression: a future edit adds `--label decomposed` to the
+    // flow-explore filing call. The `decomposed` label is reserved
+    // for issues filed by `/flow:flow-plan #N` (and the historical
+    // `flow-create-issue`); flow-explore files vanilla problem
+    // statements that `flow-issues` and `flow-orchestrate` must not
+    // pick up as ready-for-flow-start work.
+    //
+    // Consumer: `flow-issues` / `flow-orchestrate`, which select
+    // `decomposed`-labeled issues. Mis-labeling a vanilla
+    // problem-statement issue would let an engineer or the
+    // overnight orchestrator try to start a flow on an issue that
+    // has no Implementation Plan.
+    let c = common::read_skill("flow-explore");
+    // Find every `bin/flow issue ` invocation and verify none carry
+    // `--label decomposed`. The skill may legitimately mention the
+    // label in prose ("without --label decomposed"); the assertion
+    // is scoped to lines that are actual filing invocations.
+    for (line_idx, line) in c.lines().enumerate() {
+        let trimmed = line.trim();
+        if !trimmed.contains("bin/flow issue ") && !trimmed.contains("bin/flow issue\t") {
+            continue;
+        }
+        // A line that contains both `bin/flow issue` and `--label decomposed`
+        // is a filing invocation that violates the contract.
+        assert!(
+            !trimmed.contains("--label decomposed"),
+            "skills/flow-explore/SKILL.md line {} files an issue with `--label decomposed`; vanilla problem statements must not carry the decomposed label",
+            line_idx + 1
+        );
+    }
+}
+
+#[test]
+fn flow_explore_skill_uses_utility_in_progress_marker() {
+    // Regression: a future edit drops either the set or the clear
+    // side of the per-session utility-in-progress marker. Without
+    // `set-utility-in-progress`, the Stop hook returns control to
+    // the user mid-conversation when a planning sub-agent Skill
+    // tool returns — breaking the unattended-discussion contract.
+    // Without `clear-utility-in-progress`, the session deadlocks
+    // after the skill completes.
+    //
+    // Consumer: the Stop hook's `check_in_progress_utility_skill`
+    // predicate, which refuses turn-end while a per-session marker
+    // is present for `flow:flow-explore`.
+    let c = common::read_skill("flow-explore");
+    assert!(
+        c.contains("set-utility-in-progress"),
+        "skills/flow-explore/SKILL.md must invoke `bin/flow set-utility-in-progress` so the Stop hook refuses turn-end during discussion"
+    );
+    assert!(
+        c.contains("clear-utility-in-progress"),
+        "skills/flow-explore/SKILL.md must invoke `bin/flow clear-utility-in-progress` so the Stop hook releases turn-end after every exit boundary"
+    );
+    assert!(
+        c.contains("--skill flow:flow-explore"),
+        "skills/flow-explore/SKILL.md must pass `--skill flow:flow-explore` so the marker is scoped to this skill's identifier"
+    );
+}

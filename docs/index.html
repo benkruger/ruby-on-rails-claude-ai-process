@@ -689,7 +689,7 @@
     <h2>Beyond the Phases</h2>
 
     <h3>Project Decomposition</h3>
-    <p>Describe a project in plain language and FLOW decomposes it into a fully linked GitHub issue graph &mdash; epic, milestones, sub-issues, blocked-by dependencies, and phase labels. Every issue is filed work-ready with acceptance criteria, file paths, and scope boundaries from real codebase exploration.</p>
+    <p>Describe a project in plain language and FLOW decomposes it into a fully linked GitHub issue graph &mdash; epic, child issues, sub-issue relationships, blocked-by dependencies, and phase labels. Every issue is filed work-ready with acceptance criteria, file paths, and scope boundaries from real codebase exploration.</p>
 
     <div class="pipeline">
       <div class="pipeline-step">
@@ -710,7 +710,7 @@
       <div class="pipeline-step">
         <div class="step-num">4</div>
         <span class="step-label">File</span>
-        <span class="step-detail">Epic, milestone, child issues, sub-issue links, blocked-by relationships &mdash; all created on GitHub</span>
+        <span class="step-detail">Epic, child issues, sub-issue links, blocked-by relationships &mdash; all created on GitHub</span>
       </div>
     </div>
 
@@ -852,7 +852,7 @@ Duration: <span class="t-accent">6h 27m</span>
         <tr><td><code>/flow-plan</code></td><td>Decompose a vanilla problem-statement issue (filed by <code>/flow-explore</code>) into a linked decomposed issue ready for the start phase. Tech Lead voice, mandatory <code>decompose:decompose</code> pass, files with <code>--label decomposed</code> and a blocked-by link to the parent</td></tr>
         <tr><td><code>/flow-doc-sync</code></td><td>Audit documentation against code behavior &mdash; reports drift between what docs say and what code does</td></tr>
         <tr><td><code>/flow-hygiene</code></td><td>Audit instruction corpus health &mdash; CLAUDE.md, rules, and memory for staleness, misplacement, duplication, and contradictions</td></tr>
-        <tr><td><code>/flow-decompose-project</code></td><td>Decompose a project into a linked GitHub issue graph &mdash; epic, milestones, sub-issues, blocked-by dependencies</td></tr>
+        <tr><td><code>/flow-decompose-project</code></td><td>Decompose a project into a linked GitHub issue graph &mdash; epic, child issues, sub-issue relationships, blocked-by dependencies</td></tr>
         <tr><td><code>/flow-orchestrate</code></td><td>Batch orchestration &mdash; process decomposed issues overnight via flow-start --auto</td></tr>
         <tr><td><code>/flow-triage-issue</code></td><td>Triage a single open GitHub issue from a PM lens &mdash; reads code, checks for already-shipped work, returns a verdict in {close, decompose}</td></tr>
       </tbody>

@@ -24,7 +24,6 @@ use flow_rs::complete_finalize;
 use flow_rs::complete_merge;
 use flow_rs::complete_post_merge;
 use flow_rs::complete_preflight;
-use flow_rs::create_milestone;
 use flow_rs::create_sub_issue;
 use flow_rs::extract_release_notes;
 use flow_rs::finalize_commit;
@@ -175,9 +174,6 @@ enum Commands {
     /// Create a GitHub blocked-by dependency.
     #[command(name = "link-blocked-by")]
     LinkBlockedBy(link_blocked_by::Args),
-    /// Create a GitHub milestone.
-    #[command(name = "create-milestone")]
-    CreateMilestone(create_milestone::Args),
 
     /// Extract release notes for a specific version from RELEASE-NOTES.md.
     #[command(name = "extract-release-notes")]
@@ -664,10 +660,6 @@ fn main() {
         }
         Some(Commands::LinkBlockedBy(args)) => {
             let (value, code) = link_blocked_by::run_impl_main(&args);
-            flow_rs::dispatch::dispatch_json(value, code);
-        }
-        Some(Commands::CreateMilestone(args)) => {
-            let (value, code) = create_milestone::run_impl_main(&args);
             flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::ExtractReleaseNotes(args)) => {

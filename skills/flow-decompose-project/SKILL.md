@@ -141,32 +141,21 @@ exploration using Glob, Grep, and Read to ground every finding.
 
 Present the full DAG synthesis to the user.
 
-<HARD-GATE>
+After presenting the synthesis, generate a session ID by running
+`${CLAUDE_PLUGIN_ROOT}/bin/flow generate-id` via the Bash tool.
+Write `{"decompose_step": 1}` to
+`.flow-states/decompose-project-<id>.json` using the Write tool.
+Save the full decompose output to
+`.flow-states/decompose-project-<id>-dag.md` using the Write tool.
+Then invoke `flow:flow-decompose-project --step 2 --id <id>` using
+the Skill tool as your final action.
 
-Ask the user to review the decomposition using AskUserQuestion:
-
-- **"Proceed to review"** → generate a session ID by running
-  `${CLAUDE_PLUGIN_ROOT}/bin/flow generate-id` via the Bash tool.
-  Write `{"decompose_step": 1}` to
-  `.flow-states/decompose-project-<id>.json` using the Write tool.
-  Save the full decompose output to
-  `.flow-states/decompose-project-<id>-dag.md` using the Write tool.
-  Then invoke `flow:flow-decompose-project --step 2 --id <id>` using
-  the Skill tool as your final action.
-- **"Iterate"** → re-invoke `decompose:decompose` with feedback, present
-  the updated synthesis, and ask again.
-- **"Cancel"** → clear the utility-in-progress marker so the Stop
-  hook does not refuse turn-end after cancellation, then stop. Do
-  not file any issues.
-
-  ```bash
-  ${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-decompose-project
-  ```
-
-Do not proceed to Step 2 without explicit user approval. Do not propose
-direct edits, commit changes, or take any action outside this skill.
-
-</HARD-GATE>
+The user's invocation of `/flow:flow-decompose-project` is the
+single authorization for the decompose-and-file pipeline; the
+DAG synthesis is unattended infrastructure that Step 2 builds
+the issue list from. A second confirmation gate between Step 1
+and Step 2 would break the single-signal contract these skills
+promise.
 
 ---
 
@@ -364,49 +353,32 @@ Present the full issue list as a table:
 Below the table, show each issue's full body text so the user can
 review every detail.
 
-<HARD-GATE>
+After presenting the list, write `{"decompose_step": 2}` to
+`.flow-states/decompose-project-<id>.json` using the Write tool.
+Save the issue list to
+`.flow-states/decompose-project-<id>-issues.json` using the Write
+tool (array of `{title, body, labels, depends_on_indices}`
+objects). Then invoke `flow:flow-decompose-project --step 3 --id
+<id>` using the Skill tool as your final action.
 
-Ask the user for the milestone due date and approval using AskUserQuestion:
-
-> "Review the issue list above. What is the milestone due date (YYYY-MM-DD)?
-> Enter a date to proceed, or 'revise' to make changes."
-
-- **Date provided** → record the due date. Write
-  `{"decompose_step": 2, "due_date": "<date>"}` to
-  `.flow-states/decompose-project-<id>.json` using the Write tool.
-  Save the approved issue list to
-  `.flow-states/decompose-project-<id>-issues.json` using the Write
-  tool (array of `{title, body, labels, depends_on_indices}` objects).
-  Then invoke `flow:flow-decompose-project --step 3 --id <id>` using
-  the Skill tool as your final action.
-- **"Revise"** → ask what to change, update the list, and re-present.
-  Iterate until approved.
-- **"Cancel"** → clear the utility-in-progress marker so the Stop
-  hook does not refuse turn-end after cancellation, then stop.
-
-  ```bash
-  ${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-decompose-project
-  ```
-
-Do not proceed to Step 3 without explicit user approval. Do not propose
-direct edits, commit changes, or take any action outside this skill.
-
-</HARD-GATE>
+The decompose-and-file pipeline runs unattended after Step 1; a
+second confirmation gate here would break the single-signal
+contract. Step 3 (epic) and Step 4 (children) handle validator
+failures with bounded auto-fix loops so the skill never needs to
+return control to the user mid-pipeline.
 
 ---
 
-## Step 3 — Create Epic and Milestone
+## Step 3 — Create Epic
 
 Output in your response (not via Bash) inside a fenced code block:
 
 ````markdown
 ```text
-  ── Step 3 of 6: Create Epic and Milestone ──
+  ── Step 3 of 6: Create Epic ──
 ```
 ````
 
-Use the Read tool to read the session state from
-`.flow-states/decompose-project-<id>.json` to get the `due_date`.
 Use the Read tool to read the approved issue list from
 `.flow-states/decompose-project-<id>-issues.json`.
 
@@ -418,17 +390,7 @@ git remote get-url origin
 
 Parse `owner/repo` from the remote URL.
 
-Create the milestone:
-
-```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow create-milestone --repo <repo> --title "<project_name>" --due-date <due_date>
-```
-
-Parse the JSON output. Record the milestone number.
-
-Create the parent epic issue. The `--milestone` flag accepts the milestone
-title (not the numeric ID) — use the same `<project_name>` that was passed
-to `create-milestone --title`. Write the epic body to
+Write the epic body to
 `.flow-states/decompose-project-<id>-epic-body` using the Write tool.
 
 Validate the epic body through the pre-filing validator before
@@ -442,38 +404,58 @@ ${CLAUDE_PLUGIN_ROOT}/bin/flow validate-issue-body --body-file .flow-states/deco
 ```
 
 Parse the JSON output. If `status` is `ok`, proceed to the filer
-invocation below. If `status` is `error`, do NOT file the issue.
-Surface the validator's `message` field to the user via
-AskUserQuestion with three options:
+invocation below. If `status` is `error`, run the bounded
+auto-fix loop:
 
-- **"Revise the epic body and retry"** — ask what to change, edit
-  the Write tool output at
-  `.flow-states/decompose-project-<id>-epic-body`, then re-run
-  `bin/flow validate-issue-body` from the top of this step. Loop
-  until the validator returns `status:ok`.
-- **"Cancel filing this issue"** — skip the epic-filing path. The
-  flow halts at Step 3 since the epic is the parent of every
-  child issue; clear the utility-in-progress marker so the Stop
-  hook releases turn-end:
+### Epic Validator Auto-Fix Loop (max 5 attempts)
 
-  ```bash
-  ${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-decompose-project
-  ```
+When the validator returns `status: error`, the skill must NOT
+prompt the user. The validator's `message` names a concrete
+defect (missing FLOW-PLAN sentinel pair, missing required
+subsection, `## Implementation Plan` heading on the wrong nesting
+level, etc.). Apply a mechanical fix that addresses the named
+defect — adjust the sentinel placement, add the missing
+subsection, normalize the heading — rewrite the body file at
+`.flow-states/decompose-project-<id>-epic-body` with the Write
+tool, and re-run the validator. Track the attempt count mentally
+— the cap is **5 attempts** including the first failure.
 
-- **"Cancel the whole skill"** — same clear-marker call as above,
-  then stop without filing any issues.
+After 5 failed validator runs, the epic is the parent of every
+child issue, so the whole flow must halt: clear the utility-in-
+progress marker, emit the structured error envelope, print the
+COMPLETE-FAILED banner, and stop without filing any child issues
+either.
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-decompose-project
+```
+
+````markdown
+```json
+{"status":"error","reason":"validator_max_retries","attempts":5}
+```
+````
+
+````markdown
+```text
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✗ FLOW v1.1.0 — flow:flow-decompose-project — COMPLETE-FAILED
+  Epic validator rejected the body 5 times. Flow halted.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+````
 
 Once the validator returns `ok`, file the epic:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow issue --repo <repo> --title "Epic: <project_name>" --body-file .flow-states/decompose-project-<id>-epic-body --milestone "<project_name>"
+${CLAUDE_PLUGIN_ROOT}/bin/flow issue --repo <repo> --title "Epic: <project_name>" --body-file .flow-states/decompose-project-<id>-epic-body
 ```
 
 Parse the JSON output. Record the epic issue number and database ID.
 
-Update the session state with milestone and epic info. Write the updated
+Update the session state with epic info. Write the updated
 state to `.flow-states/decompose-project-<id>.json` using the Write tool,
-adding `milestone_number`, `epic_number`, and `epic_id` fields.
+adding `epic_number` and `epic_id` fields.
 Set `decompose_step` to `3`.
 
 Then invoke `flow:flow-decompose-project --step 4 --id <id>` using the
@@ -510,38 +492,35 @@ ${CLAUDE_PLUGIN_ROOT}/bin/flow validate-issue-body --body-file .flow-states/deco
 ```
 
 Parse the JSON output. If `status` is `ok`, proceed to the filer
-invocation below. If `status` is `error`, do NOT file this child.
-Surface the validator's `message` field to the user via
-AskUserQuestion with three options:
+invocation below. If `status` is `error`, run the bounded
+auto-fix loop:
 
-- **"Revise this child body and retry"** — ask what to change, edit
-  the Write tool output at
-  `.flow-states/decompose-project-<id>-issue-body`, then re-run
-  `bin/flow validate-issue-body` from the top of this iteration.
-  Loop until the validator returns `status:ok`, then continue to
-  the filer call for this child.
-- **"Skip filing this child"** — record the skip and continue to
-  the next child in the topological order. Any sibling child
-  whose `depends_on_indices` references this skipped child has
-  no `--blocking-number` to pass to `bin/flow link-blocked-by`
-  in Step 5, so that dependency edge is silently dropped (Step 5
-  is best-effort by design). The Step 6 report surfaces the
-  partial coverage; the user can re-run decomposition for the
-  missing child later, but the blocked-by graph for already-filed
-  siblings will need manual repair via `gh issue edit` or a
-  follow-up `bin/flow link-blocked-by` call.
-- **"Cancel the whole skill"** — clear the utility-in-progress
-  marker so the Stop hook releases turn-end, then stop without
-  filing any remaining children:
+### Child Validator Auto-Fix Loop (max 5 attempts, skip-on-cap)
 
-  ```bash
-  ${CLAUDE_PLUGIN_ROOT}/bin/flow clear-utility-in-progress --skill flow:flow-decompose-project
-  ```
+When the validator returns `status: error`, the skill must NOT
+prompt the user. The validator's `message` names a concrete
+defect — apply a mechanical fix that addresses the named defect,
+rewrite the body file at
+`.flow-states/decompose-project-<id>-issue-body` with the Write
+tool, and re-run the validator. Track the attempt count mentally
+— the cap is **5 attempts** including the first failure.
+
+After 5 failed validator runs for THIS child, record the skip
+and continue to the next child in topological order. The whole
+skill does NOT halt — children fail individually, and any
+sibling child whose `depends_on_indices` references this skipped
+child has no `--blocking-number` to pass to `bin/flow
+link-blocked-by` in Step 5, so that dependency edge is silently
+dropped (Step 5 is best-effort by design). The Step 6 report
+surfaces the partial coverage; the user can re-run decomposition
+for the missing child later, but the blocked-by graph for
+already-filed siblings will need manual repair via `gh issue
+edit` or a follow-up `bin/flow link-blocked-by` call.
 
 Once the validator returns `ok` for this child, file it:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/flow issue --repo <repo> --title "<title>" --body-file .flow-states/decompose-project-<id>-issue-body --label decomposed --milestone "<project_name>"
+${CLAUDE_PLUGIN_ROOT}/bin/flow issue --repo <repo> --title "<title>" --body-file .flow-states/decompose-project-<id>-issue-body --label decomposed
 ```
 
 Parse the JSON output and record `{title, number, id}` in the mapping.

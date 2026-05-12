@@ -60,7 +60,6 @@ fn all_subcommands_have_working_help() {
         "close-issues",
         "create-sub-issue",
         "link-blocked-by",
-        "create-milestone",
         "extract-release-notes",
         "prime-check",
         "prime-setup",
@@ -1054,7 +1053,7 @@ fn main_arm_invocations_cover_dispatch() {
         cmd.env("GIT_CEILING_DIRECTORIES", &root);
         // Neutralize gh CLI auth so any subcommand that shells out to
         // `gh` (close-issue, create-sub-issue, link-blocked-by,
-        // create-milestone, auto-close-parent, label-issues) fails
+        // auto-close-parent, label-issues) fails
         // with an immediate auth error rather than blocking on a
         // network timeout in CI environments without GitHub
         // credentials. `GH_TOKEN=invalid` forces gh to fail at the
@@ -1203,7 +1202,6 @@ fn main_arm_invocations_cover_dispatch() {
             ],
             None,
         ),
-        ("create-milestone", &["--repo", "x/y", "--title", "m"], None),
         ("extract-release-notes", &["1.0.0"], None),
         ("prime-check", &[], None),
         ("prime-setup", &[], None),

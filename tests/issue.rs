@@ -379,39 +379,6 @@ fn issue_create_no_repo_and_no_detection_exits_error() {
 }
 
 #[test]
-fn issue_create_with_milestone_includes_milestone_arg() {
-    let dir = tempfile::tempdir().unwrap();
-    let repo = create_git_repo_with_remote(dir.path());
-    // The stub records its args to verify --milestone is passed.
-    let log = dir.path().join(".args.log");
-    let stub_dir = create_gh_stub(
-        &repo,
-        &format!(
-            "#!/bin/bash\n\
-             echo \"$@\" >> \"{}\"\n\
-             if [ \"$1\" = \"api\" ]; then echo 99; exit 0; fi\n\
-             echo 'https://github.com/o/r/issues/99'\n\
-             exit 0\n",
-            log.display()
-        ),
-    );
-
-    let output = run_cmd(
-        &repo,
-        &["--repo", "o/r", "--title", "T", "--milestone", "v1.0"],
-        &stub_dir,
-    );
-
-    assert_eq!(output.status.code(), Some(0));
-    let contents = fs::read_to_string(&log).unwrap();
-    assert!(
-        contents.contains("--milestone v1.0"),
-        "expected --milestone v1.0 in gh args, got:\n{}",
-        contents
-    );
-}
-
-#[test]
 fn issue_create_gh_spawn_failure_returns_error() {
     let dir = tempfile::tempdir().unwrap();
     let repo = create_git_repo_with_remote(dir.path());
@@ -483,11 +450,10 @@ fn issue_create_api_returns_non_numeric_id_records_none() {
 }
 
 #[test]
-fn issue_create_label_not_found_retry_with_body_and_milestone() {
-    // Covers retry_with_label's body + milestone branches: first gh
-    // issue create fails with "label not found", label create succeeds,
-    // retry issue create uses --label --body --milestone, then api
-    // fetches DB ID.
+fn issue_create_label_not_found_retry_with_body() {
+    // Covers retry_with_label's body branch: first gh issue create
+    // fails with "label not found", label create succeeds, retry
+    // issue create uses --label --body, then api fetches DB ID.
     let dir = tempfile::tempdir().unwrap();
     let repo = create_git_repo_with_remote(dir.path());
     let body_file = repo.join(".flow-issue-body");
@@ -531,23 +497,16 @@ fn issue_create_label_not_found_retry_with_body_and_milestone() {
             "new-label",
             "--body-file",
             body_file.to_str().unwrap(),
-            "--milestone",
-            "v2.0",
         ],
         &stub_dir,
     );
 
     assert_eq!(output.status.code(), Some(0));
     let contents = fs::read_to_string(&log).unwrap();
-    // The retry call must include --body, --milestone, and --label.
+    // The retry call must include --body and --label.
     assert!(
         contents.contains("--body retry body text"),
         "retry call missing --body, got:\n{}",
-        contents
-    );
-    assert!(
-        contents.contains("--milestone v2.0"),
-        "retry call missing --milestone, got:\n{}",
         contents
     );
 }
@@ -762,21 +721,6 @@ fn extract_error_unknown_when_both_empty() {
 // --- Args parsing ---
 
 #[test]
-fn args_parses_milestone() {
-    use clap::Parser;
-    let args =
-        Args::try_parse_from(["issue", "--title", "Test issue", "--milestone", "v1.0"]).unwrap();
-    assert_eq!(args.milestone.as_deref(), Some("v1.0"));
-}
-
-#[test]
-fn args_milestone_defaults_to_none() {
-    use clap::Parser;
-    let args = Args::try_parse_from(["issue", "--title", "Test issue"]).unwrap();
-    assert!(args.milestone.is_none());
-}
-
-#[test]
 fn args_parses_override_review_ban() {
     use clap::Parser;
     let args = Args::try_parse_from(["issue", "--title", "Test", "--override-review-ban"]).unwrap();
@@ -801,7 +745,6 @@ fn default_args() -> Args {
         label: None,
         body_file: None,
         state_file: None,
-        milestone: None,
         override_review_ban: false,
     }
 }

@@ -1,7 +1,7 @@
 //! GitHub issue creation wrapper.
 //!
 //! Usage:
-//!   bin/flow issue --title <title> [--repo <repo>] [--label <label>] [--milestone <title>] [--body-file <path>]
+//!   bin/flow issue --title <title> [--repo <repo>] [--label <label>] [--body-file <path>]
 //!
 //! Body text is always passed via a file to avoid shell escaping issues
 //! with special characters (|, &&, ;) that trigger the Bash hook validator.
@@ -44,10 +44,6 @@ pub struct Args {
     /// Path to state file for repo lookup
     #[arg(long = "state-file")]
     pub state_file: Option<String>,
-
-    /// Milestone title to assign the issue to
-    #[arg(long)]
-    pub milestone: Option<String>,
 
     /// Override the Review filing ban (requires explicit reason)
     #[arg(long = "override-review-ban")]
@@ -215,7 +211,6 @@ fn create_issue(
     title: &str,
     label: Option<&str>,
     body: Option<&str>,
-    milestone: Option<&str>,
 ) -> Result<IssueResult, String> {
     let title_owned = title.to_string();
     let mut cmd_args: Vec<String> = vec![
@@ -235,10 +230,6 @@ fn create_issue(
         cmd_args.push("--body".into());
         cmd_args.push(b.into());
     }
-    if let Some(m) = milestone {
-        cmd_args.push("--milestone".into());
-        cmd_args.push(m.into());
-    }
 
     let cmd_refs: Vec<&str> = cmd_args.iter().map(|s| s.as_str()).collect();
     match run_gh_cmd(&cmd_refs) {
@@ -247,7 +238,7 @@ fn create_issue(
             if let Some(l) = label {
                 let err_lower = error.to_lowercase();
                 if err_lower.contains("label") && err_lower.contains("not found") {
-                    return retry_with_label(repo, title, l, body, milestone);
+                    return retry_with_label(repo, title, l, body);
                 }
             }
             Err(error)
@@ -260,7 +251,6 @@ fn retry_with_label(
     title: &str,
     label: &str,
     body: Option<&str>,
-    milestone: Option<&str>,
 ) -> Result<IssueResult, String> {
     let label_created = run_gh_cmd(&["gh", "label", "create", label, "--repo", repo]).is_ok();
 
@@ -280,10 +270,6 @@ fn retry_with_label(
     if let Some(b) = body {
         retry_args.push("--body".into());
         retry_args.push(b.into());
-    }
-    if let Some(m) = milestone {
-        retry_args.push("--milestone".into());
-        retry_args.push(m.into());
     }
 
     let retry_refs: Vec<&str> = retry_args.iter().map(|s| s.as_str()).collect();
@@ -305,8 +291,8 @@ fn build_issue_result(repo: &str, url: String) -> IssueResult {
 }
 
 /// Run a gh CLI command, returning stdout on success. Used cross-module
-/// by `create_sub_issue.rs`, `link_blocked_by.rs`, and `create_milestone.rs`.
-/// gh has its own network timeout so no hand-rolled loop is needed per
+/// by `create_sub_issue.rs` and `link_blocked_by.rs`. gh has its own
+/// network timeout so no hand-rolled loop is needed per
 /// .claude/rules/testability-means-simplicity.md.
 pub fn run_gh_cmd(args: &[&str]) -> Result<String, String> {
     let output = Command::new(args[0])
@@ -389,13 +375,7 @@ pub fn run_impl_main(
         None
     };
 
-    match create_issue(
-        &repo,
-        &args.title,
-        args.label.as_deref(),
-        body.as_deref(),
-        args.milestone.as_deref(),
-    ) {
+    match create_issue(&repo, &args.title, args.label.as_deref(), body.as_deref()) {
         Ok(result) => (
             json!({
                 "status": "ok",

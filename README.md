@@ -151,7 +151,7 @@ Available at any point in the workflow:
 | `/flow-issues` | Fetch open issues, categorize, prioritize, and display a dashboard. Supports readiness filters |
 | `/flow-explore` | Open a problem-statement conversation (PM voice) — discussion-mode by default, files a vanilla `## What` / `## Why` / `## Acceptance Criteria` issue on user signal |
 | `/flow-plan` | Decompose a vanilla problem-statement issue (filed by `/flow-explore`) into a linked decomposed issue ready for the start phase. Tech Lead voice, mandatory `decompose:decompose` pass, files with `--label decomposed` and a blocked-by link to the parent |
-| `/flow-decompose-project` | Decompose a large project into linked GitHub issues with sub-issue relationships, blocked-by dependencies, and milestones |
+| `/flow-decompose-project` | Decompose a large project into linked GitHub issues with sub-issue relationships, blocked-by dependencies, and phase labels |
 | `/flow-orchestrate` | Process decomposed issues overnight — batch orchestration via flow-start --auto |
 | `/flow-triage-issue` | Triage a single open GitHub issue from a PM lens — reads code, checks for already-shipped work, returns a verdict in {close, decompose} |
 
@@ -193,13 +193,13 @@ Think out loud against a collaborator who reads the codebase, asks the right que
 
 ### Project Decomposition
 
-Describe a project in plain language and FLOW decomposes it into a fully linked GitHub issue graph — epic, milestones, sub-issues, blocked-by dependencies, and phase labels. Every issue is filed work-ready with acceptance criteria, file paths, and scope boundaries from real codebase exploration.
+Describe a project in plain language and FLOW decomposes it into a fully linked GitHub issue graph — epic, child issues, sub-issue relationships, blocked-by dependencies, and phase labels. Every issue is filed work-ready with acceptance criteria, file paths, and scope boundaries from real codebase exploration.
 
 ```text
 /flow-decompose-project add multi-tenant billing
 ```
 
-The skill walks through 6 steps: DAG decomposition with codebase exploration, issue list review with iteration, epic and milestone creation, child issue filing in topological order, sub-issue and blocked-by relationship linking, and a final report. You review and iterate at each gate before anything is filed. The resulting issue graph feeds directly into `/flow-orchestrate` for overnight processing, or you pick issues one at a time with `/flow-start work on issue #N`.
+The skill walks through 6 steps: DAG decomposition with codebase exploration, issue list build, parent epic creation, child issue filing in topological order, sub-issue and blocked-by relationship linking, and a final report. The user's invocation is the single signal — the pipeline runs unattended, with bounded auto-fix loops on validator failure. The resulting issue graph feeds directly into `/flow-orchestrate` for overnight processing, or you pick issues one at a time with `/flow-start work on issue #N`.
 
 ### Batch Orchestration
 

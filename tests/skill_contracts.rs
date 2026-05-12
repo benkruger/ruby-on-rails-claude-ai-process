@@ -4723,48 +4723,42 @@ fn flow_decompose_project_announce_sets_utility_marker() {
 }
 
 #[test]
-fn flow_decompose_project_step1_cancel_clears_utility_marker() {
-    // After Step 1's Cancel branch fires, the skill must clear the
-    // per-session utility-in-progress marker. Without the clear,
-    // every subsequent turn-end in the session is blocked because
-    // the Stop hook still sees an active marker for a skill that
-    // has already cancelled — leaving the session deadlocked.
+fn flow_decompose_project_step_1_no_dag_review_ask_user_question() {
+    // Regression: a future edit re-introduces the Step 1 DAG-review
+    // AskUserQuestion gate. Per AC#4 of issue #1488, the user's
+    // invocation of `/flow:flow-decompose-project` is the single
+    // authorization for the decompose-and-file pipeline; a second
+    // confirmation between Step 1 (decompose) and Step 2 (issue list)
+    // broke the single-signal contract. The forbidden phrasing is
+    // the exact AskUserQuestion option label the removed gate used.
     let c = common::read_skill("flow-decompose-project");
-    let step1_tail = c
-        .split_once("\n## Step 1")
-        .map(|(_, t)| t)
-        .expect("flow-decompose-project must have a `## Step 1` section");
-    let step1 = step1_tail
-        .split_once("\n## ")
-        .map(|(s, _)| s)
-        .unwrap_or(step1_tail);
-    let cancel_tail = step1
-        .split_once("**\"Cancel\"**")
-        .map(|(_, t)| t)
-        .expect("Step 1 must include a `**\"Cancel\"**` branch");
-    let window: String = cancel_tail.lines().take(60).collect::<Vec<_>>().join("\n");
     assert!(
-        window.contains("clear-utility-in-progress"),
-        "Step 1 Cancel branch must invoke `bin/flow clear-utility-in-progress` so the Stop hook stops refusing turn-end after cancellation"
-    );
-    assert!(
-        window.contains("--skill flow:flow-decompose-project"),
-        "Step 1 Cancel branch's clear call must scope the marker to `flow:flow-decompose-project`"
+        !c.contains("Proceed to review"),
+        "skills/flow-decompose-project/SKILL.md must not contain the Step 1 `Proceed to review` AskUserQuestion option — Step 2 fires directly after the DAG synthesis is presented"
     );
 }
 
 #[test]
-fn flow_decompose_project_step2_cancel_clears_utility_marker() {
-    // After Step 2's Cancel branch fires, the skill must clear the
-    // per-session utility-in-progress marker. Same deadlock failure
-    // mode as Step 1: a missed clear leaves the Stop hook refusing
-    // turn-end for the rest of the session.
-    //
-    // The end delimiter is `\n## Step ` (not a bare `\n## `) so an
-    // intra-section heading rendered inside a fenced markdown
-    // example block — like `## Implementation Plan` inside the
-    // Body Shape Contract example — cannot truncate the slice
-    // before the HARD-GATE's Cancel branch.
+fn flow_decompose_project_step_2_no_due_date_prompt() {
+    // Regression: a future edit re-introduces the Step 2 milestone
+    // due-date AskUserQuestion. The milestone path is removed
+    // entirely; the skill no longer creates milestones in Step 3
+    // and `bin/flow create-milestone` is deleted. A re-introduced
+    // due-date prompt would have no consumer for the captured
+    // value.
+    let c = common::read_skill("flow-decompose-project");
+    assert!(
+        !c.contains("milestone due date"),
+        "skills/flow-decompose-project/SKILL.md must not prompt for milestone due date — the milestone path is removed"
+    );
+}
+
+#[test]
+fn flow_decompose_project_step_2_no_milestone_mention() {
+    // Regression: a future edit re-introduces a milestone bullet,
+    // `--milestone` flag pass-through, or `due_date` session field
+    // in Step 2. With `bin/flow create-milestone` deleted, every
+    // milestone reference in the skill is orphan infrastructure.
     let c = common::read_skill("flow-decompose-project");
     let step2_tail = c
         .split_once("\n## Step 2")
@@ -4774,18 +4768,121 @@ fn flow_decompose_project_step2_cancel_clears_utility_marker() {
         .split_once("\n## Step ")
         .map(|(s, _)| s)
         .unwrap_or(step2_tail);
-    let cancel_tail = step2
-        .split_once("**\"Cancel\"**")
-        .map(|(_, t)| t)
-        .expect("Step 2 must include a `**\"Cancel\"**` branch");
-    let window: String = cancel_tail.lines().take(60).collect::<Vec<_>>().join("\n");
     assert!(
-        window.contains("clear-utility-in-progress"),
-        "Step 2 Cancel branch must invoke `bin/flow clear-utility-in-progress` so the Stop hook stops refusing turn-end after cancellation"
+        !step2.to_ascii_lowercase().contains("milestone"),
+        "skills/flow-decompose-project/SKILL.md Step 2 must not mention milestones — the milestone path is removed"
     );
     assert!(
-        window.contains("--skill flow:flow-decompose-project"),
-        "Step 2 Cancel branch's clear call must scope the marker to `flow:flow-decompose-project`"
+        !step2.contains("due_date") && !step2.contains("due-date"),
+        "skills/flow-decompose-project/SKILL.md Step 2 must not carry a `due_date` session field — the milestone path is removed"
+    );
+}
+
+#[test]
+fn flow_decompose_project_step_3_no_create_milestone_call() {
+    // Regression: a future edit re-introduces the
+    // `bin/flow create-milestone` invocation in Step 3. The
+    // subcommand is deleted from `src/create_milestone.rs`,
+    // `src/lib.rs`, and `src/main.rs`; resurrecting the SKILL.md
+    // call would surface as a runtime error rather than a
+    // compile error.
+    let c = common::read_skill("flow-decompose-project");
+    assert!(
+        !c.contains("create-milestone"),
+        "skills/flow-decompose-project/SKILL.md must not invoke `bin/flow create-milestone` — the subcommand is deleted"
+    );
+}
+
+#[test]
+fn flow_decompose_project_step_3_validator_auto_fix_loop() {
+    // Regression: a future edit drops the bounded auto-fix loop on
+    // Step 3 epic-validator failure and replaces it with either an
+    // unbounded loop or a prompt-the-user gate. The
+    // `validator_max_retries` reason is the contract the
+    // COMPLETE-FAILED banner depends on.
+    let c = common::read_skill("flow-decompose-project");
+    let step3_tail = c
+        .split_once("\n## Step 3")
+        .map(|(_, t)| t)
+        .expect("flow-decompose-project must have a `## Step 3` section");
+    let step3 = step3_tail
+        .split_once("\n## Step ")
+        .map(|(s, _)| s)
+        .unwrap_or(step3_tail);
+    assert!(
+        step3.contains("validator_max_retries"),
+        "Step 3 must name `validator_max_retries` so the structured-error contract is locked in"
+    );
+    assert!(
+        step3.contains("5 attempts") || step3.contains("5 retries"),
+        "Step 3 must name the 5-attempt cap so the bounded-loop contract is locked in"
+    );
+}
+
+#[test]
+fn flow_decompose_project_step_4_validator_auto_fix_loop() {
+    // Regression: a future edit drops the Step 4 per-child auto-fix
+    // loop and replaces it with either an unbounded loop or a
+    // prompt-the-user gate. Step 4's failure mode is skip-on-cap
+    // (continue to next child) rather than halt-on-cap (Step 3's
+    // epic-failure path), so the prose must signal the skip
+    // semantics.
+    let c = common::read_skill("flow-decompose-project");
+    let step4_tail = c
+        .split_once("\n## Step 4")
+        .map(|(_, t)| t)
+        .expect("flow-decompose-project must have a `## Step 4` section");
+    let step4 = step4_tail
+        .split_once("\n## Step ")
+        .map(|(s, _)| s)
+        .unwrap_or(step4_tail);
+    assert!(
+        step4.contains("5 attempts") || step4.contains("5 retries"),
+        "Step 4 must name the 5-attempt cap so the bounded-loop contract is locked in"
+    );
+    assert!(
+        step4.to_ascii_lowercase().contains("skip"),
+        "Step 4 must name the skip-on-cap semantics so the child-failure recovery contract is locked in"
+    );
+}
+
+#[test]
+fn flow_decompose_project_step_3_no_milestone_flag_in_issue_call() {
+    // Regression: a future edit re-introduces `--milestone` on the
+    // Step 3 epic-filing `bin/flow issue` call. The flag is deleted
+    // from `src/issue.rs`; resurrecting the SKILL.md pass-through
+    // would surface as a runtime error.
+    let c = common::read_skill("flow-decompose-project");
+    let step3_tail = c
+        .split_once("\n## Step 3")
+        .map(|(_, t)| t)
+        .expect("flow-decompose-project must have a `## Step 3` section");
+    let step3 = step3_tail
+        .split_once("\n## Step ")
+        .map(|(s, _)| s)
+        .unwrap_or(step3_tail);
+    assert!(
+        !step3.contains("--milestone"),
+        "skills/flow-decompose-project/SKILL.md Step 3 must not pass `--milestone` to `bin/flow issue` — the flag is deleted"
+    );
+}
+
+#[test]
+fn flow_decompose_project_step_4_no_milestone_flag_in_issue_call() {
+    // Same regression guard as Step 3 but scoped to the per-child
+    // filing loop in Step 4.
+    let c = common::read_skill("flow-decompose-project");
+    let step4_tail = c
+        .split_once("\n## Step 4")
+        .map(|(_, t)| t)
+        .expect("flow-decompose-project must have a `## Step 4` section");
+    let step4 = step4_tail
+        .split_once("\n## Step ")
+        .map(|(s, _)| s)
+        .unwrap_or(step4_tail);
+    assert!(
+        !step4.contains("--milestone"),
+        "skills/flow-decompose-project/SKILL.md Step 4 must not pass `--milestone` to `bin/flow issue` — the flag is deleted"
     );
 }
 

@@ -5,9 +5,9 @@ nav_order: 2
 
 # Phase 1: Start
 
-**Command:** `/flow-start <feature name words>`
+**Command:** `/flow-start #N`
 
-**Example:** `/flow-start app payment webhooks`
+**Example:** `/flow-start #1234`
 
 This is always the first phase, for every feature without exception. It establishes an isolated workspace, verifies the health of the codebase, configures workspace permissions, and opens the PR before any feature work begins. Project-specific setup (dependency upgrades, CI fixes) is handled by the project's `bin/dependencies` script and CLAUDE.md conventions.
 
@@ -59,4 +59,4 @@ By the end of Phase 1:
 
 ## What Comes Next
 
-Phase 2: Plan (`/flow-plan`) — explore the codebase, design the approach, and produce an ordered implementation plan.
+Phase 2: Code (`/flow-code`) — execute the plan extracted from the issue body task by task with full TDD discipline.

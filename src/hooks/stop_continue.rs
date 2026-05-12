@@ -9,13 +9,18 @@
 //!    when `_continue_pending=<skill_name>` is set, supporting
 //!    multi-child-skill chains.
 //! 3. `check_in_progress_utility_skill` — when a multi-step utility
-//!    skill (e.g. `flow:flow-explore`) wrote a per-session
-//!    marker at `<home>/.claude/flow/utility-in-progress-<id>.json`,
-//!    refuses turn-end so the model continues past the
-//!    Skill-tool-return handoff that otherwise breaks the unattended
-//!    contract these skills promise. Composed BEFORE
-//!    `check_prose_pause_at_task_entry` so its marker-specific block
-//!    message wins for that shape.
+//!    skill (`flow:flow-plan`, `flow:flow-decompose-project`) wrote
+//!    a per-session marker at
+//!    `<home>/.claude/flow/utility-in-progress-<id>.json` AND
+//!    `decompose:decompose` is the most recent Skill `tool_use` in
+//!    the persisted transcript since the most recent real user
+//!    turn, refuses turn-end so the model continues from
+//!    decompose's return straight to filing. The transcript walker
+//!    is the discriminator that distinguishes "decompose just
+//!    returned mid-pipeline" (block) from "model just sent a
+//!    normal conversational reply" (no block). Composed BEFORE
+//!    `check_prose_pause_at_task_entry` so its block message —
+//!    the verbatim encouraging string — wins for that shape.
 //! 4. `check_prose_pause_at_task_entry` — at a Code-phase task-entry
 //!    boundary in autonomous mode, refuses a voluntary turn-end when
 //!    the most recent assistant message contains a prose question
@@ -684,82 +689,78 @@ pub fn check_autonomous_in_progress(state_path: &Path) -> ContinueResult {
     }
 }
 
-/// Refuse a voluntary turn-end while a multi-step utility skill is
-/// in progress for the current Claude Code session.
+/// Refuse a voluntary turn-end when a multi-step utility skill's
+/// `decompose:decompose` sub-skill has just returned in the current
+/// model turn.
 ///
-/// Multi-step utility skills (`flow:flow-explore`,
-/// `flow:flow-plan`, `flow:flow-decompose-project`) invoke the Skill
-/// tool mid-pipeline. The Skill tool's return is a
-/// structural surface where the model often treats the handoff as a
+/// Multi-step utility skills (`flow:flow-plan`,
+/// `flow:flow-decompose-project`) invoke `decompose:decompose` via
+/// the Skill tool mid-pipeline. The Skill tool's return is a
+/// structural surface where the model treats the handoff as a
 /// natural stopping point and returns control to the user — breaking
-/// the unattended-flow contract these skills promise to their
-/// consumers. The skill writes a per-session marker file at
-/// `<home>/.claude/flow/utility-in-progress-<session_id>.json` at
-/// its Announce banner and clears it at the COMPLETE banner; this
-/// predicate refuses turn-end while the marker exists.
+/// the unattended-flow contract these skills promise. This
+/// predicate's job is to catch THAT specific shape: marker present
+/// AND `decompose:decompose` is the most recent Skill call since
+/// the user typed.
 ///
-/// **Marker-only invariant.** The block decision depends on a SINGLE
-/// signal: marker file existence (plus the marker's internal skill
-/// name and session_id matching the caller-passed `session_id`).
-/// The predicate consults NO other state — no transcript shape, no
-/// `_continue_pending` field, no `_stop_instructed` flag. The
-/// marker is the authoritative signal for the duration of the
-/// utility skill's lifecycle, and every Stop event during that
-/// lifecycle must refuse turn-end so the model continues past the
-/// Skill tool's structural return-to-user boundary.
+/// **Two-signal gate.** The block decision requires BOTH:
+///
+/// 1. The per-session utility marker file at
+///    `<home>/.claude/flow/utility-in-progress-<session_id>.json`
+///    exists with matching skill name and session_id (precondition).
+/// 2. `crate::hooks::transcript_walker::most_recent_skill_since_user`
+///    returns `Some("decompose:decompose")` for the supplied
+///    `transcript_path` (the discriminator).
+///
+/// The transcript walker discriminates "decompose just returned
+/// mid-pipeline" (block) from "model just sent a normal
+/// conversational reply" (no block). Without the discriminator,
+/// every reply during discussion mode would refuse turn-end and the
+/// discussion-mode contract these skills offer would not hold.
+///
+/// **Last-Skill-wins semantics.** When a planning-persona sub-agent
+/// (`flow:pm`, `flow:tech-lead`, `flow:cto`) is invoked AFTER
+/// `decompose:decompose` in the same window, the walker returns the
+/// most recent Skill name and the gate falls through to no_block.
+/// The user reacts in the next message and discussion continues.
 ///
 /// Hook-state read timing per `.claude/rules/hook-state-timing.md`:
 ///
-/// - **Field read.** Marker file existence at
-///   `<home>/.claude/flow/utility-in-progress-<session_id>.json`,
-///   plus the marker's JSON fields `skill` and `session_id`.
-/// - **Writer.** `bin/flow set-utility-in-progress` (CLI surface
-///   for `crate::commands::utility_marker::write_marker`). Called
-///   by the utility skill immediately after its Announce banner.
-/// - **Clearer.** `bin/flow clear-utility-in-progress` (CLI
-///   surface for `crate::commands::utility_marker::clear_marker`).
-///   Called by the utility skill immediately before its COMPLETE
-///   banner and on every error-exit path.
-/// - **Temporal ordering.** The marker persists across the entire
-///   skill lifetime — from Announce through every internal Skill
-///   tool return until COMPLETE. The predicate's read window is
-///   every Stop event the Claude Code session emits during that
-///   span, including second-and-subsequent returns from any child
-///   Skill tool invocation.
-/// - **Read window.** Every Stop event. The marker remains
-///   authoritative on every read regardless of whether earlier
-///   predicates in `run()` short-circuited; this predicate runs
-///   only when none of `check_first_stop` / `check_continue`
-///   already blocked, but its decision is independent of why those
-///   predicates fell through.
+/// - **Field read.** Marker file existence + JSON `skill` and
+///   `session_id`. Transcript file content via
+///   `most_recent_skill_since_user`.
+/// - **Writer.** `bin/flow set-utility-in-progress` writes the
+///   marker; Claude Code writes transcript turns as the session
+///   advances.
+/// - **Clearer.** `bin/flow clear-utility-in-progress` removes the
+///   marker at the skill's COMPLETE banner. The transcript is not
+///   cleared — older turns remain visible but the walker stops at
+///   the most recent real user turn.
+/// - **Read window.** Every Stop event during the skill lifecycle.
+///   The gate fires on every iteration of a decompose-then-file
+///   loop because each iteration produces a new decompose call as
+///   the most recent Skill in the transcript.
 ///
-/// Composed into `run()` AFTER `check_continue` (so multi-child-skill
-/// chains route through `check_continue` first) and BEFORE
-/// `check_prose_pause_at_task_entry` so its marker-specific block
-/// message wins for that shape.
+/// Composed into `run()` AFTER `check_continue` and BEFORE
+/// `check_prose_pause_at_task_entry`.
 ///
-/// The marker is keyed by Claude Code session_id. A marker for a
-/// different session is treated as orphaned (e.g., a crashed
-/// concurrent session) and ignored — the predicate only blocks when
-/// the marker matches the current session_id BOTH in the path AND
-/// in the JSON `session_id` field, defending against a hostile or
-/// corrupted file that claims to belong to another session.
+/// **Block message.** When the gate fires, the context is the exact
+/// encouraging string. The verbatim-context branch in `run()` routes
+/// the string into the `decision: "block"` envelope's `reason` field
+/// unchanged — no "child skill returned" wrapper, no rule citations,
+/// no abort instructions.
 ///
-/// Symlink-safe per `.claude/rules/rust-patterns.md` "Symlink-Safe
-/// Existence Checks Before Writes": existence is probed via
-/// `fs::symlink_metadata` (which does NOT follow symlinks). When the
-/// path exists as a symlink the predicate treats it as no marker so
-/// a hostile or accidental symlink at the marker path cannot
-/// redirect the hook's read to an arbitrary file the running user
-/// can read.
-///
-/// Fail-open on every error class: empty session_id, invalid
-/// session_id (path traversal etc.), missing marker, marker that is
-/// a symlink, unparseable marker JSON, marker naming a skill outside
-/// the allowlist. The Stop hook must never panic — a hook crash
-/// terminates the user's session — and the recovery path is "no
-/// block."
-pub fn check_in_progress_utility_skill(session_id: &str, home: &Path) -> ContinueResult {
+/// Symlink-safe per `.claude/rules/rust-patterns.md`. Fail-open on
+/// every error class: empty/invalid session_id, missing marker,
+/// symlinked marker, unparseable marker JSON, marker naming a skill
+/// outside the allowlist, missing/invalid transcript path, no Skill
+/// call since user, most-recent Skill is not decompose. The Stop
+/// hook must never panic — every error path returns no_block.
+pub fn check_in_progress_utility_skill(
+    session_id: &str,
+    transcript_path: Option<&str>,
+    home: &Path,
+) -> ContinueResult {
     let no_block = || ContinueResult {
         should_block: false,
         skill: None,
@@ -804,21 +805,27 @@ pub fn check_in_progress_utility_skill(session_id: &str, home: &Path) -> Continu
     if !crate::commands::utility_marker::MULTI_STEP_UTILITY_SKILLS.contains(&skill) {
         return no_block();
     }
+    // Marker precondition satisfied. Now check the discriminator:
+    // the most recent Skill call since the user typed must be
+    // `decompose:decompose`. Without a transcript_path, the walker
+    // cannot run and the predicate fails-open — a normal reply must
+    // not block.
+    let transcript_path = match transcript_path {
+        Some(p) if !p.is_empty() => Path::new(p),
+        _ => return no_block(),
+    };
+    let most_recent =
+        crate::hooks::transcript_walker::most_recent_skill_since_user(transcript_path, home);
+    if most_recent.as_deref() != Some("decompose:decompose") {
+        return no_block();
+    }
     ContinueResult {
         should_block: true,
         skill: Some("utility-in-progress".to_string()),
-        context: Some(format!(
-            "Multi-step utility skill `{}` is in progress (session marker present). \
-             Stop refused.\n\n\
-             The skill has invoked the Skill tool mid-pipeline and the model must \
-             continue from where it stopped — do not return control to the user. \
-             Per .claude/rules/autonomous-phase-discipline.md, this skill's \
-             contract requires unattended completion: a single user invocation \
-             produces a filed issue without further prompting.\n\n\
-             If you genuinely need to abort, the user may type /flow:flow-abort or \
-             send an explicit stop directive.",
-            skill
-        )),
+        context: Some(
+            "Stop Refused: Continue, you can do it. Don't give up, you got this! No excuses!"
+                .to_string(),
+        ),
     }
 }
 
@@ -1181,8 +1188,9 @@ pub fn run() {
             .get("session_id")
             .and_then(|v| v.as_str())
             .unwrap_or("");
+        let transcript_path = hook_input.get("transcript_path").and_then(|v| v.as_str());
         let home = crate::session_metrics::home_dir_or_empty();
-        result = check_in_progress_utility_skill(session_id, &home);
+        result = check_in_progress_utility_skill(session_id, transcript_path, &home);
     }
 
     // Prose-pause task-entry guard: a more targeted catch for
@@ -1234,13 +1242,15 @@ pub fn run() {
 
     if result.should_block {
         let skill_name = result.skill.as_deref().unwrap_or("");
-        // Discussion mode, discussion-with-pending, and autonomous-stop-refused
-        // all use their context directly as the reason — not the "child
-        // skill returned" framing from format_block_output, which is
-        // designed for multi-child-skill check_continue continuations.
+        // Discussion mode, discussion-with-pending, autonomous-stop-refused,
+        // and utility-in-progress all carry the context string straight into
+        // the `decision: "block"` envelope's reason — not the "child skill
+        // returned" framing from format_block_output, which is designed
+        // for multi-child-skill check_continue continuations.
         let output = if skill_name == "discussion"
             || skill_name == "discussion-with-pending"
             || skill_name == "autonomous-stop-refused"
+            || skill_name == "utility-in-progress"
         {
             json!({"decision": "block", "reason": result.context.as_deref().unwrap_or(DISCUSSION_BLOCK_REASON)})
         } else {

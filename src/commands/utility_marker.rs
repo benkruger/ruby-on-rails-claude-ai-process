@@ -1,20 +1,24 @@
 //! Per-session "utility skill in progress" marker file.
 //!
-//! Multi-step utility skills (`flow:flow-explore`, `flow:flow-plan`,
-//! `flow:flow-decompose-project`) invoke the Skill tool mid-skill to
-//! delegate to a child skill. The Skill tool's return is a structural
-//! surface where the model often treats the handoff as a natural
-//! stopping point and returns control to the user — breaking the
-//! unattended-flow contract these skills promise to their consumers.
+//! Multi-step utility skills (`flow:flow-plan`,
+//! `flow:flow-decompose-project`) invoke `decompose:decompose` via
+//! the Skill tool mid-skill. The Skill tool's return is a structural
+//! surface where the model treats the handoff as a natural stopping
+//! point and returns control to the user — breaking the unattended-
+//! flow contract these skills promise to their consumers.
 //!
 //! `write_marker` (called immediately after the skill's Announce
 //! banner) and `clear_marker` (called immediately before the COMPLETE
 //! banner and on every error-exit path) keep a JSON marker on disk at
 //! `<home>/.claude/flow/utility-in-progress-<session_id>.json` for the
-//! skill's full lifecycle. The Stop hook reads the marker for the
-//! current Claude Code session_id and refuses turn-end with
-//! `{"decision":"block"}` if a marker is present and names a known
-//! multi-step utility skill.
+//! skill's full lifecycle. The marker is a **precondition** for the
+//! Stop hook's block — necessary but not sufficient. The Stop hook
+//! ALSO consults `crate::hooks::transcript_walker::most_recent_skill_since_user`
+//! to confirm `decompose:decompose` is the most recent Skill call
+//! since the user last typed. Both signals must align before
+//! `{"decision":"block"}` fires: a normal conversational reply with
+//! no decompose call in flight ends the turn cleanly even while
+//! the marker is present.
 //!
 //! The marker is per-session (not per-flow): it lives under the
 //! user's HOME, not `.flow-states/`, because the multi-step utility
@@ -34,16 +38,20 @@ use serde_json::{json, Value};
 use crate::session_metrics::is_safe_session_id;
 use crate::utils::now;
 
-/// The set of multi-step utility skills the Stop hook protects from
-/// mid-skill turn-end. Add a skill here when it writes a
-/// per-session utility-in-progress marker via
-/// `bin/flow set-utility-in-progress --skill <name>` and delegates
-/// to another Skill tool invocation (or sub-agent dispatch) mid-pipeline
-/// — without registration, the Stop hook's `check_in_progress_utility_skill`
-/// predicate silently drops the marker and turn-end is not refused.
-/// The `every_marker_writing_skill_is_in_multi_step_allowlist` contract
-/// test in `tests/skill_contracts.rs` scans every SKILL.md and locks
-/// this invariant in mechanically.
+/// The set of multi-step utility skills whose marker file gates the
+/// Stop hook's `check_in_progress_utility_skill` predicate. A skill
+/// belongs in this set when it BOTH writes a per-session marker via
+/// `bin/flow set-utility-in-progress --skill <name>` AND invokes
+/// `decompose:decompose` via the Skill tool mid-pipeline. The
+/// predicate's block fires only when the marker names a skill in
+/// this set AND the persisted transcript shows
+/// `decompose:decompose` as the most recent Skill call since the
+/// most recent real user turn — so a skill that writes the marker
+/// but never invokes decompose would never trigger a block and the
+/// allowlist entry would do nothing. The
+/// `every_marker_writing_skill_is_in_multi_step_allowlist` contract
+/// test in `tests/skill_contracts.rs` scans every SKILL.md and
+/// locks the marker-writing invariant in mechanically.
 pub const MULTI_STEP_UTILITY_SKILLS: &[&str] = &[
     "flow:flow-decompose-project",
     "flow:flow-explore",

@@ -1207,15 +1207,14 @@ fn run_subprocess_continue_pending_uses_format_block_output() {
 }
 
 // Drives the full run() → check_in_progress_utility_skill path. Sets up a
-// git repo with NO state file (the canonical context for flow-create-issue:
-// the utility skill runs outside any active FLOW phase, so check_first_stop
+// git repo with NO state file (the canonical context for the utility
+// skills: they run outside any active FLOW phase, so check_first_stop
 // and check_continue both early-return on `!state_path.exists()`). The
-// marker file at `<HOME>/.claude/flow/utility-in-progress-<session>.json`
-// is the SOLE signal the predicate consults. Regression: a future refactor
-// that introduces a transcript-walker condition or any other gate inside
-// `check_in_progress_utility_skill` would make this test fail because the
-// run() pipeline would no longer refuse the turn-end when the marker is
-// the only state present.
+// predicate gates on two signals — the marker file at
+// `<HOME>/.claude/flow/utility-in-progress-<session>.json` AND
+// `decompose:decompose` being the most recent Skill call in the
+// persisted transcript since the most recent real user turn. Both
+// must be present for the run() pipeline to refuse turn-end.
 #[test]
 fn run_subprocess_blocks_when_utility_marker_present() {
     let dir = tempfile::tempdir().unwrap();
@@ -1262,7 +1261,16 @@ fn run_subprocess_blocks_when_utility_marker_present() {
     });
     fs::write(&marker_path, serde_json::to_string(&payload).unwrap()).unwrap();
 
-    let stdin = format!(r#"{{"session_id": "{}"}}"#, session_id);
+    // Build a transcript under <home>/.claude/projects/p/session.jsonl
+    // so the new predicate's walker validator accepts the path. The
+    // transcript ends with a `decompose:decompose` Skill call so the
+    // decompose-return gate fires and the predicate blocks.
+    let transcript = transcript_with_skill_calls(&home, &["decompose:decompose"]);
+    let stdin = format!(
+        r#"{{"session_id": "{}", "transcript_path": "{}"}}"#,
+        session_id,
+        transcript.display(),
+    );
     let (code, stdout, _stderr) = run_hook_with_home(&root, &stdin, &home);
     assert_eq!(code, 0);
     let last = stdout
@@ -1271,11 +1279,10 @@ fn run_subprocess_blocks_when_utility_marker_present() {
         .unwrap_or_else(|| panic!("no JSON in stdout: {}", stdout));
     let json: Value = serde_json::from_str(last).unwrap();
     assert_eq!(json["decision"], "block");
-    let reason = json["reason"].as_str().unwrap_or("");
-    assert!(
-        reason.contains("flow:flow-explore"),
-        "block reason must name the in-progress utility skill: {}",
-        reason
+    assert_eq!(
+        json["reason"].as_str().unwrap_or(""),
+        "Stop Refused: Continue, you can do it. Don't give up, you got this! No excuses!",
+        "block reason must be the AC#7 encouraging message",
     );
 }
 
@@ -2820,23 +2827,10 @@ fn write_utility_marker(home: &Path, skill: &str, session_id: &str) {
 }
 
 #[test]
-fn check_in_progress_utility_skill_refuses_stop_when_marker_present() {
+fn utility_skill_no_marker_no_block() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap();
-    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
-    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
-    assert!(
-        result.should_block,
-        "marker present must refuse turn-end during multi-step utility skill"
-    );
-    assert_eq!(result.skill.as_deref(), Some("utility-in-progress"));
-}
-
-#[test]
-fn check_in_progress_utility_skill_allows_stop_when_marker_absent() {
-    let dir = tempfile::tempdir().unwrap();
-    let home = dir.path().canonicalize().unwrap();
-    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, None, &home);
     assert!(
         !result.should_block,
         "no marker → no block (the skill is not running)"
@@ -2852,30 +2846,10 @@ fn check_in_progress_utility_skill_ignores_orphan_marker_from_different_session(
     // Marker for a different session_id (e.g., a crashed concurrent
     // Claude Code session) must not affect THIS session.
     write_utility_marker(&home, UTIL_SKILL, "other_session_id");
-    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, None, &home);
     assert!(
         !result.should_block,
         "marker for different session_id must be ignored as orphaned"
-    );
-}
-
-#[test]
-fn check_in_progress_utility_skill_block_message_names_skill_and_rule() {
-    let dir = tempfile::tempdir().unwrap();
-    let home = dir.path().canonicalize().unwrap();
-    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
-    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
-    assert!(result.should_block);
-    let context = result.context.expect("context must be populated on block");
-    assert!(
-        context.contains(UTIL_SKILL),
-        "block message must name the in-progress skill: {}",
-        context
-    );
-    assert!(
-        context.contains("autonomous-phase-discipline"),
-        "block message must cite the autonomous-phase-discipline rule: {}",
-        context
     );
 }
 
@@ -2922,7 +2896,7 @@ fn check_in_progress_utility_skill_predicate_runs_after_check_continue() {
 fn check_in_progress_utility_skill_no_block_when_session_id_empty() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap();
-    let result = check_in_progress_utility_skill("", &home);
+    let result = check_in_progress_utility_skill("", None, &home);
     assert!(
         !result.should_block,
         "empty session_id → no marker path → no block"
@@ -2930,15 +2904,15 @@ fn check_in_progress_utility_skill_no_block_when_session_id_empty() {
 }
 
 #[test]
-fn check_in_progress_utility_skill_no_block_when_session_id_invalid() {
+fn utility_skill_marker_present_invalid_session_id_no_block() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap();
     // Path-traversal session_id must be rejected by marker_path
     // BEFORE filesystem access so a hostile hook input cannot
     // redirect the read.
-    let result = check_in_progress_utility_skill("..", &home);
+    let result = check_in_progress_utility_skill("..", None, &home);
     assert!(!result.should_block);
-    let result = check_in_progress_utility_skill("abc/def", &home);
+    let result = check_in_progress_utility_skill("abc/def", None, &home);
     assert!(!result.should_block);
 }
 
@@ -2951,7 +2925,7 @@ fn check_in_progress_utility_skill_no_block_when_marker_unparseable() {
     let marker = marker_dir.join(format!("utility-in-progress-{}.json", UTIL_SESSION));
     // Corrupted JSON must not cause the predicate to panic or block.
     fs::write(&marker, "{not json").unwrap();
-    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, None, &home);
     assert!(
         !result.should_block,
         "corrupted marker must fail-open (no block)"
@@ -2966,7 +2940,7 @@ fn check_in_progress_utility_skill_no_block_when_skill_not_in_known_set() {
     // allowlist must not block — a future skill or a stale marker from
     // a removed feature must not silently keep blocking.
     write_utility_marker(&home, "flow:flow-some-other-skill", UTIL_SESSION);
-    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, None, &home);
     assert!(
         !result.should_block,
         "marker naming an unknown skill must not block"
@@ -2990,10 +2964,176 @@ fn check_in_progress_utility_skill_no_block_when_marker_session_id_mismatches() 
         "started_at": "2026-05-09T12:00:00-07:00",
     });
     fs::write(&marker, serde_json::to_string(&payload).unwrap()).unwrap();
-    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, None, &home);
     assert!(
         !result.should_block,
         "marker whose internal session_id mismatches must not block"
+    );
+}
+
+// --- new predicate behavior: decompose-return gating ---
+//
+// The predicate gates on TWO signals: (a) the per-session
+// utility-in-progress marker file, AND (b) `decompose:decompose`
+// being the most recent Skill `tool_use` in the persisted transcript
+// since the most recent real user turn. The marker is a precondition
+// — without it, no block under any transcript. The transcript walker
+// discriminates "decompose just returned mid-pipeline" (block) from
+// "model just sent a normal conversational reply" (no block) so
+// discussion-mode replies end the turn cleanly.
+
+/// Write a transcript JSONL fixture containing the supplied skill
+/// calls, mirroring the canonical layout under
+/// `<home>/.claude/projects/<project_id>/session.jsonl`. Returns the
+/// transcript path. Each `skills_after_user` entry produces one
+/// assistant Skill tool_use turn after the user turn.
+fn transcript_with_skill_calls(home: &Path, skills_after_user: &[&str]) -> PathBuf {
+    let mut jsonl =
+        String::from("{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"go\"}}\n");
+    for skill in skills_after_user {
+        jsonl.push_str(&format!(
+            "{{\"type\":\"assistant\",\"message\":{{\"role\":\"assistant\",\"content\":[{{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{{\"skill\":\"{}\"}}}}]}}}}\n",
+            skill,
+        ));
+    }
+    crate::common::transcript_fixture(home, "p", &jsonl)
+}
+
+#[test]
+fn utility_skill_marker_present_no_transcript_no_block() {
+    // Marker is present but transcript_path is None (the Stop hook
+    // received no transcript_path in its stdin payload). The predicate
+    // cannot determine whether decompose returned recently, so it
+    // fails-open to no_block — matching the discussion-mode contract
+    // that normal replies end the turn cleanly.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, None, &home);
+    assert!(
+        !result.should_block,
+        "no transcript_path → no decompose-return detection → no block"
+    );
+}
+
+#[test]
+fn utility_skill_marker_present_no_decompose_call_no_block() {
+    // AC#1: marker present, transcript shows the user just typed and
+    // the model replied with text (no Skill calls). This is a normal
+    // discussion-mode reply; the predicate must not refuse turn-end.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
+    let transcript = transcript_with_skill_calls(&home, &[]);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, transcript.to_str(), &home);
+    assert!(
+        !result.should_block,
+        "marker + no decompose call since user → no block (AC#1)"
+    );
+}
+
+#[test]
+fn utility_skill_marker_present_decompose_most_recent_blocks() {
+    // AC#2: marker present, transcript shows `decompose:decompose` as
+    // the most recent Skill call since the user typed. The predicate
+    // must refuse turn-end so the model continues from decompose's
+    // return straight to drafting and filing the issue.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
+    let transcript = transcript_with_skill_calls(&home, &["decompose:decompose"]);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, transcript.to_str(), &home);
+    assert!(
+        result.should_block,
+        "marker + decompose most recent → block (AC#2)"
+    );
+    assert_eq!(result.skill.as_deref(), Some("utility-in-progress"));
+}
+
+#[test]
+fn utility_skill_marker_present_pm_after_decompose_no_block() {
+    // AC#3: marker present, transcript shows `decompose:decompose`
+    // followed by `flow:pm`. The planning-persona sub-agent call is
+    // the most recent Skill, so the predicate must NOT block — the
+    // user reacts in the next message and discussion continues.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
+    let transcript = transcript_with_skill_calls(&home, &["decompose:decompose", "flow:pm"]);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, transcript.to_str(), &home);
+    assert!(
+        !result.should_block,
+        "marker + pm after decompose → no block (AC#3, last-Skill-wins)"
+    );
+}
+
+#[test]
+fn utility_skill_block_message_is_encouraging_string() {
+    // AC#7: when the predicate blocks, the context string MUST be the
+    // exact encouraging-tone message — no rule citations, no contract
+    // prose, no abort instructions. The full Stop hook routes this
+    // string verbatim into the `decision: "block"` envelope's reason.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
+    let transcript = transcript_with_skill_calls(&home, &["decompose:decompose"]);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, transcript.to_str(), &home);
+    assert!(result.should_block);
+    let context = result.context.expect("context must populate on block");
+    assert_eq!(
+        context,
+        "Stop Refused: Continue, you can do it. Don't give up, you got this! No excuses!",
+    );
+}
+
+#[test]
+fn run_composition_emits_encouraging_message_for_utility_block() {
+    // Golden test for the run() composition: when the marker is
+    // present AND the transcript shows decompose as the most recent
+    // skill, the Stop hook subprocess emits `{"decision":"block",
+    // "reason":"<encouraging message>"}` verbatim. The reason field
+    // must equal the AC#7 string with no surrounding "child skill
+    // returned" framing.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    init_main_repo(&root);
+    let session_id = "abc12345";
+    // Write marker under HOME=<root> so set-utility-in-progress's
+    // marker path resolves to <root>/.claude/flow/.
+    let marker_dir = root.join(".claude").join("flow");
+    fs::create_dir_all(&marker_dir).unwrap();
+    let payload = json!({
+        "skill": "flow:flow-decompose-project",
+        "session_id": session_id,
+        "started_at": "2026-05-09T12:00:00-07:00",
+    });
+    fs::write(
+        marker_dir.join(format!("utility-in-progress-{}.json", session_id)),
+        serde_json::to_string(&payload).unwrap(),
+    )
+    .unwrap();
+    // Build a transcript under <root>/.claude/projects/p/session.jsonl
+    // so the Stop hook subprocess (with HOME=<root>) passes the
+    // validator's prefix check.
+    let transcript = transcript_with_skill_calls(&root, &["decompose:decompose"]);
+    let stdin = format!(
+        r#"{{"session_id": "{}", "transcript_path": "{}"}}"#,
+        session_id,
+        transcript.display(),
+    );
+    let (code, stdout, _stderr) = run_hook_with_home(&root, &stdin, &root);
+    assert_eq!(code, 0, "Stop hook exits 0 even when blocking");
+    let parsed: Value =
+        serde_json::from_str(&stdout).expect("Stop hook must emit JSON when blocking");
+    assert_eq!(
+        parsed["decision"], "block",
+        "must refuse turn-end: {}",
+        stdout
+    );
+    assert_eq!(
+        parsed["reason"].as_str().unwrap_or(""),
+        "Stop Refused: Continue, you can do it. Don't give up, you got this! No excuses!",
+        "reason must match AC#7 verbatim with no wrapper framing",
     );
 }
 
@@ -3019,7 +3159,7 @@ fn check_in_progress_utility_skill_no_block_when_marker_path_is_symlink() {
     fs::write(&target, serde_json::to_string(&payload).unwrap()).unwrap();
     let marker = marker_dir.join(format!("utility-in-progress-{}.json", UTIL_SESSION));
     std::os::unix::fs::symlink(&target, &marker).unwrap();
-    let result = check_in_progress_utility_skill(UTIL_SESSION, &home);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, None, &home);
     assert!(
         !result.should_block,
         "symlink at marker path must not block — only regular files do"
@@ -3111,22 +3251,29 @@ fn utility_marker_full_lifecycle_subprocess() {
         .join(format!("utility-in-progress-{}.json", session_id));
     assert!(marker.exists(), "marker must be written");
 
-    // 2. Stop hook with matching session_id must block.
-    let stdin_input = format!(r#"{{"session_id": "{}"}}"#, session_id);
+    // 2. Stop hook with matching session_id AND a transcript showing
+    //    `decompose:decompose` as the most recent Skill call must
+    //    block. The new predicate gates on decompose-return detection,
+    //    so the transcript_path field is load-bearing.
+    let transcript = transcript_with_skill_calls(&root, &["decompose:decompose"]);
+    let stdin_input = format!(
+        r#"{{"session_id": "{}", "transcript_path": "{}"}}"#,
+        session_id,
+        transcript.display(),
+    );
     let (code, stdout, _stderr) = run_hook_with_home(&root, &stdin_input, &root);
     assert_eq!(code, 0, "Stop hook exits 0 even when blocking");
     let parsed: Value =
         serde_json::from_str(&stdout).expect("Stop hook must emit JSON when blocking");
     assert_eq!(
         parsed["decision"], "block",
-        "Stop hook must refuse turn-end while marker present: {}",
+        "Stop hook must refuse turn-end while marker present + decompose return: {}",
         stdout
     );
-    let reason = parsed["reason"].as_str().unwrap_or("");
-    assert!(
-        reason.contains("flow:flow-explore"),
-        "block reason must name the in-progress skill: {}",
-        reason
+    assert_eq!(
+        parsed["reason"].as_str().unwrap_or(""),
+        "Stop Refused: Continue, you can do it. Don't give up, you got this! No excuses!",
+        "block reason must be the encouraging AC#7 message",
     );
 
     // 3. Clear marker via the real CLI.

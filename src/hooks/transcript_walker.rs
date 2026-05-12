@@ -269,6 +269,94 @@ pub fn most_recent_skill_in_user_only_set(path: &Path, home: &Path) -> bool {
     false
 }
 
+/// Return the name of the most recent Skill `tool_use` invocation
+/// in the transcript at `path` since the most recent **real** user
+/// turn. Returns `None` when no Skill call has fired since the user
+/// last typed, when the file cannot be read or parsed, or when the
+/// validator rejects the path.
+///
+/// A "real user turn" is a turn whose `type == "user"` AND whose
+/// `message.content` is a string (the user typed prose). Tool-result-
+/// wrapped user turns (where `content` is an array of blocks) are
+/// synthetic — they carry assistant-generated tool output back to
+/// the model — and the walker continues past them rather than
+/// treating them as a boundary.
+///
+/// Last-Skill-wins semantics: when multiple Skill calls appear
+/// between the most recent real user turn and the file's tail, the
+/// helper returns the one that appears LAST in file order. A chain
+/// of `decompose:decompose → flow:pm` collapses to `"flow:pm"`, so a
+/// downstream predicate that gates on decompose returns no longer
+/// fires after a follow-up Skill call lands.
+///
+/// Production consumer: `check_in_progress_utility_skill` in
+/// `src/hooks/stop_continue.rs`. The predicate uses the returned
+/// skill name to discriminate "decompose just returned mid-pipeline"
+/// (block: the model must continue past the Skill-tool-return
+/// boundary) from "model just sent a normal conversational reply"
+/// (no block: discussion mode is a legitimate stopping point).
+///
+/// `home` is passed in for the same testability reason as the
+/// sibling helpers.
+pub fn most_recent_skill_since_user(path: &Path, home: &Path) -> Option<String> {
+    if !is_safe_transcript_path(path, home) {
+        return None;
+    }
+    let lines = read_capped(path, TRANSCRIPT_BYTE_CAP)?;
+    let mut last_skill: Option<String> = None;
+    for line in lines.lines().rev() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let turn: Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let turn_type =
+            normalize_gate_input(turn.get("type").and_then(|v| v.as_str()).unwrap_or(""));
+        if turn_type == "user" {
+            // Real user turns have string `content`. Synthetic
+            // tool_result-wrapped user turns have array `content` —
+            // skip those and keep walking backward.
+            let is_real = turn
+                .get("message")
+                .and_then(|m| m.get("content"))
+                .and_then(|c| c.as_str())
+                .is_some();
+            if is_real {
+                return last_skill;
+            }
+            continue;
+        }
+        if turn_type != "assistant" {
+            continue;
+        }
+        let skills = extract_skill_invocations(&turn);
+        if skills.is_empty() {
+            continue;
+        }
+        // Walking backward, the first Skill block we encounter is
+        // the most recent in file order. Within a single multi-
+        // Skill assistant turn, the LAST entry in the `skills` Vec
+        // is the most recent. `skills.is_empty()` returned false
+        // above, so `last()` is guaranteed to be `Some` — the
+        // `.expect` documents the unreachable None arm without
+        // creating a coverage branch per
+        // `.claude/rules/reachable-is-testable.md`. Earlier passes
+        // through this branch do not overwrite the captured value.
+        if last_skill.is_none() {
+            last_skill = Some(
+                skills
+                    .last()
+                    .expect("skills non-empty: is_empty() returned false above")
+                    .clone(),
+            );
+        }
+    }
+    last_skill
+}
+
 /// Read the LAST `cap` bytes of `path` as a UTF-8 String. Returns
 /// `None` on `File::open` error or non-UTF-8 content.
 ///

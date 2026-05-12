@@ -13,8 +13,8 @@ use std::fs;
 
 use flow_rs::hooks::transcript_walker::{
     last_user_message_invokes_skill, most_recent_skill_in_user_only_set,
-    recent_edit_blocked_on_shared_config, SHARED_CONFIG_BLOCK_BYTE_CAP, TRANSCRIPT_BYTE_CAP,
-    USER_ONLY_SKILLS,
+    most_recent_skill_since_user, recent_edit_blocked_on_shared_config,
+    SHARED_CONFIG_BLOCK_BYTE_CAP, TRANSCRIPT_BYTE_CAP, USER_ONLY_SKILLS,
 };
 
 // --- last_user_message_invokes_skill ---
@@ -975,4 +975,203 @@ fn helper_continues_when_tool_result_content_is_number() {
 {\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t\",\"content\":7,\"is_error\":true}]}}\n";
     let path = crate::common::transcript_fixture(home, "p", jsonl);
     assert!(!recent_edit_blocked_on_shared_config(&path, home));
+}
+
+// --- most_recent_skill_since_user ---
+//
+// The `check_in_progress_utility_skill` predicate in `stop_continue.rs`
+// consults this helper to discriminate "decompose just returned mid-
+// pipeline" from "model just sent a normal conversational reply." The
+// helper walks backward from the transcript file's tail, stops at the
+// most recent real user turn, and returns the name of the last Skill
+// tool_use call since that boundary. `None` means no Skill call has
+// fired since the user typed; the marker-based block is suppressed
+// for that case so the model can send a normal reply during
+// discussion mode without triggering Stop-hook refusal.
+
+#[test]
+fn most_recent_skill_no_transcript_path() {
+    // Path that does not exist: fails the validator's existence check
+    // via `read_capped` returning None. Helper returns None (fail-open).
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let missing = home
+        .join(".claude")
+        .join("projects")
+        .join("p")
+        .join("nonexistent.jsonl");
+    assert_eq!(most_recent_skill_since_user(&missing, home), None);
+}
+
+#[test]
+fn most_recent_skill_invalid_path_rejected() {
+    // Path outside `<home>/.claude/projects/` fails
+    // `is_safe_transcript_path` validation. Helper returns None.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let stray = home.join("malicious").join("session.jsonl");
+    fs::create_dir_all(stray.parent().unwrap()).unwrap();
+    let jsonl = "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"decompose:decompose\"}}]}}\n";
+    fs::write(&stray, jsonl).unwrap();
+    assert_eq!(most_recent_skill_since_user(&stray, home), None);
+}
+
+#[test]
+fn most_recent_skill_empty_transcript() {
+    // Empty file: no turns, no Skill calls. Helper returns None.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let path = crate::common::transcript_fixture(home, "p", "");
+    assert_eq!(most_recent_skill_since_user(&path, home), None);
+}
+
+#[test]
+fn most_recent_skill_no_skill_call_returns_none() {
+    // User turn followed by an assistant text-only turn (no Skill
+    // tool_use). The walker stops at the user boundary with no Skill
+    // call captured. Helper returns None.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let jsonl = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"hello\"}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"hi back\"}]}}\n";
+    let path = crate::common::transcript_fixture(home, "p", jsonl);
+    assert_eq!(most_recent_skill_since_user(&path, home), None);
+}
+
+#[test]
+fn most_recent_skill_decompose_only() {
+    // User turn, then assistant turn invoking `decompose:decompose`.
+    // Helper returns `Some("decompose:decompose")`.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let jsonl = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"decompose this\"}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"decompose:decompose\"}}]}}\n";
+    let path = crate::common::transcript_fixture(home, "p", jsonl);
+    assert_eq!(
+        most_recent_skill_since_user(&path, home),
+        Some("decompose:decompose".to_string()),
+    );
+}
+
+#[test]
+fn most_recent_skill_decompose_then_pm_returns_pm() {
+    // User turn → assistant decompose call → assistant flow:pm call.
+    // The walker returns the LAST Skill call before the user boundary
+    // (in file order, the most recent Skill in the window). AC#3 last-
+    // Skill-wins semantics: a chain of Skill calls in the same window
+    // collapses to whatever fired most recently, and the block fires
+    // ONLY when that final Skill is decompose.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let jsonl = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"do it\"}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"decompose:decompose\"}}]}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"flow:pm\"}}]}}\n";
+    let path = crate::common::transcript_fixture(home, "p", jsonl);
+    assert_eq!(
+        most_recent_skill_since_user(&path, home),
+        Some("flow:pm".to_string()),
+    );
+}
+
+#[test]
+fn most_recent_skill_synthetic_user_turn_ignored() {
+    // Tool-result-wrapped user turn (content is an array of blocks,
+    // not a string) is a synthetic user turn carrying tool output
+    // back to the assistant. It must NOT count as a real user
+    // boundary; the walker continues past it to find the most recent
+    // real (string-content) user turn. Then the assistant decompose
+    // call before that real user turn is invisible — the Skill call
+    // in the window between the synthetic and real user turns wins.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    // File order (earliest to latest):
+    //   real user turn ("do it")
+    //   assistant decompose Skill call
+    //   synthetic user turn (tool_result array)
+    //   assistant flow:pm Skill call
+    // Walker stops at the real user turn; both Skill calls are in
+    // the window; last-wins returns `flow:pm`.
+    let jsonl = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"do it\"}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"decompose:decompose\"}}]}}\n\
+{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t\",\"content\":\"ok\"}]}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"flow:pm\"}}]}}\n";
+    let path = crate::common::transcript_fixture(home, "p", jsonl);
+    assert_eq!(
+        most_recent_skill_since_user(&path, home),
+        Some("flow:pm".to_string()),
+    );
+}
+
+#[test]
+fn most_recent_skill_byte_cap_enforced() {
+    // A valid user turn + decompose Skill call sit at the file's HEAD,
+    // followed by > TRANSCRIPT_BYTE_CAP bytes of padding. `read_capped`
+    // reads only the LAST cap bytes; the head-positioned content is
+    // invisible. Helper returns None (the truncated tail has no parseable
+    // turns).
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let proj = home.join(".claude").join("projects").join("p");
+    fs::create_dir_all(&proj).unwrap();
+    let path = proj.join("oversized.jsonl");
+    let leading = b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"go\"}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"decompose:decompose\"}}]}}\n";
+    let mut content: Vec<u8> = leading.to_vec();
+    let padding_size = (TRANSCRIPT_BYTE_CAP as usize) + 1024;
+    content.extend(std::iter::repeat_n(b'\n', padding_size));
+    fs::write(&path, &content).unwrap();
+    assert_eq!(most_recent_skill_since_user(&path, home), None);
+}
+
+#[test]
+fn most_recent_skill_non_utf8_file_returns_none() {
+    // File opens but `read_to_string` inside `read_capped` fails on
+    // non-UTF-8 bytes. `read_capped` returns None and the helper's
+    // `?` operator propagates None.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let proj = home.join(".claude").join("projects").join("p");
+    fs::create_dir_all(&proj).unwrap();
+    let path = proj.join("invalid.jsonl");
+    // 0xC3 starts a 2-byte UTF-8 sequence; 0x28 is `(` (not a valid
+    // continuation byte), so the pair is invalid UTF-8.
+    fs::write(&path, [0xC3u8, 0x28u8]).unwrap();
+    assert_eq!(most_recent_skill_since_user(&path, home), None);
+}
+
+#[test]
+fn most_recent_skill_unparseable_line_skipped() {
+    // An unparseable JSONL line (not valid JSON) is skipped via the
+    // `Err(_) => continue` branch. A valid assistant Skill turn at
+    // the file's tail and a user turn earlier surround the bad
+    // line. Walking reverse: assistant decompose → capture; bad
+    // line → continue; user (real) → return captured.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let jsonl = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"go\"}}\n\
+not valid json at all\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"decompose:decompose\"}}]}}\n";
+    let path = crate::common::transcript_fixture(home, "p", jsonl);
+    assert_eq!(
+        most_recent_skill_since_user(&path, home),
+        Some("decompose:decompose".to_string()),
+    );
+}
+
+#[test]
+fn most_recent_skill_unknown_turn_type_skipped() {
+    // A turn whose `type` is neither "user" nor "assistant" (e.g.,
+    // a "system" turn from a future Claude Code release) is skipped
+    // via the `if turn_type != "assistant" { continue; }` branch.
+    // The walker keeps iterating to find the user boundary.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let jsonl = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"go\"}}\n\
+{\"type\":\"system\",\"message\":{\"role\":\"system\",\"content\":\"compaction summary\"}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Skill\",\"input\":{\"skill\":\"decompose:decompose\"}}]}}\n";
+    let path = crate::common::transcript_fixture(home, "p", jsonl);
+    assert_eq!(
+        most_recent_skill_since_user(&path, home),
+        Some("decompose:decompose".to_string()),
+    );
 }

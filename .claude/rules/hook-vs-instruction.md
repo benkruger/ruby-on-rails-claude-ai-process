@@ -94,6 +94,23 @@ insufficient:
       checked first. See
       `.claude/rules/autonomous-phase-discipline.md`
       "Shared-Config Carve-Out".
+- **Decompose-return turn-end during a multi-step utility skill** —
+  `stop_continue::check_in_progress_utility_skill` refuses the Stop
+  event with `{"decision":"block"}` and the verbatim encouraging
+  message `"Stop Refused: Continue, you can do it. Don't give up,
+  you got this! No excuses!"` when BOTH (a) the per-session
+  utility marker at
+  `<home>/.claude/flow/utility-in-progress-<session_id>.json`
+  exists and names a skill in
+  `crate::commands::utility_marker::MULTI_STEP_UTILITY_SKILLS`,
+  AND (b) `crate::hooks::transcript_walker::most_recent_skill_since_user`
+  returns `Some("decompose:decompose")` for the hook's
+  `transcript_path`. The walker is the discriminator that
+  distinguishes "decompose just returned mid-pipeline" (block) from
+  "model just sent a normal conversational reply" (no block) — so
+  discussion-mode replies during these utility skills end the turn
+  cleanly. Composed AFTER `check_continue` and BEFORE
+  `check_prose_pause_at_task_entry`.
 - **Voluntary turn-end during autonomous in-progress phases** —
   `stop_continue::check_autonomous_in_progress` refuses the Stop
   event with `{"decision":"block"}` and an autonomous-mode reason

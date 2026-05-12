@@ -1799,4 +1799,12 @@ fn test_flow_plan_skill_no_utility_marker_calls() {
          incompatible with the Stop-hook marker contract that the \
          CLI subcommand opts into."
     );
+    assert!(
+        !content.contains("clear-utility-in-progress"),
+        "skills/flow-plan/SKILL.md must not invoke \
+         `clear-utility-in-progress` — both halves of the removed \
+         marker pattern (set and clear) are guarded together so a \
+         merge-conflict resolution that re-adds only the clear side \
+         (e.g. as an unrelated cleanup hook) is still caught."
+    );
 }

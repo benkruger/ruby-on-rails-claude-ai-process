@@ -1,5 +1,29 @@
 # Release Notes
 
+## v2.0.1 — Setup script, verified agent returns, release-commit unblock
+
+### Improvements
+
+- **`bin/setup` install script** bundled with the plugin to bootstrap
+  the FLOW binary in target projects. Run from a plain terminal after
+  `/plugin install` and before `/flow-prime`; checks for `cargo` / `cc`
+  prerequisites and compiles via `cargo build --release` (#1526).
+- **Verified agent-return recording** — `bin/flow record-agent-return`
+  consults the persisted Claude Code transcript to confirm a required
+  sub-agent's `Agent` tool_use + matching `tool_result` appears since
+  the most recent `phase-enter` marker before writing the return into
+  state. `phase-finalize` now refuses to advance when any required
+  agent neither returned nor was skipped (#1527).
+
+### Fixes
+
+- Release commit no longer blocked on the integration branch — Layer
+  9's bootstrap-skill carve-out now passes `bin/flow finalize-commit`
+  invocations from `/flow-release` on the integration trunk, alongside
+  `/flow-start` and `/flow-prime` (#1523).
+- Reverted the Hellosh smoke test script that shipped in v2.0.0
+  (#1519, reverted in #1529).
+
 ## v2.0.0 — Planning skills, escape-hatch blocking, and the 5-phase lifecycle
 
 ### Breaking changes

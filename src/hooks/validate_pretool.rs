@@ -15,7 +15,9 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 use serde_json::Value;
 
-use super::transcript_walker::{any_skill_in_set_since_user, most_recent_skill_since_user};
+use super::transcript_walker::{
+    any_skill_in_set_since_user, most_recent_skill_since_user, normalize_gate_input,
+};
 use super::{
     build_permission_regexes, detect_branch_from_path, find_settings_and_root_from, is_flow_active,
     read_hook_input, resolve_main_root,
@@ -1098,10 +1100,18 @@ fn transcript_shows_commit_window_skill(transcript_path: Option<&Path>, home: &P
     let Some(path) = transcript_path else {
         return false;
     };
-    matches!(
-        most_recent_skill_since_user(path, home).as_deref(),
-        Some("flow:flow-commit") | Some("flow-release")
-    )
+    let Some(skill) = most_recent_skill_since_user(path, home) else {
+        return false;
+    };
+    // Normalize before comparing per `.claude/rules/security-gates.md`
+    // "Normalize Before Comparing". The sibling
+    // `any_skill_in_set_since_user(BOOTSTRAP_SKILLS)` walker normalizes
+    // its candidate strings; this predicate must apply the same
+    // discipline so the two AND-combined conditions in
+    // `bootstrap_carveout_applies` cannot drift on case- or
+    // whitespace-variant transcript emissions.
+    let norm = normalize_gate_input(&skill);
+    matches!(norm.as_str(), "flow:flow-commit" | "flow-release")
 }
 
 /// Recognize a `bin/flow ... finalize-commit` invocation specifically.

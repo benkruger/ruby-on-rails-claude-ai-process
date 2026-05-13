@@ -16,6 +16,7 @@ use flow_rs::check_freshness;
 use flow_rs::check_phase;
 use flow_rs::ci;
 use flow_rs::cleanup;
+use flow_rs::clear_halt;
 use flow_rs::close_issue;
 use flow_rs::close_issues;
 use flow_rs::commands;
@@ -159,6 +160,12 @@ enum Commands {
     /// Record a verified sub-agent return in FLOW state for phase-finalize gating.
     #[command(name = "record-agent-return")]
     RecordAgentReturn(record_agent_return::Args),
+    /// Clear the `_halt_pending` field so an autonomous flow resumes.
+    /// Invoked by `skills/flow-continue/SKILL.md`; self-gates via the
+    /// transcript walker so a Bash bypass cannot clear the halt
+    /// without the user typing `/flow:flow-continue`.
+    #[command(name = "clear-halt")]
+    ClearHalt(clear_halt::Args),
 
     /// FLOW cleanup orchestrator (worktree, branches, state files).
     Cleanup(cleanup::Args),
@@ -634,6 +641,12 @@ fn main() {
             let root = project_root();
             let home = flow_rs::session_metrics::home_dir_or_empty();
             let (value, code) = record_agent_return::run_impl_main(&args, &root, &home);
+            flow_rs::dispatch::dispatch_json(value, code);
+        }
+        Some(Commands::ClearHalt(args)) => {
+            let root = project_root();
+            let home = flow_rs::session_metrics::home_dir_or_empty();
+            let (value, code) = clear_halt::run_impl_main(&args, &root, &home);
             flow_rs::dispatch::dispatch_json(value, code);
         }
         Some(Commands::Issue(args)) => {

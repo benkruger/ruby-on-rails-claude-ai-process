@@ -12,6 +12,7 @@ pub mod check_freshness;
 pub mod check_phase;
 pub mod ci;
 pub mod cleanup;
+pub mod clear_halt;
 pub mod close_issue;
 pub mod close_issues;
 pub mod commands;

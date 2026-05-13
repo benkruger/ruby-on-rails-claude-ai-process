@@ -526,6 +526,7 @@ Report:
 - Pre-commit hook installed — blocks direct `git commit`, requires `/flow:flow-commit`
 - Global launcher installed at `~/.local/bin/flow` — run `flow tui` from any primed project
 - bin/* stubs installed (list whichever names appear in `stubs_installed` from Step 4); remind the user to edit each one to wire it to their actual toolchain
+- Decompose plugin installed (or already present) — DAG planning support from the `matt-k-wong/mkw-DAG-architect` marketplace
 - Generated files committed and pushed
 
 Display the skills configuration as a pipe-delimited markdown table with exactly this format (not a bullet list):

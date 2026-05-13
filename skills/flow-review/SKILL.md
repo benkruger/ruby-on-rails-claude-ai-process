@@ -881,6 +881,67 @@ Do NOT advance to the COMPLETE banner until the user picks one
 of the three options and the chosen path returns a
 `{"status":"ok",...}` envelope.
 
+**Handle the `required_agent_not_returned` error reason.** When
+the response shape is
+`{"status":"error","reason":"required_agent_not_returned","missing":[...],"message":"..."}`,
+one or more required agents are recorded in neither
+`agents_returned` nor `agents_skipped`. The required-agents gate
+ran before any state mutation. The phase has not been advanced.
+
+Three recovery shapes apply, ordered cheapest first:
+
+- **The agent was invoked but `record-agent-return` was not
+  called.** The persisted transcript still carries the
+  `tool_use`/`tool_result` pair (verifier is stateless against
+  the transcript), so retroactively invoking the recording
+  subcommand closes the gap with no agent rerun. For each
+  missing agent in the response, run:
+
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/bin/flow record-agent-return --branch <branch> --agent <name> --phase flow-review
+  ```
+
+  When the response is `{"status":"ok",...}`, the verifier
+  found the original invocation and the gate now sees the agent
+  as accounted-for. Re-run `phase-finalize`. When the response
+  is `{"status":"error","reason":"transcript_verification_failed"}`,
+  the transcript carries no matching invocation — fall through
+  to the next recovery shape.
+
+- **The agent was never invoked (skill loop bypassed).** Treat
+  the missing agent the same way Step 2 treats a Class
+  1/2/recording-error path: re-invoke it from Step 2's prompt
+  template (reusing `<full_diff_file>` and
+  `<substantive_diff_file>` from Step 1), classify the return,
+  and either call `record-agent-return` (Class 3) or
+  `add-skipped-agent` (Class 1/2 after the 3-attempt cap). After
+  the retry pass settles, re-run `phase-finalize` without
+  `--accept-skipped-agents`.
+
+- **The agent cannot be retried in this session.** Record it as
+  skipped via the existing path:
+
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/bin/flow add-skipped-agent --branch <branch> --agent <name> --reason exhausted_retries
+  ```
+
+  Append a state note documenting the cap exhaustion so Learn
+  surfaces the missing analysis:
+
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/bin/flow append-note --branch <branch> --kind agent_exhausted_retries --agent <name> --phase flow-review --attempts 3 --evidence "missing from agents_returned at finalize time"
+  ```
+
+  Then re-run `phase-finalize` (the entry now lands in
+  `agents_skipped`, so the next finalize iteration may surface
+  the `agents_skipped` error reason — the user picks
+  retry/accept/abort there).
+
+Do NOT advance to the COMPLETE banner until every missing
+agent in the response is accounted for via one of the three
+recovery shapes AND a subsequent `phase-finalize` call returns
+`{"status":"ok",...}`.
+
 When the response is `{"status":"error", ...}` for any OTHER
 reason, report the error and stop.
 

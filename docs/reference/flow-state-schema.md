@@ -233,6 +233,48 @@ retries. Consumed by the Learn-phase Step 2 synthesis and the
 Step 7 report banner's "Missing analyses" section to surface
 unavailable analyses without fabricating findings inline.
 
+### Required-Agents Gate v1 Boundaries
+
+The required-agents gate is the load-bearing protection against
+"model fabricates findings without invoking the agent." Two v1
+limitations are documented here so consumers know which surfaces
+the gate covers and which it does not:
+
+**Skip reasons are procedural, not transcript-verified.**
+`bin/flow add-skipped-agent` writes the entry unconditionally
+when the reason normalizes to one of `rate_limit`, `api_error`,
+`other`, `exhausted_retries`. A model that calls
+`add-skipped-agent --reason exhausted_retries` without actually
+exhausting three retries satisfies the `agents_skipped` half of
+the gate the same way a legitimate `api_error` entry does. The
+closure runs at Learn: every `exhausted_retries` entry is paired
+with an `agent_exhausted_retries` note (carrying attempt count +
+evidence pointer), which Learn's Step 7 banner surfaces in its
+"Missing analyses" section. Procedural enforcement of the retry
+cap lives in the calling SKILL.md's retry-3-then-note loop. A
+future PR may mechanically gate `exhausted_retries` against
+`phases.<phase>.agent_retry_counts.<agent> >= 3`; that
+tightening is out of scope for v1.
+
+**Cross-session transcript contamination.**
+`bin/flow record-agent-return` reads `session_id` and
+`transcript_path` from the per-branch state file and walks the
+JSONL at that path for the LAST `bin/flow phase-enter --phase
+<phase>` marker. Two flows running in the SAME Claude Code
+session (the user opened a second worktree in the same session
+and ran `flow-start` on a different branch) share the same
+transcript path. Each branch's state file records the same
+`session_id`. When both branches enter `flow-review` in the same
+session, the verifier's "LAST phase-enter --phase flow-review"
+scan may anchor on the OTHER branch's marker, accepting or
+rejecting an agent invocation against the wrong scan window.
+The typical usage pattern — one Claude Code session per
+worktree (distinct terminal windows) — produces distinct
+`session_id`s, isolating the transcripts. A future PR may
+extend the phase-enter marker to include the branch name so the
+verifier's scan is branch-scoped; that tightening is out of
+scope for v1.
+
 ---
 
 ## Timing Rules

@@ -42,6 +42,16 @@ pub fn required_agents_for_phase(phase: &str) -> &'static [&'static str] {
 /// required-agent slice. Consumed by `record_agent_return` to reject
 /// unknown agent names via the positive-allowlist pattern from
 /// `.claude/rules/security-gates.md`.
+///
+/// **Pre-condition: input must be normalized.** This function
+/// performs exact-match against the lowercase string slices in
+/// `REQUIRED_AGENTS`. Callers must pre-normalize via
+/// `crate::record_agent_return::normalize_gate_input` (NUL-strip +
+/// trim + ASCII lowercase) before calling. Raw input like
+/// `"REVIEWER"` or `" reviewer"` silently returns `false`. The
+/// gate boundary (normalize-before-comparing) lives in
+/// `record_agent_return::run_impl_main`; this helper is its
+/// downstream allowlist check.
 pub fn is_known_agent(agent: &str) -> bool {
     for (_, agents) in REQUIRED_AGENTS {
         if agents.contains(&agent) {

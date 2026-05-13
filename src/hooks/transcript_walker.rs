@@ -422,7 +422,6 @@ pub fn verify_agent_returned_in_phase(
         None => return Err("phase_marker_not_found".to_string()),
     };
     let all_lines: Vec<&str> = lines.lines().collect();
-    let phase_marker = format!("phase-enter --phase {}", phase_norm);
     let mut marker_idx: Option<usize> = None;
     for (i, line) in all_lines.iter().enumerate().rev() {
         let trimmed = line.trim();
@@ -433,7 +432,7 @@ pub fn verify_agent_returned_in_phase(
             Ok(v) => v,
             Err(_) => continue,
         };
-        if assistant_turn_runs_phase_enter(&turn, &phase_marker) {
+        if assistant_turn_runs_phase_enter(&turn, &phase_norm) {
             marker_idx = Some(i);
             break;
         }
@@ -443,7 +442,16 @@ pub fn verify_agent_returned_in_phase(
         None => return Err("phase_marker_not_found".to_string()),
     };
     let subagent_needle = format!("flow:{}", agent_norm);
-    let mut agent_tool_use_id: Option<String> = None;
+    // Single forward scan that collects every matching Agent
+    // tool_use_id AND watches for a tool_result whose tool_use_id
+    // matches any collected id. Retried agent invocations (first
+    // attempt truncated/failed, second attempt clean) produce
+    // multiple tool_use entries with distinct ids and exactly one
+    // tool_result for the successful attempt — returning on the
+    // first matching pair handles that shape. A single-pass scan
+    // also handles the happy-path single-invocation case in fewer
+    // turns than the prior two-pass form.
+    let mut candidate_ids: Vec<String> = Vec::new();
     for line in all_lines.iter().skip(marker_idx + 1) {
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -454,35 +462,34 @@ pub fn verify_agent_returned_in_phase(
             Err(_) => continue,
         };
         if let Some(id) = find_agent_tool_use_id(&turn, &subagent_needle) {
-            agent_tool_use_id = Some(id);
-            break;
+            candidate_ids.push(id);
+        }
+        for id in &candidate_ids {
+            if user_turn_carries_tool_result_for(&turn, id) {
+                return Ok(());
+            }
         }
     }
-    let agent_id = match agent_tool_use_id {
-        Some(id) => id,
-        None => return Err("tool_use_missing".to_string()),
-    };
-    for line in all_lines.iter().skip(marker_idx + 1) {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let turn: Value = match serde_json::from_str(trimmed) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        if user_turn_carries_tool_result_for(&turn, &agent_id) {
-            return Ok(());
-        }
+    if candidate_ids.is_empty() {
+        Err("tool_use_missing".to_string())
+    } else {
+        Err("tool_result_missing".to_string())
     }
-    Err("tool_result_missing".to_string())
 }
 
 /// Returns `true` when `turn` is an assistant turn that fires a Bash
-/// tool_use whose `input.command` contains `marker` as a substring.
-/// Used by `verify_agent_returned_in_phase` to locate the
-/// `phase-enter --phase <phase>` boundary.
-fn assistant_turn_runs_phase_enter(turn: &Value, marker: &str) -> bool {
+/// tool_use whose `input.command` is a `bin/flow phase-enter --phase
+/// <phase>` invocation (bare `bin/flow` or any absolute path ending in
+/// `/bin/flow`). Used by `verify_agent_returned_in_phase` to locate
+/// the `phase-enter --phase <phase>` boundary.
+///
+/// The match is token-aware (`cmd_invokes_phase_enter`) rather than
+/// substring. An unrelated command whose text contains the marker
+/// substring — `echo "phase-enter --phase flow-review"`,
+/// `bin/flow log "...phase-enter --phase flow-review..."` — does NOT
+/// match, so the verifier's scan window cannot be pinned to the wrong
+/// boundary by a casual log entry that mentions the phase name.
+fn assistant_turn_runs_phase_enter(turn: &Value, phase: &str) -> bool {
     let turn_type = normalize_gate_input(turn.get("type").and_then(|v| v.as_str()).unwrap_or(""));
     if turn_type != "assistant" {
         return false;
@@ -507,8 +514,41 @@ fn assistant_turn_runs_phase_enter(turn: &Value, marker: &str) -> bool {
             .and_then(|i| i.get("command"))
             .and_then(|c| c.as_str())
             .unwrap_or("");
-        if cmd.contains(marker) {
+        if cmd_invokes_phase_enter(cmd, phase) {
             return true;
+        }
+    }
+    false
+}
+
+/// Token-aware check: `cmd` is a `bin/flow phase-enter --phase
+/// <phase>` invocation. Tokens 0/1 must be `(bin/flow|*/bin/flow)`
+/// then `phase-enter`. The phase name must appear as the next token
+/// after a literal `--phase` token OR as the suffix of a
+/// `--phase=<phase>` token. Rejects substring false positives by
+/// requiring the command's first two tokens to match the canonical
+/// invocation shape — see `.claude/rules/comment-quality.md` for
+/// why the comment names what the match excludes.
+fn cmd_invokes_phase_enter(cmd: &str, phase: &str) -> bool {
+    let tokens: Vec<&str> = cmd.split_whitespace().collect();
+    if tokens.len() < 4 {
+        return false;
+    }
+    let first = tokens[0];
+    if first != "bin/flow" && !first.ends_with("/bin/flow") {
+        return false;
+    }
+    if tokens[1] != "phase-enter" {
+        return false;
+    }
+    for (i, tok) in tokens.iter().enumerate().skip(2) {
+        if *tok == "--phase" && tokens.get(i + 1) == Some(&phase) {
+            return true;
+        }
+        if let Some(rest) = tok.strip_prefix("--phase=") {
+            if rest == phase {
+                return true;
+            }
         }
     }
     false

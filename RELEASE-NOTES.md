@@ -1,5 +1,70 @@
 # Release Notes
 
+## v2.0.0 — Planning skills, escape-hatch blocking, and the 5-phase lifecycle
+
+### Breaking changes
+
+- **Phase 3 renamed to Review** — Phase 3 is now invoked as `/flow-review`.
+  Update any scripts, snippets, or muscle-memory that referenced the prior
+  command name (#1430).
+- **6-phase → 5-phase lifecycle** — Plan moved out of phase-state and into
+  a planning-skill family (`/flow-explore`, `/flow-plan`,
+  `/flow-decompose-project`). Start, Code, Review, Learn, Complete is the
+  canonical sequence.
+
+### New features
+
+- **Planning skills** — `/flow-explore` opens a problem-statement
+  conversation; `/flow-plan` decomposes a vanilla issue into a
+  pre-planned implementation plan; `/flow-decompose-project` files a
+  fully linked epic + child issue graph (#1459, #1469, #1492).
+- **Planning sub-agents** — PM (haiku), Tech Lead (sonnet), and CTO
+  (opus) with structured scope refusals (#1463).
+- **Escape-hatch and bypass blocking** — shell-eval wrappers
+  (`bash -c`, `sh -c`), command-construction launchers, network
+  bridges, and direct-commit shortcuts mechanically blocked by
+  validate-pretool (#1495, #1502).
+- **Verified sub-agent returns** — required Review and Learn
+  sub-agents must show a verified Agent tool_use + tool_result in the
+  transcript before phase-finalize advances (#1509).
+- **Halt-pending discipline** — autonomous flows honor explicit user
+  pause directives via a closed continue-token grammar; stop refusals
+  during multi-step utility skills (#1508, #1515, #1465).
+- **Per-phase token cost panel** in the TUI (#1473).
+- **Review and Learn findings in Done banner** — Complete summary
+  surfaces real findings instead of collapsing to counts (#1479).
+- **Hellosh smoke-test script** exercises the full lifecycle on a
+  low-risk file (#1519).
+
+### Improvements
+
+- **Review robust to large diffs** — diff handoff via file references
+  instead of inline bytes; truncation detection via END-OF-FINDINGS
+  markers (#1467).
+- **Multi-step skills return control** — `/flow-plan` and
+  `/flow-decompose-project` chain through `decompose:decompose`
+  without losing parent context (#1458).
+- **Defensive-scope phrasing scan** — issue-filing skills reject "Out
+  of Scope", "Non-goals", and similar enumerations before filing
+  (#1471).
+- **No-backwards-reasoning scan** — issue drafts blocked when they
+  cite historical PRs as authority (#1428).
+- **User primary role prompt** in `/flow-prime` customizes autonomy
+  presets (#1468).
+- **Long branch name handling** in Start (#1433).
+- **`/flow-changelog-audit`** monitors Claude Code releases.
+- Marketing site v2 look & feel and v2.0-ready README.
+
+### Fixes
+
+- Flow Start and Flow Prime no longer block on each other (#1514).
+- Per-flow capture works across Start (#1453).
+- Pair delta 00:00 emit fix (#1454).
+- Token cost panel display fix (#1436).
+- Discussion mode skills don't trigger phase transitions (#1489).
+- Recover Complete phase from partial state (#1440).
+- Stop filing GitHub issues for false positives (#1435).
+
 ## v1.1.0 — Redesigned code review, doc sync, and autonomous phase progression
 
 ### New features

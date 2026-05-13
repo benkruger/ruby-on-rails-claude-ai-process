@@ -3450,13 +3450,13 @@ fn layer_10_closure_block_message_cites_no_escape_hatches_rule() {
 // AND-combined walker conditions:
 //
 //   1. `is_finalize_commit_invocation(command)` (the command shape)
-//   2. `transcript_shows_flow_commit(transcript_path, home)`
-//      (the most recent assistant Skill since the most recent user
-//      turn is `flow:flow-commit`)
-//   3. `transcript_shows_bootstrap_parent(transcript_path, home)`
-//      (a sanctioned bootstrap parent — `flow:flow-start` or
-//      `flow:flow-prime` — appears in the assistant Skill chain
-//      since the most recent user turn)
+//   2. `most_recent_skill_since_user(path, home)` returns
+//      `Some("flow:flow-commit")` — the most recent assistant Skill
+//      since the most recent user turn is `flow:flow-commit`
+//   3. `any_skill_in_set_since_user(path, home, BOOTSTRAP_SKILLS)`
+//      returns true — a sanctioned bootstrap parent
+//      (`flow:flow-start` or `flow:flow-prime`) appears in the
+//      assistant Skill chain since the most recent user turn
 //
 // Raw `git commit` is never carved out; the carve-out's shape
 // predicate matches `bin/flow finalize-commit` only.
@@ -3522,9 +3522,9 @@ fn layer_10_bootstrap_carveout_allows_finalize_commit_on_staging_during_flow_sta
     // Configure `origin/HEAD` to `origin/staging` so
     // `default_branch_in` returns "staging". The carve-out names no
     // branch — it gates on `is_finalize_commit_invocation` +
-    // `transcript_shows_flow_commit` +
-    // `transcript_shows_bootstrap_parent` regardless of which branch
-    // the integration trunk is. Mirrors
+    // `most_recent_skill_since_user == Some("flow:flow-commit")` +
+    // `any_skill_in_set_since_user(BOOTSTRAP_SKILLS)` regardless of
+    // which branch the integration trunk is. Mirrors
     // `t4_git_commit_on_staging_default_repo_blocks` to pin the
     // branch-agnostic property.
     let (_dir, root) = setup_repo_on_branch("staging");
@@ -3607,9 +3607,9 @@ fn layer_10_bootstrap_carveout_blocks_for_flow_orchestrate_parent() {
     // Sanctioned-parent set is closed: {flow:flow-start,
     // flow:flow-prime}. Skill(flow:flow-orchestrate) is NOT a
     // sanctioned parent. The walker's
-    // `transcript_shows_bootstrap_parent` returns false even though
-    // `transcript_shows_flow_commit` would match; the AND fails and
-    // the block fires.
+    // `any_skill_in_set_since_user(BOOTSTRAP_SKILLS)` returns
+    // false even though `most_recent_skill_since_user` would match
+    // `flow:flow-commit`; the AND fails and the block fires.
     let (_dir, root) = setup_repo_on_branch("main");
     let claude_dir = root.join(".claude");
     std::fs::create_dir_all(&claude_dir).unwrap();
@@ -3705,11 +3705,10 @@ fn layer_10_bootstrap_carveout_blocks_after_user_turn_closes_window() {
 
 #[test]
 fn layer_10_bootstrap_carveout_blocks_when_transcript_path_missing() {
-    // Hook input omits `transcript_path`. Both
-    // `transcript_shows_flow_commit` and
-    // `transcript_shows_bootstrap_parent` return false on None →
-    // the AND fails → block fires. Pins that the carve-out
-    // cannot be reached without a transcript.
+    // Hook input omits `transcript_path`.
+    // `bootstrap_carveout_applies` early-returns false on the None
+    // arm of `let Some(path) = transcript_path else`; the carve-out
+    // cannot fire without a transcript. Block fires.
     let (_dir, root) = setup_repo_on_branch("main");
     let claude_dir = root.join(".claude");
     std::fs::create_dir_all(&claude_dir).unwrap();
@@ -3759,11 +3758,11 @@ fn layer_10_bootstrap_carveout_blocks_user_direct_flow_commit_on_main() {
     // User types `/flow:flow-commit` directly on the integration
     // branch — the transcript shows ONLY Skill(flow:flow-commit) and
     // no sanctioned bootstrap parent.
-    // `transcript_shows_flow_commit` returns true, but
-    // `transcript_shows_bootstrap_parent` returns false. The AND
-    // fails → block fires. Pins that the carve-out is for
-    // skill-driven bootstrap windows, not arbitrary user-initiated
-    // commits on the integration branch.
+    // `most_recent_skill_since_user` returns Some("flow:flow-commit"),
+    // but `any_skill_in_set_since_user(BOOTSTRAP_SKILLS)` returns
+    // false. The AND fails → block fires. Pins that the carve-out
+    // is for skill-driven bootstrap windows, not arbitrary user-
+    // initiated commits on the integration branch.
     let (_dir, root) = setup_repo_on_branch("main");
     let claude_dir = root.join(".claude");
     std::fs::create_dir_all(&claude_dir).unwrap();
@@ -3785,17 +3784,21 @@ fn layer_10_bootstrap_carveout_blocks_user_direct_flow_commit_on_main() {
 }
 
 #[test]
-fn layer_10_bootstrap_carveout_via_dash_c_target_on_main_passes() {
+fn layer_10_bootstrap_carveout_does_not_apply_via_dash_c_target_for_cross_repo_safety() {
     // Cwd is a feature-branch tempdir (NOT the integration branch),
     // but the command carries a `-C <main_root>` token that shifts
     // git's effective cwd onto the integration branch. The matcher
     // checks BOTH candidate cwds: the hook's process cwd and any
     // `-C` target. The first match_branch_at(cwd) returns None for
-    // the feature branch; the -C target's match_branch_at fires
-    // and the bootstrap carve-out is consulted at that callsite.
-    // With the bootstrap chain present and the finalize-commit
-    // shape, the carve-out fires for the -C target path and the
-    // gate passes through.
+    // the feature branch; the -C target's match_branch_at fires.
+    // The bootstrap carve-out is intentionally NOT applied at the
+    // -C target callsite (cwd-only design) because the transcript
+    // walker is session-scoped: a bootstrap chain in session
+    // activity for one repo could otherwise authorize a commit
+    // redirected via -C to another repo's integration branch.
+    // Legitimate bootstrap windows always run with cwd ON the
+    // integration branch, so this tightening has no production
+    // consumer cost.
     let (_main_dir, main_root) = setup_repo_on_branch("main");
     let (_feat_dir, feat_root) = setup_repo_on_branch("feat-x");
     let main_path = main_root.to_str().expect("utf-8 main path");
@@ -3814,9 +3817,11 @@ fn layer_10_bootstrap_carveout_via_dash_c_target_on_main_passes() {
     let (code, _stdout, stderr) =
         run_hook_with_input_and_home(&input, Some(&feat_root), Some(&main_root));
     assert_eq!(
-        code, 0,
-        "bootstrap carve-out via -C target must pass; stderr={stderr}"
+        code, 2,
+        "bootstrap carve-out must NOT fire via -C target (cross-repo safety); stderr={stderr}"
     );
+    assert!(stderr.contains("BLOCKED"));
+    assert!(stderr.contains("integration branch"));
 }
 
 #[test]

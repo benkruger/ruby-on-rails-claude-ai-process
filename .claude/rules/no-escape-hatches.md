@@ -187,8 +187,8 @@ invocation through.
 
 **Bootstrap-skill carve-out** at
 `src/hooks/validate_pretool.rs::bootstrap_carveout_applies`,
-wired into `match_branch_at` at both candidate-cwd call sites
-(`check_commit_during_flow`):
+wired into the cwd's `match_branch_at` call site only (NOT
+the `-C` target — see "cwd-only scope" below):
 
 1. The command shape is `bin/flow ... finalize-commit`.
 2. `most_recent_skill_since_user(transcript_path, home)` returns
@@ -196,6 +196,17 @@ wired into `match_branch_at` at both candidate-cwd call sites
 3. `any_skill_in_set_since_user(transcript_path, home,
    BOOTSTRAP_SKILLS)` returns true, where `BOOTSTRAP_SKILLS` is
    the closed set `{"flow:flow-start", "flow:flow-prime"}`.
+
+`BOOTSTRAP_SKILLS` is exactly these two skills because they are
+the only FLOW skills that invoke `/flow:flow-commit` while cwd
+is on the integration branch by design: `flow:flow-start` Step 2
+lands a `ci-fixer` dependency-repair commit before the user's
+feature work begins, and `flow:flow-prime` Step 6 lands
+permission and stub-script setup that must reach the integration
+branch before any flow can start. Every other FLOW skill commits
+from a feature-branch worktree, where the active-flow carve-out
+applies instead. Extending the set requires naming a new skill
+that legitimately needs to commit on the integration branch.
 
 The integration-branch context has no per-branch state file at
 the integration trunk, so the bootstrap carve-out uses a SECOND
@@ -211,12 +222,26 @@ refs/remotes/origin/HEAD` (fallback `"main"`), so the carve-out
 applies identically to `main`, `staging`, `master`, `develop`,
 and any other configured trunk.
 
+cwd-only scope: `check_commit_during_flow` does NOT consult
+`bootstrap_carveout_applies` at the `-C` target's
+`match_branch_at(target)` callsite. The transcript walker is
+session-scoped (the persisted transcript records all session
+activity regardless of which repo the work targeted), so a
+bootstrap chain accrued in one repo's session could otherwise
+authorize a commit redirected via `git -C <other-repo>` to a
+different repo's integration branch. Both legitimate bootstrap
+windows run with cwd ON the integration branch by design —
+neither uses `-C` to shift git's effective cwd — so restricting
+the carve-out to the cwd callsite has no production consumer
+cost while preserving cross-repo safety.
+
 Window closure: the walker stops at the most recent real user
 turn going backward. A user message after `/flow:flow-prime`
 completes — followed by a direct `/flow:flow-commit` invocation —
 puts the sanctioned-parent Skill OUTSIDE the carve-out window,
-so `transcript_shows_bootstrap_parent` returns false and the
-block fires. Historical authorization cannot carry forward.
+so `any_skill_in_set_since_user(BOOTSTRAP_SKILLS)` returns false
+and the block fires. Historical authorization cannot carry
+forward.
 
 Both walker checks share infrastructure with `validate-skill`
 and `validate-ask-user`; reads are capped at the documented

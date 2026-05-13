@@ -872,10 +872,20 @@ fn check_commit_during_flow(
     }
     if let Some(p) = extract_dash_c_path(command) {
         let target = Path::new(p);
+        // The bootstrap-skill carve-out is intentionally NOT applied
+        // to the `-C` target path. The transcript walker is session-
+        // scoped (not per-repo), so a bootstrap chain accrued in
+        // session activity for repo A could otherwise authorize a
+        // commit redirected via `-C <repo-B>` to repo B's
+        // integration branch. The legitimate bootstrap windows
+        // (flow-start Step 2, flow-prime Step 6) always run with
+        // cwd ON the integration branch — neither uses `-C` to
+        // shift git's effective cwd — so blocking the carve-out at
+        // this callsite has no production consumer. See
+        // `.claude/rules/concurrency-model.md` "Bootstrap-skill
+        // carve-out" for the cwd-only design.
         if let Some(msg) = match_branch_at(target) {
-            if !bootstrap_carveout_applies(command, transcript_path, home) {
-                return Some(msg);
-            }
+            return Some(msg);
         }
         if let Some(msg) = check_active_flow_at(command, target, transcript_path, home) {
             return Some(msg);

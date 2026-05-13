@@ -238,6 +238,24 @@ refs/remotes/origin/HEAD` (fallback `"main"`), so the carve-out
 works identically for repos on `staging`, `master`,
 `develop`, etc.
 
+The carve-out is **cwd-only**. `check_commit_during_flow` does
+NOT consult `bootstrap_carveout_applies` at the `-C` target's
+`match_branch_at(target)` callsite. The transcript walker is
+session-scoped (the persisted transcript records the model's
+session activity regardless of which repo the work targets), so
+a bootstrap chain accrued in one repo's session activity could
+otherwise authorize a commit redirected via
+`git -C <other-repo>` to a different repo's integration branch.
+Both legitimate bootstrap windows (flow-start Step 2 and
+flow-prime Step 6) run with cwd ON the integration branch by
+design — neither uses `-C` to shift git's effective cwd — so
+restricting the carve-out to the cwd callsite has no production
+consumer cost. Restricting it preserves cross-repo safety: a
+`git -C <integration-branch-target> commit` from any cwd
+remains blocked at the `-C` target's `match_branch_at` even
+when the session's transcript carries a valid bootstrap chain
+for an unrelated repo.
+
 Trust-contract substitution: the active-flow context uses
 (command shape + state-file marker + walker) — marker is
 belt-and-suspenders, walker is load-bearing. The integration-
@@ -251,9 +269,28 @@ Window closure: the walker stops at the most recent real user
 turn going backward. If the user types another message after
 `/flow:flow-prime` completes and then directly invokes
 `/flow:flow-commit`, the sanctioned-parent Skill call is OUTSIDE
-the carve-out window and `transcript_shows_bootstrap_parent`
-returns false. Historical authorization cannot carry forward
-past the next user turn.
+the carve-out window and
+`any_skill_in_set_since_user(BOOTSTRAP_SKILLS)` returns false.
+Historical authorization cannot carry forward past the next
+user turn.
+
+Threat-model bound: the carve-out's authorization window
+remains open until the user's next prose message. Within that
+window, a model that has the user-authorized invocation of
+`/flow:flow-start` or `/flow:flow-prime` could in principle
+direct additional integration-branch commits after the
+bootstrap skill's own commit lands. This is bounded by:
+(a) the cwd-only scope above, which prevents cross-repo
+redirection; (b) the CI gate inside `finalize-commit`, which
+runs unconditionally regardless of the carve-out; and (c) the
+FLOW threat model, which targets accidental commits (the
+sanctioned parents have legitimate commit needs) rather than
+adversarial model behavior (an actively-malicious model with
+user-granted bootstrap authority is outside scope). Tightening
+the window further — e.g., adding a per-machine
+`bootstrap-pending` marker that flow-start/flow-prime set and
+finalize-commit clears — is a future design conversation, not a
+defect in v1.
 
 ### Known Limitations
 

@@ -262,7 +262,7 @@ fn analyze_issues_reads_json_file() {
 }
 
 #[test]
-fn analyze_issues_partitions_in_progress() {
+fn analyze_issues_collapse_flags_in_progress_row_in_issues_array() {
     let dir = tempfile::tempdir().unwrap();
     let repo = create_git_repo_with_remote(dir.path());
     let issues = vec![
@@ -281,9 +281,13 @@ fn analyze_issues_partitions_in_progress() {
 
     assert_eq!(output.status.code(), Some(0));
     let data = parse_full_stdout(&output);
-    let in_progress = data["in_progress"].as_array().unwrap();
-    assert_eq!(in_progress.len(), 1);
-    assert_eq!(in_progress[0]["number"], 1);
+    assert!(data.get("in_progress").is_none());
+    let issues_arr = data["issues"].as_array().unwrap();
+    assert_eq!(issues_arr.len(), 2);
+    let row1 = issues_arr.iter().find(|i| i["number"] == 1).unwrap();
+    assert_eq!(row1["flow_in_progress"], true);
+    let row2 = issues_arr.iter().find(|i| i["number"] == 2).unwrap();
+    assert_eq!(row2["flow_in_progress"], false);
 }
 
 #[test]
@@ -580,7 +584,7 @@ fn extracts_dotprefix_paths_lib() {
 fn detects_in_progress_label_lib() {
     let labels = vec![json!({"name": "Flow In-Progress"}), json!({"name": "Bug"})];
     let result = detect_labels(&labels);
-    assert!(result.in_progress);
+    assert!(result.flow_in_progress);
     assert!(!result.decomposed);
     assert!(!result.blocked);
 }
@@ -665,7 +669,7 @@ fn no_blocked_label_lib() {
 fn no_special_labels_lib() {
     let labels = vec![json!({"name": "Bug"})];
     let result = detect_labels(&labels);
-    assert!(!result.in_progress);
+    assert!(!result.flow_in_progress);
     assert!(!result.decomposed);
     assert!(!result.blocked);
 }
@@ -673,7 +677,7 @@ fn no_special_labels_lib() {
 #[test]
 fn empty_labels_lib() {
     let result = detect_labels(&[]);
-    assert!(!result.in_progress);
+    assert!(!result.flow_in_progress);
     assert!(!result.decomposed);
     assert!(!result.blocked);
 }
@@ -1199,14 +1203,17 @@ fn analyze_empty_list_lib() {
 }
 
 #[test]
-fn analyze_separates_in_progress_lib() {
+fn analyze_routes_flow_in_progress_into_issues_lib() {
     let issues = vec![
         make_issue_lib(1, "Active", "", &["Flow In-Progress"], &now_iso_lib()),
         make_issue_lib(2, "Available", "", &[], &now_iso_lib()),
     ];
     let result = analyze_issues(&issues, &HashMap::new());
-    assert_eq!(result["in_progress"].as_array().unwrap().len(), 1);
-    assert_eq!(result["issues"].as_array().unwrap().len(), 1);
+    assert!(result.get("in_progress").is_none());
+    let arr = result["issues"].as_array().unwrap();
+    assert_eq!(arr.len(), 2);
+    let row1 = arr.iter().find(|i| i["number"] == 1).unwrap();
+    assert_eq!(row1["flow_in_progress"], true);
 }
 
 #[test]
@@ -1436,4 +1443,46 @@ fn analyze_empty_assignees_yields_empty_array_lib() {
     let result = analyze_issues(&[issue], &HashMap::new());
     let assignees = result["issues"][0]["assignees"].as_array().unwrap();
     assert!(assignees.is_empty());
+}
+
+#[test]
+fn analyze_no_top_level_in_progress_key_lib() {
+    let issues = vec![
+        make_issue_lib(1, "Active", "", &["Flow In-Progress"], &now_iso_lib()),
+        make_issue_lib(2, "Available", "", &[], &now_iso_lib()),
+    ];
+    let result = analyze_issues(&issues, &HashMap::new());
+    assert!(
+        result.get("in_progress").is_none(),
+        "output must not carry a top-level in_progress key; got {}",
+        result,
+    );
+}
+
+#[test]
+fn analyze_flow_in_progress_row_in_issues_array_lib() {
+    let issues = vec![make_issue_lib(
+        1,
+        "Active",
+        "",
+        &["Flow In-Progress"],
+        &now_iso_lib(),
+    )];
+    let result = analyze_issues(&issues, &HashMap::new());
+    let arr = result["issues"].as_array().unwrap();
+    assert_eq!(arr.len(), 1);
+    assert_eq!(arr[0]["number"], 1);
+    assert_eq!(arr[0]["flow_in_progress"], true);
+}
+
+#[test]
+fn analyze_total_equals_issues_len_after_collapse_lib() {
+    let issues = vec![
+        make_issue_lib(1, "Active", "", &["Flow In-Progress"], &now_iso_lib()),
+        make_issue_lib(2, "Available", "", &[], &now_iso_lib()),
+        make_issue_lib(3, "Another", "", &[], &now_iso_lib()),
+    ];
+    let result = analyze_issues(&issues, &HashMap::new());
+    let issues_len = result["issues"].as_array().unwrap().len();
+    assert_eq!(result["total"].as_u64().unwrap() as usize, issues_len);
 }

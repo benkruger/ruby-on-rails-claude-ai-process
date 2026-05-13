@@ -79,7 +79,6 @@ pub fn extract_file_paths(body: &str) -> Vec<String> {
 
 /// Label detection result.
 pub struct LabelFlags {
-    pub in_progress: bool,
     pub decomposed: bool,
     pub blocked: bool,
     pub vanilla: bool,
@@ -98,11 +97,7 @@ pub fn detect_labels(labels: &[Value]) -> LabelFlags {
         .filter_map(|l| l.get("name")?.as_str().map(String::from))
         .collect();
 
-    let flow_in_progress = label_names.contains("Flow In-Progress");
-    let triage_in_progress = label_names.contains("Triage In-Progress");
-
     LabelFlags {
-        in_progress: flow_in_progress,
         decomposed: label_names
             .iter()
             .any(|n| n.eq_ignore_ascii_case("decomposed")),
@@ -112,8 +107,8 @@ pub fn detect_labels(labels: &[Value]) -> LabelFlags {
         vanilla: label_names
             .iter()
             .any(|n| n.eq_ignore_ascii_case("vanilla")),
-        flow_in_progress,
-        triage_in_progress,
+        flow_in_progress: label_names.contains("Flow In-Progress"),
+        triage_in_progress: label_names.contains("Triage In-Progress"),
     }
 }
 
@@ -369,20 +364,21 @@ pub fn blocker_result_to_map(
 
 /// Analyze a list of issues from gh issue list JSON.
 ///
-/// Separates in-progress issues from available issues and enriches
-/// each available issue with labels, category, age, stale info, etc.
-/// The `blocker_map` maps issue numbers to lists of open blocker issue numbers.
+/// Every input issue flows into a single `issues` array on the output
+/// envelope. Per-row label flags (`decomposed`, `blocked`,
+/// `flow_in_progress`, `triage_in_progress`, `vanilla`) carry the
+/// signal the consumer dispatches on; no top-level `in_progress`
+/// partition. The `blocker_map` maps issue numbers to open blocker
+/// numbers; native_blocked rows fold into `blocked`.
 pub fn analyze_issues(issues: &[Value], blocker_map: &HashMap<i64, Vec<i64>>) -> Value {
     if issues.is_empty() {
         return serde_json::json!({
             "status": "ok",
             "total": 0,
-            "in_progress": [],
             "issues": [],
         });
     }
 
-    let mut in_progress = Vec::new();
     let mut available = Vec::new();
 
     for issue in issues {
@@ -399,15 +395,6 @@ pub fn analyze_issues(issues: &[Value], blocker_map: &HashMap<i64, Vec<i64>>) ->
         label_list.sort();
 
         let label_flags = detect_labels(&labels_vec);
-
-        if label_flags.in_progress {
-            in_progress.push(serde_json::json!({
-                "number": number,
-                "title": issue["title"],
-                "url": issue.get("url").cloned().unwrap_or(Value::String(String::new())),
-            }));
-            continue;
-        }
 
         let file_paths = extract_file_paths(body);
 
@@ -467,13 +454,15 @@ pub fn analyze_issues(issues: &[Value], blocker_map: &HashMap<i64, Vec<i64>>) ->
             "brief": truncate_body(body, 200),
             "milestone": milestone,
             "assignees": assignees,
+            "vanilla": label_flags.vanilla,
+            "flow_in_progress": label_flags.flow_in_progress,
+            "triage_in_progress": label_flags.triage_in_progress,
         }));
     }
 
     serde_json::json!({
         "status": "ok",
-        "total": issues.len(),
-        "in_progress": in_progress,
+        "total": available.len(),
         "issues": available,
     })
 }
@@ -581,11 +570,7 @@ pub fn run_impl_main(args: Args) -> (Value, i32) {
             .expect("analyze_issues always writes issues as an array");
         let filtered = filter_issues(issues_arr, name)
             .expect("internal filter name is always one of the four known values");
-        let in_progress_count = output["in_progress"]
-            .as_array()
-            .expect("analyze_issues always writes in_progress as an array")
-            .len();
-        let count = in_progress_count + filtered.len();
+        let count = filtered.len();
         output["issues"] = Value::Array(filtered);
         output["total"] = serde_json::json!(count);
     }

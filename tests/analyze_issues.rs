@@ -466,6 +466,45 @@ fn analyze_issues_gh_failure_errors() {
 }
 
 #[test]
+fn analyze_issues_gh_json_field_list_includes_assignees() {
+    // Drive the gh path (no --issues-json) with a stub that captures
+    // its argv to a file. Assert the `--json <field-list>` argument
+    // contains `assignees` so the analyzer can surface per-row
+    // assignees logins.
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let log_path = repo.join("gh_args.log");
+    let stub_script = format!(
+        "#!/bin/bash\nprintf '%s\\n' \"$@\" > {}\necho '[]'\nexit 0\n",
+        log_path.to_string_lossy(),
+    );
+    let stub_dir = create_gh_stub(&repo, &stub_script);
+
+    let output = run_analyze(&repo, &[], &stub_dir);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    let logged = fs::read_to_string(&log_path).expect("gh stub should have logged args");
+    let lines: Vec<&str> = logged.lines().collect();
+    let json_idx = lines
+        .iter()
+        .position(|l| *l == "--json")
+        .expect("gh args should include --json");
+    let field_list = lines
+        .get(json_idx + 1)
+        .expect("--json should be followed by a value");
+    assert!(
+        field_list.split(',').any(|f| f == "assignees"),
+        "expected --json field list to include `assignees`; got `{}`",
+        field_list,
+    );
+}
+
+#[test]
 fn analyze_issues_label_and_milestone_args_forwarded_to_gh() {
     // --label and --milestone args are pushed into the gh command. With a
     // stub that returns a valid issue list, the run() succeeds and exit 0.

@@ -584,7 +584,7 @@ fn read_issues_json(args: &Args) -> Result<String, Value> {
         "--state".to_string(),
         "open".to_string(),
         "--json".to_string(),
-        "number,title,labels,createdAt,body,url,milestone".to_string(),
+        "number,title,labels,createdAt,body,url,milestone,assignees".to_string(),
         "--limit".to_string(),
         "100".to_string(),
     ];

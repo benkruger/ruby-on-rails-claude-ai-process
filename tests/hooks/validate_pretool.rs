@@ -3952,3 +3952,156 @@ fn layer_10_bootstrap_carveout_unaffected_by_active_flow_carveout() {
         "feature-branch active-flow carve-out path is independent of bootstrap chain; stderr={stderr}"
     );
 }
+
+// --- halt gate ---
+//
+// `_halt_pending=true` in the state file refuses every model-
+// initiated flow-advancing Bash command. The closed allowlist
+// targets the exact subcommand shapes that progress the autonomous
+// flow past the user's halt directive: code-task counter increment,
+// phase entry / completion / transition, the commit finalize, and
+// the per-session utility marker. Non-advancing `bin/flow`
+// subcommands (logging, status, set-timestamp on non-counter
+// fields) and arbitrary other Bash commands pass through the gate.
+//
+// `/flow:flow-continue` invokes `bin/flow clear-halt` to clear
+// `_halt_pending`. `clear-halt` is NOT in the advancing-commands
+// list (its purpose IS to exit the halt) and falls through cleanly.
+
+#[test]
+fn validate_pretool_blocks_set_timestamp_code_task_during_halt() {
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    let input = r#"{"tool_input": {"command": "bin/flow set-timestamp --set code_task=5"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 2,
+        "set-timestamp code_task must block; stderr={stderr}"
+    );
+    assert!(
+        stderr.contains("/flow:flow-continue"),
+        "block message must name /flow:flow-continue: {stderr}"
+    );
+    assert!(stderr.contains("/flow:flow-abort"));
+}
+
+#[test]
+fn validate_pretool_blocks_phase_enter_during_halt() {
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    let input = r#"{"tool_input": {"command": "bin/flow phase-enter --phase flow-code"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(code, 2, "phase-enter must block; stderr={stderr}");
+    assert!(stderr.contains("/flow:flow-continue"));
+}
+
+#[test]
+fn validate_pretool_blocks_phase_finalize_during_halt() {
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    let input =
+        r#"{"tool_input": {"command": "bin/flow phase-finalize --phase flow-code --branch feat"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(code, 2, "phase-finalize must block; stderr={stderr}");
+    assert!(stderr.contains("/flow:flow-continue"));
+}
+
+#[test]
+fn validate_pretool_blocks_phase_transition_during_halt() {
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    let input = r#"{"tool_input": {"command": "bin/flow phase-transition --action complete"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(code, 2, "phase-transition must block; stderr={stderr}");
+    assert!(stderr.contains("/flow:flow-continue"));
+}
+
+#[test]
+fn validate_pretool_blocks_finalize_commit_during_halt() {
+    // finalize-commit advances the flow past the halt. Even when
+    // `_continue_pending=commit` is also set (which would normally
+    // satisfy Layer 9's active-flow carve-out), the halt gate runs
+    // AFTER Layer 9 and refuses. The user must clear the halt via
+    // `/flow:flow-continue` before commits can resume.
+    let (_dir, root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"_halt_pending": true, "_continue_pending": "commit"}"#,
+    );
+    let jsonl = assistant_skill_jsonl("flow:flow-commit");
+    let transcript = crate::common::transcript_fixture(&root, "p", &jsonl);
+    let input = format!(
+        r#"{{"tool_input": {{"command": "bin/flow finalize-commit msg.txt feat"}}, "transcript_path": "{}"}}"#,
+        transcript.to_string_lossy()
+    );
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(&input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 2,
+        "finalize-commit must block during halt; stderr={stderr}"
+    );
+    assert!(stderr.contains("/flow:flow-continue"));
+}
+
+#[test]
+fn validate_pretool_blocks_set_utility_in_progress_during_halt() {
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    let input =
+        r#"{"tool_input": {"command": "bin/flow set-utility-in-progress --skill flow:flow-plan"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 2,
+        "set-utility-in-progress must block; stderr={stderr}"
+    );
+    assert!(stderr.contains("/flow:flow-continue"));
+}
+
+#[test]
+fn validate_pretool_allows_clear_halt_when_transcript_shows_continue_command() {
+    // `bin/flow clear-halt` is the user's resume action. The
+    // command is not in `is_flow_advancing_bash_command`'s
+    // allowlist (its purpose IS to exit the halt), so the halt
+    // gate passes through. `clear-halt::run_impl` itself self-
+    // gates on the transcript via `last_user_message_invokes_skill`
+    // — the only sanctioned caller is `/flow:flow-continue`.
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    let input = r#"{"tool_input": {"command": "bin/flow clear-halt --branch feat"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 0,
+        "clear-halt must pass the halt gate (its purpose is to exit the halt); stderr={stderr}"
+    );
+}
+
+#[test]
+fn validate_pretool_allows_set_timestamp_non_code_task_field_during_halt() {
+    // `--set code_task_name=...` is non-advancing — TUI display
+    // only, no counter mutation. The halt gate must let it
+    // through so the model can keep state metadata accurate even
+    // while the flow is paused. (Mainly defensive — the model
+    // shouldn't be writing state fields during halt at all, but
+    // the gate is allowlist-based and only blocks the closed set
+    // of advancing commands.)
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    let input = r#"{"tool_input": {"command": "bin/flow set-timestamp --set code_task_name=\"resuming\""}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 0,
+        "set-timestamp code_task_name must pass (non-counter field); stderr={stderr}"
+    );
+}
+
+#[test]
+fn validate_pretool_allows_flow_advancing_bash_when_halt_not_set() {
+    // No halt → counter-advancing command passes. Confirms the
+    // halt gate only fires when `_halt_pending=true`.
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": false}"#);
+    let input = r#"{"tool_input": {"command": "bin/flow set-timestamp --set code_task=5"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 0,
+        "set-timestamp code_task must pass when halt not set; stderr={stderr}"
+    );
+}

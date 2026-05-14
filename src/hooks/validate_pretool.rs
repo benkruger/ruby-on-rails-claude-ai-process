@@ -1275,6 +1275,88 @@ fn is_bg_truthy(value: &Value) -> bool {
     }
 }
 
+/// Read the state file at `state_path` and return `true` when
+/// `_halt_pending` is truthy per
+/// `.claude/rules/rust-patterns.md` "Hook Input Boolean Field
+/// Tolerance". Reads are bounded at `STATE_FILE_BYTE_CAP` per
+/// `.claude/rules/external-input-path-construction.md` so a
+/// corrupted or hostile state file cannot OOM the hook. Every
+/// error class (missing file, oversized read, non-JSON content,
+/// missing field) returns `false`. Fail-open is the correct
+/// posture: the halt gate's purpose is to refuse model-initiated
+/// flow-advancing work during the halt window; a missing or
+/// corrupt state file means no flow is halted.
+fn is_halt_set(state_path: &std::path::Path) -> bool {
+    use std::fs::File;
+    use std::io::{BufReader, Read};
+    let f = match File::open(state_path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut buf = String::new();
+    let _ = BufReader::new(f.take(crate::hooks::stop_continue::STATE_FILE_BYTE_CAP))
+        .read_to_string(&mut buf);
+    serde_json::from_str::<Value>(&buf)
+        .ok()
+        .map(|v| crate::hooks::transcript_walker::is_truthy(v.get("_halt_pending")))
+        .unwrap_or(false)
+}
+
+/// Recognize a Bash command that advances the autonomous flow — the
+/// shape the halt gate must block. The closed set covers every
+/// `bin/flow` subcommand that mutates state in a way that would
+/// progress the flow past the user's halt directive: code-task
+/// counter increment, phase entry / completion / transition, the
+/// commit finalize, and the per-session utility marker that gates
+/// multi-step utility skills. Other `bin/flow` subcommands (logging,
+/// status, capture, plan-from-issue, etc.) are read-only or
+/// non-advancing and must pass through the halt gate.
+///
+/// Tokenizes on whitespace per
+/// `.claude/rules/rust-patterns.md` "Stateful Predicate-Based
+/// Scanners" defence-in-depth — the matcher cannot be defeated by a
+/// path prefix, env-var prefix, or wrapper launcher because the
+/// upstream structural escape-hatch layer in `validate()` already
+/// rejects those shapes.
+fn is_flow_advancing_bash_command(cmd: &str) -> bool {
+    let mut tokens = cmd.split_whitespace();
+    // `run()` exits early when `command.is_empty()` (Agent-tool
+    // dispatch path), so the halt-gate caller never invokes this
+    // helper with an empty command — the first token is guaranteed
+    // per `.claude/rules/testability-means-simplicity.md` "When
+    // the test resists the real production path".
+    let program = tokens
+        .next()
+        .expect("run() exits for command.is_empty() before halt gate");
+    if !(program == "bin/flow" || program.ends_with("/bin/flow")) {
+        return false;
+    }
+    // Layer 8's whitelist rejects bare `bin/flow` (no subcommand)
+    // during active flows because every allow-list pattern requires
+    // an argument (`Bash(*bin/flow *)`), and the halt gate only
+    // runs when a flow is active. The second token is therefore
+    // guaranteed in production.
+    let subcommand = tokens
+        .next()
+        .expect("Layer 8 whitelist rejects bare bin/flow with no subcommand before halt gate");
+    match subcommand {
+        "phase-enter"
+        | "phase-finalize"
+        | "phase-transition"
+        | "finalize-commit"
+        | "set-utility-in-progress" => true,
+        "set-timestamp" => {
+            // Only block `--set code_task=*` updates; other fields
+            // (like `code_task_name`) are non-advancing and must
+            // pass even during halt. The matcher walks the
+            // remaining tokens because clap accepts `--set` and its
+            // value as separate tokens (`--set code_task=4`).
+            tokens.any(|t| t.starts_with("code_task="))
+        }
+        _ => false,
+    }
+}
+
 /// Run the validate-pretool hook (entry point from CLI).
 pub fn run() {
     let hook_input = match read_hook_input() {
@@ -1366,6 +1448,42 @@ pub fn run() {
         {
             eprintln!("{}", msg);
             std::process::exit(2);
+        }
+    }
+
+    // Halt gate: block flow-advancing Bash commands when the
+    // active flow's state file has `_halt_pending=true`. The gate
+    // closes the surface where a model would otherwise advance the
+    // counter, transition phases, or commit while the user has
+    // paused the autonomous flow. `/flow:flow-continue` clears the
+    // halt by calling `bin/flow clear-halt`, which is itself self-
+    // gated (Layer 1 of `validate-skill` plus the transcript-walker
+    // check inside `clear-halt::run_impl`) — so this gate does NOT
+    // need an explicit pass-through for `clear-halt`: the command
+    // is not in `is_flow_advancing_bash_command`'s allowlist and
+    // falls through.
+    if let (Some(b), Some(r)) = (&branch, &main_root) {
+        if is_flow_advancing_bash_command(command) {
+            // `FlowPaths::try_new` returns None on slash- or
+            // NUL-containing branches per
+            // `.claude/rules/branch-path-safety.md`. An invalid
+            // branch cannot have an active flow at any
+            // `.flow-states/<branch>/` path so the halt gate
+            // correctly falls through (`unwrap_or(false)`).
+            let halt = crate::flow_paths::FlowPaths::try_new(r, b)
+                .map(|paths| is_halt_set(&paths.state_file()))
+                .unwrap_or(false);
+            if halt {
+                eprintln!(
+                    "BLOCKED: this flow is halted. The autonomous flow paused after a user \
+                     message and stays paused until the user explicitly resumes or aborts. \
+                     The model cannot advance the flow (counter, phase, commit, marker) \
+                     while halted. Two exits are available — only the user can take them: \
+                     type `/flow:flow-continue` to resume, or `/flow:flow-abort` to close \
+                     the flow. See .claude/rules/autonomous-phase-discipline.md."
+                );
+                std::process::exit(2);
+            }
         }
     }
 

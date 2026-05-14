@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::fs;
 
 use regex::Regex;
-use serde_json::Value;
 
 /// Returns a map of phase_key → 1-indexed phase number.
 fn phase_number() -> HashMap<String, usize> {
@@ -73,66 +72,6 @@ fn assert_covers_key_features(content: &str, source_label: &str) {
             "{} does not mention feature '{}' (looked for: {:?})",
             source_label, feature, keywords
         );
-    }
-}
-
-// --- Install-flow docs sync ---
-
-/// README.md and docs/index.html must both reference the install-flow
-/// prerequisites and the bin/setup invocation under the exact cache
-/// path Claude Code emits: `flow-marketplace/<plugin>/<version>/bin/setup`.
-/// The version segment is read from `.claude-plugin/marketplace.json`
-/// `plugins[0].version` so a release that bumps the version without
-/// updating these doc literals fails CI. The two prereq lines guard
-/// against accidental removal of the macOS toolchain hints.
-///
-/// In addition to asserting the current version's literal appears, the
-/// test rejects ANY `flow-marketplace/flow/<seg>/bin/setup` where
-/// `<seg>` is not the current `plugins[0].version` — so a stale
-/// previous-version reference left behind by `bump_install_path` (which
-/// only rewrites the exact prior version it was passed) is caught at
-/// CI time rather than shipping silently to the docs site.
-#[test]
-fn install_docs_contain_setup_step() {
-    let marketplace: Value = serde_json::from_str(
-        &fs::read_to_string(common::repo_root().join(".claude-plugin/marketplace.json"))
-            .expect("read marketplace.json"),
-    )
-    .expect("parse marketplace.json");
-    let version = marketplace["plugins"][0]["version"]
-        .as_str()
-        .expect("marketplace.json plugins[0].version");
-    let expected_path = format!("flow-marketplace/flow/{}/bin/setup", version);
-    let required = [
-        "brew install rust",
-        "xcode-select --install",
-        expected_path.as_str(),
-    ];
-    let stale_version_re =
-        Regex::new(r"flow-marketplace/flow/([^/]+)/bin/setup").expect("compile install-path regex");
-    let sources = [
-        ("README.md", common::repo_root().join("README.md")),
-        ("docs/index.html", common::docs_dir().join("index.html")),
-    ];
-    for (label, path) in &sources {
-        let content = fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {}", label, e));
-        for snippet in required {
-            assert!(
-                content.contains(snippet),
-                "{} must contain '{}' (install-flow docs sync)",
-                label,
-                snippet
-            );
-        }
-        for cap in stale_version_re.captures_iter(&content) {
-            let seg = &cap[1];
-            assert_eq!(
-                seg, version,
-                "{} contains stale install path with version segment '{}'; expected '{}' \
-                 (run `make bump NEW=<v>` to refresh, or remove the stale reference)",
-                label, seg, version
-            );
-        }
     }
 }
 

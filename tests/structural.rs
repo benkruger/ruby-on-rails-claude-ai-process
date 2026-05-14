@@ -498,6 +498,13 @@ fn test_every_script_has_a_test_file() {
         .collect();
     bin_files.sort_by_key(|e| e.file_name());
     for f in &bin_files {
+        // bin/flow-rs-darwin-arm64 is the committed prebuilt Rust binary,
+        // not a project script. Its artifact contract (presence, executable
+        // git mode, Mach-O arm64) is covered by tests/binary_artifact.rs;
+        // the tests/bin_<stem>.rs script-mirror convention does not apply.
+        if f.file_name().to_string_lossy() == "flow-rs-darwin-arm64" {
+            continue;
+        }
         let stem = f
             .path()
             .file_stem()

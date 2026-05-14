@@ -346,16 +346,20 @@ Each agent surfaces independent risk categories that other agents miss —
 skipping one defeats cognitive isolation. Do not proceed past this step
 until every applicable agent has been launched and returned.
 
-Issue NO tool calls — no Bash, no Read, no Grep, no Skill — between the first agent's launch and the fourth agent's return.
-In particular, `record-agent-return`, `set-timestamp --set agent_retry_counts`,
-and `add-skipped-agent` MUST NOT run during this launch window — those
-classify-and-record calls belong in the `### Per-agent accounting`
-subsection below, which runs ONLY after all four agents have returned.
-Interleaving a per-agent Bash call between launches serializes the four
-agents into sequential runs instead of one concurrent batch, multiplying
-Review's wall-clock cost; reading one agent's findings before launching
-the next also re-introduces the cross-agent bias that cognitive isolation
-exists to break (`.claude/rules/cognitive-isolation.md`).
+The four agent launches go in ONE response — the four `Agent` tool
+calls themselves, and nothing else. Issue NO other tool call (no Bash,
+no Read, no Grep, no Skill, no fifth `Agent` call) between the first agent's launch and the fourth agent's return.
+The `record-agent-return`, `set-timestamp --set agent_retry_counts`,
+and `add-skipped-agent` calls MUST NOT run during this launch window;
+every classify-and-record call runs ONLY after all four agents have
+returned — never interleaved between launches, whether in the Class
+1/2/3 classification block or the `### Per-agent accounting` subsection
+below. Interleaving a per-agent tool call between launches forces the
+agents into sequential launch-wait-classify-record runs instead of one
+concurrent batch — quadrupling Review's wall-clock cost — and reading
+one agent's findings before launching the next re-introduces the
+cross-agent bias that cognitive isolation exists to break
+(`.claude/rules/cognitive-isolation.md`).
 </HARD-GATE>
 
 Launch all applicable agents in a single response using multiple Agent

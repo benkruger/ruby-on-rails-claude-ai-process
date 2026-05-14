@@ -137,14 +137,6 @@ In any Claude Code session:
 /plugin install flow@flow-marketplace
 ```
 
-The FLOW binary is built from source on first use. From your terminal — not Claude Code — install Rust and a C compiler (one-time per machine), then run the bundled setup script to compile the release binary. The commands below assume macOS; Linux and WSL support are not yet implemented:
-
-```bash
-brew install rust
-xcode-select --install
-bash ~/.claude/plugins/cache/flow-marketplace/flow/2.1.1/bin/setup
-```
-
 Then initialize in your project (once per project, and again after each FLOW upgrade):
 
 ```bash

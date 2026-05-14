@@ -403,3 +403,110 @@ fn auto_rebuild_failure_returns_error() {
     let data: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
     assert_eq!(data["status"], "error");
 }
+
+// --- Committed-binary resolution candidate ---
+
+/// Writes an executable bash script at `path` that echoes `identity`
+/// and exits 0, so dispatcher-resolution tests can assert which
+/// candidate the dispatcher selected by inspecting stdout.
+fn fake_binary(path: &std::path::Path, identity: &str) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
+    fs::write(
+        path,
+        format!("#!/usr/bin/env bash\necho \"{}\"\nexit 0\n", identity),
+    )
+    .unwrap();
+    let mut perms = fs::metadata(path).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(path, perms).unwrap();
+}
+
+/// When target/release, target/debug, AND the committed
+/// bin/flow-rs-darwin-arm64 binary all exist, target/release wins —
+/// the committed candidate must not disturb existing precedence.
+#[test]
+fn dispatcher_prefers_target_release_when_present() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_project(dir.path());
+    fake_binary(&dir.path().join("target/release/flow-rs"), "target-release");
+    fake_binary(&dir.path().join("target/debug/flow-rs"), "target-debug");
+    fake_binary(
+        &dir.path().join("bin/flow-rs-darwin-arm64"),
+        "committed-binary",
+    );
+    let output = run_dispatcher(dir.path(), &["noop"], None);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success());
+    assert!(
+        stdout.contains("target-release"),
+        "expected target-release, got: {}",
+        stdout
+    );
+}
+
+/// When target/release is absent but target/debug and the committed
+/// binary both exist, target/debug wins over the committed candidate.
+#[test]
+fn dispatcher_falls_back_to_target_debug_when_release_missing() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_project(dir.path());
+    fake_binary(&dir.path().join("target/debug/flow-rs"), "target-debug");
+    fake_binary(
+        &dir.path().join("bin/flow-rs-darwin-arm64"),
+        "committed-binary",
+    );
+    let output = run_dispatcher(dir.path(), &["noop"], None);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success());
+    assert!(
+        stdout.contains("target-debug"),
+        "expected target-debug, got: {}",
+        stdout
+    );
+}
+
+/// When no target/* binary exists, the dispatcher resolves the
+/// committed bin/flow-rs-darwin-arm64 candidate — the end-user case
+/// where `/plugin install` shipped the prebuilt binary.
+#[test]
+fn dispatcher_falls_back_to_committed_binary_when_target_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_project(dir.path());
+    fake_binary(
+        &dir.path().join("bin/flow-rs-darwin-arm64"),
+        "committed-binary",
+    );
+    let output = run_dispatcher(dir.path(), &["noop"], None);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success());
+    assert!(
+        stdout.contains("committed-binary"),
+        "expected committed-binary, got: {}",
+        stdout
+    );
+}
+
+/// When no target/* binary and no committed binary exist but
+/// Cargo.toml + src/ are present, the dispatcher falls through to the
+/// auto-rebuild path — the committed candidate does not short-circuit
+/// the contributor rebuild flow.
+#[test]
+fn dispatcher_falls_through_to_auto_rebuild_when_no_binaries_present() {
+    let dir = tempfile::tempdir().unwrap();
+    let mock_bin_dir = setup_cargo_project(dir.path());
+    let path = format!(
+        "{}:{}",
+        mock_bin_dir.display(),
+        std::env::var("PATH").unwrap()
+    );
+    let output = run_dispatcher(dir.path(), &["noop"], Some(&path));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success());
+    assert!(
+        stdout.contains("rebuilt-handled"),
+        "expected rebuilt-handled, got: {}",
+        stdout
+    );
+}

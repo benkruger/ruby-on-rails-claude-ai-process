@@ -20,12 +20,16 @@ fi
 subcmd="$1"
 shift
 
-# Find Rust binary
+# Find Rust binary. Contributors hit target/release or target/debug
+# first; end users who installed via the marketplace fall back to the
+# committed prebuilt binary at bin/flow-rs-darwin-arm64.
 RUST_BIN=""
 if [ -x "$SCRIPT_DIR/../target/release/flow-rs" ]; then
   RUST_BIN="$SCRIPT_DIR/../target/release/flow-rs"
 elif [ -x "$SCRIPT_DIR/../target/debug/flow-rs" ]; then
   RUST_BIN="$SCRIPT_DIR/../target/debug/flow-rs"
+elif [ -x "$SCRIPT_DIR/../bin/flow-rs-darwin-arm64" ]; then
+  RUST_BIN="$SCRIPT_DIR/../bin/flow-rs-darwin-arm64"
 fi
 
 # Auto-rebuild stale Rust binary

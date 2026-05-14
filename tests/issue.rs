@@ -21,12 +21,22 @@ fn run_cmd(repo: &Path, args: &[&str], stub_dir: &Path) -> Output {
         stub_dir.to_string_lossy(),
         std::env::var("PATH").unwrap_or_default()
     );
+    // Neutralize the environment surfaces `bin/flow issue` reaches per
+    // `.claude/rules/subprocess-test-hygiene.md`: invalid GitHub tokens
+    // so any unstubbed `gh` call fails auth fast instead of reaching the
+    // network, and HOME pointed at the fixture repo so the child reads
+    // no user dotfiles. The stub `gh` shadows the real binary via PATH;
+    // these are defense-in-depth so a stub gap cannot escape to the
+    // network or to ambient config.
     Command::new(env!("CARGO_BIN_EXE_flow-rs"))
         .arg("issue")
         .args(args)
         .current_dir(repo)
         .env("PATH", &path_env)
         .env("CLAUDE_PLUGIN_ROOT", env!("CARGO_MANIFEST_DIR"))
+        .env("GH_TOKEN", "invalid")
+        .env("GITHUB_TOKEN", "invalid")
+        .env("HOME", repo)
         .output()
         .unwrap()
 }
@@ -694,6 +704,98 @@ fn issue_create_label_not_found_retry_carries_assignee() {
         issue_create_lines[1].contains("--assignee @me"),
         "retry issue create call missing --assignee, got:\n{}",
         contents
+    );
+}
+
+#[test]
+fn empty_assignee_string_must_not_reach_gh() {
+    // `Some("")` is distinct from `None`. run_impl_main filters
+    // empty/whitespace --assignee values via
+    // `.filter(|s| !s.trim().is_empty())` so the conditional-push in
+    // create_issue never appends a meaningless `--assignee ""` to the
+    // gh argument vector. Regression guard for that filter.
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let log = dir.path().join(".args.log");
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\n\
+             LOG=\"{}\"\n\
+             echo \"$@\" >> \"$LOG\"\n\
+             if [ \"$1\" = \"api\" ]; then echo 60; exit 0; fi\n\
+             echo 'https://github.com/o/r/issues/60'\n\
+             exit 0\n",
+            log.display()
+        ),
+    );
+
+    let output = run_cmd(
+        &repo,
+        &["--repo", "o/r", "--title", "T", "--assignee", ""],
+        &stub_dir,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let contents = fs::read_to_string(&log).unwrap();
+    let issue_create_line = contents
+        .lines()
+        .find(|l| l.starts_with("issue create"))
+        .expect("issue create call must be logged");
+    assert!(
+        !issue_create_line.contains("--assignee"),
+        "empty-string --assignee must be filtered, not passed to gh; got:\n{}",
+        issue_create_line
+    );
+}
+
+#[test]
+fn whitespace_only_assignee_must_not_reach_gh() {
+    // The filter trims before the emptiness check, so a whitespace-only
+    // --assignee value is treated as absent — guards against a future
+    // refactor dropping the `.trim()` and only checking `is_empty()`.
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let log = dir.path().join(".args.log");
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\n\
+             LOG=\"{}\"\n\
+             echo \"$@\" >> \"$LOG\"\n\
+             if [ \"$1\" = \"api\" ]; then echo 61; exit 0; fi\n\
+             echo 'https://github.com/o/r/issues/61'\n\
+             exit 0\n",
+            log.display()
+        ),
+    );
+
+    let output = run_cmd(
+        &repo,
+        &["--repo", "o/r", "--title", "T", "--assignee", "   "],
+        &stub_dir,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let contents = fs::read_to_string(&log).unwrap();
+    let issue_create_line = contents
+        .lines()
+        .find(|l| l.starts_with("issue create"))
+        .expect("issue create call must be logged");
+    assert!(
+        !issue_create_line.contains("--assignee"),
+        "whitespace-only --assignee must be filtered, not passed to gh; got:\n{}",
+        issue_create_line
     );
 }
 

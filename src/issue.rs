@@ -394,7 +394,7 @@ pub fn run_impl_main(
         &args.title,
         args.label.as_deref(),
         body.as_deref(),
-        args.assignee.as_deref(),
+        args.assignee.as_deref().filter(|s| !s.trim().is_empty()),
     ) {
         Ok(result) => (
             json!({

@@ -1772,9 +1772,11 @@ fn flow_plan_step_6_files_decomposed_issue_with_assignee_me() {
     // carry `--label decomposed` (so flow-issues / flow-orchestrate
     // recognize it as ready-for-flow-start work) AND `--assignee @me`
     // (so the decomposed issue is assigned to the planner who ran
-    // flow-plan). The assertion is scoped to the subsection — bounded
-    // below by the next `## ` heading (`## Hard Rules`) — so an
-    // unrelated mention elsewhere in the skill cannot satisfy it.
+    // flow-plan). The assertion is scoped to the `bin/flow issue`
+    // invocation line itself — not the whole subsection — because the
+    // subsection also contains a `bin/flow add-issue --label decomposed`
+    // call, so a subsection-wide `--label decomposed` check would still
+    // pass even if the filing invocation dropped the flag.
     let c = common::read_skill("flow-plan");
     let tail = c
         .split_once("### Validate + File + Link")
@@ -1784,12 +1786,16 @@ fn flow_plan_step_6_files_decomposed_issue_with_assignee_me() {
         .split_once("\n## ")
         .map(|(section, _)| section)
         .unwrap_or(tail);
+    let issue_invocation = subsection
+        .lines()
+        .find(|l| l.contains("bin/flow issue --title"))
+        .expect("flow-plan Step 6 must contain a `bin/flow issue --title` filing invocation");
     assert!(
-        subsection.contains("--label decomposed"),
+        issue_invocation.contains("--label decomposed"),
         "flow-plan Step 6 bin/flow issue invocation must carry --label decomposed"
     );
     assert!(
-        subsection.contains("--assignee @me"),
+        issue_invocation.contains("--assignee @me"),
         "flow-plan Step 6 bin/flow issue invocation must carry --assignee @me \
          so the decomposed issue is assigned to its planner"
     );

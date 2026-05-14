@@ -2470,3 +2470,40 @@ fn test_tombstones_no_flow_prime_customize_start_question() {
          prompted in any autonomy path."
     );
 }
+
+/// Tombstone: removed in PR #1552. The `/flow-prime` Step 4
+/// setup-script section previously branched on the user's Skip
+/// choice with a "When the user chose Skip, omit `--role` entirely"
+/// header and a paired bash invocation. PR #1552 deletes the Skip
+/// UI option and folds Step 4 to a single user-driven invocation
+/// shape (the legacy-data Reprime carry-forward path is described
+/// separately as "When the Reprime path carries forward a legacy
+/// `.flow.json`..."). A merge resurrection reintroducing the
+/// "When the user chose Skip" header reactivates the deleted UI
+/// option from Step 1 by implication.
+///
+/// Stability: byte-substring check against the literal header
+/// "When the user chose Skip,". The string is markdown prose, not
+/// Rust code — `concat!` and `format!` cannot synthesize markdown
+/// at compile time, and markdown files cannot host Rust
+/// `constant` declarations. The phrase is not a CLI invocation,
+/// so `.arg()` chain splits do not apply. The four-question
+/// stability checklist passes. The companion
+/// `test_tombstones_no_flow_prime_skip_role_option` covers the
+/// Step 1 prompt; this tombstone covers the Step 4 branching
+/// surface independently so a partial resurrection (e.g., the
+/// Step 4 branch returns without the Step 1 option, or vice
+/// versa) trips CI either way.
+#[test]
+fn test_tombstones_no_flow_prime_step_4_skip_branch() {
+    let content = common::read_skill("flow-prime");
+    assert!(
+        !content.contains("When the user chose Skip,"),
+        "skills/flow-prime/SKILL.md must not contain the Step 4 Skip-branch \
+         header 'When the user chose Skip,' — the branch was removed in \
+         PR #1552 alongside the Step 1 Skip option. The legacy-data \
+         Reprime carry-forward path (no role in .flow.json) is named \
+         'When the Reprime path carries forward a legacy .flow.json' and \
+         is intentionally distinct from the deleted Skip UI option."
+    );
+}

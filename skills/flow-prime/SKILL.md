@@ -46,9 +46,11 @@ If `--reprime` was passed:
 ### Step 1 — Choose primary role
 
 The user's primary role sets a default planning persona for future
-planning conversations — a PM user gets the Tech Lead voice by
-default, a Tech Lead user gets the PM voice, founder/solo users wear
-multiple hats and get the CTO voice.
+planning conversations. PM users get the Tech Lead voice by default,
+Tech Lead users get the PM voice, and founder/solo users wear
+multiple hats — `/flow:flow-explore` opens with the PM voice and
+`/flow:flow-plan` opens with the Tech Lead voice, with the ability
+to invite the other voice mid-conversation.
 
 <HARD-GATE>
 You MUST ask the user with AskUserQuestion below and wait for an
@@ -127,7 +129,11 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 {"flow-start": {"continue": "auto"}, "flow-code": {"commit": "auto", "continue": "auto"}, "flow-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-complete": "manual", "flow-abort": "manual"}
 ```
 
-**Customize** — ask per skill, in this order: code, review, learn, complete, abort. When the user picks Customize, the skill hardcodes `flow-start: continue: auto` in `skills_dict` before asking the per-skill questions below. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
+**Customize** — ask per skill, in this order: code, review, learn, complete, abort.
+
+Start is exempt from the Customize loop because every preset fixes its continue mode to `auto` — Start has no useful interaction to gate on, so prompting for it would only add friction. Before asking the per-skill questions below, **seed `skills_dict` with `{"flow-start": {"continue": "auto"}}`** so the resulting JSON carries Start's continue mode through to Step 4.
+
+For each remaining skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
 
 For **code** (commit and continue), ask two AskUserQuestions:
 
@@ -198,6 +204,14 @@ founder-solo) that goes after `--role`.
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/bin/flow prime-setup <project_root> --skills-json '<skills_dict_json>' --commit-format <commit_format> --role <role_value> --plugin-root ${CLAUDE_PLUGIN_ROOT}
+```
+
+When the Reprime path carries forward a legacy `.flow.json` that has
+no `role` field (written before role selection existed), omit
+`--role` entirely:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow prime-setup <project_root> --skills-json '<skills_dict_json>' --commit-format <commit_format> --plugin-root ${CLAUDE_PLUGIN_ROOT}
 ```
 
 The script handles everything in a single call:
@@ -514,12 +528,12 @@ Display the skills configuration as a pipe-delimited markdown table with exactly
 ```text
 | Skill     | Commit | Continue |
 |-----------|--------|----------|
-| start       | —      | manual   |
-| code        | manual | manual   |
-| review | auto   | auto     |
+| start       | —      | auto     |
+| code        | auto   | auto     |
+| review      | auto   | auto     |
 | learning    | auto   | auto     |
-| complete    | auto   | —        |
-| abort       | auto   | —        |
+| complete    | manual | —        |
+| abort       | manual | —        |
 ```
 
 Use the actual values from `skills_dict` (Step 3). The table above is just an example. Show `—` for axes that don't apply to a skill. The table must use pipe `|` delimiters — never render as a bullet list.

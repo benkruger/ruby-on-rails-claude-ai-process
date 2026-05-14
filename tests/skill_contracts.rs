@@ -2314,12 +2314,40 @@ fn flow_prime_has_role_selection_step() {
             option
         );
     }
+    let askuser_idx = subsection
+        .find("\"What is your primary role?")
+        .expect("role-selection Step must contain the AskUserQuestion prompt");
+    let after_prompt = &subsection[askuser_idx..];
+    let close_idx = after_prompt
+        .find("</HARD-GATE>")
+        .expect("role-selection AskUserQuestion must be bounded by the closing HARD-GATE");
+    let prompt_window = &after_prompt[..close_idx];
+    let bullet_count = prompt_window
+        .lines()
+        .filter(|l| l.starts_with("> - **"))
+        .count();
+    assert_eq!(
+        bullet_count, 3,
+        "role-selection AskUserQuestion must offer exactly three role bullets \
+         (PM, Tech Lead, Founder / Solo Dev) — found {} bullets, which means a \
+         resurrected Skip option (or a new bullet) would pass the per-option \
+         presence checks above without tripping any tombstone",
+        bullet_count
+    );
 }
 
 #[test]
 fn flow_prime_step_headings_in_role_commit_autonomy_order() {
     let c = common::read_skill("flow-prime");
-    let headings: Vec<&str> = c
+    let tail_at_steps = c
+        .split_once("\n## Steps\n")
+        .map(|(_, tail)| tail)
+        .expect("flow-prime must declare a `## Steps` section");
+    let steps_section = tail_at_steps
+        .split_once("\n## ")
+        .map(|(section, _)| section)
+        .unwrap_or(tail_at_steps);
+    let headings: Vec<&str> = steps_section
         .lines()
         .filter(|l| {
             l.starts_with("### Step 1 ")
@@ -2329,7 +2357,7 @@ fn flow_prime_step_headings_in_role_commit_autonomy_order() {
         .collect();
     assert!(
         headings.len() >= 3,
-        "flow-prime must declare Step 1, Step 2, and Step 3 headings — found {}",
+        "flow-prime `## Steps` section must declare Step 1, Step 2, and Step 3 headings — found {}",
         headings.len()
     );
     let step1 = headings[0];
@@ -2355,15 +2383,28 @@ fn flow_prime_step_headings_in_role_commit_autonomy_order() {
 #[test]
 fn flow_prime_recommended_preset_matches_new_shape() {
     let c = common::read_skill("flow-prime");
+    let tail_at_step3 = c
+        .split_once("### Step 3 — Choose autonomy level")
+        .map(|(_, tail)| tail)
+        .expect("flow-prime must declare a `### Step 3 — Choose autonomy level` heading");
+    let step3_section = tail_at_step3
+        .split_once("\n### ")
+        .map(|(section, _)| section)
+        .unwrap_or(tail_at_step3);
+    let tail_at_label = step3_section
+        .split_once("**Recommended** — safe defaults:")
+        .map(|(_, tail)| tail)
+        .expect(
+            "Step 3 Autonomy section must label the Recommended preset \
+             with '**Recommended** — safe defaults:'",
+        );
     let re = Regex::new(r"```json\n(\{[\s\S]*?\})\n```").unwrap();
-    let blocks: Vec<String> = re.captures_iter(&c).map(|cap| cap[1].to_string()).collect();
-    assert!(
-        blocks.len() >= 3,
-        "flow-prime must declare at least 3 JSON preset blocks — found {}",
-        blocks.len()
-    );
+    let recommended_block = re
+        .captures(tail_at_label)
+        .expect("Recommended preset must be followed by a ```json fenced block")[1]
+        .to_string();
     let recommended: Value =
-        serde_json::from_str(&blocks[2]).expect("Recommended preset must be valid JSON");
+        serde_json::from_str(&recommended_block).expect("Recommended preset must be valid JSON");
     assert_eq!(
         recommended["flow-start"]["continue"], "auto",
         "Recommended preset: flow-start.continue must be 'auto'"
@@ -2405,15 +2446,28 @@ fn flow_prime_recommended_preset_matches_new_shape() {
 #[test]
 fn flow_prime_fully_manual_preset_keeps_start_continue_auto() {
     let c = common::read_skill("flow-prime");
+    let tail_at_step3 = c
+        .split_once("### Step 3 — Choose autonomy level")
+        .map(|(_, tail)| tail)
+        .expect("flow-prime must declare a `### Step 3 — Choose autonomy level` heading");
+    let step3_section = tail_at_step3
+        .split_once("\n### ")
+        .map(|(section, _)| section)
+        .unwrap_or(tail_at_step3);
+    let tail_at_label = step3_section
+        .split_once("**Fully manual** — all manual:")
+        .map(|(_, tail)| tail)
+        .expect(
+            "Step 3 Autonomy section must label the Fully manual preset \
+             with '**Fully manual** — all manual:'",
+        );
     let re = Regex::new(r"```json\n(\{[\s\S]*?\})\n```").unwrap();
-    let blocks: Vec<String> = re.captures_iter(&c).map(|cap| cap[1].to_string()).collect();
-    assert!(
-        blocks.len() >= 2,
-        "flow-prime must declare at least 2 JSON preset blocks — found {}",
-        blocks.len()
-    );
+    let fully_manual_block = re
+        .captures(tail_at_label)
+        .expect("Fully manual preset must be followed by a ```json fenced block")[1]
+        .to_string();
     let fully_manual: Value =
-        serde_json::from_str(&blocks[1]).expect("Fully manual preset must be valid JSON");
+        serde_json::from_str(&fully_manual_block).expect("Fully manual preset must be valid JSON");
     assert_eq!(
         fully_manual["flow-start"]["continue"], "auto",
         "Fully manual preset: flow-start.continue must be 'auto' (Start is never prompted)"
@@ -2449,6 +2503,38 @@ fn flow_prime_fully_manual_preset_keeps_start_continue_auto() {
     assert_eq!(
         fully_manual["flow-abort"], "manual",
         "Fully manual preset: flow-abort must be 'manual'"
+    );
+}
+
+#[test]
+fn flow_prime_customize_section_never_prompts_for_flow_start() {
+    let c = common::read_skill("flow-prime");
+    let tail_at_step3 = c
+        .split_once("### Step 3 — Choose autonomy level")
+        .map(|(_, tail)| tail)
+        .expect("flow-prime must declare a `### Step 3 — Choose autonomy level` heading");
+    let step3_section = tail_at_step3
+        .split_once("\n### ")
+        .map(|(section, _)| section)
+        .unwrap_or(tail_at_step3);
+    let tail_at_customize = step3_section
+        .split_once("**Customize** — ask per skill")
+        .map(|(_, tail)| tail)
+        .expect(
+            "Step 3 Autonomy section must declare the Customize branch \
+             with '**Customize** — ask per skill'",
+        );
+    let askuser_re = Regex::new(r#">[^\n]*"[^"\n]*/flow:flow-start[^"\n]*\?""#).unwrap();
+    let askuser_hit = askuser_re.find(tail_at_customize);
+    assert!(
+        askuser_hit.is_none(),
+        "Step 3 Customize section must not contain any AskUserQuestion prompt that \
+         targets /flow:flow-start — Start is hardcoded to continue=auto across \
+         every autonomy path. Any prompt of the form `\"<verb> for /flow:flow-start?\"` \
+         resurrects the deleted Customize-Start sub-question. Found: {}",
+        askuser_hit
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default()
     );
 }
 

@@ -180,13 +180,11 @@ ran.
 1. The command shape is `bin/flow ... finalize-commit`.
 2. The state file has `_continue_pending == "commit"`.
 3. `transcript_shows_commit_window_skill(transcript_path, home)`
-   returns true — EITHER the most recent user-role turn typed
-   `/flow-release` as a slash command, OR the most recent
-   assistant Skill since the most recent user turn names
-   `flow:flow-commit`. In practice every active-flow commit names
-   `flow:flow-commit` via an assistant Skill; the `/flow-release`
-   user-turn arm has no production effect here because the
-   release path runs on the integration trunk under the bootstrap
+   returns true — the most recent assistant Skill tool_use call
+   since the most recent user turn names `flow:flow-commit` or
+   `flow-release`. In practice every active-flow commit names
+   `flow:flow-commit` via an assistant Skill, because the release
+   path runs on the integration trunk under the bootstrap
    carve-out, not in a feature-branch worktree with an active
    flow.
 
@@ -199,16 +197,24 @@ wired into the cwd's `match_branch_at` call site only (NOT
 the `-C` target — see "cwd-only scope" below):
 
 1. The command shape is `bin/flow ... finalize-commit`.
-2. `transcript_shows_commit_window_skill(transcript_path, home)`
-   returns true — EITHER the most recent user-role turn typed
-   `/flow-release` as a slash command (the production recognition
-   path for the user-only `flow-release` skill, which calls
-   `bin/flow finalize-commit` directly without delegating to
-   `/flow:flow-commit`), OR the most recent assistant Skill since
-   the most recent user turn names `flow:flow-commit` (the
-   delegated commit path used by `/flow:flow-start` and
-   `/flow:flow-prime`). See
-   `.claude/rules/concurrency-model.md` "Bootstrap-skill
+2. The transcript shows a sanctioned commit-window skill —
+   EITHER `transcript_shows_commit_window_skill(transcript_path,
+   home)` returns true (the most recent assistant Skill since the
+   most recent user turn names `flow:flow-commit`, the delegated
+   commit path used by `/flow:flow-start` and `/flow:flow-prime`),
+   OR `last_user_message_invokes_skill(transcript_path,
+   "flow-release", home)` returns true (the most recent user-role
+   turn typed `/flow-release` as a slash command — the production
+   recognition path for the user-only `flow-release` skill, which
+   calls `bin/flow finalize-commit` directly without delegating to
+   `/flow:flow-commit`). The `/flow-release` user-turn arm is
+   scoped HERE, in `bootstrap_carveout_applies`, rather than inside
+   the shared `transcript_shows_commit_window_skill` predicate:
+   that predicate is also consumed by the active-flow carve-out
+   (`check_active_flow_at`), and recognizing `/flow-release` there
+   would widen the active-flow gate, which the
+   integration-trunk-only `flow-release` skill must never touch.
+   See `.claude/rules/concurrency-model.md` "Bootstrap-skill
    carve-out (integration-branch context)" for the per-skill
    trust contract.
 3. `any_skill_in_set_since_user(transcript_path, home,
@@ -240,12 +246,13 @@ instead. Extending the set requires naming a new skill that
 legitimately needs to commit on the integration branch.
 
 The integration-branch context has no per-branch state file at
-the integration trunk, so the bootstrap carve-out uses a SECOND
-walker condition in place of the state-file marker — both walker
-conditions are load-bearing. The active-flow carve-out's marker
-is belt-and-suspenders for a fresh-session resume window; the
-bootstrap carve-out has no analogous marker because there is
-nothing on the integration trunk to write to.
+the integration trunk, so the bootstrap carve-out uses TWO
+walker-backed conditions (condition 2 and condition 3) in place
+of the state-file marker — both are load-bearing. The
+active-flow carve-out's marker is belt-and-suspenders for a
+fresh-session resume window; the bootstrap carve-out has no
+analogous marker because there is nothing on the integration
+trunk to write to.
 
 The carve-out names no branch — `default_branch_in()` resolves
 the actual integration branch from `git symbolic-ref --short

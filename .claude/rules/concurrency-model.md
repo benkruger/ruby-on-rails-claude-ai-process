@@ -190,26 +190,21 @@ iff ALL THREE conditions hold for the candidate cwd:
    `/flow:flow-commit`, and `phase_enter()` clears it on phase
    advance.
 3. `transcript_shows_commit_window_skill(transcript_path, home)`
-   returns true — the shared predicate matches when EITHER the
-   most recent user-role turn typed `/flow-release` as a slash
-   command, OR the most recent assistant Skill tool_use call
+   returns true — the most recent assistant Skill tool_use call
    since the most recent user turn (resolved by
    `transcript_walker::most_recent_skill_since_user`) names
-   `flow:flow-commit`. See "Bootstrap-skill carve-out" below for
-   the per-skill trust contract. The walker is the load-bearing
-   predicate that proves the surrounding skill choreography
-   (diff review, commit-message review) actually ran; the
-   `_continue_pending` marker on its own is belt-and-suspenders
-   for a fresh-session resume window. The transcript-walker
-   check is the AND-combined condition per
-   `.claude/rules/no-escape-hatches.md` Layer C, which closes
-   the bypass-shortcut surface where a model could write the
-   marker directly and invoke `bin/flow finalize-commit` without
-   going through `/flow:flow-commit`. In practice every active-
-   flow commit names `flow:flow-commit` via an assistant Skill
-   because the release path runs on the integration trunk, not
-   under an active flow — so the `/flow-release` user-turn arm
-   has no production effect on the active-flow context.
+   `flow:flow-commit` or `flow-release`. In practice every
+   active-flow commit names `flow:flow-commit` because the
+   release path runs on the integration trunk, not under an
+   active flow. The walker is the load-bearing predicate that
+   proves the surrounding skill choreography (diff review,
+   commit-message review) actually ran; the `_continue_pending`
+   marker on its own is belt-and-suspenders for a fresh-session
+   resume window. The transcript-walker check is the AND-combined
+   condition per `.claude/rules/no-escape-hatches.md` Layer C,
+   which closes the bypass-shortcut surface where a model could
+   write the marker directly and invoke `bin/flow finalize-commit`
+   without going through `/flow:flow-commit`.
 
 Trust contract: the `_continue_pending` field is writable by
 the model (the same `bin/flow set-timestamp` call that the
@@ -244,20 +239,19 @@ through iff ALL THREE conditions hold:
    matches `is_commit_invocation` but not the finalize-commit-
    only predicate. The carve-out is finalize-commit-only by
    design.
-2. `transcript_shows_commit_window_skill(transcript_path, home)`
-   returns true. The shared predicate matches a sanctioned
-   commit-window skill through EITHER of two recognition paths:
-   - `/flow-release` typed by the user as a slash command — the
-     most recent user-role turn carries the
-     `<command-name>/flow-release</command-name>` marker
-     (resolved by
-     `transcript_walker::last_user_message_invokes_skill`).
-     `flow-release` is a user-only skill recorded only as a
-     user-role turn, never as an assistant `Skill` tool_use, so
-     this is its production recognition path. The release skill
-     calls `bin/flow finalize-commit` directly rather than
-     delegating to `/flow:flow-commit`. Its trust comes from its
-     own internal review window: Step 3 displays
+2. The transcript shows a sanctioned commit-window skill,
+   recognized through EITHER of two walker arms:
+   - `last_user_message_invokes_skill(transcript_path,
+     "flow-release", home)` returns true — the most recent
+     user-role turn carries the
+     `<command-name>/flow-release</command-name>` marker (or the
+     two-line `<command-message>` shape). `flow-release` is a
+     user-only skill recorded only as a user-role turn, never as
+     an assistant `Skill` tool_use, so this is its production
+     recognition path. The release skill calls
+     `bin/flow finalize-commit` directly rather than delegating
+     to `/flow:flow-commit`. Its trust comes from its own
+     internal review window: Step 3 displays
      `git log <last_tag>..HEAD`, Step 4 drafts release notes
      against that list, and Step 7 writes an explicit
      "Release v<new_version>" commit-message file before
@@ -265,15 +259,23 @@ through iff ALL THREE conditions hold:
      prefix) reflects the literal `input.skill` value Claude
      Code emits for the project-local skill at
      `.claude/skills/flow-release/`.
-   - `flow:flow-commit` as the most recent assistant Skill
+   - `transcript_shows_commit_window_skill(transcript_path,
+     home)` returns true — the most recent assistant Skill
      tool_use call since the most recent user turn (resolved by
-     `transcript_walker::most_recent_skill_since_user`) — the
-     delegated commit path used by `/flow:flow-start` and
-     `/flow:flow-prime`. The trust is the standard
-     `/flow:flow-commit` choreography: diff review,
+     `transcript_walker::most_recent_skill_since_user`) names
+     `flow:flow-commit`, the delegated commit path used by
+     `/flow:flow-start` and `/flow:flow-prime`. The trust is the
+     standard `/flow:flow-commit` choreography: diff review,
      commit-message review, user approval.
 
    Each path's internal choreography substitutes for the other.
+   The `/flow-release` user-turn arm is scoped to
+   `bootstrap_carveout_applies` rather than placed inside the
+   shared `transcript_shows_commit_window_skill` predicate:
+   that predicate is also consumed by the active-flow carve-out
+   (`check_active_flow_at`), and recognizing `/flow-release`
+   there would widen the active-flow gate, which the
+   integration-trunk-only `flow-release` skill must never touch.
 3. A sanctioned bootstrap parent — `flow:flow-start`,
    `flow:flow-prime`, or `flow-release` — is recognized since
    the most recent real user turn, resolved by

@@ -528,12 +528,15 @@ pub fn any_skill_in_set_since_user(path: &Path, home: &Path, sanctioned: &[&str]
             // The real user turn is the carve-out window boundary.
             // Before treating it as "no sanctioned parent found",
             // check whether the user TYPED a sanctioned skill as a
-            // slash command: `flow:flow-prime` and `flow-release`
-            // are user-only skills Claude Code records only as
-            // user-role turns, never as assistant `Skill` tool_use,
-            // so the assistant-Skill scan above can never see them.
-            // This branch runs AFTER the `is_real_user_turn` guard
-            // so a synthetic `isMeta:true` turn echoing a
+            // slash command. The loop below checks every entry in
+            // `sanctioned`: `flow:flow-prime` and `flow-release` are
+            // user-only skills Claude Code records ONLY as user-role
+            // turns (never as assistant `Skill` tool_use), so the
+            // assistant-Skill scan above can never see them; and
+            // `flow:flow-start` is also user-typed in the common
+            // case (the user types `/flow:flow-start` to begin a
+            // flow). The branch runs AFTER the `is_real_user_turn`
+            // guard so a synthetic `isMeta:true` turn echoing a
             // `<command-name>` marker is skipped, not matched.
             // `is_real_user_turn` guarantees string `content`.
             let content_str = turn

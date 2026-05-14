@@ -1,14 +1,12 @@
 ---
 name: flow-issues
-description: "Fetch open issues, analyze mechanically, rank by impact, and display a dashboard with recommended work order."
+description: "Group open issues by label into four sections (Blocked, Other, Vanilla, Decomposed) with mechanical sort and a copy-pasteable command per row."
 ---
 
 # FLOW Issues
 
-Fetch all open issues for the current repository, analyze them via Python
-script (file paths, labels, stale detection), then rank by impact using
-judgment and display a dashboard. Read-only — never create, edit, or
-close issues.
+Fetch all open issues for the current repository, bucket them by label,
+and render four tables. Read-only — never create, edit, or close issues.
 
 ## Usage
 
@@ -24,32 +22,23 @@ close issues.
 /flow:flow-issues --label Bug --ready
 ```
 
-## Readiness Filters
+## Filter Flags
 
-Optional flags filter the issue list by readiness. Flags are mutually
-exclusive — pass at most one.
+Filter flags shape which sections render. They are mutually exclusive
+within each family.
 
-- `--ready` — issues that are not blocked (can start immediately)
-- `--blocked` — issues that are blocked (waiting on other work)
-- `--decomposed` — issues with the "Decomposed" label (work-ready with prior analysis)
-- `--quick-start` — decomposed issues that are not blocked (best candidates for autonomous execution)
+- `--ready` — drop the Blocked section.
+- `--blocked` — render only the Blocked section.
+- `--decomposed` — render only the Decomposed section.
+- `--quick-start` — render the Decomposed section without the colored
+  Flow-In-Progress cluster.
+- `--label <name>` — server-side filter passed to `gh issue list`
+  (repeatable; multiple labels combine with AND).
+- `--milestone <title>` — server-side milestone filter
+  (single value; by title or number).
 
-No flag returns all issues (current default behavior).
-
-## Narrowing Filters
-
-Optional flags that narrow the issue set before analysis. These are
-server-side filters passed directly to `gh issue list` — they reduce
-the number of issues fetched, not just displayed.
-
-- `--label <name>` — filter by GitHub label (repeatable; multiple labels
-  use AND logic). Can combine with any readiness filter.
-- `--milestone <title>` — filter by GitHub milestone (by title or number;
-  single value only). Can combine with any readiness filter.
-
-Narrowing filters compose with readiness filters. For example,
-`--label Bug --ready` fetches only issues labeled "Bug" from GitHub,
-then shows only the non-blocked ones.
+`--label` and `--milestone` compose with the section flags. No flag
+renders all four sections.
 
 ## Concurrency
 
@@ -75,12 +64,9 @@ At the very start, output the following banner in your response (not via Bash) i
 
 ## Step 1 — Fetch and Analyze
 
-Run the analysis script, which calls `gh issue list` internally, parses the
-JSON, extracts file paths, detects "Flow In-Progress", "Decomposed", and
-"Blocked" labels, checks for stale issues (older than 60 days with missing
-file references), and outputs condensed per-issue briefs:
-
-If a readiness filter flag was passed to this skill, append it to the command:
+Run the analysis script. It calls `gh issue list` internally and emits
+a single flat `issues` array with per-row label flags, assignees, and
+URL-bearing `blocked_by` entries:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/bin/flow analyze-issues
@@ -119,33 +105,30 @@ ${CLAUDE_PLUGIN_ROOT}/bin/flow analyze-issues --label Bug --ready
 ```
 
 Use the first form when no filter flag was passed. Use the matching form
-when a flag was passed. Narrowing filters (`--label`, `--milestone`) can
-be combined with each other and with any readiness filter.
+when a flag was passed.
 
-Parse the JSON output. The structure is:
+Parse the JSON output. The shape is:
 
 ```json
 {
   "status": "ok",
   "total": 12,
-  "in_progress": [{"number": 1, "title": "...", "url": "..."}],
   "issues": [
     {
-      "number": 2,
+      "number": 1547,
       "title": "...",
-      "url": "...",
+      "url": "https://github.com/owner/repo/issues/1547",
       "labels": ["Decomposed"],
-      "category": "Enhancement",
-      "age_days": 5,
       "decomposed": true,
       "blocked": false,
       "native_blocked": false,
-      "blocked_by": [],
-      "stale": false,
-      "stale_missing": 0,
-      "file_paths": ["lib/foo.py"],
-      "brief": "First ~200 chars of body...",
-      "milestone": "v1.2.0"
+      "blocked_by": [
+        {"number": 1525, "url": "https://github.com/owner/repo/issues/1525"}
+      ],
+      "assignees": ["alice"],
+      "vanilla": false,
+      "flow_in_progress": false,
+      "triage_in_progress": false
     }
   ]
 }
@@ -154,78 +137,89 @@ Parse the JSON output. The structure is:
 If `status` is `"error"`, show the error message and stop.
 If `total` is 0, print the COMPLETE banner and stop.
 
-The `in_progress` array contains issues with the "Flow In-Progress" label —
-these are being worked on by another engineer. The `issues` array contains
-all other issues available for work.
+## Step 2 — Render the four sections
 
-## Step 2 — Rank by Impact
+Render four markdown tables in order: **Blocked**, **Other**,
+**Vanilla**, **Decomposed**. Each row belongs to exactly one section;
+flags resolve membership and sort order.
 
-Read the condensed briefs from Step 1. For each issue, assess its impact
-using your judgment — not a formula. Consider:
+### Bucket assignment
 
-- **What would unblock the most work?** Issues that are prerequisites for
-  others have high impact.
-- **What has the broadest effect?** Issues touching many files or areas of
-  the codebase have wider impact than narrowly scoped changes.
-- **What is urgent?** Bugs and issues blocking active work take priority
-  over enhancements.
-- **Is it ready for autonomous execution?** Decomposed issues are work-ready
-  and can be started immediately without a planning phase.
+Walk the `issues` array once. For each row, assign to the first
+section whose condition matches:
 
-Sort by highest impact. Ready issues appear before blocked issues.
+1. **Blocked** — `blocked == true` (label OR native_blocked).
+2. **Decomposed** — `decomposed == true` AND `blocked == false`.
+3. **Vanilla** — `vanilla == true` AND `decomposed == false` AND
+   `blocked == false`.
+4. **Other** — everything else.
 
-## Step 3 — Display
+### Columns
 
-Print a summary line with the total issue count.
+The Blocked section renders five columns:
 
-### In Progress Table
+| Issue # | Title | Assignee | Blocked By | Command |
+|---|---|---|---|---|
 
-If the `in_progress` array is non-empty, print an "In Progress" table.
-Columns: `#`, `Title`. The `#` column shows a markdown link: `[#N](url)`.
+The Other, Vanilla, and Decomposed sections render four columns:
 
-If no issues are in progress, skip this section.
+| Issue # | Title | Assignee | Command |
+|---|---|---|---|
 
-### Recommended Work Order
+### Cell rules
 
-Print a "Recommended Work Order" section as a single markdown table.
-Columns: `Order`, `Status`, `Impact`, `Labels`, `#`, `Title`, `Rationale`.
+- **Issue #** is `[#N](url)` — a markdown link to the issue. Always
+  rendered.
+- **Title** is the issue title. Bold (`**title**`) for rows where
+  `flow_in_progress` or `triage_in_progress` is true; plain otherwise.
+- **Assignee** is the first entry in `assignees`, or `—` when the array
+  is empty. (Comma-separate additional logins if present.)
+- **Blocked By** (Blocked section only) is a comma-separated list of
+  `[#N](url)` entries from `blocked_by`, or `—` when `blocked_by` is
+  empty but `blocked == true` (label-only block).
+- **Command** depends on the bucket:
+  - Blocked section: `—`.
+  - Other section, NOT triage-in-progress: ```/flow:flow-explore work on issue #N```
+  - Other section, triage-in-progress: `—` (a 🔍 row signals work in
+    flight; the Command cell stays empty).
+  - Vanilla section: ```/flow:flow-plan #N```
+  - Decomposed section, NOT flow-in-progress: ```/flow:flow-start #N```
+  - Decomposed section, flow-in-progress: `—` (a 🟡 row is already
+    being worked; the Command cell stays empty).
+- **Empty-cell convention.** Every empty cell renders as `—`.
 
-The `Status` column shows readiness: `Ready` or `Blocked`. Status is
-determined by the `blocked` field — `false` = `Ready`, `true` = `Blocked`.
+### Color treatment
 
-The `Impact` column shows your assessment: `High`, `Medium`, or `Low`.
+Rows carrying the canonical FLOW labels get visual treatment:
 
-The `#` column shows a markdown link: `[#N](url)`.
+- `flow_in_progress == true` (Flow In-Progress label, Decomposed
+  section only) → 🟡 prefix on the bold Title cell, Command suppressed.
+- `triage_in_progress == true` (Triage In-Progress label, Other
+  section only) → 🔍 prefix on the bold Title cell, Command suppressed.
 
-The `Labels` column shows the issue's labels as a comma-separated list.
+Both prefixes co-occur with bold Title and a suppressed Command cell
+per the bucket rules above.
 
-For stale issues, append `[Stale: N files missing]` to the title where N
-is the `stale_missing` count.
+### Sort rules
 
-The `Rationale` column explains why this issue is at this position:
+- **Blocked** and **Vanilla** sections: sort by issue `number`
+  descending (newest issue numbers first).
+- **Other** and **Decomposed** sections: sort colored rows first
+  (Decomposed section: 🟡 rows; Other section: 🔍 rows), then by issue
+  `number` descending within each cluster.
 
-- If `blocked_by` is non-empty: "Blocked by #N, #M" listing the specific blocker issue numbers
-- If blocked by label only (no `blocked_by` entries): "Blocked"
-- If decomposed: "decomposed — ready for autonomous execution"
-- Otherwise: brief reason based on your impact assessment
+### Filter flag effect
 
-**Ordering:** All ready issues appear first, sorted by impact. Blocked
-issues appear after all ready issues, sorted by impact within the blocked
-group.
+- No flag → render all four sections in order.
+- `--ready` → skip the Blocked section.
+- `--blocked` → render only the Blocked section.
+- `--decomposed` → render only the Decomposed section.
+- `--quick-start` → render the Decomposed section without the 🟡 colored
+  cluster.
+- `--label` / `--milestone` → render whichever sections the surviving
+  rows populate.
 
-### Start Commands
-
-After the work order table, print a "Start Commands" table with only the
-ready issues from the work order. Columns: `#` (matching the issue's
-`Order` position in the work order table), `Command`, `Title` (the issue
-title). Do not include blocked issues in this table.
-
-| # | Command | Title |
-|---|---------|-------|
-| 1 | `/flow:flow-start work on issue #N` | issue title |
-| 2 | `/flow:flow-start work on issue #M` | issue title |
-
-After the start commands are displayed, output the following banner in your response (not via Bash) inside a fenced code block:
+After the sections are rendered, output the following banner in your response (not via Bash) inside a fenced code block:
 
 ````markdown
 ```text
@@ -237,8 +231,9 @@ After the start commands are displayed, output the following banner in your resp
 
 ## Hard Rules
 
-- Read-only — never create, edit, or close issues
-- Display all open issues — in-progress issues appear in the In Progress table, all others in the work order table
-- Exclude in-progress issues from the Recommended Work Order
-- No AskUserQuestion — this is a display-only skill
-- Never use Bash to print banners — output them as text in your response
+- Read-only — never create, edit, or close issues.
+- Bucketing and sort are mechanical — no LLM judgment.
+- Colored rows are visual-only; the Command cell stays suppressed per
+  the bucket rules so the row signals "someone else owns this".
+- No AskUserQuestion — this is a display-only skill.
+- Never use Bash to print banners — output them as text in your response.

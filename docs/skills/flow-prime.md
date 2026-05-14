@@ -52,14 +52,14 @@ The chosen configuration is stored in `.flow.json` under a `skills` key:
 
 ```json
 {
-  "flow_version": "1.1.0",
+  "flow_version": "2.0.1",
   "skills": {
-    "flow-start": {"continue": "manual"},
-    "flow-code": {"commit": "manual", "continue": "manual"},
+    "flow-start": {"continue": "auto"},
+    "flow-code": {"commit": "auto", "continue": "auto"},
     "flow-review": {"commit": "auto", "continue": "auto"},
     "flow-learn": {"commit": "auto", "continue": "auto"},
-    "flow-abort": "auto",
-    "flow-complete": "auto"
+    "flow-abort": "manual",
+    "flow-complete": "manual"
   }
 }
 ```

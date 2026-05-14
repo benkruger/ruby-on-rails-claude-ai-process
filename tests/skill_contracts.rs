@@ -2321,7 +2321,11 @@ fn flow_prime_step_headings_in_role_commit_autonomy_order() {
     let c = common::read_skill("flow-prime");
     let headings: Vec<&str> = c
         .lines()
-        .filter(|l| l.starts_with("### Step 1 ") || l.starts_with("### Step 2 ") || l.starts_with("### Step 3 "))
+        .filter(|l| {
+            l.starts_with("### Step 1 ")
+                || l.starts_with("### Step 2 ")
+                || l.starts_with("### Step 3 ")
+        })
         .collect();
     assert!(
         headings.len() >= 3,
@@ -2345,6 +2349,106 @@ fn flow_prime_step_headings_in_role_commit_autonomy_order() {
         step3.contains("Choose autonomy level"),
         "Step 3 must be 'Choose autonomy level'; got: {}",
         step3
+    );
+}
+
+#[test]
+fn flow_prime_recommended_preset_matches_new_shape() {
+    let c = common::read_skill("flow-prime");
+    let re = Regex::new(r"```json\n(\{[\s\S]*?\})\n```").unwrap();
+    let blocks: Vec<String> = re.captures_iter(&c).map(|cap| cap[1].to_string()).collect();
+    assert!(
+        blocks.len() >= 3,
+        "flow-prime must declare at least 3 JSON preset blocks — found {}",
+        blocks.len()
+    );
+    let recommended: Value =
+        serde_json::from_str(&blocks[2]).expect("Recommended preset must be valid JSON");
+    assert_eq!(
+        recommended["flow-start"]["continue"], "auto",
+        "Recommended preset: flow-start.continue must be 'auto'"
+    );
+    assert_eq!(
+        recommended["flow-code"]["commit"], "auto",
+        "Recommended preset: flow-code.commit must be 'auto'"
+    );
+    assert_eq!(
+        recommended["flow-code"]["continue"], "auto",
+        "Recommended preset: flow-code.continue must be 'auto'"
+    );
+    assert_eq!(
+        recommended["flow-review"]["commit"], "auto",
+        "Recommended preset: flow-review.commit must be 'auto'"
+    );
+    assert_eq!(
+        recommended["flow-review"]["continue"], "auto",
+        "Recommended preset: flow-review.continue must be 'auto'"
+    );
+    assert_eq!(
+        recommended["flow-learn"]["commit"], "auto",
+        "Recommended preset: flow-learn.commit must be 'auto'"
+    );
+    assert_eq!(
+        recommended["flow-learn"]["continue"], "auto",
+        "Recommended preset: flow-learn.continue must be 'auto'"
+    );
+    assert_eq!(
+        recommended["flow-complete"], "manual",
+        "Recommended preset: flow-complete must be 'manual'"
+    );
+    assert_eq!(
+        recommended["flow-abort"], "manual",
+        "Recommended preset: flow-abort must be 'manual'"
+    );
+}
+
+#[test]
+fn flow_prime_fully_manual_preset_keeps_start_continue_auto() {
+    let c = common::read_skill("flow-prime");
+    let re = Regex::new(r"```json\n(\{[\s\S]*?\})\n```").unwrap();
+    let blocks: Vec<String> = re.captures_iter(&c).map(|cap| cap[1].to_string()).collect();
+    assert!(
+        blocks.len() >= 2,
+        "flow-prime must declare at least 2 JSON preset blocks — found {}",
+        blocks.len()
+    );
+    let fully_manual: Value =
+        serde_json::from_str(&blocks[1]).expect("Fully manual preset must be valid JSON");
+    assert_eq!(
+        fully_manual["flow-start"]["continue"], "auto",
+        "Fully manual preset: flow-start.continue must be 'auto' (Start is never prompted)"
+    );
+    assert_eq!(
+        fully_manual["flow-code"]["commit"], "manual",
+        "Fully manual preset: flow-code.commit must be 'manual'"
+    );
+    assert_eq!(
+        fully_manual["flow-code"]["continue"], "manual",
+        "Fully manual preset: flow-code.continue must be 'manual'"
+    );
+    assert_eq!(
+        fully_manual["flow-review"]["commit"], "manual",
+        "Fully manual preset: flow-review.commit must be 'manual'"
+    );
+    assert_eq!(
+        fully_manual["flow-review"]["continue"], "manual",
+        "Fully manual preset: flow-review.continue must be 'manual'"
+    );
+    assert_eq!(
+        fully_manual["flow-learn"]["commit"], "manual",
+        "Fully manual preset: flow-learn.commit must be 'manual'"
+    );
+    assert_eq!(
+        fully_manual["flow-learn"]["continue"], "manual",
+        "Fully manual preset: flow-learn.continue must be 'manual'"
+    );
+    assert_eq!(
+        fully_manual["flow-complete"], "manual",
+        "Fully manual preset: flow-complete must be 'manual'"
+    );
+    assert_eq!(
+        fully_manual["flow-abort"], "manual",
+        "Fully manual preset: flow-abort must be 'manual'"
     );
 }
 

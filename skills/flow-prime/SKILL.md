@@ -118,23 +118,16 @@ Ask the user how much autonomy FLOW should have using AskUserQuestion:
 **Fully manual** — all manual:
 
 ```json
-{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-review": {"commit": "manual", "continue": "manual"}, "flow-learn": {"commit": "manual", "continue": "manual"}, "flow-complete": "manual", "flow-abort": "manual"}
+{"flow-start": {"continue": "auto"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-review": {"commit": "manual", "continue": "manual"}, "flow-learn": {"commit": "manual", "continue": "manual"}, "flow-complete": "manual", "flow-abort": "manual"}
 ```
 
 **Recommended** — safe defaults:
 
 ```json
-{"flow-start": {"continue": "manual"}, "flow-code": {"commit": "manual", "continue": "manual"}, "flow-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-complete": "auto", "flow-abort": "auto"}
+{"flow-start": {"continue": "auto"}, "flow-code": {"commit": "auto", "continue": "auto"}, "flow-review": {"commit": "auto", "continue": "auto"}, "flow-learn": {"commit": "auto", "continue": "auto"}, "flow-complete": "manual", "flow-abort": "manual"}
 ```
 
-**Customize** — ask per skill, in this order: start, code, review, learn, complete, abort. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
-
-For **start** (continue only), ask one AskUserQuestion:
-
-> "Continue mode for /flow:flow-start?"
->
-> - **Manual (Recommended)** — "Prompt before advancing"
-> - **Auto** — "Auto-advance to next phase"
+**Customize** — ask per skill, in this order: code, review, learn, complete, abort. When the user picks Customize, the skill hardcodes `flow-start: continue: auto` in `skills_dict` before asking the per-skill questions below. For each skill, ask about only the applicable axes. List the recommended option first with "(Recommended)" in the label:
 
 For **code** (commit and continue), ask two AskUserQuestions:
 
@@ -142,15 +135,15 @@ First question:
 
 > "Commit mode for /flow:flow-code? (controls per-task review before each commit)"
 >
-> - **Manual (Recommended)** — "Require explicit approval"
-> - **Auto** — "Skip approval prompts"
+> - **Auto (Recommended)** — "Skip approval prompts"
+> - **Manual** — "Require explicit approval"
 
 Second question:
 
 > "Continue mode for /flow:flow-code? (controls phase advancement)"
 >
-> - **Manual (Recommended)** — "Prompt before advancing"
-> - **Auto** — "Auto-advance to next phase"
+> - **Auto (Recommended)** — "Auto-advance to next phase"
+> - **Manual** — "Prompt before advancing"
 
 For **review** (commit and continue), ask two AskUserQuestions:
 
@@ -188,8 +181,8 @@ For **complete** and **abort** (single mode), ask one AskUserQuestion each:
 
 > "Mode for /flow:flow-<skill>?"
 >
-> - **Auto (Recommended)** — "Skip confirmation prompt"
-> - **Manual** — "Require confirmation prompt"
+> - **Manual (Recommended)** — "Require confirmation prompt"
+> - **Auto** — "Skip confirmation prompt"
 
 Store the result as `skills_dict` for Step 4.
 

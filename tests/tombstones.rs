@@ -2441,3 +2441,32 @@ fn test_tombstones_no_flow_prime_skip_role_option() {
     );
 }
 
+/// Tombstone: removed in PR #1552. The `/flow-prime` SKILL.md
+/// Step 3 Customize-autonomy section previously asked a per-skill
+/// AskUserQuestion titled "Continue mode for /flow:flow-start?"
+/// to let users override the Start continue mode. PR #1552 removes
+/// the question entirely; the Customize branch now hardcodes
+/// `flow-start: continue: auto` so users never get prompted for
+/// the Start continue axis. A merge resurrection would re-expose
+/// the prompt and break the "Start is never prompted" invariant.
+///
+/// Stability: byte-substring check against the literal question
+/// heading "Continue mode for /flow:flow-start". The string is
+/// markdown prose embedded in a `>` blockquote — `concat!` and
+/// `format!` are Rust-only macros that cannot synthesize markdown
+/// at compile time, and markdown files do not host Rust
+/// `constant` declarations. The phrase is a quoted prompt
+/// string, not a CLI invocation, so `.arg()` chain splits do not
+/// apply. The four-question stability checklist passes.
+#[test]
+fn test_tombstones_no_flow_prime_customize_start_question() {
+    let content = common::read_skill("flow-prime");
+    assert!(
+        !content.contains("Continue mode for /flow:flow-start"),
+        "skills/flow-prime/SKILL.md must not contain the Customize \
+         Start sub-question 'Continue mode for /flow:flow-start?' — \
+         the question was removed in PR #1552; the Customize branch \
+         hardcodes `flow-start: continue: auto` so Start is never \
+         prompted in any autonomy path."
+    );
+}

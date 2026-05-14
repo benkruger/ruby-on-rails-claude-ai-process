@@ -2411,3 +2411,33 @@ fn test_rules_no_integration_branch_not_carved_out_claim() {
         );
     }
 }
+
+// --- flow-prime Skip role option removal (PR #1552) ---
+
+/// Tombstone: removed in PR #1552. The `/flow-prime` SKILL.md
+/// previously offered "Skip — No default; choose per conversation"
+/// as a fourth role option. PR #1552 drops the Skip option so the
+/// role prompt presents three concrete roles only. A merge conflict
+/// that re-introduces the Skip option would also reintroduce the
+/// Skip-branch invocation shape in Step 4 that PR #1552 deleted.
+///
+/// Stability: byte-substring check against the literal Skip
+/// description "No default; choose per conversation". The string
+/// is markdown prose, not Rust code — `concat!` and `format!`
+/// cannot synthesize markdown at compile time, and markdown files
+/// cannot host Rust `constant` declarations. The phrase is not a
+/// CLI invocation, so `.arg()` chain splits do not apply. The
+/// four-question stability checklist passes for this byte-literal
+/// scan.
+#[test]
+fn test_tombstones_no_flow_prime_skip_role_option() {
+    let content = common::read_skill("flow-prime");
+    assert!(
+        !content.contains("No default; choose per conversation"),
+        "skills/flow-prime/SKILL.md must not contain the Skip role-option \
+         description 'No default; choose per conversation' — the Skip \
+         option was removed in PR #1552 so the role prompt presents \
+         three concrete roles (PM, Tech Lead, Founder / Solo Dev) only."
+    );
+}
+

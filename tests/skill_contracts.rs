@@ -2307,13 +2307,45 @@ fn flow_prime_has_role_selection_step() {
         .split_once("\n### ")
         .map(|(section, _)| section)
         .unwrap_or(subsection_start);
-    for option in ["PM", "Tech Lead", "Founder / Solo Dev", "Skip"] {
+    for option in ["PM", "Tech Lead", "Founder / Solo Dev"] {
         assert!(
             subsection.contains(option),
             "role-selection Step must list option `{}` within its body",
             option
         );
     }
+}
+
+#[test]
+fn flow_prime_step_headings_in_role_commit_autonomy_order() {
+    let c = common::read_skill("flow-prime");
+    let headings: Vec<&str> = c
+        .lines()
+        .filter(|l| l.starts_with("### Step 1 ") || l.starts_with("### Step 2 ") || l.starts_with("### Step 3 "))
+        .collect();
+    assert!(
+        headings.len() >= 3,
+        "flow-prime must declare Step 1, Step 2, and Step 3 headings — found {}",
+        headings.len()
+    );
+    let step1 = headings[0];
+    let step2 = headings[1];
+    let step3 = headings[2];
+    assert!(
+        step1.contains("Choose primary role"),
+        "Step 1 must be 'Choose primary role'; got: {}",
+        step1
+    );
+    assert!(
+        step2.contains("Choose commit message format"),
+        "Step 2 must be 'Choose commit message format'; got: {}",
+        step2
+    );
+    assert!(
+        step3.contains("Choose autonomy level"),
+        "Step 3 must be 'Choose autonomy level'; got: {}",
+        step3
+    );
 }
 
 #[test]

@@ -1348,10 +1348,16 @@ fn is_flow_advancing_bash_command(cmd: &str) -> bool {
         "set-timestamp" => {
             // Only block `--set code_task=*` updates; other fields
             // (like `code_task_name`) are non-advancing and must
-            // pass even during halt. The matcher walks the
-            // remaining tokens because clap accepts `--set` and its
-            // value as separate tokens (`--set code_task=4`).
-            tokens.any(|t| t.starts_with("code_task="))
+            // pass even during halt. Clap accepts the flag in two
+            // forms — space-separated (`--set code_task=4`,
+            // producing tokens `["--set", "code_task=4"]`) and
+            // equals-fused (`--set=code_task=4`, producing a
+            // single token `--set=code_task=4`). The matcher
+            // recognizes both: a token starting with `code_task=`
+            // OR a token starting with `--set=code_task=`. Without
+            // the equals form, a model invoking the fused syntax
+            // during a halt would bypass the gate.
+            tokens.any(|t| t.starts_with("code_task=") || t.starts_with("--set=code_task="))
         }
         _ => false,
     }
@@ -1378,12 +1384,16 @@ pub fn run() {
         .as_deref()
         .map(find_settings_and_root_from)
         .unwrap_or((None, None));
-    let branch = if settings.is_some() {
-        cwd.as_deref().and_then(detect_branch_from_path)
-    } else {
-        None
+    // Derive branch and main_root independently of settings.json
+    // presence per Review finding #9: a missing settings.json
+    // (interrupted prime, .gitignore'd in CI) must not silently
+    // disable the halt gate. settings.json is consulted only for
+    // Layer 8 whitelist enforcement.
+    let branch = cwd.as_deref().and_then(detect_branch_from_path);
+    let main_root = match project_root.as_ref() {
+        Some(r) => Some(resolve_main_root(r)),
+        None => cwd.as_deref().map(resolve_main_root),
     };
-    let main_root = project_root.as_ref().map(|r| resolve_main_root(r));
     let flow_active = match (&branch, &main_root) {
         (Some(b), Some(r)) => is_flow_active(b, r),
         _ => false,

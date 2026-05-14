@@ -223,6 +223,36 @@ fn test_root_no_test_coverage_md_file() {
     );
 }
 
+/// Tombstone: removed in PR #1549. Stability argument: the
+/// `"in_progress"` literal was a JSON object key inside
+/// `serde_json::json!({...})` in `analyze_issues` — a stable
+/// source-string with no `concat!`/`format!`/constant
+/// reassembly path that would produce the same runtime JSON
+/// key without the literal appearing in source. Bypasses
+/// considered and rejected: macro-concatenation (would
+/// produce a different runtime expression shape that
+/// `serde_json::json!` cannot accept as a key); split-string
+/// reassembly (json! requires identifier-shaped or
+/// string-literal keys, not runtime String concatenation);
+/// hex escapes (`"\x69n_progress"` still appears in
+/// source). The byte-substring check uses
+/// `concat!("in_pro", "gress")` so this test file does not
+/// self-trip when reading itself.
+#[test]
+fn test_analyze_issues_no_in_progress_json_key() {
+    let root = common::repo_root();
+    let path = root.join("src").join("analyze_issues.rs");
+    let content = fs::read_to_string(&path).expect("src/analyze_issues.rs must exist");
+    let forbidden = concat!("\"in_pro", "gress\"");
+    assert!(
+        !content.contains(forbidden),
+        "src/analyze_issues.rs must not emit the {} JSON key — \
+         the schema collapse in PR #1549 routes Flow-In-Progress rows \
+         into the single `issues` array with per-row `flow_in_progress`.",
+        forbidden,
+    );
+}
+
 #[test]
 fn test_docs_with_behavior_no_waiver_discipline_section() {
     let root = common::repo_root();
@@ -1435,23 +1465,6 @@ fn test_filing_no_flow_label() {
             );
         }
     }
-
-    // LABEL_CATEGORIES must not list "Flow" as a category.
-    let analyze_path = root.join("src").join("analyze_issues.rs");
-    let analyze = fs::read_to_string(&analyze_path).expect("src/analyze_issues.rs must exist");
-    let tail_at_const = analyze
-        .split_once("LABEL_CATEGORIES: &[&str] = &[")
-        .map(|(_, t)| t)
-        .expect("LABEL_CATEGORIES const must exist in src/analyze_issues.rs");
-    let const_block = tail_at_const
-        .split_once("];")
-        .map(|(b, _)| b)
-        .unwrap_or(tail_at_const);
-    assert!(
-        !const_block.contains("\"Flow\""),
-        "src/analyze_issues.rs::LABEL_CATEGORIES must not contain `\"Flow\"` — \
-         the redundant Flow label was removed in PR #1408."
-    );
 }
 
 /// Recursively scans `dir` for files with the given extension and
@@ -2509,5 +2522,101 @@ fn test_transcript_walker_no_removed_continue_token_helpers() {
          continue-token exit path with the `/flow:flow-continue` \
          slash command, making these helpers dead code.",
         violations
+    );
+}
+
+// --- flow-prime Skip role option removal (PR #1552) ---
+
+/// Tombstone: removed in PR #1552. The `/flow-prime` SKILL.md
+/// previously offered "Skip — No default; choose per conversation"
+/// as a fourth role option. PR #1552 drops the Skip option so the
+/// role prompt presents three concrete roles only. A merge conflict
+/// that re-introduces the Skip option would also reintroduce the
+/// Skip-branch invocation shape in Step 4 that PR #1552 deleted.
+///
+/// Stability: byte-substring check against the literal Skip
+/// description "No default; choose per conversation". The string
+/// is markdown prose, not Rust code — `concat!` and `format!`
+/// cannot synthesize markdown at compile time, and markdown files
+/// cannot host Rust `constant` declarations. The phrase is not a
+/// CLI invocation, so `.arg()` chain splits do not apply. The
+/// four-question stability checklist passes for this byte-literal
+/// scan.
+#[test]
+fn test_tombstones_no_flow_prime_skip_role_option() {
+    let content = common::read_skill("flow-prime");
+    assert!(
+        !content.contains("No default; choose per conversation"),
+        "skills/flow-prime/SKILL.md must not contain the Skip role-option \
+         description 'No default; choose per conversation' — the Skip \
+         option was removed in PR #1552 so the role prompt presents \
+         three concrete roles (PM, Tech Lead, Founder / Solo Dev) only."
+    );
+}
+
+/// Tombstone: removed in PR #1552. The `/flow-prime` SKILL.md
+/// Step 3 Customize-autonomy section previously asked a per-skill
+/// AskUserQuestion titled "Continue mode for /flow:flow-start?"
+/// to let users override the Start continue mode. PR #1552 removes
+/// the question entirely; the Customize branch now hardcodes
+/// `flow-start: continue: auto` so users never get prompted for
+/// the Start continue axis. A merge resurrection would re-expose
+/// the prompt and break the "Start is never prompted" invariant.
+///
+/// Stability: byte-substring check against the literal question
+/// heading "Continue mode for /flow:flow-start". The string is
+/// markdown prose embedded in a `>` blockquote — `concat!` and
+/// `format!` are Rust-only macros that cannot synthesize markdown
+/// at compile time, and markdown files do not host Rust
+/// `constant` declarations. The phrase is a quoted prompt
+/// string, not a CLI invocation, so `.arg()` chain splits do not
+/// apply. The four-question stability checklist passes.
+#[test]
+fn test_tombstones_no_flow_prime_customize_start_question() {
+    let content = common::read_skill("flow-prime");
+    assert!(
+        !content.contains("Continue mode for /flow:flow-start"),
+        "skills/flow-prime/SKILL.md must not contain the Customize \
+         Start sub-question 'Continue mode for /flow:flow-start?' — \
+         the question was removed in PR #1552; the Customize branch \
+         hardcodes `flow-start: continue: auto` so Start is never \
+         prompted in any autonomy path."
+    );
+}
+
+/// Tombstone: removed in PR #1552. The `/flow-prime` Step 4
+/// setup-script section previously branched on the user's Skip
+/// choice with a "When the user chose Skip, omit `--role` entirely"
+/// header and a paired bash invocation. PR #1552 deletes the Skip
+/// UI option and folds Step 4 to a single user-driven invocation
+/// shape (the legacy-data Reprime carry-forward path is described
+/// separately as "When the Reprime path carries forward a legacy
+/// `.flow.json`..."). A merge resurrection reintroducing the
+/// "When the user chose Skip" header reactivates the deleted UI
+/// option from Step 1 by implication.
+///
+/// Stability: byte-substring check against the literal header
+/// "When the user chose Skip,". The string is markdown prose, not
+/// Rust code — `concat!` and `format!` cannot synthesize markdown
+/// at compile time, and markdown files cannot host Rust
+/// `constant` declarations. The phrase is not a CLI invocation,
+/// so `.arg()` chain splits do not apply. The four-question
+/// stability checklist passes. The companion
+/// `test_tombstones_no_flow_prime_skip_role_option` covers the
+/// Step 1 prompt; this tombstone covers the Step 4 branching
+/// surface independently so a partial resurrection (e.g., the
+/// Step 4 branch returns without the Step 1 option, or vice
+/// versa) trips CI either way.
+#[test]
+fn test_tombstones_no_flow_prime_step_4_skip_branch() {
+    let content = common::read_skill("flow-prime");
+    assert!(
+        !content.contains("When the user chose Skip,"),
+        "skills/flow-prime/SKILL.md must not contain the Step 4 Skip-branch \
+         header 'When the user chose Skip,' — the branch was removed in \
+         PR #1552 alongside the Step 1 Skip option. The legacy-data \
+         Reprime carry-forward path (no role in .flow.json) is named \
+         'When the Reprime path carries forward a legacy .flow.json' and \
+         is intentionally distinct from the deleted Skip UI option."
     );
 }

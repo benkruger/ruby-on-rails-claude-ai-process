@@ -218,18 +218,49 @@ fn is_real_user_turn(turn: &Value) -> bool {
         .and_then(|m| m.get("content"))
         .and_then(|c| c.as_str())
         .is_some();
-    // `isMeta` arrives over the JSONL wire as a JSON value whose
-    // type Claude Code does not contractually pin to `bool`. Older
-    // captures, hand-edited transcripts, and external tools can
-    // emit truthy `isMeta` values as `"true"`, `"1"`, or non-zero
-    // numbers. `is_truthy` accepts every truthy form the security-
-    // enforcement hooks already tolerate elsewhere in this module
-    // (per `.claude/rules/rust-patterns.md` "Hook Input Boolean
-    // Field Tolerance"). A raw `as_bool()` would silently
-    // misclassify non-bool truthy values as synthetic=false,
-    // re-opening the autonomous-flow-halt bypass surface.
-    let is_meta = is_truthy(turn.get("isMeta"));
+    // `isMeta` discrimination uses asymmetric fail-closed semantics:
+    // any value that is NOT explicitly absent, `null`, or `false`
+    // classifies as synthetic. This is stricter than `is_truthy`
+    // (which classifies arrays/objects/strings-like-"foo" as
+    // falsy — appropriate for halt-pending fail-open semantics, but
+    // wrong for the `isMeta` discrimination contract).
+    //
+    // The threat surface: a hostile or malformed transcript line
+    // with `isMeta:[true]`, `isMeta:{}`, `isMeta:"yes"`, or any
+    // non-canonical truthy shape would be classified as real by
+    // `is_truthy` (which returns false for those shapes), bypassing
+    // Layer 1's user-only-skill enforcement when the line also
+    // carries `<command-name>/<skill></command-name>` content.
+    // Treating every non-canonical `isMeta` shape as synthetic
+    // closes the bypass — at the cost of dropping a hypothetical
+    // legitimate `isMeta:false` turn that the producer accidentally
+    // wrote as `isMeta:"false"`, which is preferable to the
+    // alternative.
+    //
+    // Per `.claude/rules/transcript-shape.md` "The Closed Catalog
+    // of Synthetic User Turns".
+    let is_meta = is_meta_marker_present(turn.get("isMeta"));
     content_is_string && !is_meta
+}
+
+/// Asymmetric truthy check for the `isMeta` discriminator. Returns
+/// `true` when the value indicates a synthetic turn — any value
+/// other than explicit absence (`None`), `null`, or `Bool(false)`.
+/// Numeric `0` and string `"false"` count as synthetic (fail
+/// closed) to defend against hostile or malformed transcript lines.
+///
+/// This differs from `is_truthy` (which classifies arrays/objects
+/// as falsy) because the synthetic-turn discriminator must err
+/// toward "treat as synthetic" rather than "treat as real" —
+/// misclassifying a synthetic turn as real reopens the user-only-
+/// skill bypass surface per `.claude/rules/transcript-shape.md`.
+fn is_meta_marker_present(v: Option<&Value>) -> bool {
+    match v {
+        None => false,
+        Some(Value::Null) => false,
+        Some(Value::Bool(false)) => false,
+        Some(_) => true,
+    }
 }
 
 /// Return `true` when the most recent user-role turn in the
@@ -1052,12 +1083,15 @@ pub fn recent_edit_blocked_on_shared_config(transcript_path: &Path, home: &Path)
             .and_then(|m| m.get("content"))
             .and_then(|c| c.as_str())
             .is_some();
-        // `is_truthy` accepts bool, `"true"`/`"1"` strings, and
-        // non-zero numbers per `.claude/rules/rust-patterns.md`
-        // "Hook Input Boolean Field Tolerance" — matching the
-        // discriminator in `is_real_user_turn` so the two
-        // walkers cannot diverge on non-bool `isMeta` shapes.
-        let is_meta = is_truthy(turn.get("isMeta"));
+        // Use the asymmetric `is_meta_marker_present` predicate so
+        // the targeted skip here matches the discriminator in
+        // `is_real_user_turn`. Both walkers must classify
+        // hook-feedback turns identically regardless of the exact
+        // `isMeta` shape — array, object, or non-canonical string
+        // — to close the bypass surface where a crafted JSONL line
+        // can pass as real prose. See
+        // `.claude/rules/transcript-shape.md`.
+        let is_meta = is_meta_marker_present(turn.get("isMeta"));
         if is_string_content && is_meta {
             continue;
         }

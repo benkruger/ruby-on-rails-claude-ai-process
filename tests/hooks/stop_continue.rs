@@ -2055,3 +2055,199 @@ fn check_autonomous_stop_clears_stale_halt_when_phase_not_auto() {
         "stale halt must be cleared"
     );
 }
+
+// --- is_truthy normalization of _halt_pending ---
+//
+// `_halt_pending` is read by three surfaces in the autonomous-flow
+// halt model: `check_autonomous_stop` (Stop event), `validate-skill`
+// (Skill tool), and `validate-pretool` (Bash flow-advancing
+// commands). All three must agree on what "halt is set" means so the
+// user sees consistent guidance. Reading via the shared `is_truthy`
+// predicate lets the three surfaces tolerate the JSON shape variation
+// state files can carry (hand-edited "true" string, external-tool
+// integer 1, normalized "TRUE", whitespace-padded "  true  ") per
+// `.claude/rules/security-gates.md` "Normalize Before Comparing" and
+// `.claude/rules/rust-patterns.md` "Hook Input Boolean Field
+// Tolerance". A regression that swaps the read back to raw
+// `.as_bool()` would re-introduce divergence between these surfaces:
+// `validate-skill` would block Skill calls while
+// `check_autonomous_stop` would emit Rule 1 (encouraging) instead of
+// Rule 2 (halt-pending) — the user gets contradictory guidance from
+// two hooks that share the same field.
+
+#[test]
+fn check_autonomous_stop_treats_string_true_halt_as_set_rule2() {
+    let dir = tempfile::tempdir().unwrap();
+    let state_path = dir.path().join("state.json");
+    let transcript = auto_stop_transcript(dir.path(), "t.jsonl");
+    fs::write(
+        &state_path,
+        serde_json::to_string(&autonomous_stop_state(
+            "flow-code",
+            "in_progress",
+            json!("auto"),
+            json!("true"),
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    write_auto_stop_transcript(&transcript, true, None);
+    let result = check_autonomous_stop(&state_path, Some(transcript.to_str().unwrap()), dir.path());
+    assert!(result.should_block);
+    let context = result.context.expect("rule 2 message");
+    assert!(
+        context.contains("/flow:flow-continue"),
+        "string \"true\" halt must trigger Rule 2: {}",
+        context
+    );
+}
+
+#[test]
+fn check_autonomous_stop_treats_nonzero_float_halt_as_set_rule2() {
+    let dir = tempfile::tempdir().unwrap();
+    let state_path = dir.path().join("state.json");
+    let transcript = auto_stop_transcript(dir.path(), "t.jsonl");
+    fs::write(
+        &state_path,
+        serde_json::to_string(&autonomous_stop_state(
+            "flow-code",
+            "in_progress",
+            json!("auto"),
+            json!(0.5),
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    write_auto_stop_transcript(&transcript, true, None);
+    let result = check_autonomous_stop(&state_path, Some(transcript.to_str().unwrap()), dir.path());
+    assert!(result.should_block);
+    let context = result.context.expect("rule 2 message");
+    assert!(
+        context.contains("/flow:flow-continue"),
+        "non-zero float halt must trigger Rule 2: {}",
+        context
+    );
+}
+
+#[test]
+fn check_autonomous_stop_treats_string_one_halt_as_set_rule2() {
+    let dir = tempfile::tempdir().unwrap();
+    let state_path = dir.path().join("state.json");
+    let transcript = auto_stop_transcript(dir.path(), "t.jsonl");
+    fs::write(
+        &state_path,
+        serde_json::to_string(&autonomous_stop_state(
+            "flow-code",
+            "in_progress",
+            json!("auto"),
+            json!("1"),
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    write_auto_stop_transcript(&transcript, true, None);
+    let result = check_autonomous_stop(&state_path, Some(transcript.to_str().unwrap()), dir.path());
+    assert!(result.should_block);
+    let context = result.context.expect("rule 2 message");
+    assert!(
+        context.contains("/flow:flow-continue"),
+        "string \"1\" halt must trigger Rule 2: {}",
+        context
+    );
+}
+
+#[test]
+fn check_autonomous_stop_treats_uppercase_true_halt_as_set_rule2() {
+    let dir = tempfile::tempdir().unwrap();
+    let state_path = dir.path().join("state.json");
+    let transcript = auto_stop_transcript(dir.path(), "t.jsonl");
+    fs::write(
+        &state_path,
+        serde_json::to_string(&autonomous_stop_state(
+            "flow-code",
+            "in_progress",
+            json!("auto"),
+            json!("TRUE"),
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    write_auto_stop_transcript(&transcript, true, None);
+    let result = check_autonomous_stop(&state_path, Some(transcript.to_str().unwrap()), dir.path());
+    assert!(result.should_block);
+    let context = result.context.expect("rule 2 message");
+    assert!(
+        context.contains("/flow:flow-continue"),
+        "uppercase \"TRUE\" halt must trigger Rule 2: {}",
+        context
+    );
+}
+
+#[test]
+fn check_autonomous_stop_treats_whitespace_padded_true_halt_as_set_rule2() {
+    let dir = tempfile::tempdir().unwrap();
+    let state_path = dir.path().join("state.json");
+    let transcript = auto_stop_transcript(dir.path(), "t.jsonl");
+    fs::write(
+        &state_path,
+        serde_json::to_string(&autonomous_stop_state(
+            "flow-code",
+            "in_progress",
+            json!("auto"),
+            json!("  true  "),
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    write_auto_stop_transcript(&transcript, true, None);
+    let result = check_autonomous_stop(&state_path, Some(transcript.to_str().unwrap()), dir.path());
+    assert!(result.should_block);
+    let context = result.context.expect("rule 2 message");
+    assert!(
+        context.contains("/flow:flow-continue"),
+        "whitespace-padded \"  true  \" halt must trigger Rule 2: {}",
+        context
+    );
+}
+
+#[test]
+fn check_autonomous_stop_clears_stale_truthy_string_halt_on_phase_complete() {
+    // The stale-halt-clear branch reads `_halt_pending` via the same
+    // `is_truthy` normalization so a truthy non-bool residue (e.g.,
+    // `"true"`, `1`, `"TRUE"`) is recognized AND cleared when the
+    // phase is no longer in_progress + auto. Without the shared
+    // predicate, the clear path missed non-bool truthy shapes and
+    // left the PreToolUse halt gates stuck.
+    let dir = tempfile::tempdir().unwrap();
+    let state_path = dir.path().join("state.json");
+    let transcript = auto_stop_transcript(dir.path(), "t.jsonl");
+    let state = json!({
+        "branch": "test",
+        "current_phase": "flow-code",
+        "phases": { "flow-code": { "status": "complete" } },
+        "skills": { "flow-code": "auto" },
+        "_halt_pending": "true",
+    });
+    fs::write(&state_path, serde_json::to_string(&state).unwrap()).unwrap();
+    write_auto_stop_transcript(&transcript, true, None);
+    let _ = check_autonomous_stop(&state_path, Some(transcript.to_str().unwrap()), dir.path());
+    let on_disk: Value = serde_json::from_str(&fs::read_to_string(&state_path).unwrap()).unwrap();
+    let halt_after = on_disk.get("_halt_pending").cloned().unwrap_or(Value::Null);
+    // Re-check whether the cleared value is still truthy under
+    // is_truthy semantics. A clean state writes `false`; tolerant
+    // readers must see "not set" afterward.
+    let still_truthy = match &halt_after {
+        Value::Bool(true) => true,
+        Value::String(s) => {
+            let t = s.trim().to_ascii_lowercase();
+            t == "true" || t == "1"
+        }
+        Value::Number(n) => n.as_f64().is_some_and(|f| f != 0.0),
+        _ => false,
+    };
+    assert!(
+        !still_truthy,
+        "stale truthy non-bool _halt_pending must be cleared when phase is not in_progress+auto: {}",
+        halt_after
+    );
+}

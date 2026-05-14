@@ -4105,3 +4105,51 @@ fn validate_pretool_allows_flow_advancing_bash_when_halt_not_set() {
         "set-timestamp code_task must pass when halt not set; stderr={stderr}"
     );
 }
+
+#[test]
+fn validate_pretool_blocks_set_timestamp_code_task_equals_form_during_halt() {
+    // CLI argument tokenization can deliver `--set` and `code_task=N`
+    // as a single combined token `--set=code_task=N`. The halt-gate
+    // allowlist must recognize both spacing variants — splitting on
+    // `--set ` alone leaves the equals-form as a bypass surface that
+    // advances the flow past the user's halt directive.
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    let input = r#"{"tool_input": {"command": "bin/flow set-timestamp --set=code_task=5"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 2,
+        "set-timestamp --set=code_task=N equals-form must block; stderr={stderr}"
+    );
+    assert!(
+        stderr.contains("/flow:flow-continue"),
+        "block message must name /flow:flow-continue: {stderr}"
+    );
+}
+
+#[test]
+fn validate_pretool_halt_gate_fires_when_settings_json_missing() {
+    // The halt gate must NOT depend on `.claude/settings.json` to
+    // resolve the branch and main_root. Settings is consulted only
+    // for Layer 8 whitelist enforcement; conflating that with halt
+    // detection silently disables the halt gate in environments
+    // where settings.json is absent (interrupted prime, CI runners
+    // that gitignore it, fresh clones before /flow:flow-prime). The
+    // active-flow state file at
+    // `<main_root>/.flow-states/<branch>/state.json` is the
+    // authoritative signal, derived from cwd alone.
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_halt_pending": true}"#);
+    // Remove settings.json to simulate the pre-prime / CI scenario.
+    std::fs::remove_file(root.join(".claude").join("settings.json")).unwrap();
+    let input = r#"{"tool_input": {"command": "bin/flow set-timestamp --set code_task=5"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 2,
+        "halt gate must block flow-advancing commands even without settings.json; stderr={stderr}"
+    );
+    assert!(
+        stderr.contains("/flow:flow-continue"),
+        "block message must name /flow:flow-continue: {stderr}"
+    );
+}

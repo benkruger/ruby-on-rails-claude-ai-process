@@ -48,6 +48,7 @@ use crate::commands::set_blocked::set_blocked;
 use crate::flow_paths::FlowPaths;
 use crate::git::{project_root, resolve_branch};
 use crate::github::detect_repo;
+use crate::hooks::transcript_walker::is_truthy;
 use crate::lock::mutate_state;
 use crate::phase_config::find_state_files;
 use crate::utils::{now, write_tab_sequences};
@@ -454,10 +455,18 @@ pub fn check_autonomous_stop(
             }
             None => false,
         };
-        let halt_was_set = state
-            .get("_halt_pending")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        // Read via the tolerant `is_truthy` predicate so the writer
+        // (this predicate) and the readers (validate-skill and
+        // validate-pretool halt gates) agree on what "_halt_pending
+        // is set" means. A state-derived field could carry truthy
+        // shapes other than bool true — string "true", string "1",
+        // non-zero number — and using raw `.as_bool()` here while
+        // the readers use `is_truthy` produced divergent halt-state
+        // classification across the three hook surfaces. Per
+        // `.claude/rules/security-gates.md` "Normalize Before
+        // Comparing", state-derived input must pass through a
+        // single shared normalization predicate.
+        let halt_was_set = is_truthy(state.get("_halt_pending"));
         if phase_status != "in_progress" || !is_auto {
             // Phase not auto+in-progress: clear stale halt, allow stop.
             if halt_was_set {

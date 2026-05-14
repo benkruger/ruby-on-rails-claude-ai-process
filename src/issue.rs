@@ -48,6 +48,10 @@ pub struct Args {
     /// Override the Review filing ban (requires explicit reason)
     #[arg(long = "override-review-ban")]
     pub override_review_ban: bool,
+
+    /// GitHub assignee login, or `@me` for the authenticated user.
+    #[arg(long)]
+    pub assignee: Option<String>,
 }
 
 /// Phase identifiers that the Review issue-filing gate fires on.

@@ -734,6 +734,20 @@ fn args_override_defaults_to_false() {
     assert!(!args.override_review_ban);
 }
 
+#[test]
+fn args_parses_assignee() {
+    use clap::Parser;
+    let args = Args::try_parse_from(["issue", "--title", "T", "--assignee", "@me"]).unwrap();
+    assert_eq!(args.assignee.as_deref(), Some("@me"));
+}
+
+#[test]
+fn args_assignee_defaults_to_none() {
+    use clap::Parser;
+    let args = Args::try_parse_from(["issue", "--title", "T"]).unwrap();
+    assert_eq!(args.assignee, None);
+}
+
 // --- run_impl_main: Review filing gate (drives through public
 // `run_impl_main` surface — the private `should_reject_for_review`
 // helper is only reachable from within `issue.rs`). ---
@@ -746,6 +760,7 @@ fn default_args() -> Args {
         body_file: None,
         state_file: None,
         override_review_ban: false,
+        assignee: None,
     }
 }
 

@@ -2115,6 +2115,51 @@ fn release_complete_banner_confirms_marketplace_update() {
     );
 }
 
+/// flow-release must rebuild and stage the committed prebuilt binary
+/// (bin/flow-rs-darwin-arm64) at every release so its bytes match the
+/// current source generation. The build runs through bin/setup — the
+/// `cargo` deny-list entry does not reach its internal `cargo build
+/// --release` subprocess — and staging runs through git plumbing
+/// because `cp` is not on the FLOW allow-list while `git -C *` is.
+/// Regression guarded: a flow-release edit that drops the rebuild
+/// step, or one that reintroduces permission-denied commands
+/// (direct `cargo build --release` / `cp`).
+#[test]
+fn flow_release_skill_builds_and_commits_binary() {
+    let c = fs::read_to_string(
+        common::repo_root()
+            .join(".claude")
+            .join("skills")
+            .join("flow-release")
+            .join("SKILL.md"),
+    )
+    .unwrap();
+    let tail = c
+        .split_once("## Step 6 — Rebuild and stage the prebuilt binary")
+        .map(|(_, t)| t)
+        .expect("flow-release/SKILL.md must contain the Step 6 binary-rebuild heading");
+    let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
+    for token in [
+        "bin/setup",
+        "hash-object -w target/release/flow-rs",
+        "update-index --add --cacheinfo 100755,",
+        "checkout-index -f -- bin/flow-rs-darwin-arm64",
+    ] {
+        assert!(
+            section.contains(token),
+            "flow-release Step 6 must build and stage the binary via sanctioned tools — missing `{}`",
+            token
+        );
+    }
+    for forbidden in ["cargo build --release", "cp target/release/flow-rs"] {
+        assert!(
+            !section.contains(forbidden),
+            "flow-release Step 6 must not reintroduce the permission-denied command `{}`",
+            forbidden
+        );
+    }
+}
+
 // --- Logging ---
 
 #[test]

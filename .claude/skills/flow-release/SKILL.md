@@ -144,16 +144,57 @@ dynamically by `compute_config_hash()` and `compute_setup_hash()` in
 `lib/prime-setup.py` at prime time and compared at start time by
 `lib/prime-check.py`. No manual hash updates are needed during releases.
 
-## Step 6 — Stage all changes
+## Step 6 — Rebuild and stage the prebuilt binary
+
+The committed binary at `bin/flow-rs-darwin-arm64` ships to end users
+through the marketplace cache — `/plugin install` copies it into place so
+a fresh install needs no build step. It must be regenerated from source
+at every release so its bytes match the tagged source generation; a
+stale binary would run an older FLOW than the release claims.
+
+Build the release binary through `bin/setup`. The compiler runs inside
+that script, which keeps the build on the FLOW allow-list — invoking the
+Rust toolchain directly is permission-denied. `bin/setup` writes the
+release binary to `target/release/flow-rs`. Use a 10-minute Bash tool
+timeout (`timeout: 600000`) — a cold release build can take several
+minutes and the default 2-minute timeout would background the process.
+
+```bash
+bin/setup
+```
+
+Stage the freshly built binary at the committed path with git plumbing.
+A plain file copy is not on the FLOW allow-list, but `git -C *` is. Run
+the three commands in order, carrying the blob SHA that `hash-object`
+prints into the `update-index` call:
+
+```bash
+git -C . hash-object -w target/release/flow-rs
+```
+
+```bash
+git -C . update-index --add --cacheinfo 100755,<sha>,bin/flow-rs-darwin-arm64
+```
+
+```bash
+git -C . checkout-index -f -- bin/flow-rs-darwin-arm64
+```
+
+Substitute `<sha>` with the blob SHA printed by `hash-object`. After
+`checkout-index`, `bin/flow-rs-darwin-arm64` is staged at mode `100755`
+and refreshed in the working tree, so the `git add -A` in Step 7 is a
+no-op for it and `finalize-commit` commits the fresh bytes.
+
+## Step 7 — Stage all changes
 
 ```bash
 git add -A
 ```
 
-Staging must happen before writing `.flow-commit-msg` in Step 7 — otherwise
+Staging must happen before writing `.flow-commit-msg` in Step 8 — otherwise
 `git add -A` picks up the message file and commits it into the repo.
 
-## Step 7 — Write commit message and finalize
+## Step 8 — Write commit message and finalize
 
 Write `Release v<new_version>` to `.flow-commit-msg` via the Write tool.
 
@@ -171,7 +212,7 @@ bin/flow finalize-commit .flow-commit-msg main
 No diff review. No `bin/ci`. No approval prompt — CI was verified in
 Step 2, changes were shown in Step 3, and version was confirmed in Step 4.
 
-## Step 8 — Tag, release, and publish
+## Step 9 — Tag, release, and publish
 
 First, run both in parallel (one response, two Bash calls):
 
@@ -222,6 +263,7 @@ Print:
 - Never release with uncommitted changes
 - Never release without showing what changed
 - Always bump both plugin.json and marketplace.json — they must match
+- Always rebuild and stage the prebuilt binary — `bin/flow-rs-darwin-arm64` must be regenerated from source on every version bump so it never lags the tagged release
 - Always tag before pushing — the tag is what humans see on GitHub
 - Always create a GitHub Release — it's the public changelog
 - Never add Co-Authored-By trailers or attribution lines

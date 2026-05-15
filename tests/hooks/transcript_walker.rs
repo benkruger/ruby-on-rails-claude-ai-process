@@ -3089,3 +3089,148 @@ fn read_recent_turns_returns_none_on_missing_file() {
     let missing = dir.path().join("nope.txt");
     assert_eq!(read_recent_turns(&missing), None);
 }
+
+// --- read_capped invariant (contract test) ---
+
+/// Returns the slice of `src` starting at `marker` and ending at the
+/// next `\n}\n` (function-body terminator). Panics if `marker` is
+/// missing. Used by `read_capped_only_called_inside_named_helpers`
+/// to bound the assertion scope to each helper's body per
+/// `.claude/rules/testing-gotchas.md` "Subsection-Local Assertions
+/// in Contract Tests".
+fn extract_fn_body<'a>(src: &'a str, marker: &str) -> &'a str {
+    let tail = src
+        .split_once(marker)
+        .map(|(_, t)| t)
+        .unwrap_or_else(|| panic!("marker `{}` not found in source", marker));
+    tail.split_once("\n}\n")
+        .map(|(body, _)| body)
+        .unwrap_or(tail)
+}
+
+#[test]
+fn read_capped_only_called_inside_named_helpers() {
+    // Locks the API in: `read_capped` is the private primitive; the
+    // three named wrappers (`read_full`, `read_recency_window`,
+    // `read_recent_turns`) are the only production callers. A future
+    // edit that adds a direct `read_capped(` call outside those
+    // wrappers — or that fails to migrate a new caller to one of the
+    // wrappers — fails this contract test.
+    //
+    // Implementation per `.claude/rules/testing-gotchas.md`
+    // "Subsection-Local Assertions in Contract Tests": bound each
+    // helper's body via `split_once("pub fn <name>(")` and the
+    // following `\n}\n` to keep counts scoped to that function's
+    // body. Bounding by `\n}\n` works because every helper's body
+    // ends with a single closing brace on its own line — Rust
+    // rustfmt formatting guarantees the shape.
+    let src =
+        std::fs::read_to_string(crate::common::repo_root().join("src/hooks/transcript_walker.rs"))
+            .expect("read src/hooks/transcript_walker.rs");
+
+    // Use a runtime-composed needle so the contract test file itself
+    // never contains the literal `read_capped(` byte sequence outside
+    // its own assertion strings — keeps the test self-consistent if
+    // anyone later extends the scanner to scan `tests/`.
+    let needle: String = ["read", "_capped("].concat();
+    let needle_str = needle.as_str();
+
+    let read_full_body = extract_fn_body(&src, "pub fn read_full(");
+    let read_recency_body = extract_fn_body(&src, "pub fn read_recency_window(");
+    let read_recent_body = extract_fn_body(&src, "pub fn read_recent_turns(");
+
+    assert_eq!(
+        read_full_body.matches(needle_str).count(),
+        0,
+        "read_full body must not call read_capped (it uses fs::read_to_string)"
+    );
+    assert_eq!(
+        read_recency_body.matches(needle_str).count(),
+        1,
+        "read_recency_window body must call read_capped exactly once"
+    );
+    assert_eq!(
+        read_recent_body.matches(needle_str).count(),
+        1,
+        "read_recent_turns body must call read_capped exactly once"
+    );
+
+    // Total occurrences in the file:
+    // - 1 inside read_recency_window body (counted above)
+    // - 1 inside read_recent_turns body (counted above)
+    // - 1 in the `fn read_capped(` definition itself
+    // Anything else means a direct caller exists outside the three
+    // named wrappers — the contract is broken.
+    let total = src.matches(needle_str).count();
+    assert_eq!(
+        total, 3,
+        "read_capped( appears {} times in transcript_walker.rs; \
+         expected exactly 3 (1 in each capped helper + 1 in the fn definition)",
+        total
+    );
+
+    // Every other `src/*.rs` file must contain zero `read_capped(`
+    // calls. The literal is module-private (Rust visibility would
+    // already reject it at compile time), but the contract test
+    // makes the invariant explicit so a future change that exposes
+    // `read_capped` as `pub` and adds an outside caller trips here.
+    let src_dir = crate::common::repo_root().join("src");
+    let mut rust_files: Vec<std::path::PathBuf> = Vec::new();
+    collect_rust_files(&src_dir, &mut rust_files);
+    let walker_path = crate::common::repo_root().join("src/hooks/transcript_walker.rs");
+    let walker_canon = walker_path
+        .canonicalize()
+        .expect("canonicalize walker path");
+    for path in &rust_files {
+        let path_canon = match path.canonicalize() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        if path_canon == walker_canon {
+            continue;
+        }
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        assert!(
+            !content.contains(needle_str),
+            "{} contains `{}` — only the three named helpers in \
+             src/hooks/transcript_walker.rs may call read_capped",
+            path.display(),
+            needle_str
+        );
+    }
+}
+
+/// Walk `src/` and collect every `.rs` file path. Mirrors the helper
+/// in `tests/test_placement.rs` — duplicated here because Cargo's
+/// directory-form test layout for `tests/hooks/` does not allow
+/// importing helpers from sibling top-level test files.
+fn collect_rust_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        if name.starts_with('.') || name == "target" {
+            continue;
+        }
+        let meta = match std::fs::symlink_metadata(&path) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        if meta.is_dir() {
+            collect_rust_files(&path, out);
+            continue;
+        }
+        if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+            out.push(path);
+        }
+    }
+}

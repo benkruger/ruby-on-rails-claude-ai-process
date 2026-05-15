@@ -39,6 +39,19 @@
 //! `BufReader::new(file.take(...))` so a runaway or hostile input
 //! cannot exhaust memory.
 //!
+//! Code-reference soft-warnings (vanilla mode only). After the
+//! structural triad checks succeed, the vanilla branch walks the
+//! body line-by-line and emits a `warnings` array of
+//! `{pattern, line, snippet}` entries for `src/` paths, `tests/`
+//! paths, and `identifier::identifier` symbol references. The
+//! field is always present on vanilla success envelopes (empty
+//! array when no matches). Decomposed success envelopes never
+//! carry the field. Per
+//! `.claude/rules/gate-consumer-enumeration.md`, the consumer of
+//! the new field is `skills/flow-explore/SKILL.md` Step 5, which
+//! renders entries inline when non-empty, revises the body once in
+//! working memory, and re-validates before filing.
+//!
 //! Tests live at `tests/validate_issue_body.rs` per
 //! `.claude/rules/test-placement.md`.
 
@@ -46,6 +59,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
+use regex::Regex;
 use serde_json::{json, Value};
 
 use crate::plan_from_issue::{
@@ -241,7 +255,50 @@ fn validate_vanilla(body: &str) -> (Value, i32) {
             "vanilla body must contain a `## Acceptance Criteria` heading",
         );
     }
-    (json!({"status": "ok"}), 0)
+    let warnings = scan_for_code_references(body);
+    (json!({"status": "ok", "warnings": warnings}), 0)
+}
+
+/// Walk the body line-by-line and return code-reference warnings
+/// in `(line ascending, pattern priority)` order.
+///
+/// Three regex patterns flag the most common shapes a participant
+/// reaches for when grounding a problem statement in observed code
+/// behavior:
+///
+/// - `\bsrc/\S+` — `src/foo.rs`-style production-path references
+/// - `\btests/\S+` — `tests/bar.rs`-style test-path references
+/// - `\b[A-Za-z_]\w*::[A-Za-z_]\w*\b` — `module::function` symbol
+///   references
+///
+/// The scan is intentionally narrow. Config paths (`.flow.json`,
+/// `CLAUDE.md`) and rule-file references do not trigger; backtick
+/// quoting around an otherwise-matching token does NOT exempt it
+/// (the acceptance criteria forbid code references in any
+/// presentation). English prose `::` between identifier-shaped
+/// tokens is a low-rate false positive the soft-warning posture
+/// absorbs.
+fn scan_for_code_references(body: &str) -> Vec<Value> {
+    let patterns: [Regex; 3] = [
+        Regex::new(r"\bsrc/\S+").expect("static src/ pattern compiles"),
+        Regex::new(r"\btests/\S+").expect("static tests/ pattern compiles"),
+        Regex::new(r"\b[A-Za-z_]\w*::[A-Za-z_]\w*\b")
+            .expect("static double-colon pattern compiles"),
+    ];
+    let mut warnings: Vec<Value> = Vec::new();
+    for (idx, line) in body.lines().enumerate() {
+        let line_no = idx + 1;
+        for pattern in &patterns {
+            if let Some(m) = pattern.find(line) {
+                warnings.push(json!({
+                    "pattern": m.as_str(),
+                    "line": line_no,
+                    "snippet": line.trim(),
+                }));
+            }
+        }
+    }
+    warnings
 }
 
 /// Returns true when `body` contains a line whose trimmed content

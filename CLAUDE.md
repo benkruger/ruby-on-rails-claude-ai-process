@@ -54,6 +54,7 @@ Plan handoff happens at flow-start: `bin/flow plan-from-issue --issue <N> --bran
 
 - `config.json` — plugin-level maintainer config (`claude_code_audited` tracks last audited Claude Code version)
 - `flow-phases.json` — state machine: phase names, commands, valid back-transitions
+- `hello.sh` — smoke-test artifact exercising the full FLOW lifecycle on a low-risk file; no Rust code, no coverage impact
 - `skills/<name>/SKILL.md` — each skill's Markdown instructions
 - `hooks/hooks.json` — hook registration
 - `.claude/settings.json` — project permissions (git rebase denied)

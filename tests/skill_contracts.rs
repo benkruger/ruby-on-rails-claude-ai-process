@@ -2302,9 +2302,15 @@ fn flow_qa_skill_exists_with_proper_frontmatter() {
         "flow-qa SKILL.md `description:` field must be non-empty"
     );
 
+    // Match a structural banner shape — `FLOW v<MAJOR>.<MINOR>.<PATCH> — flow-qa — STARTING` —
+    // rather than pinning the literal version `v2.2.0`. The pinned-version form forced
+    // every release to update this test in lockstep; the structural form names the
+    // regression target (banner present, naming the skill) without the version drift cost.
+    let banner_re =
+        Regex::new(r"FLOW v\d+\.\d+\.\d+ — flow-qa — STARTING").expect("banner regex must compile");
     assert!(
-        content.contains("FLOW v2.2.0 — flow-qa — STARTING"),
-        "flow-qa SKILL.md must contain the announce banner `FLOW v2.2.0 — flow-qa — STARTING`"
+        banner_re.is_match(&content),
+        "flow-qa SKILL.md must contain the announce banner matching `FLOW v<x>.<y>.<z> — flow-qa — STARTING`"
     );
 }
 
@@ -6098,9 +6104,17 @@ fn every_marker_writing_skill_is_in_multi_step_allowlist() {
         .split_once(';')
         .map(|(v, _)| v)
         .expect("MULTI_STEP_UTILITY_SKILLS declaration must end with `;`");
-    let marker_re = Regex::new(r"set-utility-in-progress\s+--skill\s+(flow:[a-z0-9-]+)")
-        .expect("regex must compile");
+    // Accept both `flow:`-prefixed plugin-marketplace skills (`skills/<name>/`)
+    // and bare-name project-local maintainer skills (`.claude/skills/<name>/`).
+    // The two skill roots emit different `input.skill` shapes per
+    // `.claude/rules/user-only-skills.md` "Namespacing asymmetry," so the
+    // scanner must capture both forms to honor the marker invariant across
+    // every skill family.
+    let marker_re =
+        Regex::new(r"set-utility-in-progress\s+--skill\s+(\S+)").expect("regex must compile");
     let mut missing: Vec<(String, String)> = Vec::new();
+
+    // Walk plugin-marketplace skills under `skills/`.
     for skill_name in common::all_skill_names() {
         let content = common::read_skill(&skill_name);
         for cap in marker_re.captures_iter(&content) {
@@ -6108,6 +6122,32 @@ fn every_marker_writing_skill_is_in_multi_step_allowlist() {
             let needle = format!("\"{}\"", skill_id);
             if !value.contains(&needle) {
                 missing.push((skill_name.clone(), skill_id));
+            }
+        }
+    }
+
+    // Walk project-local maintainer skills under `.claude/skills/`. These
+    // are not in `common::all_skill_names()` (which only enumerates the
+    // plugin-marketplace `skills/` tree). Without this branch, a future
+    // bare-name maintainer skill that writes a per-session marker would
+    // silently bypass the allowlist check.
+    let project_skills_dir = common::repo_root().join(".claude").join("skills");
+    if let Ok(entries) = std::fs::read_dir(&project_skills_dir) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let skill_md = entry.path().join("SKILL.md");
+            let Ok(content) = std::fs::read_to_string(&skill_md) else {
+                continue;
+            };
+            let skill_name = entry.file_name().to_string_lossy().to_string();
+            for cap in marker_re.captures_iter(&content) {
+                let skill_id = cap.get(1).unwrap().as_str().to_string();
+                let needle = format!("\"{}\"", skill_id);
+                if !value.contains(&needle) {
+                    missing.push((format!(".claude/skills/{}", skill_name), skill_id));
+                }
             }
         }
     }

@@ -248,7 +248,7 @@ See `.claude/rules/concurrency-model.md` "Mechanical Enforcement" and `.claude/r
 
 ### User-Only Skill Enforcement
 
-Five FLOW skills are reserved for direct user invocation: `/flow:flow-abort`, `/flow:flow-reset`, `/flow-release`, `/flow:flow-prime`, and `/flow:flow-continue`. The model must never invoke them. Three independent mechanical layers enforce this:
+Six FLOW skills are reserved for direct user invocation: `/flow:flow-abort`, `/flow:flow-reset`, `/flow-release`, `/flow-qa`, `/flow:flow-prime`, and `/flow:flow-continue`. The model must never invoke them. Three independent mechanical layers enforce this:
 
 1. **Layer 1 — `validate-skill` (PreToolUse:Skill)**. `src/hooks/validate_skill.rs` blocks Skill tool calls naming a user-only skill unless the persisted transcript at `transcript_path` shows the most recent user-role turn's `message.content` STARTS with one of two emission shapes Claude Code uses for user-typed slash commands: the two-line `<command-message><skill></command-message>\n<command-name>/<skill></command-name>` (Claude Code 2.1.140+) or the legacy `<command-name>/<skill></command-name>`. Backed by `src/hooks/transcript_walker.rs::last_user_message_invokes_skill`, which checks both shapes via `starts_with` disjunction so anchoring on each leading marker rejects mid-prose mentions.
 2. **Layer 2 — `validate-ask-user` carve-out**. `src/hooks/validate_ask_user.rs::user_only_skill_carve_out_applies` allows `AskUserQuestion` to fire even during in-progress autonomous phases when the most recent assistant Skill tool_use call (since the most recent user turn) targets a user-only skill. Resolves the abort-during-autonomous-flow deadlock.
@@ -274,6 +274,7 @@ Key test files: `tests/structural.rs` (config invariants, version consistency), 
 
 ## Maintainer Skills (private to this repo)
 
+- `/flow-qa` — `.claude/skills/flow-qa/SKILL.md` — file a pre-decomposed QA issue against the FLOW plugin repo for end-to-end lifecycle regression testing
 - `/flow-release` — `.claude/skills/flow-release/SKILL.md` — bump version, tag, push, create GitHub Release
 - `/flow-changelog-audit` — audit Claude Code CHANGELOG.md for plugin-relevant changes
 
@@ -297,7 +298,7 @@ When developing FLOW itself, point Claude Code at the local plugin source via `c
 - **Verify cited identifiers exist as `fn` definitions** — see `.claude/rules/skill-authoring.md` "Verify Test Function References in Issues".
 - **Ephemeral worktree-internal artifact cleanup** — disposed before `git worktree remove` via `fs::remove_file` for permission-safe, audit-trailed removal — see `.claude/rules/ephemeral-file-cleanup.md`.
 - **No run_in_background for bin/flow** — see `.claude/rules/ci-is-a-gate.md`.
-- **User-only skills (model must never invoke)** — see `.claude/rules/user-only-skills.md`. The model must not invoke `/flow:flow-abort`, `/flow:flow-reset`, `/flow-release`, `/flow:flow-prime`, or `/flow:flow-continue`; the user types these directly.
+- **User-only skills (model must never invoke)** — see `.claude/rules/user-only-skills.md`. The model must not invoke `/flow:flow-abort`, `/flow:flow-reset`, `/flow-release`, `/flow-qa`, `/flow:flow-prime`, or `/flow:flow-continue`; the user types these directly.
 - **No backwards-reasoning** — see `.claude/rules/no-backwards-reasoning.md`. Decisions about current code stand on current merits, not on commit messages, PR descriptions, doc comments, `git log`, or `git blame` as authority. Issue-filing skills (`flow-plan`, `flow-decompose-project`) include a mechanical scan that fires before the draft is presented.
 - **Include bias in issues** — see `.claude/rules/include-bias-in-issues.md`. Default to including adjacent concerns in an issue's scope; valid exclusions name a concrete blocker, not a defensive enumeration. Issue-filing skills (`flow-plan`, `flow-decompose-project`) include a mechanical scan for defensive-scope phrasings ("Out of scope", "Non-goals", "would expand scope", "separate code surface") that fires before the draft is presented.
 - **User evidence is ground truth** — when a user provides screenshots or logs that contradict your code analysis, trust the evidence. Your code reading is a hypothesis; the user's evidence is an observation.

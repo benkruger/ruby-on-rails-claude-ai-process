@@ -877,6 +877,98 @@ fn read_body_file_cleans_up_on_read_failure() {
     );
 }
 
+#[test]
+fn read_body_file_empty_path_rejected() {
+    let result = read_body_file("");
+    let err = result.expect_err("empty --body-file must reject");
+    assert!(
+        err.contains("empty"),
+        "empty-path error must name 'empty'; got: {}",
+        err
+    );
+}
+
+#[test]
+fn read_body_file_relative_dotdot_traversal_rejected() {
+    let result = read_body_file("../escape.md");
+    let err = result.expect_err("`..` traversal must reject");
+    assert!(
+        err.contains("forbidden") && err.contains("traversal"),
+        "dotdot rejection error must name 'forbidden' and 'traversal'; got: {}",
+        err
+    );
+}
+
+#[test]
+fn read_body_file_symlink_target_rejected_and_preserved() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("target.txt");
+    fs::write(&target, "preserve me").unwrap();
+    let link = dir.path().join("link.md");
+    symlink(&target, &link).unwrap();
+
+    let result = read_body_file(link.to_str().unwrap());
+
+    let err = result.expect_err("symlink must reject");
+    assert!(
+        err.contains("not a regular file"),
+        "symlink rejection error must name 'not a regular file'; got: {}",
+        err
+    );
+    assert!(
+        fs::read_to_string(&target).unwrap() == "preserve me",
+        "symlink target must survive — read_body_file must not follow the symlink"
+    );
+}
+
+#[test]
+fn read_body_file_body_exceeding_cap_rejected_and_cleaned_up() {
+    use flow_rs::plan_from_issue::PLAN_BODY_BYTE_CAP;
+
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("oversize.md");
+    let body = "x".repeat(PLAN_BODY_BYTE_CAP + 10);
+    fs::write(&file, &body).unwrap();
+
+    let result = read_body_file(file.to_str().unwrap());
+
+    let err = result.expect_err("oversize body must reject");
+    assert!(
+        err.contains("exceeds") && err.contains(&PLAN_BODY_BYTE_CAP.to_string()),
+        "oversize error must name 'exceeds' and the cap; got: {}",
+        err
+    );
+    assert!(
+        !file.exists(),
+        "oversize body file must still be cleaned up after rejection"
+    );
+}
+
+#[test]
+fn read_body_file_non_utf8_returns_error_and_cleans_up() {
+    // File::open succeeds (regular file with read permissions), but
+    // read_to_string fails because the bytes are not valid UTF-8.
+    // Covers the read_to_string Err arm in read_body_file.
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("non-utf8.md");
+    fs::write(&file, [0xFF, 0xFE, 0xFD, 0xFC]).unwrap();
+
+    let result = read_body_file(file.to_str().unwrap());
+
+    let err = result.expect_err("non-utf8 body must reject");
+    assert!(
+        err.contains("Could not read body file") && err.contains("UTF-8"),
+        "non-utf8 error must name read failure and 'UTF-8'; got: {}",
+        err
+    );
+    assert!(
+        !file.exists(),
+        "cleanup must run even when read_to_string fails on non-utf8 content"
+    );
+}
+
 /// Subprocess test for the cwd-relative resolution branch in
 /// `read_body_file`. Spawns the binary with `current_dir(<root>/subdir)`
 /// and passes a relative `--body-file` so the path-resolution path goes

@@ -15,12 +15,16 @@
 //! no inline `#[cfg(test)]` block in this file.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::{BufReader, Read};
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
 use clap::Parser;
 use regex::Regex;
 use serde_json::json;
+
+use crate::plan_from_issue::PLAN_BODY_BYTE_CAP;
 
 #[derive(Parser, Debug)]
 #[command(name = "issue", about = "Create a GitHub issue")]
@@ -170,33 +174,102 @@ struct IssueResult {
 /// Read body text from a file and delete the file.
 ///
 /// Relative paths resolve against the caller's current working
-/// directory via `std::env::current_dir()`; absolute paths are used as
-/// given. The body file is removed on both the success and failure
-/// arms so a read error does not orphan the temp file in the caller's
-/// directory.
+/// directory via `std::env::current_dir()`; absolute paths are used
+/// as given. The body file is removed on a best-effort basis on both
+/// success and failure — a read error does not orphan the temp file,
+/// but the function swallows `fs::remove_file` errors because no
+/// recovery path exists at this layer. Callers needing strict cleanup
+/// must handle deletion themselves.
+///
+/// Validation runs at the boundary per
+/// `.claude/rules/external-input-path-construction.md`:
+///
+/// - Empty path strings are rejected (would otherwise resolve to the
+///   cwd directory).
+/// - Relative paths containing `..` components are rejected (would
+///   escape the cwd subtree and expose `fs::remove_file` to
+///   arbitrary-file deletion).
+/// - Non-regular-file targets (symlinks, directories, device nodes,
+///   FIFOs) are rejected via `fs::symlink_metadata`. A hostile
+///   symlink at the path cannot redirect the read to an arbitrary
+///   file — the sibling `validate_issue_body::read_body` follows
+///   the same pattern.
+///
+/// The read is bounded by `PLAN_BODY_BYTE_CAP + 1` via
+/// `BufReader::new(file.take(...))` so an oversized or streaming
+/// body file cannot exhaust process memory; bodies exceeding the
+/// cap are rejected.
 pub fn read_body_file(path: &str) -> Result<String, String> {
+    if path.is_empty() {
+        return Err("Could not read body file: --body-file argument is empty".to_string());
+    }
+
     let resolved: PathBuf = if Path::new(path).is_absolute() {
         PathBuf::from(path)
     } else {
+        if Path::new(path)
+            .components()
+            .any(|c| matches!(c, Component::ParentDir))
+        {
+            return Err(format!(
+                "Could not read body file '{}': path contains forbidden `..` traversal segments",
+                path
+            ));
+        }
         let cwd = std::env::current_dir()
             .map_err(|e| format!("Could not determine current directory: {}", e))?;
         cwd.join(path)
     };
 
-    match fs::read_to_string(&resolved) {
-        Ok(body) => {
-            let _ = fs::remove_file(&resolved);
-            Ok(body)
-        }
+    let meta = match fs::symlink_metadata(&resolved) {
+        Ok(m) => m,
         Err(e) => {
-            let _ = fs::remove_file(&resolved);
-            Err(format!(
+            return Err(format!(
                 "Could not read body file '{}': {}",
                 resolved.display(),
                 e
-            ))
+            ));
         }
+    };
+    if !meta.file_type().is_file() {
+        return Err(format!(
+            "Could not read body file '{}': not a regular file",
+            resolved.display()
+        ));
     }
+
+    let read_cap = (PLAN_BODY_BYTE_CAP as u64) + 1;
+    let file = match File::open(&resolved) {
+        Ok(f) => f,
+        Err(e) => {
+            let _ = fs::remove_file(&resolved);
+            return Err(format!(
+                "Could not read body file '{}': {}",
+                resolved.display(),
+                e
+            ));
+        }
+    };
+    let mut reader = BufReader::new(file.take(read_cap));
+    let mut body = String::new();
+    if let Err(e) = reader.read_to_string(&mut body) {
+        let _ = fs::remove_file(&resolved);
+        return Err(format!(
+            "Could not read body file '{}': {}",
+            resolved.display(),
+            e
+        ));
+    }
+
+    let _ = fs::remove_file(&resolved);
+    if body.len() > PLAN_BODY_BYTE_CAP {
+        return Err(format!(
+            "Could not read body file '{}': body exceeds {} bytes",
+            resolved.display(),
+            PLAN_BODY_BYTE_CAP
+        ));
+    }
+    Ok(body)
 }
 
 /// Extract issue number from a GitHub issue URL.

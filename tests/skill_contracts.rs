@@ -4440,6 +4440,353 @@ fn no_exec_in_bash_blocks() {
     );
 }
 
+#[test]
+fn skills_no_mkdir_on_claude_paths() {
+    // Forbid `mkdir <flags?> <path>.claude/...` in any skill or agent
+    // bash block. Claude Code's platform protection refuses tool
+    // calls under `.claude/` regardless of allow-list patterns
+    // (`.claude/rules/skill-authoring.md` "Platform Constraints");
+    // the sanctioned path for creating skill or rule directories is
+    // `bin/flow write-rule`, which calls `fs::create_dir_all(parent)`
+    // from inside the Rust subprocess. A direct `mkdir` under
+    // `.claude/` would surface a permission prompt mid-autonomous-flow
+    // — exactly the system-initiated-prompts class
+    // `.claude/rules/autonomous-phase-discipline.md` forbids.
+    //
+    // The pattern allows optional short flags between `mkdir` and the
+    // path so `mkdir -p .claude/foo` and `mkdir -pv .claude/foo` both
+    // fail. The path captures any non-whitespace prefix followed by
+    // `.claude/` — bare `.claude/x`, `<plugin>/.claude/x`, and
+    // `~/.claude/x` are all caught.
+    let mkdir_re = Regex::new(r"mkdir(\s+-[a-z]+)?\s+[^\s]*\.claude/").unwrap();
+    let mut violations = Vec::new();
+
+    // Walk plugin-marketplace skills under `skills/`.
+    for name in common::all_skill_names() {
+        let content = common::read_skill(&name);
+        for block in common::extract_bash_blocks(&content) {
+            for line in block.lines() {
+                if mkdir_re.is_match(line) {
+                    violations.push(format!("skills/{}/SKILL.md: {}", name, line.trim()));
+                }
+            }
+        }
+    }
+
+    // Walk project-local maintainer skills under `.claude/skills/`.
+    // These are not in `common::all_skill_names()` (which only
+    // enumerates the plugin-marketplace `skills/` tree).
+    let project_skills_dir = common::repo_root().join(".claude").join("skills");
+    if let Ok(entries) = fs::read_dir(&project_skills_dir) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let skill_md = entry.path().join("SKILL.md");
+            let Ok(content) = fs::read_to_string(&skill_md) else {
+                continue;
+            };
+            let skill_name = entry.file_name().to_string_lossy().to_string();
+            for block in common::extract_bash_blocks(&content) {
+                for line in block.lines() {
+                    if mkdir_re.is_match(line) {
+                        violations.push(format!(
+                            ".claude/skills/{}/SKILL.md: {}",
+                            skill_name,
+                            line.trim()
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // Walk agents under `agents/`.
+    for agent in agent_files() {
+        let content = common::read_agent(&agent);
+        for block in common::extract_bash_blocks(&content) {
+            for line in block.lines() {
+                if mkdir_re.is_match(line) {
+                    violations.push(format!("agents/{}: {}", agent, line.trim()));
+                }
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "Skill and agent bash blocks must not run `mkdir` on `.claude/` paths — Claude Code platform protection blocks these regardless of settings.json. Route directory creation through `bin/flow write-rule` (which calls `fs::create_dir_all(parent)` internally). Violations:\n{}",
+        violations.join("\n")
+    );
+}
+
+#[test]
+fn agents_no_transcript_jsonl_reads() {
+    // Forbid references to the per-session transcript file Claude Code
+    // persists at `~/.claude/projects/.../<session>.jsonl` inside any
+    // agent prompt. Reading that file from inside a flow would surface
+    // a permission prompt (the path sits outside the project root) AND
+    // duplicates work — the sanctioned recovery surface is
+    // `compact_summary` in `.flow-states/<branch>/state.json` per
+    // `.claude/rules/post-compaction-recovery.md`. The
+    // `validate-claude-paths` hook mechanically blocks the Read at the
+    // tool layer; the scanner here prevents an agent prompt from
+    // instructing the model to attempt the read in the first place.
+    //
+    // Match pattern: any path containing `.claude/projects/` followed by
+    // a non-whitespace path tail ending in `.jsonl`. Anchored to
+    // `.claude/projects/` rather than `~/` so absolute paths
+    // (`/Users/<name>/.claude/projects/...`) and env-var-expanded
+    // forms (`$HOME/.claude/projects/...`) are all caught. The
+    // `.jsonl` suffix anchors the match to transcript files
+    // specifically — legitimate `~/.claude/projects/*/memory/*`
+    // references (used by other tooling for auto-memory) do not end
+    // in `.jsonl` and are not flagged. Match is case-insensitive on
+    // the `.jsonl` extension via the `(?i)` flag.
+    let re = Regex::new(r"(?i)\.claude/projects/[^\s]*\.jsonl").unwrap();
+    let mut violations = Vec::new();
+    for agent in agent_files() {
+        let content = common::read_agent(&agent);
+        for (i, line) in content.lines().enumerate() {
+            if re.is_match(line) {
+                violations.push(format!("agents/{}:{}: {}", agent, i + 1, line.trim()));
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "Agent prompts must not instruct the model to read the persisted transcript file. Use the `compact_summary` field in `.flow-states/<branch>/state.json` per `.claude/rules/post-compaction-recovery.md`. Violations:\n{}",
+        violations.join("\n")
+    );
+}
+
+/// Scan every skill and agent for `Write(/tmp/<path>.<ext>)` references
+/// where `<ext>` falls outside the closed allow set
+/// (`.txt`, `.diff`, `.patch`, `.md`, `.json`, `.jsonl`). Extensions
+/// outside that set continue to require an explicit permission prompt
+/// by design — per `.claude/rules/permissions.md` "Symmetric R+W /tmp/
+/// Extension Policy" — so a skill instruction that names one would
+/// surface a permission prompt mid-autonomous-flow.
+///
+/// The match operates on the literal source text (skill/agent prose
+/// AND bash blocks). The plan's permission-coverage tests for
+/// allow-list entries cover `Bash(...)` patterns; this scanner covers
+/// the `Write(...)` tool-call shape that the symmetric /tmp/ policy
+/// concerns.
+#[test]
+fn skills_no_tmp_writes_outside_allowed_extensions() {
+    // The closed extension set per `.claude/rules/permissions.md`
+    // "Symmetric R+W /tmp/ Extension Policy."
+    const ALLOWED: &[&str] = &["txt", "diff", "patch", "md", "json", "jsonl"];
+
+    // Match `Write(/tmp/...)` or `Write(//tmp/...)`. UNIVERSAL_ALLOW
+    // patterns use the double-slash form; skill prose may use either.
+    // The optional second slash is captured via `/?`. The extension
+    // capture is optional — a missing extension (`Write(/tmp/scratch)`)
+    // is itself a violation because no closed-set entry covers it,
+    // surfacing a permission prompt at runtime.
+    let re = Regex::new(r"Write\(//?tmp/([^)]+)\)").unwrap();
+    let mut violations = Vec::new();
+
+    let classify = |inner: &str| -> Option<String> {
+        // Extract the extension if present (text after the last
+        // `.` in the path tail). Missing extension → return None,
+        // which the caller treats as a violation.
+        inner
+            .rsplit_once('.')
+            .map(|(_, ext)| ext.to_ascii_lowercase())
+    };
+
+    let check = |label: String, line_no: usize, line: &str, violations: &mut Vec<String>| {
+        for cap in re.captures_iter(line) {
+            let inner = cap.get(1).unwrap().as_str();
+            let match_text = cap.get(0).unwrap().as_str();
+            match classify(inner) {
+                Some(ext) if ALLOWED.contains(&ext.as_str()) => {} // in-set, allowed
+                Some(ext) => violations.push(format!(
+                    "{}:{}: {} — extension `.{}` is outside the closed allow set",
+                    label,
+                    line_no + 1,
+                    match_text,
+                    ext
+                )),
+                None => violations.push(format!(
+                    "{}:{}: {} — extensionless /tmp/ writes have no allow-list entry",
+                    label,
+                    line_no + 1,
+                    match_text
+                )),
+            }
+        }
+    };
+
+    // Plugin-marketplace skills.
+    for name in common::all_skill_names() {
+        let content = common::read_skill(&name);
+        for (i, line) in content.lines().enumerate() {
+            check(
+                format!("skills/{}/SKILL.md", name),
+                i,
+                line,
+                &mut violations,
+            );
+        }
+    }
+
+    // Project-local maintainer skills.
+    let project_skills_dir = common::repo_root().join(".claude").join("skills");
+    if let Ok(entries) = fs::read_dir(&project_skills_dir) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let skill_md = entry.path().join("SKILL.md");
+            let Ok(content) = fs::read_to_string(&skill_md) else {
+                continue;
+            };
+            let skill_name = entry.file_name().to_string_lossy().to_string();
+            for (i, line) in content.lines().enumerate() {
+                check(
+                    format!(".claude/skills/{}/SKILL.md", skill_name),
+                    i,
+                    line,
+                    &mut violations,
+                );
+            }
+        }
+    }
+
+    // Agents.
+    for agent in agent_files() {
+        let content = common::read_agent(&agent);
+        for (i, line) in content.lines().enumerate() {
+            check(format!("agents/{}", agent), i, line, &mut violations);
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "Skill/agent Write(/tmp/) references must use one of the closed extension set: txt, diff, patch, md, json, jsonl. Per `.claude/rules/permissions.md` 'Symmetric R+W /tmp/ Extension Policy', extensions outside the set require an explicit permission prompt. Violations:\n{}",
+        violations.join("\n")
+    );
+}
+
+/// Scan every skill and agent for placeholder-anchor language that
+/// describes the forbidden "write a stub file, then redirect command
+/// output into it" pattern. Three trigger phrasings:
+///
+/// 1. `placeholder` and `anchor` co-occurring within 5 lines of each
+///    other.
+/// 2. `anchor` followed by `redirect` on the same line.
+/// 3. `empty` ... `file` ... `then` ... `redirect` on the same line.
+///
+/// See `.claude/rules/no-placeholder-anchors.md` for the rule the
+/// scanner enforces and the sanctioned alternatives (Read tool on
+/// persisted log files, atomic Write tool calls,
+/// `bin/flow write-rule` for managed artifacts).
+#[test]
+fn skills_no_placeholder_anchor_language() {
+    // The forbidden mechanic is "write a stub file, then redirect
+    // command output into it." Trigger vocabulary targets that exact
+    // pattern. `placeholder.*redirect` on a single line is more
+    // specific than `anchor.*redirect` (the latter catches legitimate
+    // prose like "anchor the discovery step and redirect to ...").
+    // `empty.*file.*then.*redirect` catches the imperative form.
+    let placeholder_redirect_re = Regex::new(r"(?i)placeholder.*redirect").unwrap();
+    let empty_then_redirect_re = Regex::new(r"(?i)empty.*file.*then.*redirect").unwrap();
+    let mut violations = Vec::new();
+
+    let scan = |label: &str, content: &str, violations: &mut Vec<String>| {
+        let lines: Vec<&str> = content.lines().collect();
+        for (i, line) in lines.iter().enumerate() {
+            let lower = line.to_ascii_lowercase();
+            // Opt-out comment grammar: a line that carries the
+            // marker `<!-- no-placeholder-anchors: not-anchored -->`
+            // suppresses every trigger on that line. The marker is
+            // the standard escape hatch for legitimate prose that
+            // happens to use the trigger vocabulary in a non-
+            // forbidden sense (e.g., describing the anti-pattern
+            // itself).
+            if line.contains("<!-- no-placeholder-anchors: not-anchored -->") {
+                continue;
+            }
+            // Trigger 1: placeholder ↔ anchor within 5 lines.
+            // The proximity check catches multi-line prose that
+            // walks the model through stub-file-then-anchor steps.
+            if lower.contains("placeholder") {
+                let lo = i.saturating_sub(5);
+                let hi = (i + 6).min(lines.len());
+                for (j, near) in lines[lo..hi].iter().enumerate() {
+                    if near.to_ascii_lowercase().contains("anchor") {
+                        violations.push(format!(
+                            "{}:{}: 'placeholder' near 'anchor' (line {})",
+                            label,
+                            i + 1,
+                            lo + j + 1
+                        ));
+                        break;
+                    }
+                }
+            }
+            // Trigger 2 + 3: same-line patterns targeting the actual
+            // forbidden mechanic.
+            if placeholder_redirect_re.is_match(&lower) {
+                violations.push(format!(
+                    "{}:{}: 'placeholder.*redirect': {}",
+                    label,
+                    i + 1,
+                    line.trim()
+                ));
+            }
+            if empty_then_redirect_re.is_match(&lower) {
+                violations.push(format!(
+                    "{}:{}: 'empty.*file.*then.*redirect': {}",
+                    label,
+                    i + 1,
+                    line.trim()
+                ));
+            }
+        }
+    };
+
+    for name in common::all_skill_names() {
+        let content = common::read_skill(&name);
+        scan(
+            &format!("skills/{}/SKILL.md", name),
+            &content,
+            &mut violations,
+        );
+    }
+    let project_skills_dir = common::repo_root().join(".claude").join("skills");
+    if let Ok(entries) = fs::read_dir(&project_skills_dir) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let skill_md = entry.path().join("SKILL.md");
+            let Ok(content) = fs::read_to_string(&skill_md) else {
+                continue;
+            };
+            let skill_name = entry.file_name().to_string_lossy().to_string();
+            scan(
+                &format!(".claude/skills/{}/SKILL.md", skill_name),
+                &content,
+                &mut violations,
+            );
+        }
+    }
+    for agent in agent_files() {
+        let content = common::read_agent(&agent);
+        scan(&format!("agents/{}", agent), &content, &mut violations);
+    }
+
+    assert!(
+        violations.is_empty(),
+        "Skill/agent prose must not describe the placeholder-anchor pattern (write a stub file, then redirect command output into it). Per `.claude/rules/no-placeholder-anchors.md`, the redirect is blocked by `validate-pretool` and the placeholder anchors nothing. Use the Read tool on persisted log files, an atomic Write tool call, or `bin/flow write-rule` instead. Violations:\n{}",
+        violations.join("\n")
+    );
+}
+
 // --- Prime preset ordering ---
 
 #[test]

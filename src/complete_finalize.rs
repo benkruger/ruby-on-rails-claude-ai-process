@@ -85,10 +85,15 @@ pub fn run_impl(args: &Args) -> Value {
     let branch = &args.branch;
 
     // Best-effort logging — `try_new` tolerates slash-containing
-    // branches per `.claude/rules/external-input-validation.md`.
+    // branches per `.claude/rules/external-input-validation.md`. The
+    // guard checks the branch directory rather than the parent
+    // `.flow-states/` directory so that the post-cleanup invocation
+    // skips when cleanup has just removed the branch directory:
+    // `append_log` calls `ensure_branch_dir()`, and a parent-scoped
+    // guard would resurrect the directory cleanup just removed.
     let log = |msg: &str| {
         if let Some(paths) = FlowPaths::try_new(&root, branch) {
-            if paths.flow_states_dir().is_dir() {
+            if paths.branch_dir().is_dir() {
                 let _ = append_log(&root, branch, msg);
             }
         }

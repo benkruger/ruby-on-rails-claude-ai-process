@@ -208,8 +208,28 @@ fn finalize_with_broken_flow_stubs_populates_post_merge_failures() {
     );
 }
 
+/// The log closure inside `complete_finalize::run_impl` fires twice:
+/// once before cleanup (the "starting" line) and once after cleanup
+/// (the "done" line). Cleanup deletes `.flow-states/<branch>/` via
+/// `try_remove_branch_dir`. If the post-cleanup log call's guard
+/// checks `flow_states_dir().is_dir()` (the parent directory, which
+/// survives cleanup because it holds sibling branches and the
+/// machine-level singletons), `append_log` then runs
+/// `ensure_branch_dir()` and recreates the just-deleted branch
+/// directory. The result is that `.flow-states/<branch>/` returns
+/// containing only the "done" line — silently undoing cleanup's
+/// removal step.
+///
+/// This test exercises the full subprocess path with a fixture that
+/// pre-creates the branch directory. After the call returns, the
+/// branch directory must NOT exist on disk: cleanup removed it and
+/// no subsequent code path may resurrect it. The pre-cleanup
+/// "starting" log line still fires while the branch directory
+/// exists; the cleanup-side audit trail (the
+/// `[Phase 5] cleanup — in progress` line) is covered by
+/// `tests/cleanup.rs` tests against the cleanup module directly.
 #[test]
-fn finalize_log_closure_writes_when_flow_states_dir_exists() {
+fn complete_finalize_does_not_recreate_branch_dir_after_cleanup() {
     let dir = tempfile::tempdir().unwrap();
     let parent = dir.path().canonicalize().unwrap();
     let repo = make_repo_fixture(&parent);
@@ -217,6 +237,13 @@ fn finalize_log_closure_writes_when_flow_states_dir_exists() {
     let flow_bin = parent.join("bin-flow-stub").join("flow");
     write_success_flow_stub(&flow_bin);
     let stubs = path_stub_dir(&parent);
+
+    let branch_dir = repo.join(".flow-states").join(BRANCH);
+    assert!(
+        branch_dir.exists(),
+        "fixture must pre-create the branch dir at {}",
+        branch_dir.display()
+    );
 
     let (code, _, _) = run_complete_finalize(
         &repo,
@@ -230,17 +257,10 @@ fn finalize_log_closure_writes_when_flow_states_dir_exists() {
     );
 
     assert_eq!(code, 0);
-    let log_path = repo.join(".flow-states").join(BRANCH).join("log");
     assert!(
-        log_path.exists(),
-        "log closure must write to {} when .flow-states/ exists",
-        log_path.display()
-    );
-    let log_content = fs::read_to_string(&log_path).unwrap_or_default();
-    assert!(
-        log_content.contains("complete-finalize"),
-        "log must contain complete-finalize entries; got: {}",
-        log_content
+        !branch_dir.exists(),
+        "branch directory must not exist after cleanup; found: {}",
+        branch_dir.display()
     );
 }
 

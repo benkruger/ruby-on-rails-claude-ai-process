@@ -198,6 +198,28 @@ impl FlowPaths {
         self.branch_dir().join("state.json")
     }
 
+    /// `<project_root>/.worktrees/<branch>/` — the git worktree
+    /// directory FLOW creates for this branch at flow-start. Derived
+    /// from the project root and branch name held by this instance,
+    /// so callers that already validated the branch via `try_new`
+    /// inherit a `/`-free, `\0`-free, non-empty component.
+    ///
+    /// Named production consumer: `src/finalize_commit.rs::run_impl`
+    /// uses this to route every git operation, the CI sub-invocation,
+    /// and the tree snapshot through the worktree path derived from
+    /// the explicit `<branch>` argument — independent of the caller's
+    /// cwd. The path returned is `<project_root>/.worktrees/<branch>`,
+    /// where `<project_root>` is recovered as the parent of
+    /// `flow_states_dir` (which is `<project_root>/.flow-states`).
+    pub fn worktree(&self) -> PathBuf {
+        let project_root = self
+            .flow_states_dir
+            .parent()
+            .unwrap_or(Path::new(""))
+            .to_path_buf();
+        project_root.join(".worktrees").join(&self.branch)
+    }
+
     /// `<branch_dir>/log` — session log appended by skills and Rust
     /// modules via `append_log`.
     pub fn log_file(&self) -> PathBuf {

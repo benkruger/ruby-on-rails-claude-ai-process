@@ -675,21 +675,36 @@ pub fn cleanup_all(project_root: &Path, dry_run: bool) -> Value {
     };
 
     // Tail step: base-branch CI sentinel directory removal at
-    // `.flow-states/<base_branch>/`.
-    let base_path = states_dir.join(&base_branch);
-    let base_dir = if dry_run {
-        if base_path.is_dir() {
-            "would_remove".to_string()
+    // `.flow-states/<base_branch>/`. The resolved `base_branch`
+    // comes from `git symbolic-ref --short refs/remotes/origin/HEAD`
+    // and is unvalidated state-derived input — git permits
+    // slash-containing branches as origin/HEAD targets (e.g.
+    // `feature/main`). Per `.claude/rules/branch-path-safety.md`,
+    // the value must pass `FlowPaths::is_valid_branch` before
+    // reaching `states_dir.join(...)` + `fs::remove_dir_all(...)` —
+    // otherwise an invalid branch traverses one directory deeper
+    // than the per-branch scope and the recursive deletion can
+    // strand adjacent flow state. When the validator rejects, the
+    // tail step skips entirely; the unsafe value still surfaces in
+    // the `base_branch` JSON field for diagnostic visibility.
+    let base_dir = if !FlowPaths::is_valid_branch(&base_branch) {
+        format!("skipped: invalid base_branch {:?}", base_branch)
+    } else {
+        let base_path = states_dir.join(&base_branch);
+        if dry_run {
+            if base_path.is_dir() {
+                "would_remove".to_string()
+            } else {
+                "skipped".to_string()
+            }
+        } else if base_path.is_dir() {
+            match fs::remove_dir_all(&base_path) {
+                Ok(()) => "removed".to_string(),
+                Err(e) => format!("failed: {}", e),
+            }
         } else {
             "skipped".to_string()
         }
-    } else if base_path.is_dir() {
-        match fs::remove_dir_all(&base_path) {
-            Ok(()) => "removed".to_string(),
-            Err(e) => format!("failed: {}", e),
-        }
-    } else {
-        "skipped".to_string()
     };
 
     // Tail step: residual start-queue/ entry sweep. The queue_dir

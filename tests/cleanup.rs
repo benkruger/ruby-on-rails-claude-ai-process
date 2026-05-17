@@ -1250,6 +1250,64 @@ fn cleanup_all_removes_base_branch_sentinel_on_non_main_repo() {
     assert!(!staging_dir.exists());
 }
 
+/// `cleanup_all` resolves `base_branch` via `default_branch_in`
+/// which returns the raw output of `git symbolic-ref --short
+/// refs/remotes/origin/HEAD` with the `origin/` prefix stripped.
+/// Git permits slash-containing branch names as `origin/HEAD`
+/// targets (e.g. `feature/foo`). Per
+/// `.claude/rules/branch-path-safety.md`, that value must pass
+/// `FlowPaths::is_valid_branch` before reaching
+/// `states_dir.join(...)` + `fs::remove_dir_all(...)` — otherwise
+/// the deletion traverses one directory deeper than the per-branch
+/// scope. This test seeds `origin/HEAD → origin/feature/foo` and
+/// asserts cleanup_all skips the tail step with a structured
+/// `base_dir` field rather than deleting `.flow-states/feature/foo`
+/// (or, worse, escaping the .flow-states/ scope entirely).
+#[test]
+fn cleanup_all_skips_base_dir_when_default_branch_is_slash_containing() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    let _ = StdCommand::new("git")
+        .args(["remote", "add", "origin", dir.path().to_str().unwrap()])
+        .current_dir(dir.path())
+        .output()
+        .expect("git remote add");
+    let _ = StdCommand::new("git")
+        .args(["update-ref", "refs/remotes/origin/feature/foo", "HEAD"])
+        .current_dir(dir.path())
+        .output()
+        .expect("git update-ref");
+    let _ = StdCommand::new("git")
+        .args([
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/feature/foo",
+        ])
+        .current_dir(dir.path())
+        .output()
+        .expect("git symbolic-ref");
+
+    // Create a sibling directory the deletion MUST NOT touch.
+    let sibling = dir.path().join(".flow-states/feature/foo");
+    fs::create_dir_all(&sibling).unwrap();
+    fs::write(sibling.join("ci-passed"), "snapshot").unwrap();
+
+    let value = run_impl_main(&args_all(dir.path(), false)).0;
+
+    assert_eq!(value["base_branch"], "feature/foo");
+    let base_dir_str = value["base_dir"].as_str().unwrap();
+    assert!(
+        base_dir_str.starts_with("skipped: invalid base_branch"),
+        "expected skipped tail step for invalid base_branch, got: {}",
+        base_dir_str
+    );
+    assert!(
+        sibling.exists(),
+        "sibling directory must survive — cleanup_all must not traverse \
+         into a slash-containing base_branch path"
+    );
+}
+
 #[test]
 fn cleanup_all_states_dir_unreadable_skips_per_flow_walk() {
     // Covers the `if let Ok(entries) = fs::read_dir(&states_dir)`

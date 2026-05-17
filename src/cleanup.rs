@@ -9,10 +9,12 @@
 //! - **All-flows (`--all`)** — used by `/flow:flow-reset`. Walks every
 //!   subdirectory of `.flow-states/` that contains a `state.json` and
 //!   runs the per-branch cleanup against each flow. Then runs three
-//!   machine-level tail steps: remove `orchestrate.json`, remove
-//!   `.flow-states/main/`, and sweep any residual `start-queue/` entries
-//!   left behind by interrupted starts. `--dry-run` returns an inventory
-//!   of what would be removed without modifying disk.
+//!   machine-level tail steps: remove `orchestrate.json`, remove the
+//!   base-branch CI sentinel directory at `.flow-states/<base_branch>/`
+//!   (where `<base_branch>` is resolved per-repo via
+//!   `git::default_branch_in`), and sweep any residual `start-queue/`
+//!   entries left behind by interrupted starts. `--dry-run` returns
+//!   an inventory of what would be removed without modifying disk.
 //!
 //! Per-branch usage:
 //!   bin/flow cleanup <project_root> --branch <name> --worktree <path> [--pr <number>] [--pull]
@@ -27,7 +29,7 @@
 //!
 //! All-flows output (JSON to stdout):
 //!   {"status": "ok", "dry_run": <bool>, "flows": [...], "orchestrate_json": ...,
-//!    "main_dir": ..., "queue_sweep": ...}
+//!    "base_dir": ..., "base_branch": <resolved trunk name>, "queue_sweep": ...}
 //!
 //! Each step reports one of: "removed"/"deleted"/"closed"/"pulled", "skipped", or "failed: <reason>".
 //!
@@ -489,8 +491,12 @@ pub fn cleanup(
 ///
 /// - `orchestrate.json` removal — the machine-level orchestration
 ///   queue singleton.
-/// - `.flow-states/main/` removal — the base-branch CI sentinel
-///   directory written by `start-gate`.
+/// - base-branch CI sentinel directory removal — the
+///   `.flow-states/<base_branch>/` directory written by `start-gate`,
+///   where `<base_branch>` is the repository's integration branch
+///   resolved via `git::default_branch_in` (e.g. `main`, `staging`).
+///   The resolved trunk name is surfaced in the `base_branch` field
+///   of the JSON output and the removal result lives under `base_dir`.
 /// - residual `start-queue/` entry sweep — entries left after
 ///   per-flow cleanups, e.g. orphans from interrupted starts.
 ///
@@ -511,23 +517,28 @@ pub fn cleanup(
 /// `is_safe_worktree_rel`: per-flow `error` field, walk continues.
 ///
 /// **Concurrency.** This function is invoked exclusively from
-/// `/flow:flow-reset`, whose Guard gates entry on `git branch
-/// --show-current == main` (the user must be on the integration
-/// branch at the project root). The reset is destructive by
-/// design: it sweeps the start-lock queue, deletes
-/// `.flow-states/main/` (the base-branch CI sentinel directory),
-/// and removes orchestrate.json — none of which are coordinated
-/// with the start lock. Any concurrent `flow-start` running on
-/// the same machine during a `cleanup_all` invocation will be
-/// disrupted (the next start may re-run base-branch CI because
-/// the sentinel was removed; an in-flight start may have its
-/// queue entry deleted mid-acquire). The user invoking flow-reset
-/// has accepted that "reset every FLOW artifact" includes the
-/// start lock and the orchestration queue. The 30-minute stale
-/// timeout on queue entries protects against permanent block;
-/// recovery from sentinel-loss is automatic on the next CI run.
+/// `/flow:flow-reset`, whose Guard gates entry on the user being
+/// on the repository's integration branch at the project root.
+/// The reset is destructive by design: it sweeps the start-lock
+/// queue, deletes the base-branch CI sentinel directory at
+/// `.flow-states/<base_branch>/`, and removes orchestrate.json —
+/// none of which are coordinated with the start lock. Any
+/// concurrent `flow-start` running on the same machine during a
+/// `cleanup_all` invocation will be disrupted (the next start may
+/// re-run base-branch CI because the sentinel was removed; an
+/// in-flight start may have its queue entry deleted mid-acquire).
+/// The user invoking flow-reset has accepted that "reset every
+/// FLOW artifact" includes the start lock and the orchestration
+/// queue. The 30-minute stale timeout on queue entries protects
+/// against permanent block; recovery from sentinel-loss is
+/// automatic on the next CI run.
 pub fn cleanup_all(project_root: &Path, dry_run: bool) -> Value {
     let states_dir = FlowStatesDir::new(project_root).path().to_path_buf();
+    // Resolve the repository's integration branch so the base-branch
+    // CI sentinel directory tail step targets the correct trunk.
+    // `default_branch_in` falls back to `"main"` when origin/HEAD is
+    // unset, so legacy main-trunk repos behave unchanged.
+    let base_branch = crate::git::default_branch_in(project_root);
     let mut flows: Vec<Value> = Vec::new();
 
     if states_dir.is_dir() {
@@ -663,21 +674,37 @@ pub fn cleanup_all(project_root: &Path, dry_run: bool) -> Value {
         }
     };
 
-    // Tail step: `.flow-states/main/` directory removal.
-    let main_path = states_dir.join("main");
-    let main_dir = if dry_run {
-        if main_path.is_dir() {
-            "would_remove".to_string()
+    // Tail step: base-branch CI sentinel directory removal at
+    // `.flow-states/<base_branch>/`. The resolved `base_branch`
+    // comes from `git symbolic-ref --short refs/remotes/origin/HEAD`
+    // and is unvalidated state-derived input — git permits
+    // slash-containing branches as origin/HEAD targets (e.g.
+    // `feature/main`). Per `.claude/rules/branch-path-safety.md`,
+    // the value must pass `FlowPaths::is_valid_branch` before
+    // reaching `states_dir.join(...)` + `fs::remove_dir_all(...)` —
+    // otherwise an invalid branch traverses one directory deeper
+    // than the per-branch scope and the recursive deletion can
+    // strand adjacent flow state. When the validator rejects, the
+    // tail step skips entirely; the unsafe value still surfaces in
+    // the `base_branch` JSON field for diagnostic visibility.
+    let base_dir = if !FlowPaths::is_valid_branch(&base_branch) {
+        format!("skipped: invalid base_branch {:?}", base_branch)
+    } else {
+        let base_path = states_dir.join(&base_branch);
+        if dry_run {
+            if base_path.is_dir() {
+                "would_remove".to_string()
+            } else {
+                "skipped".to_string()
+            }
+        } else if base_path.is_dir() {
+            match fs::remove_dir_all(&base_path) {
+                Ok(()) => "removed".to_string(),
+                Err(e) => format!("failed: {}", e),
+            }
         } else {
             "skipped".to_string()
         }
-    } else if main_path.is_dir() {
-        match fs::remove_dir_all(&main_path) {
-            Ok(()) => "removed".to_string(),
-            Err(e) => format!("failed: {}", e),
-        }
-    } else {
-        "skipped".to_string()
     };
 
     // Tail step: residual start-queue/ entry sweep. The queue_dir
@@ -728,7 +755,8 @@ pub fn cleanup_all(project_root: &Path, dry_run: bool) -> Value {
         "dry_run": dry_run,
         "flows": flows,
         "orchestrate_json": orchestrate_json,
-        "main_dir": main_dir,
+        "base_dir": base_dir,
+        "base_branch": base_branch,
         "queue_sweep": queue_sweep,
     })
 }

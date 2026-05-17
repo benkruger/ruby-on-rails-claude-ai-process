@@ -208,8 +208,31 @@ fn finalize_with_broken_flow_stubs_populates_post_merge_failures() {
     );
 }
 
+/// The log closure inside `complete_finalize::run_impl` writes the
+/// pre-cleanup "starting" line while the branch directory still
+/// exists, then attempts a post-cleanup "done" line. The closure's
+/// guard is scoped to `branch_dir().is_dir()` — narrower than the
+/// parent `.flow-states/` directory which survives cleanup —
+/// because a parent-scoped guard would let `append_log` call
+/// `ensure_branch_dir()` and recreate the directory cleanup just
+/// removed, silently undoing the removal step. On the happy path
+/// the post-cleanup call is therefore a no-op; the partial-failure
+/// path (cleanup leaves the branch directory intact) is the only
+/// case where the "done" line lands on disk.
+///
+/// This test exercises the full subprocess path with a fixture that
+/// pre-creates the branch directory. After the call returns, the
+/// branch directory must NOT exist on disk: cleanup removed it and
+/// no subsequent code path may resurrect it. The pre-cleanup
+/// "starting" log line still fires while the branch directory
+/// exists, but its file is removed alongside the branch directory.
+/// The cleanup-side audit trail (the `[Phase 5] cleanup — in progress`
+/// line) is covered by `tests/cleanup.rs` tests against the cleanup
+/// module directly, and the cleanup result is always available to
+/// callers via the JSON `cleanup` envelope `complete_finalize`
+/// returns.
 #[test]
-fn finalize_log_closure_writes_when_flow_states_dir_exists() {
+fn complete_finalize_does_not_recreate_branch_dir_after_cleanup() {
     let dir = tempfile::tempdir().unwrap();
     let parent = dir.path().canonicalize().unwrap();
     let repo = make_repo_fixture(&parent);
@@ -217,6 +240,13 @@ fn finalize_log_closure_writes_when_flow_states_dir_exists() {
     let flow_bin = parent.join("bin-flow-stub").join("flow");
     write_success_flow_stub(&flow_bin);
     let stubs = path_stub_dir(&parent);
+
+    let branch_dir = repo.join(".flow-states").join(BRANCH);
+    assert!(
+        branch_dir.exists(),
+        "fixture must pre-create the branch dir at {}",
+        branch_dir.display()
+    );
 
     let (code, _, _) = run_complete_finalize(
         &repo,
@@ -230,17 +260,10 @@ fn finalize_log_closure_writes_when_flow_states_dir_exists() {
     );
 
     assert_eq!(code, 0);
-    let log_path = repo.join(".flow-states").join(BRANCH).join("log");
     assert!(
-        log_path.exists(),
-        "log closure must write to {} when .flow-states/ exists",
-        log_path.display()
-    );
-    let log_content = fs::read_to_string(&log_path).unwrap_or_default();
-    assert!(
-        log_content.contains("complete-finalize"),
-        "log must contain complete-finalize entries; got: {}",
-        log_content
+        !branch_dir.exists(),
+        "branch directory must not exist after cleanup; found: {}",
+        branch_dir.display()
     );
 }
 
@@ -639,6 +662,78 @@ fn complete_finalize_no_sentinel_when_pull_disabled() {
     assert!(
         !sentinel_path.exists(),
         "sentinel must NOT exist when --pull is unset"
+    );
+}
+
+/// `--pull` succeeds but the state file's `base_branch` field is a
+/// slash-containing value (`origin/HEAD` resolves to a branch like
+/// `feature/foo`). Without an `is_valid_branch` guard around the
+/// sentinel write, `sentinel_path` would call
+/// `FlowPaths::try_new(...).expect()` and panic — surfacing a Rust
+/// backtrace to the user mid-cleanup. Per
+/// `.claude/rules/branch-path-safety.md`, state-derived branches
+/// must pass `is_valid_branch` before reaching the panicking
+/// constructor. Sentinel writing is best-effort, so the
+/// invalid-branch path skips the write entirely; the next
+/// start-gate run re-establishes the sentinel.
+#[test]
+fn complete_finalize_skips_sentinel_when_base_branch_is_slash_containing() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = dir.path().canonicalize().unwrap();
+    let repo = make_repo_fixture(&parent);
+    // Push a feature/foo branch to the bare remote so the cleanup's
+    // git pull origin feature/foo succeeds — without that, git_pull
+    // returns "failed: ..." and the outer if-block never runs, so
+    // the inner is_valid_branch guard's false branch isn't exercised.
+    let _ = std::process::Command::new("git")
+        .args(["push", "origin", "HEAD:refs/heads/feature/foo"])
+        .current_dir(&repo)
+        .output()
+        .expect("push feature/foo");
+    let branch_dir = repo.join(".flow-states").join(BRANCH);
+    fs::create_dir_all(&branch_dir).unwrap();
+    let state_path = branch_dir.join("state.json");
+    let mut state = common::make_complete_state(BRANCH, "complete", None);
+    state["base_branch"] = json!("feature/foo");
+    fs::write(&state_path, serde_json::to_string_pretty(&state).unwrap()).unwrap();
+    let flow_bin = parent.join("bin-flow-stub").join("flow");
+    write_success_flow_stub(&flow_bin);
+    let stubs = path_stub_dir(&parent);
+
+    let (code, stdout, stderr) = run_complete_finalize(
+        &repo,
+        "42",
+        state_path.to_string_lossy().as_ref(),
+        BRANCH,
+        ".worktrees/test-feature",
+        true, // --pull
+        Some(&flow_bin),
+        Some(&stubs),
+    );
+
+    assert_eq!(code, 0);
+    assert!(
+        !stderr.contains("panicked at"),
+        "complete-finalize must not panic on slash-containing base_branch; stderr={}",
+        stderr
+    );
+    let json = last_json_line(&stdout);
+    assert_eq!(
+        json["cleanup"]["git_pull"], "pulled",
+        "fixture must produce a clean pull so the sentinel branch is reachable: {}",
+        json
+    );
+    // No sentinel path is computable for a slash-containing branch
+    // (FlowPaths::try_new returns None), so we cannot assert against
+    // a canonical path. Instead assert no sentinel ever lands under
+    // .flow-states/feature/ — which would only exist if the guard
+    // failed and the write traversed into the slash-containing path.
+    let invalid_sentinel_root = repo.join(".flow-states").join("feature");
+    assert!(
+        !invalid_sentinel_root.exists(),
+        "guard must skip sentinel write entirely for slash-containing \
+         base_branch; found unexpected path: {}",
+        invalid_sentinel_root.display()
     );
 }
 

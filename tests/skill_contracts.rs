@@ -1531,12 +1531,45 @@ fn commit_no_docs_sync() {
 
 // --- Reset skill ---
 
+/// The flow-reset Guard must resolve the integration branch via
+/// `bin/flow base-branch` rather than hardcoding `main`. The resolved
+/// name flows into the rejection message via a `<base_branch>`
+/// placeholder so the user sees the actual trunk name on
+/// staging/develop/master repos.
 #[test]
-fn reset_guard_requires_main_branch() {
+fn reset_guard_requires_base_branch() {
     let c = common::read_skill("flow-reset");
     assert!(
-        c.contains("main") && c.contains("branch"),
-        "Reset must guard against running outside main branch"
+        c.contains("bin/flow base-branch"),
+        "flow-reset Guard must invoke `bin/flow base-branch` to resolve \
+         the integration branch dynamically"
+    );
+    assert!(
+        c.contains("<base_branch>"),
+        "flow-reset Guard rejection message must reference the resolved \
+         trunk via the `<base_branch>` placeholder so the message names \
+         the actual branch on non-main-trunk repos"
+    );
+}
+
+/// Tombstone-style guard against reintroducing a hardcoded `main`
+/// literal in user-visible flow-reset prose. Parallels
+/// `flow_start_prose_no_universal_main`. The bright-line forbidden
+/// phrasing is `Must be on main` — a future edit must paraphrase
+/// rather than name the integration branch by its `main` literal so
+/// staging/develop/master-trunked repos see the correct branch name.
+#[test]
+fn reset_no_universal_main() {
+    let c = common::read_skill("flow-reset");
+    assert!(
+        !c.contains("Must be on main"),
+        "flow-reset must not hardcode `Must be on main` — substitute the \
+         resolved `<base_branch>` placeholder into the rejection message"
+    );
+    assert!(
+        !c.contains("Available from `main` only"),
+        "flow-reset Rules must not name `main` as the only valid branch \
+         — use `the integration branch` instead"
     );
 }
 

@@ -14,28 +14,40 @@ and PRs that the per-feature `/flow:flow-abort` cannot reach.
 The skill is a thin wrapper around `bin/flow cleanup --all`. The Rust primitive
 walks `.flow-states/` for every flow with a `state.json`, runs the per-branch
 cleanup against each, then runs the three machine-level tail steps
-(`orchestrate.json`, `.flow-states/main/`, `start-queue/` sweep). The directory
-shells (`.flow-states/`, `.flow-states/start-queue/`) survive so subsequent
+(`orchestrate.json`, the base-branch CI sentinel directory at
+`.flow-states/<base_branch>/`, `start-queue/` sweep). The directory shells
+(`.flow-states/`, `.flow-states/start-queue/`) survive so subsequent
 flow-starts do not need to recreate them.
 
 ## Guard
 
-Reset must run from the project root with `main` checked out. Running from a
-worktree would attempt to remove the worktree mid-execution.
+Reset must run from the project root with the repository's integration branch
+checked out. Running from a worktree would attempt to remove the worktree
+mid-execution. The integration branch is whatever `origin/HEAD` resolves to —
+`main` for most repos, but `staging`, `develop`, `master`, etc. for others —
+and `bin/flow base-branch` prints the resolved name.
+
+Run both commands and compare the outputs:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/flow base-branch
+```
 
 ```bash
 git branch --show-current
 ```
 
-If the current branch is NOT `main`, stop:
+If the current branch is NOT the resolved base branch, stop and substitute the
+resolved name into the rejection message:
 
-> "Must be on main branch to reset. Switch to main first."
+> "Must be on `<base_branch>` branch to reset. Switch to `<base_branch>` first."
 
 ## Step 1 — Inventory
 
 Print the inventory of what `--all` would remove without modifying disk. The
-JSON output's `flows[]`, `orchestrate_json`, `main_dir`, and `queue_sweep`
-fields describe every artifact that the live run would touch.
+JSON output's `flows[]`, `orchestrate_json`, `base_dir` (the base-branch CI
+sentinel directory result), `base_branch` (the resolved trunk name), and
+`queue_sweep` fields describe every artifact that the live run would touch.
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/bin/flow cleanup . --all --dry-run
@@ -44,7 +56,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/flow cleanup . --all --dry-run
 Render the JSON output inline inside a fenced code block so the user can
 review it before approving the destructive run.
 
-If `flows[]` is empty AND `orchestrate_json` is `"skipped"` AND `main_dir` is
+If `flows[]` is empty AND `orchestrate_json` is `"skipped"` AND `base_dir` is
 `"skipped"` AND `queue_sweep` is `"skipped"`, print:
 
 > "No FLOW artifacts found. Nothing to reset."
@@ -77,7 +89,7 @@ the tail-step results.
 
 ## Step 4 — Verify
 
-Confirm only `main` remains.
+Confirm only the integration branch remains.
 
 ```bash
 git worktree list
@@ -88,8 +100,8 @@ git branch --list
 ```
 
 If any worktree besides the main working tree appears, or any local branch
-besides `main`, list the survivors so the user can investigate. Otherwise
-print:
+besides the resolved base branch, list the survivors so the user can
+investigate. Otherwise print:
 
 ````markdown
 ```text
@@ -101,7 +113,7 @@ print:
 
 ## Rules
 
-- Available from `main` only — running from a worktree is unsafe
+- Available from the integration branch only — running from a worktree is unsafe
 - Never rebase, never force push — the cleanup primitive only invokes the
   destructive surfaces the per-feature `/flow:flow-abort` already uses
 - Every step after confirmation is best-effort — if one per-flow step fails,

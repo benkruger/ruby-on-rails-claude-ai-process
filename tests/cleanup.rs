@@ -792,7 +792,7 @@ fn cleanup_all_empty_states_dir_returns_empty_inventory() {
     assert_eq!(value["dry_run"], false);
     assert_eq!(value["flows"].as_array().unwrap().len(), 0);
     assert_eq!(value["orchestrate_json"], "skipped");
-    assert_eq!(value["main_dir"], "skipped");
+    assert_eq!(value["base_dir"], "skipped");
     assert_eq!(value["queue_sweep"], "skipped");
 }
 
@@ -926,28 +926,31 @@ fn cleanup_all_skips_missing_orchestrate_json() {
 }
 
 #[test]
-fn cleanup_all_removes_main_directory() {
+fn cleanup_all_removes_base_branch_directory() {
     let dir = tempfile::tempdir().unwrap();
     setup_git_repo(dir.path());
-    let main_dir = dir.path().join(".flow-states/main");
-    fs::create_dir_all(&main_dir).unwrap();
-    fs::write(main_dir.join("ci-passed"), "snapshot").unwrap();
+    // No origin/HEAD configured → default_branch_in falls back to
+    // "main", so the sentinel directory still lives at
+    // `.flow-states/main/` for this fixture.
+    let base_dir = dir.path().join(".flow-states/main");
+    fs::create_dir_all(&base_dir).unwrap();
+    fs::write(base_dir.join("ci-passed"), "snapshot").unwrap();
 
     let value = run_impl_main(&args_all(dir.path(), false)).0;
-    assert_eq!(value["main_dir"], "removed");
-    assert!(!main_dir.exists());
+    assert_eq!(value["base_dir"], "removed");
+    assert!(!base_dir.exists());
 }
 
 #[test]
-fn cleanup_all_skips_missing_main_directory() {
+fn cleanup_all_skips_missing_base_branch_directory() {
     let dir = tempfile::tempdir().unwrap();
     setup_git_repo(dir.path());
     let states_dir = dir.path().join(".flow-states");
     fs::create_dir_all(&states_dir).unwrap();
-    // No main/ subdir.
+    // No <base_branch>/ subdir.
 
     let value = run_impl_main(&args_all(dir.path(), false)).0;
-    assert_eq!(value["main_dir"], "skipped");
+    assert_eq!(value["base_dir"], "skipped");
 }
 
 #[test]
@@ -997,7 +1000,7 @@ fn cleanup_all_dry_run_returns_inventory_no_disk_mutation() {
 
     // Tail steps report the would-be values.
     assert_eq!(value["orchestrate_json"], "would_remove");
-    assert_eq!(value["main_dir"], "would_remove");
+    assert_eq!(value["base_dir"], "would_remove");
     assert_eq!(value["queue_sweep"], "would_sweep 1 entries");
 
     // Disk is unchanged.
@@ -1129,17 +1132,17 @@ fn cleanup_all_state_json_unreadable_reports_read_error() {
 #[test]
 fn cleanup_all_dry_run_reports_skipped_when_tail_artifacts_absent() {
     // Covers the dry_run==true + file/dir absent branches for
-    // orchestrate_json and main_dir tail steps.
+    // orchestrate_json and base_dir tail steps.
     let dir = tempfile::tempdir().unwrap();
     setup_git_repo(dir.path());
     let states_dir = dir.path().join(".flow-states");
     fs::create_dir_all(&states_dir).unwrap();
-    // No orchestrate.json, no main/ subdir, no start-queue/ entries.
+    // No orchestrate.json, no <base_branch>/ subdir, no start-queue/ entries.
 
     let value = run_impl_main(&args_all(dir.path(), true)).0;
     assert_eq!(value["dry_run"], true);
     assert_eq!(value["orchestrate_json"], "skipped");
-    assert_eq!(value["main_dir"], "skipped");
+    assert_eq!(value["base_dir"], "skipped");
     assert_eq!(value["queue_sweep"], "skipped");
 }
 
@@ -1170,29 +1173,138 @@ fn cleanup_all_orchestrate_json_remove_fails() {
 }
 
 #[test]
-fn cleanup_all_main_dir_remove_fails() {
-    // Covers the main_dir `Err(e) => format!("failed: ...")` arm.
-    // `.flow-states/main/` exists with an inner file, and
-    // `.flow-states/main/` is read-only so `remove_dir_all` cannot
-    // unlink the inner file.
+fn cleanup_all_base_dir_remove_fails() {
+    // Covers the base_dir `Err(e) => format!("failed: ...")` arm.
+    // The resolved base-branch sentinel directory exists with an
+    // inner file, and the directory is read-only so `remove_dir_all`
+    // cannot unlink the inner file. With no `origin/HEAD` configured,
+    // `default_branch_in` falls back to `"main"` so the fixture
+    // path is `.flow-states/main/`.
     use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
     setup_git_repo(dir.path());
-    let main_subdir = dir.path().join(".flow-states/main");
-    fs::create_dir_all(&main_subdir).unwrap();
-    fs::write(main_subdir.join("ci-passed"), "snapshot").unwrap();
-    fs::set_permissions(&main_subdir, fs::Permissions::from_mode(0o500)).unwrap();
+    let base_subdir = dir.path().join(".flow-states/main");
+    fs::create_dir_all(&base_subdir).unwrap();
+    fs::write(base_subdir.join("ci-passed"), "snapshot").unwrap();
+    fs::set_permissions(&base_subdir, fs::Permissions::from_mode(0o500)).unwrap();
 
     let value = run_impl_main(&args_all(dir.path(), false)).0;
 
     // Restore for TempDir cleanup.
-    fs::set_permissions(&main_subdir, fs::Permissions::from_mode(0o755)).unwrap();
+    fs::set_permissions(&base_subdir, fs::Permissions::from_mode(0o755)).unwrap();
 
-    let md = value["main_dir"].as_str().unwrap();
+    let bd = value["base_dir"].as_str().unwrap();
     assert!(
-        md.starts_with("failed:"),
-        "expected failed main_dir, got: {}",
-        md
+        bd.starts_with("failed:"),
+        "expected failed base_dir, got: {}",
+        bd
+    );
+}
+
+/// Cleanup of the base-branch CI sentinel directory must follow the
+/// repository's actual integration branch — not a hardcoded "main"
+/// path. The sentinel lives at `.flow-states/<base_branch>/` and is
+/// written by `start-gate` after a successful base-branch CI run; on
+/// a repo whose trunk is `staging`, the sentinel lives at
+/// `.flow-states/staging/` and the hardcoded `.flow-states/main/`
+/// removal misses it entirely. This test seeds the fixture with
+/// `origin/HEAD` → `origin/staging` (following the inline pattern at
+/// `tests/hooks/validate_pretool.rs::t4_git_commit_on_staging_default_repo_blocks`)
+/// and a `.flow-states/staging/` directory, then asserts cleanup_all
+/// resolves the integration branch via `git::default_branch_in`,
+/// reports the resolved trunk in a new `base_branch` field, and
+/// removes the directory under the renamed `base_dir` field.
+#[test]
+fn cleanup_all_removes_base_branch_sentinel_on_non_main_repo() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    // Configure origin/HEAD -> origin/staging so default_branch_in
+    // returns "staging".
+    let _ = StdCommand::new("git")
+        .args(["remote", "add", "origin", dir.path().to_str().unwrap()])
+        .current_dir(dir.path())
+        .output()
+        .expect("git remote add");
+    let _ = StdCommand::new("git")
+        .args(["update-ref", "refs/remotes/origin/staging", "HEAD"])
+        .current_dir(dir.path())
+        .output()
+        .expect("git update-ref");
+    let _ = StdCommand::new("git")
+        .args([
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/staging",
+        ])
+        .current_dir(dir.path())
+        .output()
+        .expect("git symbolic-ref");
+
+    let staging_dir = dir.path().join(".flow-states/staging");
+    fs::create_dir_all(&staging_dir).unwrap();
+    fs::write(staging_dir.join("ci-passed"), "snapshot").unwrap();
+
+    let value = run_impl_main(&args_all(dir.path(), false)).0;
+    assert_eq!(value["base_dir"], "removed");
+    assert_eq!(value["base_branch"], "staging");
+    assert!(!staging_dir.exists());
+}
+
+/// `cleanup_all` resolves `base_branch` via `default_branch_in`
+/// which returns the raw output of `git symbolic-ref --short
+/// refs/remotes/origin/HEAD` with the `origin/` prefix stripped.
+/// Git permits slash-containing branch names as `origin/HEAD`
+/// targets (e.g. `feature/foo`). Per
+/// `.claude/rules/branch-path-safety.md`, that value must pass
+/// `FlowPaths::is_valid_branch` before reaching
+/// `states_dir.join(...)` + `fs::remove_dir_all(...)` — otherwise
+/// the deletion traverses one directory deeper than the per-branch
+/// scope. This test seeds `origin/HEAD → origin/feature/foo` and
+/// asserts cleanup_all skips the tail step with a structured
+/// `base_dir` field rather than deleting `.flow-states/feature/foo`
+/// (or, worse, escaping the .flow-states/ scope entirely).
+#[test]
+fn cleanup_all_skips_base_dir_when_default_branch_is_slash_containing() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    let _ = StdCommand::new("git")
+        .args(["remote", "add", "origin", dir.path().to_str().unwrap()])
+        .current_dir(dir.path())
+        .output()
+        .expect("git remote add");
+    let _ = StdCommand::new("git")
+        .args(["update-ref", "refs/remotes/origin/feature/foo", "HEAD"])
+        .current_dir(dir.path())
+        .output()
+        .expect("git update-ref");
+    let _ = StdCommand::new("git")
+        .args([
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/feature/foo",
+        ])
+        .current_dir(dir.path())
+        .output()
+        .expect("git symbolic-ref");
+
+    // Create a sibling directory the deletion MUST NOT touch.
+    let sibling = dir.path().join(".flow-states/feature/foo");
+    fs::create_dir_all(&sibling).unwrap();
+    fs::write(sibling.join("ci-passed"), "snapshot").unwrap();
+
+    let value = run_impl_main(&args_all(dir.path(), false)).0;
+
+    assert_eq!(value["base_branch"], "feature/foo");
+    let base_dir_str = value["base_dir"].as_str().unwrap();
+    assert!(
+        base_dir_str.starts_with("skipped: invalid base_branch"),
+        "expected skipped tail step for invalid base_branch, got: {}",
+        base_dir_str
+    );
+    assert!(
+        sibling.exists(),
+        "sibling directory must survive — cleanup_all must not traverse \
+         into a slash-containing base_branch path"
     );
 }
 

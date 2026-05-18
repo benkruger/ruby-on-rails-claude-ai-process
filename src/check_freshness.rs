@@ -8,9 +8,11 @@
 //!
 //! Uses `complete_preflight::run_cmd_with_timeout` (shared with the
 //! Complete phase) for git subprocess calls so timeout policy stays
-//! consolidated in one place. Spawn-failure and timeout errors from the
-//! shared runner are collapsed into a synthetic non-zero exit tuple so
-//! every step's failure path is a single branch.
+//! consolidated in one place. `run_impl_main` calls
+//! `git::default_branch_in` first to resolve the integration branch
+//! and probe git binary availability; downstream calls in this module
+//! `.expect()` on Ok because git is proven alive after the probe per
+//! `.claude/rules/testability-means-simplicity.md`.
 //!
 //! Tests live at `tests/check_freshness.rs` per
 //! `.claude/rules/test-placement.md` — no inline `#[cfg(test)]` in

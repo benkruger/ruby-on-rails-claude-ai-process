@@ -149,10 +149,25 @@ Read `code_task` from the state file (default `0` if absent).
 
 - If `code_task` is 0 and this is a resume (re-entering the phase after
   a session restart), determine progress by comparing the plan to
-  committed work:
+  committed work.
+
+**Resolve the integration branch.** Run
+`${CLAUDE_PLUGIN_ROOT}/bin/flow base-branch` to retrieve the base
+branch the flow coordinates against. Capture its stdout — call the
+value `<base_branch>` — and substitute it into the `git log` command
+below. A repo whose default branch is `staging` produces
+`<base_branch> = staging`; a standard repo produces
+`<base_branch> = main`.
 
 ```bash
-git log --oneline origin/main..HEAD
+${CLAUDE_PLUGIN_ROOT}/bin/flow base-branch
+```
+
+**Get the commit log.** Substitute `<base_branch>` with the value
+you just captured.
+
+```bash
+git log --oneline origin/<base_branch>..HEAD
 ```
 
 Compare commit messages to the tasks in the plan file. Continue from the

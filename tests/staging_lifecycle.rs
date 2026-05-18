@@ -90,6 +90,10 @@ fn create_staging_trunked_repo(parent: &Path) -> PathBuf {
     run(&["commit", "--allow-empty", "-m", "init"], Some(&repo));
     run(&["push", "-u", "origin", BASE_BRANCH], Some(&repo));
 
+    // Configure refs/remotes/origin/HEAD so `git::default_branch_in`
+    // resolves to "staging" — git is the single source of truth.
+    run(&["remote", "set-head", "origin", BASE_BRANCH], Some(&repo));
+
     repo.canonicalize().expect("canonicalize repo")
 }
 
@@ -163,7 +167,7 @@ fn staging_lifecycle_base_branch_subcommand_returns_staging() {
     let repo = create_staging_trunked_repo(dir.path());
     write_staging_state(&repo);
 
-    let output = run_flow_rs(&repo, &["base-branch", "--branch", BRANCH]);
+    let output = run_flow_rs(&repo, &["base-branch"]);
     assert_eq!(
         output.status.code(),
         Some(0),

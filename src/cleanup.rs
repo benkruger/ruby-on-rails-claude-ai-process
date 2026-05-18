@@ -491,14 +491,14 @@ pub fn cleanup(
 /// `file_type`, etc.) and treats them as "skip this entry" rather
 /// than propagating panics. The wholesale wipe that follows surfaces
 /// the structural failure mode if the directory is truly unreadable.
-fn build_inventory(states_dir: &Path, project_root: &Path) -> Value {
+fn build_inventory(states_dir: &Path, project_root: &Path) -> Result<Value, String> {
     let mut flows_with_state: Vec<String> = Vec::new();
     let mut orphan_dirs: Vec<String> = Vec::new();
     let mut sentinel_dirs: Vec<String> = Vec::new();
     let mut top_level_files: Vec<String> = Vec::new();
     let mut singletons: Vec<String> = Vec::new();
 
-    let base_branch = crate::git::default_branch_in(project_root);
+    let base_branch = crate::git::default_branch_in(project_root)?;
 
     if let Ok(entries) = fs::read_dir(states_dir) {
         let mut sorted: Vec<_> = entries.filter_map(|e| e.ok()).collect();
@@ -540,13 +540,13 @@ fn build_inventory(states_dir: &Path, project_root: &Path) -> Value {
         }
     }
 
-    json!({
+    Ok(json!({
         "flows_with_state": flows_with_state,
         "orphan_dirs": orphan_dirs,
         "top_level_files": top_level_files,
         "singletons": singletons,
         "sentinel_dirs": sentinel_dirs,
-    })
+    }))
 }
 
 /// Reset every flow on this machine. Builds a categorized inventory
@@ -589,7 +589,16 @@ fn build_inventory(states_dir: &Path, project_root: &Path) -> Value {
 /// sentinel-loss is automatic on the next CI run.
 pub fn cleanup_all(project_root: &Path, dry_run: bool) -> Value {
     let states_dir = FlowStatesDir::new(project_root).path().to_path_buf();
-    let inventory = build_inventory(&states_dir, project_root);
+    let inventory = match build_inventory(&states_dir, project_root) {
+        Ok(inv) => inv,
+        Err(msg) => {
+            return json!({
+                "status": "error",
+                "step": "build_inventory",
+                "message": msg,
+            });
+        }
+    };
 
     let flow_states_dir = if !states_dir.is_dir() {
         "skipped".to_string()
@@ -693,9 +702,14 @@ pub fn run_impl_main(args: &Args) -> (Value, i32) {
         }
     };
 
-    let base_branch = FlowPaths::try_new(root, branch)
-        .and_then(|paths| crate::git::read_base_branch(&paths.state_file()).ok())
-        .unwrap_or_else(|| crate::git::default_branch_in(root));
+    let base_branch = match crate::git::default_branch_in(root) {
+        Ok(b) => b,
+        Err(msg) => {
+            let err_str =
+                crate::output::json_error_string(&msg, &[("step", json!("resolve_base_branch"))]);
+            return (serde_json::from_str(&err_str).unwrap(), 1);
+        }
+    };
 
     let steps = cleanup(root, branch, worktree, args.pr, args.pull, &base_branch);
     let steps_map: IndexMap<String, Value> = steps

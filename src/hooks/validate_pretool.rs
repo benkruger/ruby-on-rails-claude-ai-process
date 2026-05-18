@@ -866,7 +866,10 @@ fn extract_finalize_commit_branch_arg(stripped: &str) -> Option<&str> {
 /// caller constructs `<main_root>/.worktrees/<branch>/` for the
 /// active-flow arm.
 fn match_finalize_commit_destination(branch_arg: &str, main_root: &Path) -> Option<String> {
-    let integration = default_branch_in(main_root);
+    let integration = match default_branch_in(main_root) {
+        Ok(b) => b,
+        Err(msg) => return Some(commit_block_message_resolve_failed(&msg)),
+    };
     let branch_norm = normalize_gate_input(branch_arg);
     let integration_norm = normalize_gate_input(&integration);
     if branch_norm == integration_norm {
@@ -923,6 +926,24 @@ fn commit_block_message(branch: &str) -> String {
          Run /flow:flow-commit from a feature worktree instead. \
          This block is mechanical (Layer 9). See .claude/rules/no-escape-hatches.md.",
         branch
+    )
+}
+
+/// Compose the Layer 9 block message when git cannot resolve the
+/// integration branch (no `origin` remote, symbolic-ref unset,
+/// non-git directory, git binary unavailable). Per
+/// `.claude/rules/security-gates.md` "Fail Closed When State Is
+/// Unreliable", the gate blocks the commit rather than guessing at a
+/// default — the user must repair the repo's git state before the
+/// commit can proceed. The message must contain `BLOCKED` so contract
+/// tests can assert the distinct fire context.
+fn commit_block_message_resolve_failed(err: &str) -> String {
+    format!(
+        "BLOCKED: cannot resolve integration branch — git refused: {}. \
+         Repair the repo's `origin/HEAD` configuration (`git remote set-head origin --auto`) \
+         and retry. This block is mechanical (Layer 9). \
+         See .claude/rules/no-escape-hatches.md.",
+        err
     )
 }
 
@@ -1169,7 +1190,10 @@ fn bootstrap_carveout_applies(command: &str, transcript_path: Option<&Path>, hom
 /// key is the explicit branch arg rather than `current_branch_in`.
 fn match_branch_at(path: &Path) -> Option<String> {
     let current = current_branch_in(path)?;
-    let integration = default_branch_in(path);
+    let integration = match default_branch_in(path) {
+        Ok(b) => b,
+        Err(msg) => return Some(commit_block_message_resolve_failed(&msg)),
+    };
     if current == integration {
         Some(commit_block_message(&current))
     } else {

@@ -2178,6 +2178,22 @@ fn setup_repo_on_branch(branch: &str) -> (tempfile::TempDir, std::path::PathBuf)
         commit.status.success(),
         "empty init commit failed: {commit:?}"
     );
+    // Synthesize refs/remotes/origin/HEAD pointing at `main` so
+    // `git::default_branch_in` resolves cleanly. Validate_pretool
+    // Layer 9 compares the dequoted branch arg against the
+    // integration branch returned by default_branch_in.
+    let _ = Command::new("git")
+        .args(["update-ref", "refs/remotes/origin/main", "HEAD"])
+        .current_dir(&root)
+        .output();
+    let _ = Command::new("git")
+        .args([
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/main",
+        ])
+        .current_dir(&root)
+        .output();
     (dir, root)
 }
 
@@ -2712,6 +2728,29 @@ fn setup_active_flow_worktree(
     std::fs::create_dir_all(&claude_dir).unwrap();
     std::fs::write(claude_dir.join("settings.json"), "{}").unwrap();
 
+    // Initialize a real git repo at root with main + origin/HEAD so
+    // `git::default_branch_in` resolves cleanly.
+    let run_git = |args: &[&str], cwd: &std::path::Path| {
+        let _ = std::process::Command::new("git")
+            .args(args)
+            .current_dir(cwd)
+            .output();
+    };
+    run_git(&["init", "-b", "main"], &root);
+    run_git(&["config", "user.email", "t@t.com"], &root);
+    run_git(&["config", "user.name", "T"], &root);
+    run_git(&["config", "commit.gpgsign", "false"], &root);
+    run_git(&["commit", "--allow-empty", "-m", "init"], &root);
+    run_git(&["update-ref", "refs/remotes/origin/main", "HEAD"], &root);
+    run_git(
+        &[
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/main",
+        ],
+        &root,
+    );
+
     if with_state_file {
         let states_dir = root.join(".flow-states").join(branch);
         std::fs::create_dir_all(&states_dir).unwrap();
@@ -2720,11 +2759,6 @@ fn setup_active_flow_worktree(
 
     let worktree = root.join(".worktrees").join(branch);
     std::fs::create_dir_all(&worktree).unwrap();
-    // The .git pointer's target need not exist: detect_branch_from_path
-    // recognizes the branch from the `.worktrees/<branch>/` path
-    // segment alone, and current_branch_in's git subprocess fallback
-    // failing here is the desired behavior — match_branch_at must
-    // return None so the active-flow predicate is what fires.
     std::fs::write(
         worktree.join(".git"),
         format!("gitdir: ../../.git/worktrees/{branch}"),
@@ -3014,6 +3048,29 @@ fn setup_active_flow_worktree_with_state(
     let claude_dir = root.join(".claude");
     std::fs::create_dir_all(&claude_dir).unwrap();
     std::fs::write(claude_dir.join("settings.json"), "{}").unwrap();
+
+    // Initialize a real git repo at root with main + origin/HEAD so
+    // `git::default_branch_in` resolves cleanly.
+    let run_git = |args: &[&str], cwd: &std::path::Path| {
+        let _ = std::process::Command::new("git")
+            .args(args)
+            .current_dir(cwd)
+            .output();
+    };
+    run_git(&["init", "-b", "main"], &root);
+    run_git(&["config", "user.email", "t@t.com"], &root);
+    run_git(&["config", "user.name", "T"], &root);
+    run_git(&["config", "commit.gpgsign", "false"], &root);
+    run_git(&["commit", "--allow-empty", "-m", "init"], &root);
+    run_git(&["update-ref", "refs/remotes/origin/main", "HEAD"], &root);
+    run_git(
+        &[
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/main",
+        ],
+        &root,
+    );
 
     let states_dir = root.join(".flow-states").join(branch);
     std::fs::create_dir_all(&states_dir).unwrap();
@@ -4485,6 +4542,82 @@ fn git_dash_c_path_still_uses_target_match_branch_at() {
     assert!(
         stderr.contains("main"),
         "must name the -C target branch 'main'; got: {stderr}"
+    );
+}
+
+// --- Layer 9 fail-closed on default_branch_in resolve failure ---
+//
+// Per `.claude/rules/security-gates.md` "Fail Closed When State Is
+// Unreliable", when git cannot resolve the integration branch, the
+// gate blocks rather than guessing. `commit_block_message_resolve_failed`
+// produces the BLOCKED message naming the resolve failure.
+
+#[test]
+fn layer_9_blocks_finalize_commit_destination_when_default_branch_resolve_fails() {
+    // Tempdir with no git init — `default_branch_in` returns Err.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().canonicalize().expect("canonicalize");
+    let claude_dir = root.join(".claude");
+    std::fs::create_dir_all(&claude_dir).unwrap();
+    std::fs::write(claude_dir.join("settings.json"), "{}").unwrap();
+
+    let input = r#"{"tool_input": {"command": "bin/flow finalize-commit msg.txt main"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&root));
+    assert_eq!(
+        code, 2,
+        "destination-path dispatch must fail-closed on resolve failure; stderr={stderr}"
+    );
+    assert!(
+        stderr.contains("BLOCKED"),
+        "stderr must contain BLOCKED on resolve failure; got: {stderr}"
+    );
+    assert!(
+        stderr.contains("cannot resolve integration branch"),
+        "stderr must name the resolve failure; got: {stderr}"
+    );
+}
+
+#[test]
+fn layer_9_blocks_commit_when_default_branch_resolve_fails_cwd_path() {
+    // Tempdir with no git init — match_branch_at's default_branch_in
+    // returns Err and the cwd-path dispatch fails closed.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().canonicalize().expect("canonicalize");
+    let claude_dir = root.join(".claude");
+    std::fs::create_dir_all(&claude_dir).unwrap();
+    std::fs::write(claude_dir.join("settings.json"), "{}").unwrap();
+    // Init repo so current_branch_in succeeds, but no origin/HEAD.
+    let _ = std::process::Command::new("git")
+        .args(["init", "-b", "main"])
+        .current_dir(&root)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["config", "user.email", "t@t.com"])
+        .current_dir(&root)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["config", "user.name", "T"])
+        .current_dir(&root)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["commit", "--allow-empty", "-m", "init"])
+        .current_dir(&root)
+        .output();
+
+    // git commit (cwd-path dispatch, no branch arg).
+    let input = r#"{"tool_input": {"command": "git commit -m \"x\""}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&root));
+    assert_eq!(
+        code, 2,
+        "cwd-path dispatch must fail-closed on resolve failure; stderr={stderr}"
+    );
+    assert!(
+        stderr.contains("BLOCKED"),
+        "stderr must contain BLOCKED on resolve failure; got: {stderr}"
+    );
+    assert!(
+        stderr.contains("cannot resolve integration branch"),
+        "stderr must name the resolve failure; got: {stderr}"
     );
 }
 

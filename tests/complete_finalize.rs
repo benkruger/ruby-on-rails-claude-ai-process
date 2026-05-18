@@ -24,6 +24,60 @@ fn make_repo_fixture(parent: &Path) -> PathBuf {
     repo.canonicalize().expect("canonicalize repo")
 }
 
+/// Make a fixture WITHOUT `refs/remotes/origin/HEAD` so
+/// `default_branch_in` returns Err and the fail-closed error envelope
+/// path runs.
+fn make_repo_fixture_no_origin_head(parent: &Path) -> PathBuf {
+    let repo = parent.join("repo");
+    fs::create_dir_all(&repo).unwrap();
+    let run = |args: &[&str]| {
+        Command::new("git")
+            .args(args)
+            .current_dir(&repo)
+            .output()
+            .unwrap();
+    };
+    run(&["init", "-b", "main"]);
+    run(&["config", "user.email", "t@t.com"]);
+    run(&["config", "user.name", "T"]);
+    run(&["config", "commit.gpgsign", "false"]);
+    run(&["commit", "--allow-empty", "-m", "init"]);
+    repo.canonicalize().expect("canonicalize repo")
+}
+
+#[test]
+fn complete_finalize_errors_when_default_branch_resolve_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = dir.path().canonicalize().unwrap();
+    let repo = make_repo_fixture_no_origin_head(&parent);
+    let state_path = write_state_file(&repo, BRANCH, true);
+    let flow_bin = parent.join("bin-flow-stub").join("flow");
+    write_success_flow_stub(&flow_bin);
+    let stubs = path_stub_dir(&parent);
+
+    let (_code, stdout, _stderr) = run_complete_finalize(
+        &repo,
+        "42",
+        state_path.to_string_lossy().as_ref(),
+        BRANCH,
+        ".worktrees/test-feature",
+        false,
+        Some(&flow_bin),
+        Some(&stubs),
+    );
+    let value = last_json_line(&stdout);
+    assert_eq!(value["status"], "error");
+    assert_eq!(value["step"], "resolve_base_branch");
+    assert!(
+        value["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("symbolic-ref"),
+        "expected resolve failure message naming git symbolic-ref, got: {}",
+        value
+    );
+}
+
 fn write_state_file(repo: &Path, branch: &str, create_flow_states_dir: bool) -> PathBuf {
     let branch_dir = repo.join(".flow-states").join(branch);
     let state_path = branch_dir.join("state.json");
@@ -690,11 +744,18 @@ fn complete_finalize_skips_sentinel_when_base_branch_is_slash_containing() {
         .current_dir(&repo)
         .output()
         .expect("push feature/foo");
+    // Point origin/HEAD at the slash-containing branch so
+    // `default_branch_in` returns "feature/foo" and the
+    // `is_valid_branch` guard's false arm runs.
+    let _ = std::process::Command::new("git")
+        .args(["remote", "set-head", "origin", "feature/foo"])
+        .current_dir(&repo)
+        .output()
+        .expect("set-head feature/foo");
     let branch_dir = repo.join(".flow-states").join(BRANCH);
     fs::create_dir_all(&branch_dir).unwrap();
     let state_path = branch_dir.join("state.json");
-    let mut state = common::make_complete_state(BRANCH, "complete", None);
-    state["base_branch"] = json!("feature/foo");
+    let state = common::make_complete_state(BRANCH, "complete", None);
     fs::write(&state_path, serde_json::to_string_pretty(&state).unwrap()).unwrap();
     let flow_bin = parent.join("bin-flow-stub").join("flow");
     write_success_flow_stub(&flow_bin);

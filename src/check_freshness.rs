@@ -1,6 +1,7 @@
 //! Pre-merge freshness check.
 //!
-//! Fetches origin/main, verifies the branch is up-to-date via
+//! Fetches the integration branch from origin (resolved via
+//! `git::default_branch_in`), verifies the branch is up-to-date via
 //! `git merge-base --is-ancestor`, and merges if behind. Detects merge
 //! conflicts via `git status --porcelain`. Tracks retries in the state
 //! file (max 3) under the `mutate_state` lock.
@@ -55,10 +56,15 @@ fn increment_retries(state_path: &Path) -> i64 {
     cell.get()
 }
 
-/// Run `git -C <cwd> <args>` via the shared run_cmd_with_timeout. Spawn
-/// failure and timeout Err variants are folded into a synthetic
-/// `(-1, "", err_msg)` tuple so every caller can treat any non-zero
-/// status as failure with a single branch.
+/// Run `git -C <cwd> <args>` via the shared run_cmd_with_timeout.
+///
+/// `.expect()` on the Err arm follows the merge_main probe pattern:
+/// `run_impl_main` calls `git::default_branch_in` first, which fails
+/// closed with a structured error envelope when git cannot spawn or
+/// `origin/HEAD` is unresolvable. By the time `check_freshness` runs,
+/// the git binary is proven available. The only remaining Err class
+/// is a 30s/60s timeout — an infrastructure-level event whose panic
+/// surfaces the failure rather than silently masking it.
 fn run_git(args: &[&str], timeout_secs: u64, cwd: &Path) -> (i32, String, String) {
     let mut with_c: Vec<&str> = Vec::with_capacity(args.len() + 2);
     with_c.push("git");
@@ -68,10 +74,8 @@ fn run_git(args: &[&str], timeout_secs: u64, cwd: &Path) -> (i32, String, String
     for a in &args[1..] {
         with_c.push(a);
     }
-    match run_cmd_with_timeout(&with_c, timeout_secs) {
-        Ok(r) => r,
-        Err(msg) => (-1, String::new(), msg),
-    }
+    run_cmd_with_timeout(&with_c, timeout_secs)
+        .expect("git located by default_branch_in probe at run_impl_main entry")
 }
 
 /// Core freshness logic: fetch, check ancestry, merge if behind.
@@ -160,10 +164,10 @@ fn exit_code_for_status(result: &Value) -> i32 {
 /// feature worktree (the shell's current directory), not the main
 /// repo root.
 ///
-/// When `--state-file` is provided and the state file declares
-/// `base_branch`, the freshness check targets `origin/<base_branch>`;
-/// otherwise it queries git for the integration branch
-/// (origin/HEAD) so non-main-trunk repos resolve correctly.
+/// Queries git for the integration branch (origin/HEAD) — git is the
+/// single source of truth — and targets `origin/<base_branch>` for the
+/// freshness check. Fails closed via JSON error envelope when git
+/// cannot resolve the integration branch.
 pub fn run_impl_main(raw_args: &[String], cwd: &Path) -> (Value, i32) {
     let mut state_file: Option<PathBuf> = None;
     let mut i = 0;
@@ -176,10 +180,19 @@ pub fn run_impl_main(raw_args: &[String], cwd: &Path) -> (Value, i32) {
         }
     }
 
-    let base_branch = state_file
-        .as_deref()
-        .and_then(|p| crate::git::read_base_branch(p).ok())
-        .unwrap_or_else(|| crate::git::default_branch_in(cwd));
+    let base_branch = match crate::git::default_branch_in(cwd) {
+        Ok(b) => b,
+        Err(msg) => {
+            return (
+                json!({
+                    "status": "error",
+                    "step": "resolve_base_branch",
+                    "message": msg,
+                }),
+                1,
+            );
+        }
+    };
 
     let result = check_freshness(state_file.as_deref(), cwd, &base_branch);
     let code = exit_code_for_status(&result);

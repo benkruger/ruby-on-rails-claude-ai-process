@@ -25,7 +25,7 @@ use crate::cleanup;
 use crate::commands::log::append_log;
 use crate::complete_post_merge;
 use crate::flow_paths::FlowPaths;
-use crate::git::{project_root, read_base_branch};
+use crate::git::{default_branch_in, project_root};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -161,13 +161,20 @@ pub fn run_impl(args: &Args) -> Value {
         .unwrap_or("")
         .to_string();
 
-    // Cleanup. Resolve base_branch from the state file referenced by
-    // --state-file (the path the post-merge step just consumed) so
-    // the optional --pull step targets origin/<base_branch>. Falls
-    // back to git's integration branch (origin/HEAD) when the field
-    // is missing or the file is unreadable.
-    let base_branch = read_base_branch(Path::new(&args.state_file))
-        .unwrap_or_else(|_| crate::git::default_branch_in(&root));
+    // Cleanup. Resolve the integration branch from git (single source
+    // of truth) so the optional --pull step targets
+    // origin/<base_branch>. Fail closed via JSON error envelope when
+    // git cannot resolve it.
+    let base_branch = match default_branch_in(&root) {
+        Ok(b) => b,
+        Err(msg) => {
+            return json!({
+                "status": "error",
+                "step": "resolve_base_branch",
+                "message": msg,
+            });
+        }
+    };
     let cleanup_steps =
         cleanup::cleanup(&root, branch, &args.worktree, None, args.pull, &base_branch);
     let cleanup_map: Map<String, Value> = cleanup_steps

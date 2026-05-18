@@ -403,11 +403,7 @@ enum Commands {
 
     /// Print the integration branch this flow coordinates against.
     #[command(name = "base-branch")]
-    BaseBranch {
-        /// Override branch for state file lookup
-        #[arg(long)]
-        branch: Option<String>,
-    },
+    BaseBranch,
 
     /// Resolve the configured autonomy mode of a terminal skill
     /// (flow-complete / flow-abort) from the state file.
@@ -876,9 +872,9 @@ fn main() {
                 }
             }
         }
-        Some(Commands::BaseBranch { branch }) => {
+        Some(Commands::BaseBranch) => {
             let root = project_root();
-            match base_branch_cmd::run_impl_main(branch.as_deref(), &root) {
+            match base_branch_cmd::run_impl_main(&root) {
                 Ok((text, code)) => flow_rs::dispatch::dispatch_text(&text, code),
                 Err((msg, code)) => {
                     eprintln!("{}", msg);

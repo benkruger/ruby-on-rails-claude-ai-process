@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# FLOW reset — wipe `<project_root>/.flow-states/` on this machine.
+#
+# Resolves the directory that owns `.flow-states/` for the current
+# git repo, handling four layouts:
+#
+#   - Main repo: project root = working tree = repo root.
+#   - Linked worktree: project root = MAIN repo (where .flow-states/
+#     lives), not the worktree itself. The main repo is found via
+#     `git rev-parse --git-common-dir`, which from a worktree points
+#     at the main repo's shared `.git/` directory.
+#   - Submodule: project root = the submodule's own working tree, not
+#     the superproject's `.git/modules/<name>/` directory. The
+#     superproject's working tree is its own repo with its own
+#     `.flow-states/`; the submodule has its own state surface.
+#   - Bare repo: rejected — no working tree to compute a project root
+#     against, and naive resolution would target the bare repo's
+#     PARENT directory.
+#
+# --path-format=absolute on `git rev-parse --git-common-dir` is load-
+# bearing: without it, the command returns a path relative to the
+# current cwd (`.git` from the repo root, `../../.git` from a
+# subdirectory). `cd "$(...)/..` against a relative path resolves
+# against cwd in unpredictable ways across linked worktrees and
+# nested subdirectories. The absolute form gives a stable
+# parent-of-common-dir regardless of where the script is invoked
+# from.
+#
+# Invoked by `/flow:flow-reset` after the user has confirmed the
+# destructive operation. PRs, worktrees, and branches are NOT
+# touched — those require per-flow `/flow:flow-abort`.
+
+set -e
+
+# Reject bare repositories up front. `--is-bare-repository` returns
+# "true" inside a bare repo, where the naive --git-common-dir parent
+# resolution would target the bare repo's containing directory.
+if [ "$(git rev-parse --is-bare-repository 2>/dev/null)" = "true" ]; then
+  echo "bin/reset: refusing to operate inside a bare repository" >&2
+  exit 1
+fi
+
+# Discriminate submodule vs. regular repo or linked worktree.
+# `--show-superproject-working-tree` returns the superproject's
+# working tree path when inside a submodule, and empty otherwise.
+# Submodules need --show-toplevel because --git-common-dir points
+# at the superproject's `.git/modules/<name>/` directory, which is
+# NOT where the submodule's `.flow-states/` would live.
+if [ -n "$(git rev-parse --show-superproject-working-tree 2>/dev/null)" ]; then
+  PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+else
+  PROJECT_ROOT="$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)"
+fi
+
+if [ -z "$PROJECT_ROOT" ] || [ "$PROJECT_ROOT" = "/" ]; then
+  echo "bin/reset: refusing to operate at filesystem root" >&2
+  exit 1
+fi
+
+rm -rf "$PROJECT_ROOT/.flow-states/"

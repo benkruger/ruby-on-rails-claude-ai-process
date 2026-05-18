@@ -14,30 +14,27 @@ Wipes `.flow-states/` on this machine in one pass. PRs, worktrees, and
 branches are NOT touched — those require per-flow `/flow:flow-abort`
 invoked against each branch separately before reset.
 
-Must be run from the repository's integration branch (whatever
-`bin/flow base-branch` resolves to — `main`, `staging`, `develop`, etc.).
-Inventories everything before acting and requires explicit confirmation.
+Runs from any cwd in the repo tree, including linked worktrees. The
+skill is a thin wrapper around `${CLAUDE_PLUGIN_ROOT}/bin/reset`, a
+shell script that resolves the main repo root via
+`git rev-parse --git-common-dir` and removes `.flow-states/` via
+`rm -rf`. Requires explicit user confirmation before the wipe runs.
 
 ---
 
 ## What It Does
 
-1. Checks that the current branch matches `bin/flow base-branch`
-2. Runs `bin/flow cleanup . --all --dry-run` to build a categorized
-   inventory of `.flow-states/` contents: flows with `state.json`,
-   state-less orphan directories, top-level files (including stray
-   symlinks), machine-level singletons (`orchestrate.json`), and the
-   base-branch CI sentinel directory at `.flow-states/<base-branch>/`
-3. Renders the inventory as a five-row table and asks for confirmation
-4. Runs `bin/flow cleanup . --all` to remove the entire `.flow-states/`
-   directory via `fs::remove_dir_all`. The directory shell is
-   recreated on demand by subsequent flow-start invocations. On a
-   filesystem failure (permissions, busy file, etc.), the partial
-   state of the directory is left on disk and the `flow_states_dir`
-   field reports `"failed: <reason>"` so the user can inspect.
-5. Reads `flow_states_dir` from the JSON output to confirm the
-   outcome (`"deleted"` on success, `"skipped"` if the directory was
-   already absent, `"failed: <reason>"` on filesystem error).
+1. Asks for confirmation via `AskUserQuestion` — the user must
+   explicitly approve the wipe.
+2. Invokes `${CLAUDE_PLUGIN_ROOT}/bin/reset`. The script resolves the
+   main repo root (works from any cwd including worktrees), refuses to
+   operate if path resolution returns "/" or empty as a safety check,
+   and removes the entire `.flow-states/` directory via `rm -rf`. The
+   directory shell is recreated on demand by subsequent flow-start
+   invocations.
+3. On non-zero exit, surfaces stderr so the user can investigate
+   (typical causes: filesystem permissions, busy file, the safety
+   check tripping when path resolution fails).
 
 ---
 
@@ -46,8 +43,8 @@ Inventories everything before acting and requires explicit confirmation.
 - Does not close PRs (those stay open on GitHub)
 - Does not remove worktrees (those persist on disk under `.worktrees/`)
 - Does not delete branches (local or remote)
-- Does not run any subprocess — no `gh`, no `git worktree`, no
-  `git branch`. The operation is pure filesystem.
+- Does not run any GitHub or git subprocess — no `gh`, no
+  `git worktree`, no `git branch`. The operation is pure filesystem.
 
 For per-flow GitHub cleanup, run `/flow:flow-abort <branch>`
 separately for each flow before invoking `/flow:flow-reset`.
@@ -74,7 +71,7 @@ separately for each flow before invoking `/flow:flow-reset`.
 | **Worktree** | Removes via `git worktree remove` | Untouched |
 | **Local branch** | Deletes via `git branch -D` | Untouched |
 | **State file(s)** | Removes one branch's directory | Wipes entire `.flow-states/` |
-| **Prerequisite** | Active FLOW feature | Must be on the integration branch |
+| **Prerequisite** | Active FLOW feature | None — runs from any cwd in the repo tree |
 
 Use `/flow:flow-abort` to dispose of a single feature's GitHub state
 and worktree. Use `/flow:flow-reset` to wipe local state across every
@@ -84,6 +81,5 @@ flow on the machine in one pass — typically AFTER per-flow aborts.
 
 ## Gates
 
-- Must be on the integration branch (whatever `bin/flow base-branch` returns)
 - Requires explicit user confirmation before the wipe runs
-- The operation is irreversible (local state is gone after `flow_states_dir == "deleted"`)
+- The operation is irreversible (local state is gone after the script returns 0)

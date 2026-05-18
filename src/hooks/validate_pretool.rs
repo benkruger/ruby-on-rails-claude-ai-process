@@ -867,7 +867,19 @@ fn extract_finalize_commit_branch_arg(stripped: &str) -> Option<&str> {
 /// caller constructs `<main_root>/.worktrees/<branch>/` for the
 /// active-flow arm.
 fn match_finalize_commit_destination(branch_arg: &str, main_root: &Path) -> Option<String> {
-    let integration = default_branch_in(main_root);
+    let integration = match default_branch_in(main_root) {
+        Ok(b) => b,
+        // When git cannot resolve `origin/HEAD` (no `origin` remote,
+        // symbolic-ref unset, non-git directory), the integration
+        // branch is undetectable — Layer 9 has no basis to fire on
+        // an integration-branch destination. Return None so feature-
+        // branch commits in unprimed/fresh-clone repos can proceed.
+        // The active-flow check at the same callsite is independent
+        // (it walks the worktree path) and still catches in-flow
+        // commits. See `.claude/rules/concurrency-model.md` "Known
+        // Limitations" for the rationale.
+        Err(_) => return None,
+    };
     let branch_norm = normalize_gate_input(branch_arg);
     let integration_norm = normalize_gate_input(&integration);
     if branch_norm == integration_norm {
@@ -1170,7 +1182,16 @@ fn bootstrap_carveout_applies(command: &str, transcript_path: Option<&Path>, hom
 /// key is the explicit branch arg rather than `current_branch_in`.
 fn match_branch_at(path: &Path) -> Option<String> {
     let current = current_branch_in(path)?;
-    let integration = default_branch_in(path);
+    let integration = match default_branch_in(path) {
+        Ok(b) => b,
+        // When git cannot resolve `origin/HEAD`, the integration
+        // branch is undetectable — Layer 9 has no basis to fire on
+        // a feature-branch commit. Return None so unprimed/fresh-
+        // clone repos do not block all commits. See
+        // `match_finalize_commit_destination` for the parallel
+        // rationale and `.claude/rules/concurrency-model.md`.
+        Err(_) => return None,
+    };
     if current == integration {
         Some(commit_block_message(&current))
     } else {

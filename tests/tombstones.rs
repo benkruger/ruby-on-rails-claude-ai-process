@@ -449,6 +449,47 @@ fn test_flow_review_skill_no_exhausted_retry_note() {
     );
 }
 
+// --- flow-reset guard prose ---
+//
+// `/flow:flow-reset` previously gated invocation on the integration
+// branch via a `bin/flow base-branch` lookup, rejecting any cwd that
+// did not match. The guard solved a non-problem — `.flow-states/` is
+// at the project root, not inside any worktree — and broke in repos
+// whose integration branch did not match `origin/HEAD`. The guard
+// and its rejection prose are gone; the per-script
+// `${CLAUDE_PLUGIN_ROOT}/bin/reset` invocation runs from any cwd.
+
+/// Tombstone: removed in PR #1643. The integration-branch guard in
+/// `skills/flow-reset/SKILL.md` is gone — the skill now invokes
+/// `${CLAUDE_PLUGIN_ROOT}/bin/reset` directly after the user
+/// confirmation prompt, with no `bin/flow base-branch` lookup and no
+/// "Must be on" rejection message. Must not return.
+///
+/// Stability argument: the protected target is Markdown prose, not
+/// Rust source. The byte literals `Must be on` and `base-branch`
+/// cannot be reassembled at runtime — Markdown is a flat byte stream
+/// with no `concat!` macro, no `format!` interpolation, and no named
+/// constant references. A merge conflict can only resurrect the
+/// exact bytes, which this scanner catches.
+#[test]
+fn test_flow_reset_no_guard_prose() {
+    let path = common::skills_dir().join("flow-reset").join("SKILL.md");
+    let content = fs::read_to_string(&path).expect("flow-reset SKILL.md must exist");
+    assert!(
+        !content.contains("Must be on"),
+        "skills/flow-reset/SKILL.md must not contain `Must be on` — \
+         the integration-branch rejection message belonged to the \
+         deleted guard. The skill now invokes \
+         `${{CLAUDE_PLUGIN_ROOT}}/bin/reset` directly."
+    );
+    assert!(
+        !content.contains("bin/flow base-branch"),
+        "skills/flow-reset/SKILL.md must not invoke `bin/flow base-branch` — \
+         the deleted guard's branch lookup is gone. The script resolves \
+         project root via git rev-parse internally."
+    );
+}
+
 // --- FLOW_DENY escape-hatch entries ---
 //
 // The deny entries listed below block the canonical escape-hatch

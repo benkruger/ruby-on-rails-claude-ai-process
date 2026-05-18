@@ -1531,54 +1531,25 @@ fn commit_no_docs_sync() {
 
 // --- Reset skill ---
 
-/// The flow-reset Guard must resolve the integration branch via
-/// `bin/flow base-branch` rather than hardcoding `main`. The resolved
-/// name flows into the rejection message via a `<base_branch>`
-/// placeholder so the user sees the actual trunk name on
-/// staging/develop/master repos.
-#[test]
-fn reset_guard_requires_base_branch() {
-    let c = common::read_skill("flow-reset");
-    assert!(
-        c.contains("bin/flow base-branch"),
-        "flow-reset Guard must invoke `bin/flow base-branch` to resolve \
-         the integration branch dynamically"
-    );
-    assert!(
-        c.contains("<base_branch>"),
-        "flow-reset Guard rejection message must reference the resolved \
-         trunk via the `<base_branch>` placeholder so the message names \
-         the actual branch on non-main-trunk repos"
-    );
-}
-
 /// Tombstone-style guard against reintroducing a hardcoded `main`
 /// literal in user-visible flow-reset prose. Parallels
-/// `flow_start_prose_no_universal_main`. The bright-line forbidden
-/// phrasing is `Must be on main` — a future edit must paraphrase
-/// rather than name the integration branch by its `main` literal so
-/// staging/develop/master-trunked repos see the correct branch name.
+/// `flow_start_prose_no_universal_main`. The skill runs from any cwd
+/// via `${CLAUDE_PLUGIN_ROOT}/bin/reset` and names no integration
+/// branch in user-visible prose; a regression that re-introduced a
+/// hardcoded `main` literal would mis-document the skill's scope on
+/// staging/develop/master-trunked repos.
 #[test]
 fn reset_no_universal_main() {
     let c = common::read_skill("flow-reset");
     assert!(
         !c.contains("Must be on main"),
-        "flow-reset must not hardcode `Must be on main` — substitute the \
-         resolved `<base_branch>` placeholder into the rejection message"
+        "flow-reset must not hardcode `Must be on main` — the skill \
+         runs from any cwd via `${{CLAUDE_PLUGIN_ROOT}}/bin/reset`"
     );
     assert!(
         !c.contains("Available from `main` only"),
         "flow-reset Rules must not name `main` as the only valid branch \
-         — use `the integration branch` instead"
-    );
-}
-
-#[test]
-fn reset_has_inventory_step() {
-    let c = common::read_skill("flow-reset");
-    assert!(
-        c.contains("inventory") || c.contains("Inventory"),
-        "Reset must inventory artifacts before destroying"
+         — the skill runs from any cwd"
     );
 }
 
@@ -1588,15 +1559,6 @@ fn reset_has_confirmation() {
     assert!(
         c.contains("confirm") || c.contains("Confirm"),
         "Reset must confirm before destroying"
-    );
-}
-
-#[test]
-fn reset_clears_start_lock_queue() {
-    let c = common::read_skill("flow-reset");
-    assert!(
-        c.contains("start-queue") || c.contains("lock"),
-        "Reset must clean up start-queue lock directory"
     );
 }
 
@@ -5158,29 +5120,23 @@ fn file_tool_preflight_edit_paths_preceded_by_read() {
     );
 }
 
-// --- flow-reset SKILL.md delegates to bin/flow cleanup --all ---
+// --- flow-reset SKILL.md delegates to ${CLAUDE_PLUGIN_ROOT}/bin/reset ---
 //
-// The flow-reset skill is a thin wrapper around `bin/flow cleanup --all`.
-// The contract test below locks in the canonical delegation: the skill
-// must invoke both the dry-run inventory form (Step 1) and the live
-// execute form (Step 3). If either is missing, the skill cannot fulfil
-// its purpose.
+// The flow-reset skill is a thin wrapper around
+// `${CLAUDE_PLUGIN_ROOT}/bin/reset`, a shell script that resolves
+// the main repo root via `git rev-parse --git-common-dir` and removes
+// `.flow-states/` via `rm -rf`. The contract test below locks in the
+// canonical delegation: the skill must invoke the script after the
+// confirmation prompt. If the invocation is missing, the skill
+// cannot fulfil its purpose.
 
 #[test]
-fn flow_reset_invokes_cleanup_all_dry_run_and_live() {
+fn flow_reset_invokes_bin_reset_script() {
     let content = common::read_skill("flow-reset");
     assert!(
-        content.contains("${CLAUDE_PLUGIN_ROOT}/bin/flow cleanup . --all --dry-run"),
-        "skills/flow-reset/SKILL.md must invoke `cleanup . --all --dry-run` (Step 1 inventory)"
-    );
-    // Live invocation must NOT carry --dry-run on the same line.
-    let live_present = content.lines().any(|line| {
-        line.contains("${CLAUDE_PLUGIN_ROOT}/bin/flow cleanup . --all")
-            && !line.contains("--dry-run")
-    });
-    assert!(
-        live_present,
-        "skills/flow-reset/SKILL.md must invoke `cleanup . --all` without --dry-run (Step 3 execute)"
+        content.contains("${CLAUDE_PLUGIN_ROOT}/bin/reset"),
+        "skills/flow-reset/SKILL.md must invoke `${{CLAUDE_PLUGIN_ROOT}}/bin/reset` \
+         (Step 2 execute)"
     );
 }
 

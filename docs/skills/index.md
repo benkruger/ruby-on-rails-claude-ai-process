@@ -36,7 +36,7 @@ These skills are available at any point in the workflow, regardless of phase.
 | [`/flow-note`](flow-note.md) | Capture a correction or learning — invoked automatically on corrections |
 | [`/flow-abort`](flow-abort.md) | Abandon the current feature — close PR, delete branch, remove worktree |
 | [`/flow-continue`](flow-continue.md) | Resume a halted autonomous flow — clears `_halt_pending` so the next assistant turn proceeds |
-| [`/flow-reset`](flow-reset.md) | Remove all FLOW artifacts — close PRs, delete worktrees/branches/state files/lock entries |
+| [`/flow-reset`](flow-reset.md) | Wipe `.flow-states/` on this machine after explicit confirmation. PRs, worktrees, and branches are NOT touched (those require per-flow `/flow-abort`) |
 | [`/flow-config`](flow-config.md) | Display current configuration — version and per-skill autonomy |
 | [`/flow-skills`](flow-skills.md) | Display the FLOW skill catalog grouped by user role — Maintainer and Private buckets render only inside the FLOW plugin repo |
 | [`/flow-doc-sync`](flow-doc-sync.md) | Full codebase documentation accuracy review — reports drift between code and docs |

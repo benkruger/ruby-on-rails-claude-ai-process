@@ -2829,3 +2829,34 @@ fn test_cleanup_tests_no_cleanup_all_prefix() {
          the cleanup_all function it exercised."
     );
 }
+
+/// Tombstone: removed in PR #1643. The `--all` and `--dry-run` CLI
+/// flag strings are gone from `src/cleanup.rs` — they belonged to
+/// the deleted `cleanup_all` dispatch arm and its mutual-exclusion
+/// reporting. The per-branch `cleanup` arm exposes only `--branch`
+/// and `--worktree`. Must not return.
+///
+/// Stability: byte-substring checks against the literal clap-attribute
+/// strings `"--all"` and `"--dry-run"`. Clap derive attributes are
+/// parsed as source-level tokens by `rustc` and the proc-macro
+/// expansion — a `concat!` reassembly cannot produce a parseable
+/// attribute body, a `format!` reassembly does not apply (clap
+/// attributes are not runtime strings), and a `constant` declaration
+/// cannot replace an inline attribute argument. The four-question
+/// stability checklist passes for these byte-literal scans.
+#[test]
+fn test_cleanup_no_all_or_dry_run_flag_strings() {
+    let content = fs::read_to_string("src/cleanup.rs").expect("src/cleanup.rs must exist");
+    assert!(
+        !content.contains("\"--all\""),
+        "src/cleanup.rs must not contain the `--all` flag string — \
+         the flag was removed in PR #1643 alongside cleanup_all. \
+         The per-branch cleanup arm exposes only --branch and --worktree."
+    );
+    assert!(
+        !content.contains("\"--dry-run\""),
+        "src/cleanup.rs must not contain the `--dry-run` flag string — \
+         the flag was removed in PR #1643 alongside cleanup_all's \
+         inventory machinery. There is no remaining dry-run consumer."
+    );
+}

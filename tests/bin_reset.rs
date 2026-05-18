@@ -2,11 +2,13 @@
 //!
 //! Validates that `bin/reset` removes `<project_root>/.flow-states/`
 //! when invoked from the project root AND when invoked from inside a
-//! worktree. The script's `git rev-parse --git-common-dir` resolution
-//! is what makes the worktree case work: from a worktree, the
-//! command points at the main repo's `.git`, and `..` walks up to
-//! the main repo root. Tests cover both invocation contexts plus the
-//! safety check that refuses to operate at the filesystem root.
+//! worktree, and rejects bare repositories. The script's
+//! `git rev-parse --git-common-dir` resolution is what makes the
+//! worktree case work: from a worktree, the command points at the
+//! main repo's `.git`, and `..` walks up to the main repo root. Tests
+//! cover both project-root and worktree invocation contexts, the
+//! bare-repository rejection branch, and the executable-mode contract
+//! that the marketplace ships the file as a runnable binary.
 
 mod common;
 
@@ -129,6 +131,50 @@ fn reset_removes_main_repo_flow_states_from_worktree() {
     assert!(
         !root.join(".flow-states").exists(),
         "main repo's .flow-states/ should be removed when invoked from worktree"
+    );
+}
+
+/// Inside a bare repository, bin/reset refuses to operate because
+/// there is no working tree to compute a project root against and
+/// naive resolution would target the bare repo's parent directory.
+#[test]
+fn reset_rejects_bare_repository() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().canonicalize().expect("canonicalize");
+    let bare = root.join("bare.git");
+    fs::create_dir_all(&bare).expect("create bare dir");
+
+    let init_output = Command::new("git")
+        .args(["init", "--bare", "-b", "main"])
+        .current_dir(&bare)
+        .output()
+        .expect("git init --bare");
+    assert!(
+        init_output.status.success(),
+        "git init --bare failed: stderr={}",
+        String::from_utf8_lossy(&init_output.stderr)
+    );
+
+    // Seed a .flow-states/ in the bare repo's parent to verify the
+    // script doesn't reach it. A buggy resolution would target
+    // `<bare>/..` and wipe this directory.
+    seed_flow_states(&root);
+
+    let output = run_reset(&bare);
+
+    assert!(
+        !output.status.success(),
+        "expected non-zero exit on bare repo, got 0"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("refusing to operate inside a bare repository"),
+        "expected bare-repo rejection message, got stderr: {}",
+        stderr
+    );
+    assert!(
+        root.join(".flow-states").is_dir(),
+        "bare repo's parent .flow-states/ must not be touched"
     );
 }
 

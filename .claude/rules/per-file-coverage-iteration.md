@@ -116,3 +116,52 @@ to the cost of chasing phantom misses for hours.
 
 Any one of those is sufficient — clean and re-measure before
 spending more time on test design.
+
+## Enforcement
+
+The Rule above is enforced mechanically by Layer 11 of
+`validate-pretool`. During an active Code phase
+(`current_phase == "flow-code"` AND
+`phases.flow-code.status == "in_progress"` in the state file),
+the hook rejects every `bin/flow ci` invocation with exit 2 and a
+message naming the per-file gate as the redirect target. The
+single carve-out is `bin/flow ci --clean` — the documented
+phantom-misses recovery path above.
+
+The gate is in `src/hooks/validate_pretool.rs::check_ci_during_code_phase`,
+called from `run()` after Layer 10's commit gate.
+`finalize_commit::run_impl` calls `ci::run_impl()` as a Rust
+function from inside the same process — it never reaches the
+Bash hook, so the commit-time CI gate is structurally
+unaffected. Cross-file regressions are still caught at the
+commit boundary.
+
+The gate's posture is fail-closed-as-NO-BLOCK (inverted from
+Layer 10's fail-closed-by-blocking). Every state-file read or
+parse error returns "no block" because mis-blocking a legitimate
+`bin/flow ci` in a wrongly-detected non-Code phase would surprise
+the user. Layer 11 is friction-prevention, not a security gate.
+
+The block fires only when ALL of the following hold:
+
+1. `is_flow_ci_invocation(command)` — the command shape is
+   `bin/flow ... ci` (with any global flags before `ci`, and the
+   `*/bin/flow` suffix form for absolute paths).
+2. `!has_clean_flag(command)` — `--clean` is the documented
+   phantom-misses fix and remains available throughout Code phase.
+3. An active flow exists at the resolved
+   `<main_root>/.flow-states/<branch>/state.json`.
+4. `state_is_in_code_phase(branch, main_root)` returns true.
+
+The integration test matrix in `tests/hooks/validate_pretool.rs`
+under the `--- layer_11_ci_during_code_phase ---` marker covers
+the full decision surface: every blocking shape, the `--clean`
+carve-out (with and without additional flags), every passing
+phase context (no active flow; flow-start / flow-review /
+flow-learn / flow-complete; flow-code status pending / complete;
+non-ci subcommands like `bin/flow status` and
+`bin/flow phase-transition`), and every fail-closed shape
+(unparseable JSON, missing `current_phase`, wrong-type `phases`,
+wrong-type `phases.flow-code`, wrong-type
+`phases.flow-code.status`, unreadable state file via chmod 000,
+and a no-project-root cwd).

@@ -1360,6 +1360,135 @@ fn state_continue_pending_is_commit(branch: &str, main_root: &Path) -> bool {
     state.get("_continue_pending").and_then(|v| v.as_str()) == Some("commit")
 }
 
+/// Recognize a `bin/flow ... ci` invocation. Mirrors the structure of
+/// `is_finalize_commit_invocation`: tokenizes on whitespace, dequotes
+/// the first token, requires it to be `bin/flow` or any absolute path
+/// ending in `/bin/flow`, then accepts `ci` as any subsequent token so
+/// global flags between launcher and subcommand (e.g.
+/// `bin/flow --log-level info ci`) cannot defeat the matcher.
+///
+/// Returns false for non-`bin/flow` first tokens (`bin/test`,
+/// `git ci`, `npm ci`) and for `bin/flow` invocations whose subcommand
+/// is not `ci` (`bin/flow status`, `bin/flow finalize-commit`).
+fn is_flow_ci_invocation(stripped: &str) -> bool {
+    let mut tokens = stripped.split_whitespace();
+    let first_raw = tokens.next().unwrap_or("");
+    let first = dequote_token(first_raw);
+    if !is_bin_flow_token(first) {
+        return false;
+    }
+    tokens.any(|t| t == "ci")
+}
+
+/// Recognize the `--clean` flag in a tokenized command. The flag's
+/// position is irrelevant — `bin/flow ci --clean`,
+/// `bin/flow --log-level info ci --clean`, and
+/// `bin/flow ci --branch foo --clean` all match. The match is exact:
+/// `--no-clean` and `--cleanup` do NOT match.
+fn has_clean_flag(stripped: &str) -> bool {
+    stripped.split_whitespace().any(|t| t == "--clean")
+}
+
+/// Read `<main_root>/.flow-states/<branch>/state.json` and return
+/// true iff `current_phase == "flow-code"` AND
+/// `phases.flow-code.status == "in_progress"`.
+///
+/// Fail-closed-as-NO-BLOCK. This helper INVERTS the fail-closed
+/// posture of `state_continue_pending_is_commit` and Layer 10. Layer
+/// 11 is a friction-prevention gate; the conservative response to a
+/// state-file read error is "let `bin/flow ci` through" rather than
+/// block on uncertainty. A mis-block in a wrongly-detected non-Code
+/// phase would surprise the user; a missed block in a corrupted-state
+/// edge case loses nothing because the user is already in an error-
+/// recovery posture.
+///
+/// `FlowPaths::try_new` is called with `.expect()` because every
+/// caller (`check_ci_during_code_phase`) gates on `is_flow_active`
+/// returning true. `is_flow_active` itself calls `FlowPaths::try_new`
+/// with the same arguments and returns false on `None`, so reaching
+/// this helper guarantees the constructor succeeds.
+fn state_is_in_code_phase(branch: &str, main_root: &Path) -> bool {
+    let paths = FlowPaths::try_new(main_root, branch)
+        .expect("is_flow_active gate guarantees FlowPaths-valid branch");
+    let Ok(content) = std::fs::read_to_string(paths.state_file()) else {
+        return false;
+    };
+    let Ok(state) = serde_json::from_str::<Value>(&content) else {
+        return false;
+    };
+    if state.get("current_phase").and_then(|v| v.as_str()) != Some("flow-code") {
+        return false;
+    }
+    state
+        .get("phases")
+        .and_then(|p| p.get("flow-code"))
+        .and_then(|p| p.get("status"))
+        .and_then(|v| v.as_str())
+        == Some("in_progress")
+}
+
+/// Layer 11 block message. Redirects `bin/flow ci` to the per-file
+/// gate during Code phase. The per-file gate enforces identical
+/// 100/100/100 thresholds at seconds-scale; full CI at 3–4 minutes
+/// is wasteful for single-file iteration. The pre-commit gate inside
+/// `finalize-commit` still runs full CI on every commit, so
+/// cross-file regressions are caught at the commit boundary.
+///
+/// `bin/flow ci --clean` is preserved as the documented phantom-
+/// misses recovery path per `.claude/rules/per-file-coverage-iteration.md`.
+const LAYER_11_BLOCK_MSG: &str = "BLOCKED: `bin/flow ci` is disabled during Code phase. \
+    Use the per-file gate instead: `bin/test tests/<name>.rs` (seconds, same 100/100/100 \
+    thresholds). `bin/test --show src/<name>.rs` inspects uncovered regions; \
+    `bin/test --funcs src/<name>.rs` lists function instantiations. The pre-commit gate \
+    runs full CI automatically via `/flow:flow-commit`. To clean stale coverage \
+    artifacts, `bin/flow ci --clean` is still allowed. See \
+    .claude/rules/per-file-coverage-iteration.md.";
+
+/// Layer 11: redirect `bin/flow ci` to the per-file gate during Code
+/// phase. Fires when ALL of the following hold:
+///
+/// 1. `is_flow_ci_invocation(command)` — the command shape is
+///    `bin/flow ... ci` (with any global flags before `ci`).
+/// 2. `!has_clean_flag(command)` — the `--clean` carve-out is NOT
+///    present. `bin/flow ci --clean` is the documented phantom-misses
+///    fix and stays available throughout Code phase.
+/// 3. An active flow exists at `<main_root>/.flow-states/<branch>/
+///    state.json` resolved from `cwd`.
+/// 4. `state_is_in_code_phase(branch, main_root)` — `current_phase`
+///    is `flow-code` AND `phases.flow-code.status` is `in_progress`.
+///
+/// `finalize_commit::run_impl` calls `ci::run_impl()` as a Rust
+/// function from inside the same process — it never reaches this
+/// Bash hook, so the commit-time CI gate is structurally unaffected
+/// by Layer 11. The redirect only catches Bash invocations the model
+/// types directly during the Code phase.
+///
+/// Fail-closed-as-no-block. Every read or parse error in
+/// `state_is_in_code_phase` returns false → no block. This inverts
+/// Layer 10's fail-closed-by-blocking posture: a friction-prevention
+/// gate's conservative response is "let the command through" because
+/// mis-blocking a legitimate `bin/flow ci` in a wrongly-detected
+/// non-Code phase would surprise the user.
+fn check_ci_during_code_phase(command: &str, cwd: &Path) -> Option<String> {
+    if !is_flow_ci_invocation(command) {
+        return None;
+    }
+    if has_clean_flag(command) {
+        return None;
+    }
+    let branch = detect_branch_from_path(cwd)?;
+    let (_, project_root) = find_settings_and_root_from(cwd);
+    let root = project_root?;
+    let main_root = resolve_main_root(&root);
+    if !is_flow_active(&branch, &main_root) {
+        return None;
+    }
+    if !state_is_in_code_phase(&branch, &main_root) {
+        return None;
+    }
+    Some(LAYER_11_BLOCK_MSG.to_string())
+}
+
 /// Determine whether a command should be blocked from run_in_background.
 ///
 /// `bin/flow` (any subcommand) and `bin/ci` are always blocked — every
@@ -1646,6 +1775,21 @@ pub fn run() {
         if let Some(msg) =
             check_commit_during_flow(command, cwd_path, transcript_path.as_deref(), &home)
         {
+            eprintln!("{}", msg);
+            std::process::exit(2);
+        }
+    }
+
+    // Layer 11: redirect `bin/flow ci` to the per-file gate during
+    // Code phase. Layered outside `validate()` for the same reason
+    // as Layer 10 — the gate needs `cwd` to resolve the branch and
+    // state file. The single carve-out is `bin/flow ci --clean` (the
+    // documented phantom-misses recovery path). `finalize-commit`
+    // calls `ci::run_impl()` as a Rust function and never reaches
+    // this Bash hook, so the commit-time CI gate is structurally
+    // unaffected. See `.claude/rules/per-file-coverage-iteration.md`.
+    if let Some(cwd_path) = cwd.as_deref() {
+        if let Some(msg) = check_ci_during_code_phase(command, cwd_path) {
             eprintln!("{}", msg);
             std::process::exit(2);
         }

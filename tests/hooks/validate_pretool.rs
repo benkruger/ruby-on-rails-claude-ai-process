@@ -1449,8 +1449,18 @@ fn test_is_flow_command_whitespace_only_returns_false() {
 // (regardless of flow_active).
 
 fn run_hook_with_bg(bg: Value) -> (i32, String, String) {
+    // Isolate the child's cwd from the host worktree so the active-flow
+    // state file on the host (which has `current_phase=flow-code,
+    // status=in_progress` for THIS PR's branch) does not trip Layer 11
+    // when the command is `bin/flow ci` and bg is falsy. The bg-truthy
+    // tests only exercise the run_in_background decision; the cwd's
+    // FLOW state is irrelevant to that decision but reaches Layer 11
+    // when bg falls through.
+    let isolation = tempfile::tempdir().expect("tempdir");
     let mut child = Command::new(env!("CARGO_BIN_EXE_flow-rs"))
         .args(["hook", "validate-pretool"])
+        .current_dir(isolation.path())
+        .env("HOME", isolation.path())
         .env_remove("FLOW_CI_RUNNING")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -4711,5 +4721,386 @@ fn finalize_commit_destination_arm_falls_through_when_project_root_missing() {
         code, 0,
         "finalize-commit from a no-project-root cwd must fall through \
          without blocking; stderr={stderr}"
+    );
+}
+
+// --- layer_11_ci_during_code_phase ---
+//
+// Layer 11 redirects `bin/flow ci` to the per-file gate during Code
+// phase. The full-CI runner is wasteful for single-file iteration
+// when `bin/test tests/<name>.rs` enforces identical 100/100/100
+// thresholds at seconds-scale. The single carve-out is
+// `bin/flow ci --clean` (the documented phantom-misses recovery
+// path). `finalize_commit::run_impl` calls `ci::run_impl()` as a
+// Rust function and never reaches this Bash hook — the commit-time
+// CI gate is structurally unaffected.
+//
+// The fixture `setup_active_flow_worktree_with_state` (defined
+// above) builds the minimal layout: settings.json,
+// `.flow-states/<branch>/state.json` with caller-controlled content,
+// and a `.worktrees/<branch>/` directory with a `.git` pointer so
+// `detect_branch_from_path` resolves. The Code-phase state shape
+// the gate looks for is `current_phase == "flow-code"` AND
+// `phases.flow-code.status == "in_progress"`.
+
+const CODE_PHASE_STATE: &str =
+    r#"{"current_phase": "flow-code", "phases": {"flow-code": {"status": "in_progress"}}}"#;
+
+/// Assert the Layer 11 block fires: exit code 2, stderr names the
+/// redirect target and the per-file rule.
+fn assert_layer_11_block(code: i32, stderr: &str, context: &str) {
+    assert_eq!(code, 2, "{context}: must block; stderr={stderr}");
+    assert!(
+        stderr.contains("BLOCKED"),
+        "{context}: stderr should contain BLOCKED; got: {stderr}"
+    );
+    assert!(
+        stderr.contains("bin/test tests/"),
+        "{context}: stderr should redirect to per-file gate; got: {stderr}"
+    );
+    assert!(
+        stderr.contains("per-file-coverage-iteration.md"),
+        "{context}: stderr should cite the per-file rule; got: {stderr}"
+    );
+}
+
+// Block-fires set: every `bin/flow ci` shape during Code phase
+// produces the Layer 11 block.
+
+#[test]
+fn layer_11_blocks_bare_bin_flow_ci_in_code_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_layer_11_block(code, &stderr, "bare bin/flow ci");
+}
+
+#[test]
+fn layer_11_blocks_bin_flow_ci_test_in_code_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci --test"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_layer_11_block(code, &stderr, "bin/flow ci --test");
+}
+
+#[test]
+fn layer_11_blocks_bin_flow_ci_audit_in_code_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci --audit"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_layer_11_block(code, &stderr, "bin/flow ci --audit");
+}
+
+#[test]
+fn layer_11_blocks_bin_flow_ci_build_in_code_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci --build"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_layer_11_block(code, &stderr, "bin/flow ci --build");
+}
+
+#[test]
+fn layer_11_blocks_bin_flow_ci_force_in_code_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci --force"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_layer_11_block(code, &stderr, "bin/flow ci --force");
+}
+
+#[test]
+fn layer_11_blocks_bin_flow_ci_format_in_code_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci --format"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_layer_11_block(code, &stderr, "bin/flow ci --format");
+}
+
+#[test]
+fn layer_11_blocks_bin_flow_ci_lint_in_code_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci --lint"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_layer_11_block(code, &stderr, "bin/flow ci --lint");
+}
+
+#[test]
+fn layer_11_blocks_absolute_path_bin_flow_ci_in_code_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "/Users/x/code/flow/bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_layer_11_block(code, &stderr, "absolute-path bin/flow ci");
+}
+
+// Carve-out set: `--clean` lets the command through so the
+// documented phantom-misses recovery path stays available.
+
+#[test]
+fn layer_11_carveout_allows_bin_flow_ci_clean() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci --clean"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(code, 0, "--clean must carve out; stderr={stderr}");
+}
+
+#[test]
+fn layer_11_carveout_allows_bin_flow_ci_clean_with_branch_arg() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow ci --clean --branch foo"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "--clean with branch arg must carve out; stderr={stderr}"
+    );
+}
+
+// Pass-through set: every non-Code-phase context allows
+// `bin/flow ci` through.
+
+#[test]
+fn layer_11_does_not_fire_when_no_active_flow() {
+    // No state.json at all → is_flow_active returns false → Layer 11
+    // never reaches state_is_in_code_phase.
+    let (_dir, _root, cwd) = setup_active_flow_worktree("feat", false);
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "no active flow must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_does_not_fire_in_flow_start_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-start", "phases": {"flow-code": {"status": "pending"}}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "flow-start phase must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_does_not_fire_in_flow_review_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-review", "phases": {"flow-review": {"status": "in_progress"}}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "flow-review phase must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_does_not_fire_in_flow_learn_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-learn", "phases": {"flow-learn": {"status": "in_progress"}}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "flow-learn phase must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_does_not_fire_in_flow_complete_phase() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-complete", "phases": {"flow-complete": {"status": "in_progress"}}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "flow-complete phase must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_does_not_fire_when_code_status_pending() {
+    // current_phase is flow-code but the phase status hasn't reached
+    // in_progress yet (e.g. between phase_complete and phase_enter).
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-code", "phases": {"flow-code": {"status": "pending"}}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "flow-code status=pending must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_does_not_fire_when_code_status_complete() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-code", "phases": {"flow-code": {"status": "complete"}}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "flow-code status=complete must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_does_not_fire_for_bin_flow_status_subcommand() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow status"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "bin/flow status must not trip Layer 11; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_does_not_fire_for_bin_flow_phase_transition_subcommand() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let input = r#"{"tool_input": {"command": "bin/flow phase-transition --action complete"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "bin/flow phase-transition must not trip Layer 11; stderr={stderr}"
+    );
+}
+
+// Fail-closed set: every state-file corruption shape returns no
+// block (the friction-prevention inversion of Layer 10's posture).
+
+#[test]
+fn layer_11_no_block_when_state_unparseable() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state("feat", "{this is not json}");
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "unparseable state.json must allow bin/flow ci (fail-closed-no-block); stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_no_block_when_current_phase_absent() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"phases": {"flow-code": {"status": "in_progress"}}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "absent current_phase must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_no_block_when_phases_wrong_type() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-code", "phases": 42}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "phases=number must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_no_block_when_flow_code_entry_wrong_type() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-code", "phases": {"flow-code": "in_progress"}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "phases.flow-code=string must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_no_block_when_code_status_wrong_type() {
+    let (_dir, _root, cwd) = setup_active_flow_worktree_with_state(
+        "feat",
+        r#"{"current_phase": "flow-code", "phases": {"flow-code": {"status": 1}}}"#,
+    );
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+    assert_eq!(
+        code, 0,
+        "status=number must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn layer_11_no_block_when_state_file_is_unreadable() {
+    use std::os::unix::fs::PermissionsExt;
+
+    // `is_flow_active`'s `.is_file()` succeeds even when the file's
+    // read perms are 000 — metadata is fetched from the parent dir,
+    // not by reading content. The downstream `state_is_in_code_phase`
+    // then attempts `read_to_string`, which returns `Err(EACCES)`.
+    // Fail-closed-as-no-block (the Layer 11 inversion of Layer 10's
+    // posture): the read failure means we can't confirm Code phase,
+    // so `bin/flow ci` is allowed through.
+    let (_dir, root, cwd) = setup_active_flow_worktree_with_state("feat", CODE_PHASE_STATE);
+    let state_path = root.join(".flow-states").join("feat").join("state.json");
+
+    let mut perms = std::fs::metadata(&state_path).unwrap().permissions();
+    perms.set_mode(0o000);
+    std::fs::set_permissions(&state_path, perms).unwrap();
+
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&cwd));
+
+    // Restore perms before any assertion can short-circuit tempdir
+    // cleanup.
+    let mut perms = std::fs::metadata(&state_path).unwrap().permissions();
+    perms.set_mode(0o644);
+    std::fs::set_permissions(&state_path, perms).unwrap();
+
+    assert_eq!(
+        code, 0,
+        "unreadable state.json must allow bin/flow ci; stderr={stderr}"
+    );
+}
+
+#[test]
+fn layer_11_no_block_when_no_project_root() {
+    // Build a fixture where `.worktrees/<branch>/` exists so
+    // `detect_branch_from_path` returns Some — but no
+    // `.claude/settings.json` exists anywhere upward, so
+    // `find_settings_and_root_from` returns `(None, None)` and the
+    // `let root = project_root?` line returns None. Layer 11 passes
+    // through.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().canonicalize().expect("canonicalize");
+    let worktree = root.join(".worktrees").join("feat");
+    std::fs::create_dir_all(&worktree).unwrap();
+    std::fs::write(worktree.join(".git"), "gitdir: ../../.git/worktrees/feat").unwrap();
+    // Deliberately omit `.claude/settings.json` — find_settings walks
+    // up to filesystem root without finding it.
+
+    let input = r#"{"tool_input": {"command": "bin/flow ci"}}"#;
+    let (code, _stdout, stderr) = run_hook_with_input(input, Some(&worktree));
+    assert_eq!(
+        code, 0,
+        "no project root must allow bin/flow ci; stderr={stderr}"
     );
 }

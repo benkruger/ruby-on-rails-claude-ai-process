@@ -37,6 +37,9 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::git::default_branch_in;
+use crate::hooks::transcript_walker::normalize_gate_input;
+
 /// Directory-only handle for the `.flow-states/` directory. Use this
 /// for cross-branch operations (discovery scans, hook prefix checks,
 /// pre-lock queue paths) that need the directory without a specific
@@ -375,4 +378,61 @@ pub fn compute_worktree_paths(cwd: &str) -> Option<(&str, &str)> {
 /// leading-slash anchor and rightmost-occurrence behavior.
 pub fn compute_worktree_root(cwd: &str) -> Option<&str> {
     compute_worktree_paths(cwd).map(|(_, worktree_root)| worktree_root)
+}
+
+/// Decide which directory a finalize-commit git operation runs in
+/// for `branch`, given the project `root`.
+///
+/// The integration branch (the trunk the bootstrap skills —
+/// flow-start, flow-prime, flow-release — commit on) is checked out
+/// at the project root itself; a feature flow's branch lives in its
+/// per-branch `.worktrees/<branch>/` worktree. This helper resolves
+/// to the project root for an integration-branch commit and to the
+/// worktree for a feature-branch commit.
+///
+/// The discriminator is `crate::git::default_branch_in(root)`:
+///
+/// - `Ok(integration)` and `branch` normalizes equal to
+///   `integration` (via `normalize_gate_input` on both sides per
+///   `.claude/rules/security-gates.md` "Normalize Before Comparing")
+///   → the project root.
+/// - `Ok(integration)`, `branch` is something else → the per-branch
+///   worktree `<root>/.worktrees/<branch>`.
+/// - `Err(_)` (no `origin` remote, fresh clone, non-git dir) — git
+///   cannot name the integration branch, so the worktree directory's
+///   existence is the fallback discriminator: a present
+///   `<root>/.worktrees/<branch>` directory means a real feature
+///   flow → the worktree; an absent one means fresh-clone bootstrap
+///   → the project root.
+///
+/// The branch is not re-validated here — callers pass a branch
+/// already validated upstream (`FlowPaths::try_new` in the binary,
+/// `extract_finalize_commit_branch_arg` via `is_valid_branch` in the
+/// hook), consistent with `compute_worktree_paths`.
+///
+/// Named production consumers (per
+/// `.claude/rules/docs-with-behavior.md`):
+/// `src/finalize_commit.rs::run_impl` (the commit cwd) and
+/// `src/hooks/validate_pretool.rs::match_finalize_commit_destination`
+/// (the Layer 10 integration-branch gate). Both call this helper so
+/// the binary's commit destination and the hook's block decision
+/// cannot drift.
+pub fn finalize_commit_destination(root: &Path, branch: &str) -> PathBuf {
+    let worktree = root.join(".worktrees").join(branch);
+    match default_branch_in(root) {
+        Ok(integration) => {
+            if normalize_gate_input(branch) == normalize_gate_input(&integration) {
+                root.to_path_buf()
+            } else {
+                worktree
+            }
+        }
+        Err(_) => {
+            if worktree.is_dir() {
+                worktree
+            } else {
+                root.to_path_buf()
+            }
+        }
+    }
 }

@@ -31,10 +31,11 @@ use crate::session_metrics::home_dir_or_empty;
 ///
 /// Returns `(allowed, message)`. Message is empty if allowed.
 ///
-/// Layers 1-7 (compound commands, redirection, exec prefix, blanket
-/// restore, git diff with file args, deny list) are always enforced.
+/// Layers 1-8 (compound commands, redirection, exec prefix,
+/// destructive find, blanket restore, git diff with file args, deny
+/// list, structural escape-hatch) are always enforced.
 ///
-/// Layer 8 (whitelist enforcement) is only enforced when both settings
+/// Layer 9 (whitelist enforcement) is only enforced when both settings
 /// are provided AND `flow_active` is true.
 pub fn validate(command: &str, settings: Option<&Value>, flow_active: bool) -> (bool, String) {
     // Layer 1: Block compound commands and command substitution at the
@@ -185,7 +186,7 @@ pub fn validate(command: &str, settings: Option<&Value>, flow_active: bool) -> (
         }
     }
 
-    // Layer 7.5: Structural escape-hatch program/flag block. Catches
+    // Layer 8: Structural escape-hatch program/flag block. Catches
     // indirect forms (absolute paths, env-var prefixes, flags-before-
     // trigger) that route around Layer 7's glob deny patterns. Fires
     // regardless of `settings` or `flow_active` so pre-prime sessions
@@ -196,7 +197,7 @@ pub fn validate(command: &str, settings: Option<&Value>, flow_active: bool) -> (
         return (false, msg);
     }
 
-    // Layer 8: Whitelist check — only during an active flow
+    // Layer 9: Whitelist check — only during an active flow
     if let Some(settings) = settings {
         if flow_active {
             let allow_regexes = build_permission_regexes(settings, "allow");
@@ -412,7 +413,7 @@ fn is_bin_flow_token(token: &str) -> bool {
 /// Strip leading and trailing single quotes, then leading and
 /// trailing double quotes, from a shell token. Bash dequotes command
 /// names before exec, so `'git' commit` runs the same as `git
-/// commit` — Layer 9 must too. The `trim_matches` chain strips ALL
+/// commit` — Layer 10 must too. The `trim_matches` chain strips ALL
 /// leading and trailing quote characters of each kind, not a
 /// matched pair, which is a permissive v1 heuristic: the worst case
 /// is over-stripping a malformed token (e.g. `'git` becomes `git`
@@ -430,7 +431,7 @@ fn dequote_token(s: &str) -> &str {
 /// trailing whitespace separator. The final token after env vars
 /// is NOT stripped: an `s` of `"FOO=bar"` alone returns `"FOO=bar"`
 /// because there is no whitespace boundary that proves a following
-/// command exists. Used by Layer 7.5 to see past `FOO=bar bash -c`
+/// command exists. Used by Layer 8 to see past `FOO=bar bash -c`
 /// to the effective program.
 fn strip_env_prefix(s: &str) -> &str {
     let mut current = s.trim_start();
@@ -463,7 +464,7 @@ fn strip_env_prefix(s: &str) -> &str {
 
 /// Return the basename of a first-token path. When `token` contains
 /// no `/`, returns `token` unchanged. Otherwise returns the substring
-/// after the final `/`. Used by Layer 7.5 to match `/usr/bin/bash`
+/// after the final `/`. Used by Layer 8 to match `/usr/bin/bash`
 /// against the escape-hatch program set by its basename `bash`.
 fn first_token_basename(token: &str) -> &str {
     match token.rfind('/') {
@@ -472,7 +473,7 @@ fn first_token_basename(token: &str) -> &str {
     }
 }
 
-/// Layer 7.5's structural escape-hatch check. Strips env-var prefix,
+/// Layer 8's structural escape-hatch check. Strips env-var prefix,
 /// tokenizes on whitespace, basenames the first token, and matches
 /// against the canonical escape-hatch program set from
 /// `.claude/rules/no-escape-hatches.md`. Trigger-flag awareness keeps
@@ -757,7 +758,7 @@ where
 /// Extract the value of a `-C <path>` argument from a `git ...`
 /// command, if present. Returns the path as a borrowed slice of
 /// `stripped` for the caller to convert to a `PathBuf`. Used by
-/// Layer 9 to also resolve the branch from git's effective cwd
+/// Layer 10 to also resolve the branch from git's effective cwd
 /// when `-C` shifts it away from the hook's process cwd.
 fn extract_dash_c_path(stripped: &str) -> Option<&str> {
     let mut tokens = stripped.split_whitespace();
@@ -782,7 +783,7 @@ fn extract_dash_c_path(stripped: &str) -> Option<&str> {
 /// the next token is the message file; the token after that is the
 /// branch.
 ///
-/// Production consumer: Layer 9's `check_commit_during_flow` uses
+/// Production consumer: Layer 10's `check_commit_during_flow` uses
 /// the returned branch arg as the routing key for the destination-
 /// aware integration-branch and active-flow checks — independent of
 /// the hook's process cwd. Mirrors `finalize_commit::run_impl`'s
@@ -843,7 +844,7 @@ fn extract_finalize_commit_branch_arg(stripped: &str) -> Option<&str> {
 
 /// Compare the dequoted branch argument against the project's
 /// integration branch (resolved via `default_branch_in`). When the
-/// normalized strings match, return the Layer 9 block message
+/// normalized strings match, return the Layer 10 block message
 /// keyed on the integration branch's canonical name; otherwise
 /// return `None`.
 ///
@@ -876,16 +877,16 @@ fn match_finalize_commit_destination(branch_arg: &str, main_root: &Path) -> Opti
     }
 }
 
-/// Recognize a direct commit invocation that Layer 9 must block
+/// Recognize a direct commit invocation that Layer 10 must block
 /// when the effective cwd is on the integration branch. v1 matches:
 /// `git ... commit` (skipping `-c k=v` and `-C path` between `git`
 /// and the subcommand), `bin/flow ... finalize-commit` (matched by
 /// `bin/flow` exact or `*/bin/flow` suffix), and `'git' commit` /
 /// `"git" commit` (with the first token dequoted). `bash -c
 /// '<inner>'` and `sh -c '<inner>'` wrappers do NOT need to be
-/// unwrapped here because Layer 7.5 in `validate` blocks every
+/// unwrapped here because Layer 8 in `validate` blocks every
 /// shell-eval shape (`bash -c`, `sh -c`, `zsh -c`, `eval`) before
-/// Layer 9 runs — the wrapper itself is a structural escape hatch
+/// Layer 10 runs — the wrapper itself is a structural escape hatch
 /// per `.claude/rules/no-escape-hatches.md`.
 fn is_commit_invocation(stripped: &str) -> bool {
     is_commit_invocation_inner(stripped)
@@ -901,7 +902,7 @@ fn is_commit_invocation_inner(stripped: &str) -> bool {
     if is_bin_flow_token(first) {
         // bin/flow today exposes no global flags between launcher
         // and subcommand, but a future addition (`--verbose`,
-        // `--log-level <value>`, etc.) must not bypass Layer 9.
+        // `--log-level <value>`, etc.) must not bypass Layer 10.
         // Match `finalize-commit` as any subsequent token rather
         // than the immediate next token. False-positive risk is
         // negligible: split_whitespace tokenization preserves
@@ -913,7 +914,7 @@ fn is_commit_invocation_inner(stripped: &str) -> bool {
     false
 }
 
-/// Compose the Layer 9 block message naming the integration branch.
+/// Compose the Layer 10 block message naming the integration branch.
 /// The message is a fixed-shape string the contract tests assert on
 /// (must contain `BLOCKED` and the branch name) and the user-facing
 /// guidance directing the engineer at `/flow:flow-commit`.
@@ -921,12 +922,12 @@ fn commit_block_message(branch: &str) -> String {
     format!(
         "BLOCKED: direct commits on the integration branch '{}' are not allowed. \
          Run /flow:flow-commit from a feature worktree instead. \
-         This block is mechanical (Layer 9). See .claude/rules/no-escape-hatches.md.",
+         This block is mechanical (Layer 10). See .claude/rules/no-escape-hatches.md.",
         branch
     )
 }
 
-/// Compose the Layer 9 block message naming the active flow's branch.
+/// Compose the Layer 10 block message naming the active flow's branch.
 /// Returned when a commit invocation lands in a feature-branch worktree
 /// that has an active FLOW state file. The message must contain
 /// `BLOCKED`, the literal phrase "active flow", and the
@@ -936,18 +937,18 @@ fn commit_block_message_active_flow(branch: &str) -> String {
     format!(
         "BLOCKED: direct commits during an active flow on '{}' are not allowed. \
          Run /flow:flow-commit instead so CI and the skill's diff review run through \
-         the gate. This block is mechanical (Layer 9). \
+         the gate. This block is mechanical (Layer 10). \
          See .claude/rules/no-escape-hatches.md.",
         branch
     )
 }
 
-/// Run Layer 9's commit-during-flow check against the appropriate
+/// Run Layer 10's commit-during-flow check against the appropriate
 /// branch source. Returns `Some(message)` when the check fires
 /// (the command is a commit invocation AND the routing key it binds
 /// to either resolves to the integration branch OR has an active
 /// FLOW state file); the caller eprintlns the message and exits 2.
-/// Returns `None` when Layer 9 does not block.
+/// Returns `None` when Layer 10 does not block.
 ///
 /// Dispatch shape:
 ///
@@ -1078,7 +1079,7 @@ fn check_commit_during_flow(
 /// the user types `/flow-release`. The constant reflects the
 /// literal `input.skill` values the transcript walker observes.
 ///
-/// Without a carve-out, Layer 9's integration-branch context blocks
+/// Without a carve-out, Layer 10's integration-branch context blocks
 /// every such commit and all three skills are unusable.
 ///
 /// Extending this set is a Plan-phase decision: each new entry must
@@ -1089,7 +1090,7 @@ fn check_commit_during_flow(
 const BOOTSTRAP_SKILLS: &[&str] = &["flow:flow-start", "flow:flow-prime", "flow-release"];
 
 /// Three AND-combined conditions on the bootstrap-skill carve-out
-/// for Layer 9's integration-branch context. The carve-out fires
+/// for Layer 10's integration-branch context. The carve-out fires
 /// (suppresses the integration-branch block) iff:
 ///
 /// 1. `is_finalize_commit_invocation(command)` — the command shape
@@ -1242,7 +1243,7 @@ fn check_active_flow_at(
     Some(commit_block_message_active_flow(&branch))
 }
 
-/// Walker check for one of the AND-combined conditions on Layer 9's
+/// Walker check for one of the AND-combined conditions on Layer 10's
 /// two carve-outs (active-flow and bootstrap-skill). Returns true iff
 /// the most recent assistant Skill tool_use call since the most
 /// recent user turn in the persisted transcript at `transcript_path`
@@ -1311,8 +1312,8 @@ fn transcript_shows_commit_window_skill(transcript_path: Option<&Path>, home: &P
 /// between launcher and subcommand cannot defeat the matcher).
 ///
 /// `bash -c '<inner>'` and `sh -c '<inner>'` wrappers do NOT need to
-/// be unwrapped here because Layer 7.5 in `validate` blocks every
-/// shell-eval shape before Layer 9 runs — the wrapper itself is a
+/// be unwrapped here because Layer 8 in `validate` blocks every
+/// shell-eval shape before Layer 10 runs — the wrapper itself is a
 /// structural escape hatch per `.claude/rules/no-escape-hatches.md`.
 ///
 /// Returns false for `git commit` in any form. The skill carve-out
@@ -1336,7 +1337,7 @@ fn is_finalize_commit_inner(stripped: &str) -> bool {
 /// true iff `_continue_pending` is the string `"commit"`. Fail-closed:
 /// returns false on any read or parse error (file unreadable, JSON
 /// parse failure, key absent, wrong type). The fail-closed default
-/// preserves Layer 9's block when the marker cannot be definitively
+/// preserves Layer 10's block when the marker cannot be definitively
 /// confirmed.
 ///
 /// `FlowPaths::try_new` is called with `.expect()` because every
@@ -1520,14 +1521,14 @@ fn is_flow_advancing_bash_command(cmd: &str) -> bool {
     if !(program == "bin/flow" || program.ends_with("/bin/flow")) {
         return false;
     }
-    // Layer 8's whitelist rejects bare `bin/flow` (no subcommand)
+    // Layer 9's whitelist rejects bare `bin/flow` (no subcommand)
     // during active flows because every allow-list pattern requires
     // an argument (`Bash(*bin/flow *)`), and the halt gate only
     // runs when a flow is active. The second token is therefore
     // guaranteed in production.
     let subcommand = tokens
         .next()
-        .expect("Layer 8 whitelist rejects bare bin/flow with no subcommand before halt gate");
+        .expect("Layer 9 whitelist rejects bare bin/flow with no subcommand before halt gate");
     match subcommand {
         "phase-enter"
         | "phase-finalize"
@@ -1577,7 +1578,7 @@ pub fn run() {
     // presence per Review finding #9: a missing settings.json
     // (interrupted prime, .gitignore'd in CI) must not silently
     // disable the halt gate. settings.json is consulted only for
-    // Layer 8 whitelist enforcement.
+    // Layer 9 whitelist enforcement.
     let branch = cwd.as_deref().and_then(detect_branch_from_path);
     let main_root = match project_root.as_ref() {
         Some(r) => Some(resolve_main_root(r)),
@@ -1630,7 +1631,7 @@ pub fn run() {
         std::process::exit(2);
     }
 
-    // Layer 9: block direct commit invocations when the hook's
+    // Layer 10: block direct commit invocations when the hook's
     // effective cwd resolves either to the integration branch named
     // by `default_branch_in` OR to a feature branch with an active
     // FLOW state file at `.flow-states/<branch>/state.json`. Layered
@@ -1638,7 +1639,7 @@ pub fn run() {
     // validate() because validate() does not receive cwd — adding it
     // would expand the function's signature across every existing
     // caller. Commands blocked by Layers 1-9 never reach this point;
-    // Layer 9 fires only when the command passes all preceding
+    // Layer 10 fires only when the command passes all preceding
     // structural gates AND is a commit invocation routed through one
     // of the two trigger contexts.
     if let Some(cwd_path) = cwd.as_deref() {

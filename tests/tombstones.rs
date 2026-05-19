@@ -2969,6 +2969,54 @@ fn test_flow_plan_no_explore_redirect_message() {
 
 /// Tombstone: removed in PR #1676. Must not return.
 ///
+/// `skills/flow-plan/SKILL.md` Step 6 previously closed the
+/// vanilla parent issue after filing the decomposed child, via a
+/// `bin/flow close-issue --comment` invocation. With the
+/// rewrite, Step 6 has two branches: bare-prompt mode files one
+/// new issue (no parent to close) and issue-input mode edits the
+/// existing issue #N in place (the issue STAYS open, holding the
+/// in-place plan). The close-parent path is gone entirely. A
+/// future regression would re-introduce the close call via the
+/// same subcommand surface.
+///
+/// Stability: byte-substring check against the `close-issue`
+/// subcommand name. The flow-plan SKILL.md's surviving content
+/// never references `close-issue` for any other purpose — the
+/// subcommand exists in the FLOW CLI but flow-plan is the only
+/// historical caller. Markdown contains no `concat!` reassembly,
+/// no `format!` template, and no `constant` declaration that
+/// could synthesize the literal without it appearing in source.
+/// The sibling `gh issue close` invocation is also forbidden —
+/// it was named in the close-failure recovery prose as a manual
+/// fallback the user could run, but the recovery prose itself is
+/// gone now that the close path is removed. Plausible bypasses:
+/// (1) re-introducing the close call as `gh issue close <N>`
+/// without `bin/flow close-issue` — caught by the second
+/// assertion. (2) re-introducing it under a different subcommand
+/// name (e.g., `gh issue update --state closed`) — not caught;
+/// such a regression would require a separate skill audit. The
+/// scanner targets the canonical surface the removed path used.
+#[test]
+fn test_flow_plan_no_close_parent_flow() {
+    let content = fs::read_to_string("skills/flow-plan/SKILL.md")
+        .expect("skills/flow-plan/SKILL.md must exist");
+    assert!(
+        !content.contains("close-issue"),
+        "skills/flow-plan/SKILL.md must not contain `close-issue` — \
+         the close-parent path was removed in PR #1676. Issue-input \
+         mode edits the issue in place; bare-prompt mode files a \
+         new issue with no parent to close."
+    );
+    assert!(
+        !content.contains("gh issue close"),
+        "skills/flow-plan/SKILL.md must not contain `gh issue close` — \
+         the manual-fallback recovery prose was removed alongside the \
+         close-parent path in PR #1676."
+    );
+}
+
+/// Tombstone: removed in PR #1676. Must not return.
+///
 /// `skills/flow-plan/SKILL.md` Step 2 previously refused to plan
 /// against any issue whose labels included `decomposed`, with the
 /// user-facing message "already carries the `decomposed` label".

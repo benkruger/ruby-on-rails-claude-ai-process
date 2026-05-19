@@ -1,5 +1,35 @@
 # Release Notes
 
+## v2.4.0 — Shared-config approvals, hello_smoke hardening
+
+### New features
+
+- **`bin/flow approve-shared-config`** — sanctioned single-use
+  approval flow for shared-config edits during a flow. After the
+  user replies with the literal phrase `approve shared-config:
+  <path>`, the model runs `bin/flow approve-shared-config --path
+  <path>` and the next Edit/Write to that file lands; a second
+  edit re-blocks. Closes the looping-block bug where approval
+  previously had no effect (#1667).
+
+### Fixes
+
+- **hello_smoke contract** — `tests/hello_smoke.rs` now asserts
+  exact file content of `hello.sh` (full shebang + dated line +
+  trailing newline) instead of substring matching, so a surviving
+  stale prior-date line now diverges and fails CI (#1675).
+
+### Improvements
+
+- **Symmetric Read+Write `/tmp/` workspace settings** —
+  `.claude/settings.json` now grants Write for the same closed
+  `/tmp/` extension set the model can Read (`*.txt`, `*.diff`,
+  `*.patch`, `*.md`, `*.json`, `*.jsonl`), closing the asymmetric
+  gap that surfaced a mid-flow permission prompt the first time a
+  Read-only `/tmp/` path needed to be written.
+- **CLAUDE.md what/why/how clarification** — Phase 1 framing made
+  more accurate.
+
 ## v2.3.0 — QA and hygiene skills, reset rework, commit-path hardening
 
 ### New features

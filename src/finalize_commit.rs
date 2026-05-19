@@ -218,11 +218,15 @@ pub fn run_impl(args: &Args, root: &std::path::Path) -> Result<Value, String> {
     // Branch-derived routing destination. An integration-branch
     // (bootstrap) commit runs at the project root, where the trunk is
     // checked out and no `<root>/.worktrees/<integration>` directory
-    // exists; a feature-branch commit runs in its per-branch worktree.
-    // `finalize_commit_destination` makes that decision and is the
-    // same helper the Layer 10 hook calls, so the binary's commit
-    // destination and the hook's block decision cannot drift. The
-    // validated branch passed through `FlowPaths::try_new` cannot
+    // exists; every other branch runs in its per-branch worktree.
+    // `finalize_commit_destination` owns the decision; the Layer 10
+    // hook reaches the route-to-root case through the same pure
+    // branch-vs-integration comparison, so the binary's commit
+    // destination and the hook's block decision agree by construction
+    // (see that helper's doc comment for the precise invariant — the
+    // hook's `default_branch_in().ok()?` short-circuit keeps the
+    // `Err` path off the root route on both sides). The validated
+    // branch passed through `FlowPaths::try_new` (above) cannot
     // contain `/` or `\0`, so the joined worktree path stays inside
     // `<root>/.worktrees/`. Every downstream git, CI, and snapshot
     // call binds to this value rather than the caller's process cwd.

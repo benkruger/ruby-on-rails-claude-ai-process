@@ -631,10 +631,60 @@ fn finalize_commit_destination_no_origin_with_worktree_routes_to_worktree() {
     );
 }
 
+// Divergence regression: when git cannot name the integration
+// branch (no `origin`), the helper must NEVER route to the project
+// root — even with no worktree directory present. Routing to root
+// here was the hook/binary drift the Review adversarial agent
+// proved: the binary committed feature work onto the trunk while
+// the hook's `default_branch_in().ok()?` returned no-block. The
+// `Err` path now routes to the per-branch worktree on both sides.
 #[test]
-fn finalize_commit_destination_no_origin_no_worktree_routes_to_root() {
+fn finalize_commit_destination_no_origin_no_worktree_routes_to_worktree() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let parent = tmp.path().canonicalize().expect("canonicalize");
     let root = create_git_repo_no_origin(&parent);
-    assert_eq!(finalize_commit_destination(&root, "feat-x"), root);
+    assert_eq!(
+        finalize_commit_destination(&root, "feat-x"),
+        root.join(".worktrees").join("feat-x")
+    );
+}
+
+// Branch-path-safety boundary (per
+// `.claude/rules/branch-path-safety.md`): `finalize_commit_destination`
+// is a pub surface that joins `branch` onto `.worktrees/`. An
+// invalid branch must never reach that join — the `is_valid_branch`
+// guard returns the project root (a non-escaping path) instead of
+// constructing a traversal-shaped `<root>/.worktrees/<bad>`. Both
+// production callers validate upstream, so this guard is
+// defense-in-depth; these tests lock the rejection classes the
+// adversarial harness could not reach (no crate link).
+
+#[test]
+fn finalize_commit_destination_rejects_empty_branch() {
+    let root = Path::new("/tmp/proj");
+    assert_eq!(finalize_commit_destination(root, ""), root);
+}
+
+#[test]
+fn finalize_commit_destination_rejects_dot_branch() {
+    let root = Path::new("/tmp/proj");
+    assert_eq!(finalize_commit_destination(root, "."), root);
+}
+
+#[test]
+fn finalize_commit_destination_rejects_dot_dot_branch() {
+    let root = Path::new("/tmp/proj");
+    assert_eq!(finalize_commit_destination(root, ".."), root);
+}
+
+#[test]
+fn finalize_commit_destination_rejects_slash_branch() {
+    let root = Path::new("/tmp/proj");
+    assert_eq!(finalize_commit_destination(root, "a/b"), root);
+}
+
+#[test]
+fn finalize_commit_destination_rejects_nul_branch() {
+    let root = Path::new("/tmp/proj");
+    assert_eq!(finalize_commit_destination(root, "a\0b"), root);
 }

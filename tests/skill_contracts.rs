@@ -6443,15 +6443,15 @@ fn flow_plan_skill_invokes_plan_review_with_capped_loop() {
     );
 
     // Textual ordering: Transform + Draft < Plan Review < Validate + File + Link
-    let transform_idx = c
-        .find("### Transform + Draft")
-        .expect("`### Transform + Draft` subsection must exist as the Plan Review's upstream anchor");
+    let transform_idx = c.find("### Transform + Draft").expect(
+        "`### Transform + Draft` subsection must exist as the Plan Review's upstream anchor",
+    );
     let review_idx = c
         .find("### Plan Review")
         .expect("`### Plan Review` subsection must exist between Transform + Draft and Validate + File + Link");
-    let validate_idx = c
-        .find("### Validate + File + Link")
-        .expect("`### Validate + File + Link` subsection must exist as the Plan Review's downstream anchor");
+    let validate_idx = c.find("### Validate + File + Link").expect(
+        "`### Validate + File + Link` subsection must exist as the Plan Review's downstream anchor",
+    );
     assert!(
         transform_idx < review_idx && review_idx < validate_idx,
         "skills/flow-plan/SKILL.md: `### Plan Review` must appear textually between `### Transform + Draft` and `### Validate + File + Link` (got Transform@{transform_idx} Review@{review_idx} Validate@{validate_idx})"

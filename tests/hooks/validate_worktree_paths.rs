@@ -414,8 +414,7 @@ fn shared_config_marker_is_single_use() {
 #[test]
 fn shared_config_blocks_on_corrupt_marker() {
     let (_d, root, cwd, file_path) = sc_fixture();
-    let mpath =
-        flow_rs::shared_config_approval::marker_path(&root, "feat", &file_path).unwrap();
+    let mpath = flow_rs::shared_config_approval::marker_path(&root, "feat", &file_path).unwrap();
     fs::create_dir_all(mpath.parent().unwrap()).unwrap();
     fs::write(&mpath, "{ not json").unwrap();
     let (allowed, _) = validate_shared_config(&file_path, &cwd, "Edit");

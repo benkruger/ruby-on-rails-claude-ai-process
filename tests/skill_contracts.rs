@@ -536,6 +536,87 @@ fn documentation_agent_applies_obey_vs_describe_gate_for_claude_md_findings() {
     }
 }
 
+// --- flow-hygiene CLAUDE.md mandate and size-budget contracts ---
+//
+// The flow-hygiene skill scans project-local rules for paraphrased
+// patterns that mandate CLAUDE.md prose for descriptive content
+// (emits [CLAUDE_MD_MANDATE] findings) and enforces a configurable
+// CLAUDE.md size budget (emits [SIZE_BUDGET] findings). Per-file
+// siblings rather than a single coordinated test: each assertion
+// guards a distinct regression (taxonomy row missing, scan substring
+// missing, budget defaults missing). Failure output names the
+// specific assertion that drifted instead of forcing the maintainer
+// to read internals. Each bounded slice scopes the assertion per
+// `.claude/rules/testing-gotchas.md` "Subsection-Local Assertions
+// in Contract Tests".
+
+fn read_flow_hygiene_subsection(start_marker: &str, end_marker: &str) -> String {
+    let c = common::read_skill("flow-hygiene");
+    let tail = c
+        .split_once(start_marker)
+        .map(|(_, t)| t.to_string())
+        .unwrap_or_else(|| {
+            panic!("flow-hygiene/SKILL.md must contain `{}` heading", start_marker)
+        });
+    tail.split_once(end_marker)
+        .map(|(s, _)| s.to_string())
+        .unwrap_or(tail)
+}
+
+#[test]
+fn flow_hygiene_taxonomy_includes_claude_md_mandate() {
+    let taxonomy = read_flow_hygiene_subsection("## Finding Taxonomy", "\n## ");
+    for needle in ["[CLAUDE_MD_MANDATE]", "High", "mandate"] {
+        assert!(
+            taxonomy.contains(needle),
+            "flow-hygiene/SKILL.md `## Finding Taxonomy` must contain `{}` so the new finding type is registered with its severity tag (see .claude/rules/persistence-routing.md \"Cross-Surface Application\")",
+            needle
+        );
+    }
+}
+
+#[test]
+fn flow_hygiene_taxonomy_includes_size_budget() {
+    let taxonomy = read_flow_hygiene_subsection("## Finding Taxonomy", "\n## ");
+    for needle in ["[SIZE_BUDGET]", "Medium", "budget"] {
+        assert!(
+            taxonomy.contains(needle),
+            "flow-hygiene/SKILL.md `## Finding Taxonomy` must contain `{}` so the configurable CLAUDE.md size-budget finding is registered with its severity tag",
+            needle
+        );
+    }
+}
+
+#[test]
+fn flow_hygiene_step_3_scans_for_claude_md_mandate_patterns() {
+    let step3 = read_flow_hygiene_subsection("### Step 3", "\n### ");
+    const REQUIRED: &[&str] = &[
+        "treats X added without Y documented in CLAUDE.md",
+        "must be documented in CLAUDE.md",
+        "documentation home is CLAUDE.md",
+        "CLAUDE.md as the canonical destination",
+    ];
+    for needle in REQUIRED {
+        assert!(
+            step3.contains(needle),
+            "flow-hygiene/SKILL.md `### Step 3` must contain the canonical mandate-scan substring `{}` so the [CLAUDE_MD_MANDATE] scan covers the documented pattern surface",
+            needle
+        );
+    }
+}
+
+#[test]
+fn flow_hygiene_step_1_includes_size_budget_check() {
+    let step1 = read_flow_hygiene_subsection("### Step 1", "\n### ");
+    for needle in ["claude_md_budget", ".flow.json", "12000", "400"] {
+        assert!(
+            step1.contains(needle),
+            "flow-hygiene/SKILL.md `### Step 1` must contain `{}` so the CLAUDE.md size-budget check reads the documented `.flow.json` field with the documented default char/line caps",
+            needle
+        );
+    }
+}
+
 // --- code_read field contract ---
 //
 // The pre-mortem agent's safety value depends on the agent actually

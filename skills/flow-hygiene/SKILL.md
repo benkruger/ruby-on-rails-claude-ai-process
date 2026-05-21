@@ -84,6 +84,11 @@ Surface Application". Read `.flow.json` from the project root using
 the Read tool. If the file exists and contains a `claude_md_budget`
 object, parse its `chars` and `lines` fields. If the file is missing
 or the field is absent, use the defaults: 12000 chars and 400 lines.
+Fail safe to the defaults whenever the input is unreliable: if
+`.flow.json` is present but is not valid JSON, or `claude_md_budget`
+is present but is not an object, or `chars`/`lines` is present but
+is not a positive integer, use the defaults rather than prompting
+or erroring.
 
 Measure CLAUDE.md by reading the file with the Read tool — character
 count is the byte length of the content, line count is the count of
@@ -175,7 +180,14 @@ routing — the mandate is itself the misclassification per
 `.claude/rules/persistence-routing.md` "Cross-Surface Application".
 Use the Grep tool against `.claude/rules/*.md` (and any project-
 local rule subdirectories) for the four canonical paraphrased
-substrings the upstream rule catalogs:
+substrings the upstream rule catalogs. These four entries are
+*pattern shapes*, not literal grep strings — match them by
+judgment against the prose a rule file actually uses. In the
+first entry, `X` and `Y` are placeholders standing in for a
+project-specific noun (the descriptive surface) and a project-
+specific documentation requirement; a real rule file will use
+concrete nouns in those slots. Read each candidate rule file and
+decide whether its prose expresses one of these shapes:
 
 - `treats X added without Y documented in CLAUDE.md` — the
   enforcement-claim shape where a project-local rule asserts CI

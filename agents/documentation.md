@@ -100,7 +100,7 @@ documentation accuracy finding. Do NOT walk the full
 documentation drift in this PR.
 
 **Apply the obey-vs-describe gate before emitting any CLAUDE.md
-finding.** Before producing any Tenant 6 finding whose Recommendation
+finding.** Before producing any finding whose Recommendation
 proposes adding prose to CLAUDE.md, classify the candidate content
 per `.claude/rules/persistence-routing.md` "Cross-Surface Application".
 The classification has two outcomes:

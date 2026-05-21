@@ -114,6 +114,16 @@ Behavioral-imperative paragraphs are excluded by construction — the
 description-shape filter rejects them before the identifier scan
 runs.
 
+Pointer-index entries are also excluded. A one-line cross-reference
+to a rule file (e.g. "**Tombstone tests** — see
+`.claude/rules/tombstone-tests.md`.") is CLAUDE.md's sanctioned
+content type per `.claude/rules/persistence-routing.md` "What
+CLAUDE.md Is For" — its identifiers naturally appear elsewhere
+because pointing at them is the entry's whole purpose. The
+three-sentence description-shape filter already rejects one-line
+pointers, but when a pointer-index section is read as a block, do
+not flag its constituent entries as `[DUPLICATE]`.
+
 Suggested-fix prose for each `[DUPLICATE]` finding:
 "move prose to a feature rule at `.claude/rules/<feature>.md`
 and reduce the CLAUDE.md section to a one-line CLAUDE.md index entry

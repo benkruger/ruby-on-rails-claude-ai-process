@@ -1,5 +1,6 @@
-//! Branch-scoped, single-use merge-approval marker store, plus the
-//! `bin/flow confirm-merge` subcommand that writes the marker.
+//! Branch-directory-keyed, single-use merge-approval marker store,
+//! plus the `bin/flow confirm-merge` subcommand that writes the
+//! marker.
 //!
 //! `flow-complete` is the Phase 5 terminal skill. Its autonomy mode
 //! (`auto` = merge without asking, `manual` = confirm first) is
@@ -12,6 +13,16 @@
 //! is absent. `confirm-merge` is the "proceed" half — the
 //! flow-complete skill invokes it on the user's "Yes, merge" answer.
 //!
+//! The marker is keyed on the **branch directory** —
+//! `<project_root>/.flow-states/<branch>/` — because the two consumer
+//! families hold different identifiers: `confirm-merge` has the
+//! external `--branch` string and validates it through
+//! `FlowPaths::try_new` before deriving the branch directory, while
+//! the merge surfaces hold the `--state-file` path and take its
+//! parent directory. Both resolve to the same branch directory, so a
+//! single directory key serves both without a fragile root/branch
+//! re-derivation.
+//!
 //! Three invariants the store enforces:
 //!
 //! - **Single-use.** Consumption deletes the marker. A merge that
@@ -19,28 +30,25 @@
 //!   re-verification) finds no marker and requires a fresh
 //!   confirmation. There is no "consumed" flag — file presence IS
 //!   the unconsumed state.
-//! - **Per-branch scope.** The marker lives under the per-branch
-//!   state directory, so a marker written for branch A is never
-//!   visible to a check for branch B. The marker body ALSO carries
-//!   the branch and `check_and_consume_approval` re-verifies it, so
-//!   a hand-moved marker file cannot satisfy a check for a
-//!   different branch.
+//! - **Per-branch scope (defense-in-depth).** The marker lives in
+//!   the per-branch state directory, so a marker written for one
+//!   branch is never visible to a check against another. The marker
+//!   body ALSO carries the branch name and
+//!   `check_and_consume_approval` re-verifies it against the branch
+//!   directory's own name, so a marker hand-moved between branch
+//!   directories cannot satisfy the check.
 //! - **Fail-closed corruption resilience.** Any unreadable,
 //!   oversized, unparseable, wrong-root-type, `approved != true`, or
 //!   branch-mismatched marker yields no approval. The merge then
 //!   stays refused — a corrupt marker can never become an escape
 //!   hatch.
 //!
-//! Markers live at `<project_root>/.flow-states/<branch>/merge-approval`
-//! — branch-scoped under `.flow-states/` (project root, never the
-//! worktree) so concurrent flows never collide and
-//! `flow-abort`/`flow-complete` cleanup removes them with the branch
-//! subdirectory.
-//!
-//! The branch reaches filesystem path construction only through
-//! `FlowPaths::try_new`, which rejects empty / `.` / `..` /
-//! `/`-bearing / NUL-bearing branches per
-//! `.claude/rules/branch-path-safety.md`.
+//! The external `--branch` string reaches filesystem path
+//! construction only through `confirm-merge`'s `FlowPaths::try_new`
+//! call, which rejects empty / `.` / `..` / `/`-bearing / NUL-bearing
+//! branches per `.claude/rules/branch-path-safety.md`. The marker
+//! functions themselves take a ready branch-directory path and join
+//! a fixed filename onto it — no branch interpolation.
 //!
 //! Tests live at `tests/merge_approval.rs` per
 //! `.claude/rules/test-placement.md`.
@@ -66,60 +74,41 @@ const MARKER_BYTE_CAP: u64 = 64 * 1024;
 /// Marker filename under the per-branch state directory.
 const MARKER_FILENAME: &str = "merge-approval";
 
-/// The marker file path for `branch`, or `None` when `branch` fails
-/// `FlowPaths::is_valid_branch` (empty / `.` / `..` / `/`-bearing /
-/// NUL-bearing). Callers treat `None` as "no approval possible" — the
-/// merge gate keeps refusing, the subcommand returns a structured
-/// error.
-pub fn marker_path(root: &Path, branch: &str) -> Option<PathBuf> {
-    let paths = FlowPaths::try_new(root, branch)?;
-    Some(paths.branch_dir().join(MARKER_FILENAME))
+/// The marker file path inside `branch_dir` — a fixed filename joined
+/// onto the caller-supplied branch directory.
+pub fn marker_path(branch_dir: &Path) -> PathBuf {
+    branch_dir.join(MARKER_FILENAME)
 }
 
 /// Write a merge-approval marker authorizing exactly one subsequent
-/// squash-merge of `branch`. Creates the branch-scoped state
-/// directory if absent. Returns `Err` when `branch` is invalid (no
-/// path can be constructed) or on any filesystem failure — the caller
-/// surfaces a structured error rather than silently approving.
-pub fn write_approval(root: &Path, branch: &str) -> io::Result<()> {
-    let path = marker_path(root, branch).ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("invalid branch name: {branch:?}"),
-        )
-    })?;
-    // `marker_path` always yields `<branch_dir>/merge-approval` — a
-    // path at least three components deep — so `.parent()` is
-    // structurally `Some`. The `.expect` documents the invariant; it
-    // is unreachable, not a panic vector.
-    let parent = path
-        .parent()
-        .expect("marker_path yields a path with a parent directory");
-    fs::create_dir_all(parent)?;
+/// squash-merge of the flow in `branch_dir`. `branch` is recorded in
+/// the marker body so `check_and_consume_approval` can re-verify it
+/// against the directory name. Creates `branch_dir` if absent.
+/// Returns `Err` on any filesystem failure — the caller surfaces a
+/// structured error rather than silently approving.
+pub fn write_approval(branch_dir: &Path, branch: &str) -> io::Result<()> {
+    fs::create_dir_all(branch_dir)?;
     let body = json!({ "approved": true, "branch": branch });
-    fs::write(&path, body.to_string())
+    fs::write(marker_path(branch_dir), body.to_string())
 }
 
-/// Consult and consume the merge-approval marker for `branch`.
+/// Consult and consume the merge-approval marker in `branch_dir`.
 ///
 /// Returns `true` iff a valid, unconsumed marker existed AND was
 /// successfully deleted (single-use consume-on-allow). Every other
 /// outcome returns `false` so the merge gate keeps refusing:
 ///
-/// - invalid branch (no marker path constructible)
 /// - missing / unreadable marker
 /// - marker larger than `MARKER_BYTE_CAP`
 /// - non-JSON or wrong-root-type content
 /// - `approved` not boolean `true`
-/// - `branch` field absent or not equal to `branch`
+/// - `branch` body field absent, non-string, or not equal to
+///   `branch_dir`'s own directory name
 /// - the marker existed and validated but `fs::remove_file` failed
 ///   (fail-closed: if it cannot be consumed it must not authorize,
 ///   so a subsequent merge cannot reuse the same marker)
-pub fn check_and_consume_approval(root: &Path, branch: &str) -> bool {
-    let path = match marker_path(root, branch) {
-        Some(p) => p,
-        None => return false,
-    };
+pub fn check_and_consume_approval(branch_dir: &Path) -> bool {
+    let path = marker_path(branch_dir);
     let file = match File::open(&path) {
         Ok(f) => f,
         Err(_) => return false,
@@ -142,7 +131,13 @@ pub fn check_and_consume_approval(root: &Path, branch: &str) -> bool {
     if obj.get("approved").and_then(Value::as_bool) != Some(true) {
         return false;
     }
-    if obj.get("branch").and_then(Value::as_str) != Some(branch) {
+    // The marker body's branch must match the directory it sits in,
+    // so a marker hand-moved between branch directories fails the
+    // check. `file_name()` is `None` only for a root / `..`-ending
+    // directory; that folds into the mismatch arm — an absent
+    // expected name never equals a present body string.
+    let expected = branch_dir.file_name().and_then(|n| n.to_str());
+    if obj.get("branch").and_then(Value::as_str) != expected {
         return false;
     }
     // Valid + unconsumed: deleting the marker IS the consume. Only
@@ -200,13 +195,15 @@ pub fn run_impl_main(args: &Args, root: &Path, cwd: &Path) -> (Value, i32) {
         Some(b) => b,
         None => return err("invalid_branch", "could not determine branch"),
     };
-    // Branch-path-safety: reject `/`-bearing and other escape shapes
-    // before any `.flow-states/` path construction.
-    if FlowPaths::try_new(root, &branch).is_none() {
-        return err("invalid_branch", format!("invalid branch: {branch:?}"));
-    }
+    // Branch-path-safety: the external `--branch` string reaches a
+    // `.flow-states/` path only through `FlowPaths::try_new`, which
+    // rejects `/`-bearing and other escape shapes.
+    let paths = match FlowPaths::try_new(root, &branch) {
+        Some(p) => p,
+        None => return err("invalid_branch", format!("invalid branch: {branch:?}")),
+    };
 
-    match write_approval(root, &branch) {
+    match write_approval(&paths.branch_dir(), &branch) {
         Ok(()) => (json!({"status": "ok", "branch": branch}), 0),
         Err(e) => err("write_failed", format!("failed to write approval: {e}")),
     }

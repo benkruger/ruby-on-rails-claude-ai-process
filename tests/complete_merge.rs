@@ -136,8 +136,33 @@ fn setup(parent: &Path) -> (PathBuf, PathBuf, PathBuf) {
     write_flow_stub(&flow_bin);
     let stubs = build_path_stubs(parent);
     let state_path = parent.join("state.json");
-    fs::write(&state_path, r#"{"branch":"test-feature"}"#).unwrap();
+    // `skills.flow-complete: auto` keeps the merge-approval gate inert
+    // for the freshness-dispatch tests, which exercise the merge path
+    // and not the confirmation gate.
+    fs::write(
+        &state_path,
+        r#"{"branch":"test-feature","skills":{"flow-complete":{"continue":"auto"}}}"#,
+    )
+    .unwrap();
     (state_path, flow_bin, stubs)
+}
+
+/// Build a canonical `<parent>/.flow-states/<branch>/state.json`
+/// layout with the given `flow-complete` continue mode, so the merge
+/// gate's marker lookup (the state file's parent directory) resolves
+/// to a real per-branch directory. Returns the state-file path.
+fn setup_flow_layout(parent: &Path, branch: &str, skills_continue: &str) -> PathBuf {
+    let branch_dir = parent.join(".flow-states").join(branch);
+    fs::create_dir_all(&branch_dir).unwrap();
+    let state_path = branch_dir.join("state.json");
+    fs::write(
+        &state_path,
+        format!(
+            r#"{{"branch":"{branch}","skills":{{"flow-complete":{{"continue":"{skills_continue}"}}}}}}"#
+        ),
+    )
+    .unwrap();
+    state_path
 }
 
 #[test]
@@ -488,7 +513,11 @@ fn step_counter_set_on_existing_state_file() {
 }
 
 #[test]
-fn missing_state_file_still_completes() {
+fn missing_state_file_refuses_merge_fail_closed() {
+    // No state file → the merge gate cannot resolve the configured
+    // flow-complete mode and fails closed to `manual`; with no
+    // confirmation marker the merge is refused rather than
+    // proceeding unconfirmed.
     let dir = tempfile::tempdir().unwrap();
     let parent = dir.path().canonicalize().unwrap();
     let flow_bin = parent.join("bin-flow-stub").join("flow");
@@ -505,22 +534,23 @@ fn missing_state_file_still_completes() {
         &[("FAKE_FRESHNESS_JSON", r#"{"status":"up_to_date"}"#)],
     );
 
-    assert_eq!(code, 0);
+    assert_eq!(code, 1);
     let json = last_json_line(&stdout);
-    assert_eq!(json["status"], "merged");
+    assert_eq!(json["status"], "error");
+    assert_eq!(json["reason"], "merge_not_confirmed");
 }
 
 #[test]
-fn state_file_wrong_type_does_not_panic() {
-    // mutate_state's object guard should absorb a state file whose
-    // root is an array. The function still runs to merged.
+fn non_json_state_file_refuses_merge_fail_closed() {
+    // A non-JSON state file cannot be parsed → the gate fails closed
+    // to `manual` and refuses the merge without a marker.
     let dir = tempfile::tempdir().unwrap();
     let parent = dir.path().canonicalize().unwrap();
     let flow_bin = parent.join("bin-flow-stub").join("flow");
     write_flow_stub(&flow_bin);
     let stubs = build_path_stubs(&parent);
     let state_path = parent.join("state.json");
-    fs::write(&state_path, "[1,2,3]").unwrap();
+    fs::write(&state_path, "not json at all").unwrap();
 
     let (code, stdout, _) = run_complete_merge_sub(
         &parent,
@@ -531,9 +561,123 @@ fn state_file_wrong_type_does_not_panic() {
         &[("FAKE_FRESHNESS_JSON", r#"{"status":"up_to_date"}"#)],
     );
 
-    assert_eq!(code, 0);
+    assert_eq!(code, 1);
+    let json = last_json_line(&stdout);
+    assert_eq!(json["reason"], "merge_not_confirmed");
+}
+
+#[test]
+fn wrong_type_state_file_refuses_merge_no_panic() {
+    // A non-object JSON root (array) carries no skills config; the
+    // gate resolves `manual` and refuses the merge without
+    // panicking — mutate_state's object guard still absorbs the
+    // array for the earlier `complete_step` write.
+    let dir = tempfile::tempdir().unwrap();
+    let parent = dir.path().canonicalize().unwrap();
+    let flow_bin = parent.join("bin-flow-stub").join("flow");
+    write_flow_stub(&flow_bin);
+    let stubs = build_path_stubs(&parent);
+    let state_path = parent.join("state.json");
+    fs::write(&state_path, "[1,2,3]").unwrap();
+
+    let (code, stdout, stderr) = run_complete_merge_sub(
+        &parent,
+        "42",
+        state_path.to_string_lossy().as_ref(),
+        &flow_bin,
+        &stubs,
+        &[("FAKE_FRESHNESS_JSON", r#"{"status":"up_to_date"}"#)],
+    );
+
+    assert_eq!(code, 1);
+    assert!(!stderr.contains("panicked"));
+    let json = last_json_line(&stdout);
+    assert_eq!(json["reason"], "merge_not_confirmed");
+}
+
+// --- merge-approval gate (manual mode) ---
+
+#[test]
+fn manual_config_without_marker_refuses_merge() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = dir.path().canonicalize().unwrap();
+    let flow_bin = parent.join("bin-flow-stub").join("flow");
+    write_flow_stub(&flow_bin);
+    let stubs = build_path_stubs(&parent);
+    let state_path = setup_flow_layout(&parent, "feat-merge", "manual");
+
+    let (code, stdout, _) = run_complete_merge_sub(
+        &parent,
+        "42",
+        state_path.to_string_lossy().as_ref(),
+        &flow_bin,
+        &stubs,
+        &[("FAKE_FRESHNESS_JSON", r#"{"status":"up_to_date"}"#)],
+    );
+
+    assert_eq!(code, 1);
+    let json = last_json_line(&stdout);
+    assert_eq!(json["status"], "error");
+    assert_eq!(json["reason"], "merge_not_confirmed");
+    assert_eq!(json["pr_number"], 42);
+}
+
+#[test]
+fn manual_config_with_valid_marker_merges_and_consumes() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = dir.path().canonicalize().unwrap();
+    let flow_bin = parent.join("bin-flow-stub").join("flow");
+    write_flow_stub(&flow_bin);
+    let stubs = build_path_stubs(&parent);
+    let state_path = setup_flow_layout(&parent, "feat-merge", "manual");
+    let branch_dir = state_path.parent().unwrap();
+    flow_rs::merge_approval::write_approval(branch_dir, "feat-merge").unwrap();
+
+    let (code, stdout, _) = run_complete_merge_sub(
+        &parent,
+        "42",
+        state_path.to_string_lossy().as_ref(),
+        &flow_bin,
+        &stubs,
+        &[("FAKE_FRESHNESS_JSON", r#"{"status":"up_to_date"}"#)],
+    );
+
+    assert_eq!(code, 0, "stdout={}", stdout);
     let json = last_json_line(&stdout);
     assert_eq!(json["status"], "merged");
+    // Single-use: the merge consumed the marker.
+    assert!(!flow_rs::merge_approval::check_and_consume_approval(
+        branch_dir
+    ));
+}
+
+#[test]
+fn manual_config_with_corrupt_marker_refuses_merge() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = dir.path().canonicalize().unwrap();
+    let flow_bin = parent.join("bin-flow-stub").join("flow");
+    write_flow_stub(&flow_bin);
+    let stubs = build_path_stubs(&parent);
+    let state_path = setup_flow_layout(&parent, "feat-merge", "manual");
+    // A non-JSON marker fails closed: no approval, merge refused.
+    fs::write(
+        state_path.parent().unwrap().join("merge-approval"),
+        "not json",
+    )
+    .unwrap();
+
+    let (code, stdout, _) = run_complete_merge_sub(
+        &parent,
+        "42",
+        state_path.to_string_lossy().as_ref(),
+        &flow_bin,
+        &stubs,
+        &[("FAKE_FRESHNESS_JSON", r#"{"status":"up_to_date"}"#)],
+    );
+
+    assert_eq!(code, 1);
+    let json = last_json_line(&stdout);
+    assert_eq!(json["reason"], "merge_not_confirmed");
 }
 
 #[test]

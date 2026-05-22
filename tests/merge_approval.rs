@@ -1,5 +1,6 @@
-//! Tests for `src/merge_approval.rs` — the branch-scoped, single-use
-//! merge-approval marker store.
+//! Tests for `src/merge_approval.rs` — the branch-directory-keyed,
+//! single-use merge-approval marker store and the `confirm-merge`
+//! subcommand.
 //!
 //! The marker store is the "proceed" half of the Complete-phase merge
 //! gate: `bin/flow confirm-merge` writes a marker after the user
@@ -9,11 +10,12 @@
 //! `flow-complete` mode is `manual`. The contract this file locks in:
 //! single-use consumption (a marker authorizes exactly one merge so a
 //! `ci_rerun` loop-back forces a fresh confirmation), per-branch scope
-//! (an approval written for branch A never satisfies a check for
-//! branch B), corruption resilience (any unreadable / unparseable /
+//! (a marker in one branch directory never satisfies a check against
+//! another), corruption resilience (any unreadable / unparseable /
 //! oversized marker fails closed → no approval → the merge stays
-//! refused), and branch-path-safety (a `/`/`.`/`..`/NUL/empty branch
-//! never reaches filesystem path construction and never panics).
+//! refused), and branch-path-safety (a `/`/`.`/`..`/NUL/empty
+//! `--branch` never reaches filesystem path construction and never
+//! panics).
 
 mod common;
 
@@ -31,26 +33,15 @@ use serde_json::{json, Value};
 // --- marker_path ---
 
 #[test]
-fn marker_path_valid_branch_is_some_under_branch_dir() {
+fn marker_path_joins_marker_filename_onto_branch_dir() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    let p = marker_path(root, "feat-x").expect("valid branch yields a path");
-    let s = p.to_string_lossy();
+    let branch_dir = dir.path().join("feat-x");
+    let p = marker_path(&branch_dir);
     assert!(
-        s.contains(".flow-states/feat-x/merge-approval"),
-        "marker must live under the branch-scoped state dir: {s}"
+        p.ends_with("feat-x/merge-approval"),
+        "marker path must be <branch_dir>/merge-approval: {}",
+        p.display()
     );
-}
-
-#[test]
-fn marker_path_invalid_branch_is_none() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    assert!(marker_path(root, "").is_none());
-    assert!(marker_path(root, ".").is_none());
-    assert!(marker_path(root, "..").is_none());
-    assert!(marker_path(root, "a/b").is_none());
-    assert!(marker_path(root, "a\0b").is_none());
 }
 
 // --- write_approval / check_and_consume_approval ---
@@ -58,14 +49,14 @@ fn marker_path_invalid_branch_is_none() {
 #[test]
 fn write_then_consume_returns_true_once_then_false() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    write_approval(root, "feat-x").expect("write succeeds");
+    let branch_dir = dir.path().join("feat-x");
+    write_approval(&branch_dir, "feat-x").expect("write succeeds");
     assert!(
-        check_and_consume_approval(root, "feat-x"),
+        check_and_consume_approval(&branch_dir),
         "first consume returns true"
     );
     assert!(
-        !check_and_consume_approval(root, "feat-x"),
+        !check_and_consume_approval(&branch_dir),
         "second consume returns false (single-use)"
     );
 }
@@ -73,146 +64,118 @@ fn write_then_consume_returns_true_once_then_false() {
 #[test]
 fn consume_deletes_the_marker_file() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    write_approval(root, "feat-x").expect("write succeeds");
-    let p = marker_path(root, "feat-x").unwrap();
+    let branch_dir = dir.path().join("feat-x");
+    write_approval(&branch_dir, "feat-x").expect("write succeeds");
+    let p = marker_path(&branch_dir);
     assert!(p.exists(), "marker exists after write");
-    assert!(check_and_consume_approval(root, "feat-x"));
+    assert!(check_and_consume_approval(&branch_dir));
     assert!(!p.exists(), "marker deleted after consume");
 }
 
 #[test]
 fn consume_without_marker_returns_false() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    assert!(!check_and_consume_approval(root, "feat-x"));
+    let branch_dir = dir.path().join("feat-x");
+    fs::create_dir_all(&branch_dir).unwrap();
+    assert!(!check_and_consume_approval(&branch_dir));
 }
 
 #[test]
-fn per_branch_scope_approval_under_a_does_not_satisfy_b() {
+fn per_branch_scope_marker_in_a_not_visible_in_b() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    write_approval(root, "feat-x").expect("write succeeds");
+    let dir_a = dir.path().join("feat-x");
+    let dir_b = dir.path().join("feat-y");
+    write_approval(&dir_a, "feat-x").expect("write succeeds");
+    fs::create_dir_all(&dir_b).unwrap();
     assert!(
-        !check_and_consume_approval(root, "feat-y"),
-        "approval written under feat-x must not satisfy feat-y"
+        !check_and_consume_approval(&dir_b),
+        "a marker in feat-x must not satisfy a check against feat-y"
     );
-    // The feat-x approval is untouched and still consumable.
-    assert!(check_and_consume_approval(root, "feat-x"));
+    // The feat-x marker is untouched and still consumable.
+    assert!(check_and_consume_approval(&dir_a));
 }
 
 // --- corruption resilience (fail closed → no approval) ---
 
+/// Write raw bytes as the marker file directly inside `branch_dir`,
+/// bypassing `write_approval`, so the corruption-resilience tests can
+/// place arbitrary malformed content at the marker path.
+fn write_raw_marker(branch_dir: &Path, bytes: impl AsRef<[u8]>) {
+    fs::create_dir_all(branch_dir).unwrap();
+    fs::write(marker_path(branch_dir), bytes).unwrap();
+}
+
 #[test]
 fn corruption_empty_marker_no_approval() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    let p = marker_path(root, "feat-x").unwrap();
-    fs::create_dir_all(p.parent().unwrap()).unwrap();
-    fs::write(&p, "").unwrap();
-    assert!(!check_and_consume_approval(root, "feat-x"));
+    let branch_dir = dir.path().join("feat-x");
+    write_raw_marker(&branch_dir, "");
+    assert!(!check_and_consume_approval(&branch_dir));
 }
 
 #[test]
 fn corruption_non_json_marker_no_approval() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    let p = marker_path(root, "feat-x").unwrap();
-    fs::create_dir_all(p.parent().unwrap()).unwrap();
-    fs::write(&p, "not json {{{").unwrap();
-    assert!(!check_and_consume_approval(root, "feat-x"));
+    let branch_dir = dir.path().join("feat-x");
+    write_raw_marker(&branch_dir, "not json {{{");
+    assert!(!check_and_consume_approval(&branch_dir));
 }
 
 #[test]
 fn corruption_wrong_root_type_no_approval() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    let p = marker_path(root, "feat-x").unwrap();
-    fs::create_dir_all(p.parent().unwrap()).unwrap();
-    fs::write(&p, "[1, 2, 3]").unwrap();
-    assert!(!check_and_consume_approval(root, "feat-x"));
+    let branch_dir = dir.path().join("feat-x");
+    write_raw_marker(&branch_dir, "[1, 2, 3]");
+    assert!(!check_and_consume_approval(&branch_dir));
 }
 
 #[test]
 fn corruption_approved_false_no_approval() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    let p = marker_path(root, "feat-x").unwrap();
-    fs::create_dir_all(p.parent().unwrap()).unwrap();
-    fs::write(&p, r#"{"approved": false, "branch": "feat-x"}"#).unwrap();
-    assert!(!check_and_consume_approval(root, "feat-x"));
+    let branch_dir = dir.path().join("feat-x");
+    write_raw_marker(&branch_dir, r#"{"approved": false, "branch": "feat-x"}"#);
+    assert!(!check_and_consume_approval(&branch_dir));
 }
 
 #[test]
 fn corruption_branch_mismatch_no_approval() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    // Hand-write a marker at feat-x's path slot but with a mismatched
-    // `branch` field — per-branch scope is enforced at the marker body
-    // too (defense-in-depth alongside the branch-scoped path).
-    let p = marker_path(root, "feat-x").unwrap();
-    fs::create_dir_all(p.parent().unwrap()).unwrap();
-    fs::write(&p, r#"{"approved": true, "branch": "feat-y"}"#).unwrap();
-    assert!(!check_and_consume_approval(root, "feat-x"));
+    let branch_dir = dir.path().join("feat-x");
+    // The marker body names a different branch than the directory it
+    // sits in — per-branch scope is enforced at the marker body too
+    // (a marker hand-moved between branch directories must not pass).
+    write_raw_marker(&branch_dir, r#"{"approved": true, "branch": "feat-y"}"#);
+    assert!(!check_and_consume_approval(&branch_dir));
 }
 
 #[test]
 fn corruption_non_utf8_marker_no_approval() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    let p = marker_path(root, "feat-x").unwrap();
-    fs::create_dir_all(p.parent().unwrap()).unwrap();
-    fs::write(&p, [0xff_u8, 0xfe, 0xfd]).unwrap();
-    assert!(!check_and_consume_approval(root, "feat-x"));
+    let branch_dir = dir.path().join("feat-x");
+    write_raw_marker(&branch_dir, [0xff_u8, 0xfe, 0xfd]);
+    assert!(!check_and_consume_approval(&branch_dir));
 }
 
 #[test]
 fn corruption_oversized_marker_no_approval() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    let p = marker_path(root, "feat-x").unwrap();
-    fs::create_dir_all(p.parent().unwrap()).unwrap();
+    let branch_dir = dir.path().join("feat-x");
     // A marker larger than MARKER_BYTE_CAP (64 KiB): the capped read
     // truncates it, the truncated bytes fail JSON parse, no approval.
-    fs::write(&p, "x".repeat(70 * 1024)).unwrap();
-    assert!(!check_and_consume_approval(root, "feat-x"));
-}
-
-// --- branch-path-safety (never panic, never approve) ---
-
-#[test]
-fn invalid_branch_check_returns_false_never_panics() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    for b in ["", ".", "..", "a/b", "a\0b"] {
-        assert!(
-            !check_and_consume_approval(root, b),
-            "invalid branch {b:?} must yield no approval"
-        );
-    }
+    write_raw_marker(&branch_dir, "x".repeat(70 * 1024));
+    assert!(!check_and_consume_approval(&branch_dir));
 }
 
 #[test]
-fn invalid_branch_write_returns_err_never_panics() {
+fn write_approval_errors_when_branch_dir_ancestor_is_a_file() {
+    // An ancestor of `branch_dir` is a regular file, so
+    // `fs::create_dir_all` returns Err and `write_approval` surfaces
+    // it rather than silently approving.
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    for b in ["", ".", "..", "a/b", "a\0b"] {
-        assert!(
-            write_approval(root, b).is_err(),
-            "invalid branch {b:?} must fail to write"
-        );
-    }
-}
-
-#[test]
-fn write_approval_errors_when_root_is_a_file() {
-    // root is a regular file, so `<root>/.flow-states/<branch>/...`
-    // cannot be created — `fs::create_dir_all` returns Err and
-    // `write_approval` surfaces it rather than silently approving.
-    let dir = tempfile::tempdir().unwrap();
-    let file_root = dir.path().join("not-a-dir");
-    fs::write(&file_root, "x").unwrap();
-    assert!(write_approval(&file_root, "feat-x").is_err());
+    let file_ancestor = dir.path().join("not-a-dir");
+    fs::write(&file_ancestor, "x").unwrap();
+    let branch_dir = file_ancestor.join("feat-x");
+    assert!(write_approval(&branch_dir, "feat-x").is_err());
 }
 
 // --- confirm-merge subcommand: run_impl_main ---
@@ -227,6 +190,12 @@ fn write_state(repo: &Path, branch: &str, state: &Value) {
     .unwrap();
 }
 
+/// The branch directory `confirm-merge` writes the marker into for
+/// `(repo, branch)`: `<repo>/.flow-states/<branch>/`.
+fn branch_dir_of(repo: &Path, branch: &str) -> std::path::PathBuf {
+    repo.join(".flow-states").join(branch)
+}
+
 #[test]
 fn confirm_merge_writes_marker_and_returns_ok() {
     let dir = tempfile::tempdir().unwrap();
@@ -239,7 +208,7 @@ fn confirm_merge_writes_marker_and_returns_ok() {
     assert_eq!(v["status"], "ok");
     assert_eq!(v["branch"], "feat-x");
     // The marker is now consumable exactly once.
-    assert!(check_and_consume_approval(&repo, "feat-x"));
+    assert!(check_and_consume_approval(&branch_dir_of(&repo, "feat-x")));
 }
 
 #[test]
@@ -366,5 +335,5 @@ fn confirm_merge_binary_writes_marker_and_exits_zero() {
     assert_eq!(data["status"], "ok");
     assert_eq!(data["branch"], "feat-x");
     // The marker the binary wrote is consumable exactly once.
-    assert!(check_and_consume_approval(&repo, "feat-x"));
+    assert!(check_and_consume_approval(&branch_dir_of(&repo, "feat-x")));
 }

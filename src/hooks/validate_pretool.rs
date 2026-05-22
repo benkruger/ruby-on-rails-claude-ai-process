@@ -923,11 +923,18 @@ fn is_commit_invocation_inner(stripped: &str) -> bool {
 /// Compose the Layer 10 block message naming the integration branch.
 /// The message is a fixed-shape string the contract tests assert on
 /// (must contain `BLOCKED` and the branch name) and the user-facing
-/// guidance directing the engineer at `/flow:flow-commit`.
+/// guidance directing the engineer at `/flow:flow-commit`. The
+/// guidance names the supported on-trunk path because Layer 10's
+/// trunk carve-out (`flow_commit_trunk_carveout_applies`) accepts a
+/// user-typed `/flow:flow-commit` invocation on the trunk branch
+/// itself — a maintainer with a legitimate trunk commit need
+/// (bootstrap repair, follow-up after a hot patch) is told how to
+/// proceed rather than redirected to a feature worktree they have
+/// no reason to open.
 fn commit_block_message(branch: &str) -> String {
     format!(
         "BLOCKED: direct commits on the integration branch '{}' are not allowed. \
-         Run /flow:flow-commit from a feature worktree instead. \
+         Invoke /flow:flow-commit on the trunk branch instead. \
          This block is mechanical (Layer 10). See .claude/rules/no-escape-hatches.md.",
         branch
     )
@@ -995,6 +1002,18 @@ fn commit_block_message_active_flow(branch: &str) -> String {
 /// integration branch — none uses `-C` to shift git's effective
 /// cwd. See `.claude/rules/concurrency-model.md` "Bootstrap-skill
 /// carve-out" for the cwd-only design.
+///
+/// Trunk carve-out: applied ONLY to the destination-path
+/// integration-branch arm. Recognizes a user-typed
+/// `/flow:flow-commit` slash command on the trunk branch itself so a
+/// maintainer can commit to the trunk via `/flow:flow-commit`
+/// without first opening a feature worktree. Wired alongside the
+/// bootstrap carve-out's destination-path check (the suppressor is
+/// `bootstrap || trunk` rather than `bootstrap` alone); the cwd-path
+/// arm is intentionally not extended because a raw `git commit` (or
+/// `git -C <trunk> commit`) on the integration branch carries no
+/// slash-command marker for the gate to anchor on. See
+/// `.claude/rules/no-escape-hatches.md` Layer C "Trunk carve-out".
 fn check_commit_during_flow(
     command: &str,
     cwd: &Path,
@@ -1016,7 +1035,9 @@ fn check_commit_during_flow(
         if let Some(root) = project_root {
             let main_root = resolve_main_root(&root);
             if let Some(msg) = match_finalize_commit_destination(branch_arg, &main_root) {
-                if !bootstrap_carveout_applies(command, transcript_path, home) {
+                if !bootstrap_carveout_applies(command, transcript_path, home)
+                    && !flow_commit_trunk_carveout_applies(transcript_path, home)
+                {
                     return Some(msg);
                 }
             }
@@ -1160,6 +1181,66 @@ fn bootstrap_carveout_applies(command: &str, transcript_path: Option<&Path>, hom
     let commit_window = transcript_shows_commit_window_skill(Some(path), home)
         || last_user_message_invokes_skill(path, "flow-release", home);
     commit_window && any_skill_in_set_since_user(path, home, BOOTSTRAP_SKILLS)
+}
+
+/// The single AND-combined condition on the trunk carve-out for
+/// Layer 10's destination-path integration-branch arm. The
+/// carve-out fires (suppresses the integration-branch block) iff
+/// `last_user_message_invokes_skill(path, "flow:flow-commit",
+/// home)` — the most recent real user turn in the persisted
+/// transcript STARTS with the namespaced
+/// `<command-name>/flow:flow-commit</command-name>` slash-command
+/// emission (or the two-line `<command-message>` shape Claude
+/// Code 2.1.140+ emits). The user-typed slash command is the
+/// unforgeable trust anchor: only a user-typed turn can satisfy
+/// `last_user_message_invokes_skill`, so the model cannot
+/// synthesize the marker and route around `/flow:flow-commit`'s
+/// surrounding choreography.
+///
+/// `transcript_path` is unwrapped once at function entry — a missing
+/// path fails the carve-out before the walker runs, so the walker
+/// sees a known-Some `&Path`. Cleared per
+/// `.claude/rules/external-input-validation.md` "Hook callsite
+/// discipline" via the `Option`-returning shape rather than a
+/// panicking `.expect`.
+///
+/// Caller precondition: the destination-path arm in
+/// `check_commit_during_flow` invokes this helper only after
+/// `extract_finalize_commit_branch_arg` has already filtered the
+/// command shape to `bin/flow ... finalize-commit <msg> <branch>`,
+/// so an additional `is_finalize_commit_invocation` check inside
+/// this body would be unreachable defensive code. A future
+/// maintainer who wires this carve-out into a sibling arm that
+/// does NOT pre-filter the command shape must add the check at
+/// the new callsite or inside this function.
+///
+/// Scoping: this carve-out is wired only into the destination-path
+/// integration-branch arm of `check_commit_during_flow`. The
+/// active-flow arm has its own independent carve-out
+/// (`check_active_flow_at`) keyed on the `_continue_pending=commit`
+/// marker + an assistant-Skill flow-commit; adding the user-typed
+/// recognition there would weaken the marker requirement for
+/// feature-branch flows. The cwd-path arm is unchanged so a raw
+/// `git commit` (or `git -C <trunk> commit`) on the integration
+/// branch remains blocked: the user-typed slash command is the
+/// signal that the maintainer reached for `/flow:flow-commit`
+/// deliberately, and `git commit` does not carry that signal.
+///
+/// Threat-model bound: the carve-out's window stays open from the
+/// user-typed `/flow:flow-commit` turn until the next real user
+/// turn — the same documented bound the bootstrap carve-out carries
+/// per `.claude/rules/concurrency-model.md` "threat-model bound".
+/// CI still runs unconditionally inside `finalize_commit::run_impl`
+/// regardless of the carve-out, so the protective intent of Layer
+/// 10 (CI gate + reviewable choreography) is preserved.
+fn flow_commit_trunk_carveout_applies(
+    transcript_path: Option<&Path>,
+    home: &Path,
+) -> bool {
+    let Some(path) = transcript_path else {
+        return false;
+    };
+    last_user_message_invokes_skill(path, "flow:flow-commit", home)
 }
 
 /// Resolve the current branch and integration branch from the given

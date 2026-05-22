@@ -38,6 +38,7 @@ use flow_rs::hooks;
 use flow_rs::issue;
 use flow_rs::label_issues;
 use flow_rs::link_blocked_by;
+use flow_rs::merge_approval;
 use flow_rs::notify_slack;
 use flow_rs::orchestrate_report;
 use flow_rs::orchestrate_state;
@@ -175,6 +176,13 @@ enum Commands {
     /// without a genuine per-file user grant.
     #[command(name = "approve-shared-config")]
     ApproveSharedConfig(approve_shared_config::Args),
+
+    /// Record a single-use user confirmation to squash-merge the
+    /// flow's PR. The "proceed" half of the Complete-phase merge
+    /// gate; the merge surfaces consult and consume the marker when
+    /// the resolved `flow-complete` mode is `manual`.
+    #[command(name = "confirm-merge")]
+    ConfirmMerge(merge_approval::Args),
 
     /// FLOW cleanup orchestrator (worktree, branches, state files).
     Cleanup(cleanup::Args),
@@ -674,6 +682,15 @@ fn main() {
                 &root,
                 std::env::current_dir(),
                 &home,
+            );
+            flow_rs::dispatch::dispatch_json(value, code);
+        }
+        Some(Commands::ConfirmMerge(args)) => {
+            let root = project_root();
+            let (value, code) = merge_approval::run_impl_main_with_cwd_result(
+                &args,
+                &root,
+                std::env::current_dir(),
             );
             flow_rs::dispatch::dispatch_json(value, code);
         }

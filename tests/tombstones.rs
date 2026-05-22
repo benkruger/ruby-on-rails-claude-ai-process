@@ -429,6 +429,83 @@ fn test_resolve_skill_mode_no_bare_string_branch() {
     );
 }
 
+// --- complete-fast / complete-preflight mode-flag removal ---
+//
+// `--auto` and `--manual` clap arguments are removed from both
+// `complete-fast` and `complete-preflight`. The Complete-phase
+// autonomy mode is resolved purely from the state file's
+// `skills.flow-complete` block via `resolve_skill_mode`. These
+// tombstones catch a merge conflict or accidental edit that
+// re-introduces either clap field.
+
+/// Tombstone: removed in PR #1691. The `pub auto: bool` and
+/// `pub manual: bool` clap fields are removed from
+/// `src/complete_preflight.rs::Args`. The Complete-phase mode is
+/// resolved from the state file's `skills.flow-complete` block, not
+/// from CLI flags. Must not return.
+///
+/// Stability argument: the protected targets are Rust struct field
+/// declarations (`pub auto: bool`, `pub manual: bool`). A field
+/// declaration is Rust syntax — it cannot be assembled by `concat!`
+/// or produced by `format!` (those macros yield string values, not
+/// `struct` members), and it cannot be a named `constant` reference
+/// (a field is a declaration, not a value). rustfmt pins the single
+/// space in `pub auto: bool`, so the byte literal is canonical. A
+/// merge conflict can only resurrect the exact bytes, which this
+/// scan catches.
+#[test]
+fn test_complete_preflight_no_auto_manual_args() {
+    let root = common::repo_root();
+    let content = fs::read_to_string(root.join("src").join("complete_preflight.rs"))
+        .expect("src/complete_preflight.rs must exist");
+    assert!(
+        !content.contains("pub auto: bool"),
+        "src/complete_preflight.rs must not contain `pub auto: bool` — \
+         the `--auto` clap field is removed; mode is resolved from the \
+         state file's `skills.flow-complete` block."
+    );
+    assert!(
+        !content.contains("pub manual: bool"),
+        "src/complete_preflight.rs must not contain `pub manual: bool` — \
+         the `--manual` clap field is removed; mode is resolved from the \
+         state file's `skills.flow-complete` block."
+    );
+}
+
+/// Tombstone: removed in PR #1691. The `pub auto: bool` and
+/// `pub manual: bool` clap fields are removed from
+/// `src/complete_fast.rs::Args`. The Complete-phase mode is resolved
+/// from the state file's `skills.flow-complete` block, not from CLI
+/// flags. Must not return.
+///
+/// Stability argument: the protected targets are Rust struct field
+/// declarations (`pub auto: bool`, `pub manual: bool`). A field
+/// declaration is Rust syntax — it cannot be assembled by `concat!`
+/// or produced by `format!` (those macros yield string values, not
+/// `struct` members), and it cannot be a named `constant` reference
+/// (a field is a declaration, not a value). rustfmt pins the single
+/// space in `pub auto: bool`, so the byte literal is canonical. A
+/// merge conflict can only resurrect the exact bytes, which this
+/// scan catches.
+#[test]
+fn test_complete_fast_no_auto_manual_args() {
+    let root = common::repo_root();
+    let content = fs::read_to_string(root.join("src").join("complete_fast.rs"))
+        .expect("src/complete_fast.rs must exist");
+    assert!(
+        !content.contains("pub auto: bool"),
+        "src/complete_fast.rs must not contain `pub auto: bool` — \
+         the `--auto` clap field is removed; mode is resolved from the \
+         state file's `skills.flow-complete` block."
+    );
+    assert!(
+        !content.contains("pub manual: bool"),
+        "src/complete_fast.rs must not contain `pub manual: bool` — \
+         the `--manual` clap field is removed; mode is resolved from the \
+         state file's `skills.flow-complete` block."
+    );
+}
+
 // --- flow-plan parent-issue closure ---
 //
 // The decomposed-child issue supersedes the vanilla parent's

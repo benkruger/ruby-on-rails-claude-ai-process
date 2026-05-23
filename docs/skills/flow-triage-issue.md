@@ -108,9 +108,8 @@ design conversation.
 ## Gates
 
 - Mutates a single label ("Triage In-Progress") on the triaged issue;
-  no other GitHub state is mutated. The inlined investigation
-  (`gh issue view`, `gh pr list`, `git log`) is read-only.
+  no other GitHub state is mutated. The investigation steps
+  (`gh issue view`, `gh pr list`, `git log`) are read-only.
 - Display-only after the verdict is produced — no auto-actions.
 - The 5-field verdict card or the out-of-scope envelope is produced
-  inline by the skill itself; there is no sub-agent dispatch to
-  truncate.
+  inline by the skill itself.

@@ -1817,10 +1817,9 @@ fn test_tombstones_no_stability_docs_violations() {
 
 /// Tombstone: removed in PR #1401. Must not return.
 ///
-/// Source-content scan over skills/flow-triage-issue/SKILL.md and
-/// agents/issue-triage.md for the literal `keep-open`. The literal is
-/// stable per the four-question checklist in
-/// `.claude/rules/tombstone-tests.md`:
+/// Source-content scan over skills/flow-triage-issue/SKILL.md for the
+/// literal `keep-open`. The literal is stable per the four-question
+/// checklist in `.claude/rules/tombstone-tests.md`:
 ///
 /// 1. concat!: not applicable — markdown files contain no Rust macros.
 /// 2. format!: same — no runtime reassembly in markdown.
@@ -1831,52 +1830,61 @@ fn test_tombstones_no_stability_docs_violations() {
 /// "keep open" or "keep this open"; only the disposition token uses
 /// the hyphen.
 #[test]
-fn test_flow_triage_no_keep_open_disposition() {
+fn test_tombstones_no_keep_open_in_skill() {
     let root = common::repo_root();
     let skill_path = root
         .join("skills")
         .join("flow-triage-issue")
         .join("SKILL.md");
-    let agent_path = root.join("agents").join("issue-triage.md");
     let skill =
         fs::read_to_string(&skill_path).expect("skills/flow-triage-issue/SKILL.md must exist");
-    let agent = fs::read_to_string(&agent_path).expect("agents/issue-triage.md must exist");
     assert!(
         !skill.contains("keep-open"),
         "skills/flow-triage-issue/SKILL.md must not contain `keep-open` — disposition removed in PR #1401"
-    );
-    assert!(
-        !agent.contains("keep-open"),
-        "agents/issue-triage.md must not contain `keep-open` — disposition removed in PR #1401"
     );
 }
 
 /// Tombstone: removed in PR #1401. Must not return.
 ///
-/// Source-content scan over skills/flow-triage-issue/SKILL.md and
-/// agents/issue-triage.md for the literal `fix-now`. Same stability
-/// argument as the `keep-open` tombstone above: markdown files have
-/// no concat/format/constant/.arg reassembly paths, and the
-/// hyphenated form distinguishes the disposition token from prose
-/// like "fix now."
+/// Source-content scan over skills/flow-triage-issue/SKILL.md for the
+/// literal `fix-now`. Same stability argument as the `keep-open`
+/// tombstone above: markdown files have no concat!/format!/constant/
+/// .arg reassembly paths, and the hyphenated form distinguishes the
+/// disposition token from prose like "fix now."
 #[test]
-fn test_flow_triage_no_fix_now_disposition() {
+fn test_tombstones_no_fix_now_in_skill() {
     let root = common::repo_root();
     let skill_path = root
         .join("skills")
         .join("flow-triage-issue")
         .join("SKILL.md");
-    let agent_path = root.join("agents").join("issue-triage.md");
     let skill =
         fs::read_to_string(&skill_path).expect("skills/flow-triage-issue/SKILL.md must exist");
-    let agent = fs::read_to_string(&agent_path).expect("agents/issue-triage.md must exist");
     assert!(
         !skill.contains("fix-now"),
         "skills/flow-triage-issue/SKILL.md must not contain `fix-now` — disposition removed in PR #1401"
     );
+}
+
+/// Tombstone: agents/issue-triage.md was deleted in PR #1699 when the
+/// triage Process was inlined directly into
+/// skills/flow-triage-issue/SKILL.md. The agent file's content (5-step
+/// Process, 10-question lens, verdict-card format, Disposition
+/// Semantics, Reasoning Discipline, Framing Challenges, Hard Rules)
+/// was ported into the SKILL.md as steps 3-7 plus updated Hard Rules.
+///
+/// This is a file-existence tombstone paired with the byte-substring
+/// tombstones above, per `.claude/rules/tombstone-tests.md` "Two kinds
+/// of tombstone": when the deletion target includes a source file, the
+/// file-existence check catches resurrection regardless of how the
+/// file is later imported (e.g. via `#[path = "..."] mod`).
+#[test]
+fn test_tombstones_no_issue_triage_agent_file() {
+    let root = common::repo_root();
+    let agent_path = root.join("agents").join("issue-triage.md");
     assert!(
-        !agent.contains("fix-now"),
-        "agents/issue-triage.md must not contain `fix-now` — disposition removed in PR #1401"
+        !agent_path.exists(),
+        "agents/issue-triage.md must not exist — inlined into skills/flow-triage-issue/SKILL.md in PR #1699"
     );
 }
 

@@ -5387,13 +5387,15 @@ fn flow_reset_invokes_bin_flow_reset_dispatcher() {
 
 // --- assess-issues rule content contracts ---
 //
-// `.claude/rules/assess-issues.md` is the rule the issue-triage agent
-// depends on. The three contracts below lock in (a) the canonical
-// "code actually does" phrasing against the historical `issue actually
-// does` typo shape, (b) the unreferenced-files coverage bullet, and
-// (c) the `gh pr list --search` / `git log --grep` shipped-but-not-
-// closed investigation move. Each test guards a distinct regression:
-// a deletion of any of the three lines fails CI immediately.
+// `.claude/rules/assess-issues.md` is the rule the flow-triage-issue
+// skill cites in its inlined Process (Step 4 referenced-code read,
+// Step 5 already-shipped-work check). The three contracts below lock
+// in (a) the canonical "code actually does" phrasing against the
+// historical `issue actually does` typo shape, (b) the
+// unreferenced-files coverage bullet, and (c) the
+// `gh pr list --search` / `git log --grep` shipped-but-not-closed
+// investigation move. Each test guards a distinct regression: a
+// deletion of any of the three lines fails CI immediately.
 
 fn read_assess_issues_rule() -> String {
     let path = common::repo_root()
@@ -5446,15 +5448,17 @@ fn test_assess_issues_rule_includes_pr_search_step() {
 
 // --- flow-triage-issue skill content contracts ---
 //
-// `skills/flow-triage-issue/SKILL.md` is a thin dispatcher. The three
-// contracts below lock in (a) the no-side-effects HARD-GATE that
-// forbids auto-close, auto-label, auto-comment, and auto-skill
-// invocation; (b) the canonical 4-disposition closed set; and (c) the
-// dispatch target — the issue-triage sub-agent, never general-purpose
-// or any other agent. Each test guards a distinct regression: a
+// `skills/flow-triage-issue/SKILL.md` inlines the triage Process
+// directly (no sub-agent dispatch). The contracts below lock in (a)
+// the no-side-effects HARD-GATE that forbids auto-close, auto-label,
+// auto-comment, and auto-skill invocation; (b) the canonical
+// 2-disposition closed set; and (c) the prohibition on routing
+// through `general-purpose` (the inlined Process invokes no
+// sub-agent at all). Each test guards a distinct regression: a
 // missing HARD-GATE invites side-effect creep, a drifted disposition
-// set invents new outcomes the agent never produces, and a wrong
-// dispatch target sends the model into an unbounded sub-agent.
+// set invents new outcomes the inlined Process never produces, and a
+// general-purpose route would defeat tool restrictions during active
+// flows.
 
 /// Extract the body of the FIRST `<HARD-GATE>...</HARD-GATE>` block
 /// in the SKILL.md so contract assertions about HARD-GATE content
@@ -5557,44 +5561,18 @@ fn test_flow_triage_issue_skill_disposition_set_is_canonical() {
 }
 
 #[test]
-fn test_flow_triage_issue_skill_dispatches_issue_triage_agent() {
+fn test_flow_triage_issue_skill_does_not_dispatch_sub_agent() {
     let content = common::read_skill("flow-triage-issue");
-    // The skill MUST dispatch issue-triage in its Step 2 dispatch
-    // instruction. Bind the check to the dispatch-instruction
-    // context (the line containing "Invoke the" + "sub-agent")
-    // so prose mentions of `issue-triage` elsewhere in the file
-    // cannot satisfy the assertion (per reviewer finding R3 and
-    // adversarial test verification).
-    let dispatch_line_present = content
-        .lines()
-        .any(|line| line.contains("issue-triage") && line.contains("sub-agent"));
-    assert!(
-        dispatch_line_present,
-        "skills/flow-triage-issue/SKILL.md must contain a dispatch instruction line that names the `issue-triage` sub-agent (e.g. 'Invoke the `issue-triage` sub-agent ...')"
-    );
     // The skill must NOT route through general-purpose — that agent
     // ignores tool restrictions in its prompt and is forbidden during
     // active flows by .claude/rules/skill-authoring.md "Sub-Agent Safety".
+    // After inlining the triage Process, the skill invokes no
+    // sub-agent at all; this assertion now both guards against
+    // accidental general-purpose use AND continues to pass trivially
+    // because the file dispatches nothing.
     assert!(
         !content.contains("general-purpose"),
         "skills/flow-triage-issue/SKILL.md must NOT use general-purpose sub-agent"
-    );
-}
-
-#[test]
-fn issue_triage_agent_declares_end_of_findings_marker() {
-    // Per .claude/rules/cognitive-isolation.md "Completion-marker
-    // contract": every high-investigation agent must declare
-    // `## END-OF-FINDINGS` as the final structural element of its
-    // Output Format. Adversarial findings A7/A11/A14 demonstrated
-    // that the SKILL.md's `### Verdict` substring check is gameable
-    // by echoed instruction templates; the END-OF-FINDINGS marker
-    // is the canonical truncation signal.
-    let path = common::repo_root().join("agents").join("issue-triage.md");
-    let content = std::fs::read_to_string(&path).expect("agents/issue-triage.md must exist");
-    assert!(
-        content.contains("## END-OF-FINDINGS"),
-        "agents/issue-triage.md must declare the literal `## END-OF-FINDINGS` completion marker"
     );
 }
 

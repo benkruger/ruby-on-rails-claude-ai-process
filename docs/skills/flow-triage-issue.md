@@ -15,13 +15,13 @@ parent: Skills
 ```
 
 Triage a single open GitHub issue from a senior-PM-with-engineering-literacy
-lens. Dispatches the `issue-triage` sub-agent in the foreground. The agent
-fetches the issue, reads referenced code (or grep-locates behavior when
+lens. Fetches the issue, reads referenced code (or grep-locates behavior when
 the issue body names no files), checks `gh pr list --search "<num>"` and
 `git log --all --grep "#<num>"` for already-shipped work, answers ten
 triage questions, and produces a verdict in `{close, decompose}` with
-confidence and a flip-condition. The skill renders the verdict
-verbatim and stops — no auto-actions.
+confidence and a flip-condition. The triage Process is inlined directly in
+the skill — no sub-agent dispatch. The skill renders the verdict inline and
+stops — no auto-actions.
 
 ---
 
@@ -32,21 +32,29 @@ verbatim and stops — no auto-actions.
 2. Applies a "Triage In-Progress" label to the issue so concurrent
    sessions can see the in-progress signal in the GitHub UI. Creates
    the label idempotently if it does not yet exist in the repo.
-3. Dispatches the `issue-triage` sub-agent (model: `sonnet`,
-   read-only tools, no `Edit`/`Write`).
-4. Checks the agent's output for a `### Verdict` or `### Out of scope`
-   structural marker. If neither is present, the agent ran out of turns
-   mid-investigation; the skill reports "investigation incomplete" and
-   stops without rendering the partial output.
-5. Renders the agent's full output inline — every heading, bullet, and
-   `file:line` citation, exactly as the agent produced it.
-6. Removes the "Triage In-Progress" label so the issue no longer
+3. Fetches the issue via `gh issue view --json`. If the issue is closed
+   or the fetch fails, renders an out-of-scope envelope and proceeds to
+   label removal.
+4. Reads every file referenced by backtick-quoted path or `path:line`
+   in the issue body. If the body names no files, searches the codebase
+   for the described behavior, then reads the implementation. The grep
+   locates code; verification is a separate Read of the current
+   implementation.
+5. Checks `gh pr list --search "<num>"` (merged + open) and
+   `git log --all --grep "#<num>"` for already-shipped work. Reads the
+   cited code from any merged PR to verify what actually shipped.
+6. Answers the 10 triage questions using plain English, citing
+   `file:line` for every code claim. Applies Premise → Trace →
+   Conclude reasoning per `.claude/rules/semi-formal-reasoning.md`,
+   and treats mechanical blocks as presumptively intentional per
+   `.claude/rules/filing-issues.md`.
+7. Produces the 5-field verdict card inline (Disposition, Summary,
+   Evidence, Confidence, This flips if).
+8. Removes the "Triage In-Progress" label so the issue no longer
    signals active triage. The remove fires on every exit path —
-   verdict rendered, out-of-scope envelope rendered, or truncation
-   message rendered.
-7. Prints a one-line hint pointing at the next manual step based on the
-   disposition (e.g. `gh issue close <num>` for `close`,
-   `/flow:flow-plan #N` for `decompose`).
+   verdict rendered or out-of-scope envelope rendered.
+9. Prints a brief prose hint pointing at the next manual step based
+   on the disposition. The PM types the next command themselves.
 
 ---
 
@@ -86,7 +94,7 @@ design conversation.
   after reading the evidence.
 - **Never applies any label other than "Triage In-Progress".** That
   one label is the skill's only label mutation, applied in step 2 and
-  removed in step 6.
+  removed in step 8.
 - **Never comments.** No `gh issue comment`.
 - **Never auto-invokes follow-on skills.** Render the verdict, stop,
   print the next-step hint. The PM types the next command.
@@ -100,8 +108,9 @@ design conversation.
 ## Gates
 
 - Mutates a single label ("Triage In-Progress") on the triaged issue;
-  no other GitHub state is mutated. Sub-agent investigation is
-  read-only.
-- Display-only after the agent returns — no auto-actions
-- The `### Verdict` / `### Out of scope` structural marker is required;
-  partial output (sub-agent truncation) is not rendered as if complete
+  no other GitHub state is mutated. The inlined investigation
+  (`gh issue view`, `gh pr list`, `git log`) is read-only.
+- Display-only after the verdict is produced — no auto-actions.
+- The 5-field verdict card or the out-of-scope envelope is produced
+  inline by the skill itself; there is no sub-agent dispatch to
+  truncate.

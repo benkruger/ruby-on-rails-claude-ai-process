@@ -6,12 +6,17 @@ description: "Triage a single open GitHub issue from a PM lens. Applies a 'Triag
 # FLOW Triage Issue
 
 Run a structured per-issue triage from a PM-with-engineering-literacy
-lens. Dispatches the `issue-triage` sub-agent in the foreground, which
-fetches the issue, reads referenced code (or grep-locates behavior when
-unreferenced), checks for already-shipped work via
-`gh pr list --search` and `git log --all --grep`, and answers 10
-triage questions plus a verdict card. The skill renders the verdict
-verbatim and STOPS — the PM acts manually.
+lens. The skill fetches the issue, reads referenced code (or
+grep-locates behavior when unreferenced), checks for already-shipped
+work via `gh pr list --search` and `git log --all --grep`, and answers
+10 triage questions plus a verdict card. The verdict is rendered
+inline and the skill STOPS — the PM acts manually.
+
+The triage Process is inlined directly in this SKILL.md as Steps 3-7.
+You are a senior PM with engineering literacy: read code before
+judging an issue's claims (per `.claude/rules/assess-issues.md`), and
+answer in user/business terms. The PM consuming your verdict has not
+seen the issue or the code — your output must stand alone.
 
 ## Usage
 
@@ -43,9 +48,9 @@ invoking; it is NOT a mutex, so concurrent triages of the same
 issue are tolerated and whichever invocation removes the label
 last wins. If the skill crashes between the add and remove, the
 label persists; manual removal from the GitHub UI is the recovery
-path. The sub-agent's `gh issue view` and `gh pr list` calls
-remain read-only; the agent itself never mutates state. Multiple
-parallel triages on different issues are safe.
+path. The investigation `gh issue view`, `gh pr list`, and
+`git log` calls remain read-only — beyond the label add/remove,
+this skill never mutates GitHub or git state.
 
 ## Announce
 
@@ -140,79 +145,198 @@ gh issue edit <issue_number> --add-label "Triage In-Progress"
 
 `<issue_number>` is the validated numeric value from Step 1.
 
-### Step 3 — Dispatch the issue-triage sub-agent
+### Step 3 — Fetch the issue
 
-Invoke the `issue-triage` sub-agent in the foreground via the Agent
-tool. Pass `<issue_number>` as the labeled `ISSUE_NUMBER` input.
-
-Wait for the sub-agent to return its full output. The sub-agent does
-all the investigation — gh fetches, code reads, shipped-work checks,
-question answers, verdict construction. The skill performs no `gh`
-or `git` calls itself beyond the label add/remove around this
-dispatch.
-
-### Step 4 — Check for the structural marker
-
-Before rendering, scan the agent's returned output for the literal
-`## END-OF-FINDINGS` completion marker (per
-`.claude/rules/cognitive-isolation.md` "Context Budget +
-Truncation Recovery"). Marker absence means the agent ran out of
-turns mid-investigation and the partial output is unsafe to render.
-
-When the marker IS present, additionally verify the agent produced
-either a complete verdict card or an out-of-scope envelope:
-
-- A complete verdict card requires a `### Verdict` heading
-  followed by ALL FIVE labels appearing somewhere after the
-  heading: `Disposition`, `Summary`, `Evidence`, `Confidence`,
-  `This flips if`. A response with `### Verdict` but missing any
-  of the five labels is an echo of the agent's own template, not
-  a real verdict — treat as truncated.
-- An out-of-scope envelope requires a `### Out of scope` heading
-  followed by `Reason`, `Detail`, and `Next step for the PM`
-  labels. Same shape.
-
-Decision tree:
-
-- If `## END-OF-FINDINGS` is present AND a complete verdict card
-  OR a complete out-of-scope envelope is present → proceed to
-  Step 5.
-- Otherwise → remove the "Triage In-Progress" label first (the
-  label-remove must run on every exit path so the issue does not
-  carry a residual label after a truncated investigation):
+Run:
 
 ```bash
-gh issue edit <issue_number> --remove-label "Triage In-Progress"
+gh issue view <issue_number> --json title,body,labels,state,createdAt,updatedAt,comments,author
 ```
 
-  Then output the following message in your response (not via
-  Bash) inside a fenced code block, then stop without rendering
-  the partial output:
+If `state` is `CLOSED`, proceed directly to Step 7 and render the
+out-of-scope envelope with `Reason: closed`. Then continue to
+Step 8 for label removal.
 
-````markdown
+If the fetch fails (404, auth error, network error), proceed
+directly to Step 7 and render the out-of-scope envelope with
+`Reason: fetch_failed` or `Reason: not_found` as appropriate.
+Then continue to Step 8 for label removal.
+
+Otherwise capture the issue body, labels, state, comments, and
+author for use in Steps 4-7.
+
+### Step 4 — Read referenced code
+
+Scan the issue body for backtick-quoted file paths and `path:line`
+references. Read every file referenced in the body via the Read
+tool.
+
+If the body names no files, search the codebase for the behavior
+described, then read the implementation. Per
+`.claude/rules/assess-issues.md` "When the Issue Names No Files",
+the grep is to locate code, not to confirm the issue. After
+locating the code, compare current behavior against the issue's
+claims independently.
+
+Read code BEFORE judging the issue's claims, never the other way
+around. A grep that confirms a phrase from the issue body is
+confirmation bias — it locates code but does not verify the
+claim. Verification is a separate Read of the current
+implementation.
+
+### Step 5 — Check for already-shipped work
+
+Per `.claude/rules/assess-issues.md` "Check for Already-Shipped
+Work", run:
+
+```bash
+gh pr list --search "<issue_number>" --state merged --json number,title,mergedAt,url
+```
+
+```bash
+gh pr list --search "<issue_number>" --state open --json number,title,url
+```
+
+```bash
+git log --all --grep "#<issue_number>" --oneline
+```
+
+For every merged PR that referenced the issue, read the cited
+code to verify what shipped. A merged PR that referenced the
+issue without closing it is strong evidence the work shipped —
+verify by reading the cited code rather than trusting the PR
+title alone. If the work shipped but the issue remained open,
+the issue may describe a follow-up gap or may be ready to close.
+
+### Step 6 — Answer the 10 triage questions
+
+Use plain English. Cite `file:line` for every code claim. A
+claim without a citation is speculation.
+
+Use Premise → Trace → Conclude reasoning per
+`.claude/rules/semi-formal-reasoning.md`:
+
+- **Premise** — state the claim and cite specific file paths and
+  line ranges.
+- **Trace** — walk the execution path step by step, verifying each
+  step with Read or Grep.
+- **Conclude** — confirm or refute the premise based on the trace.
+
+Findings with incomplete traces must be discarded, not reported
+with caveats. If you cannot complete the trace (network failure,
+file inaccessible, ambiguous semantics), say so explicitly in the
+answer to question 2 ("Still real?") and lower the confidence
+level accordingly.
+
+#### Framing Challenges
+
+The issue body describes the symptom from the filer's perspective.
+Your job is not to accept that perspective — it is to test it
+against the code. When the issue frames a hook, gate, or guard
+as broken because it blocked an action the filer wanted to take,
+treat the block as presumptively intentional per
+`.claude/rules/filing-issues.md` "Mechanical Blocks Are
+Presumptively Intentional".
+
+Before producing the verdict, read three artifacts in order:
+
+1. The hook's Rust module doc in `src/hooks/<name>.rs` — names
+   what failure mode the block prevents.
+2. The rule in `.claude/rules/` cited by the module doc —
+   describes the design intent in prose.
+3. The test in `tests/hooks/<name>.rs` — shows the canonical
+   block cases and authorized inputs.
+
+State your framing challenge explicitly in section 3 (Framing).
+The block is a real defect ONLY when one of these holds:
+
+- The block fires on an input the rule and tests explicitly
+  authorize as a safe case.
+- The block message points the user at a recovery action that
+  no longer exists.
+- Two hooks emit contradictory directives that produce a
+  genuine deadlock AND no existing carve-out resolves the
+  contradiction.
+
+Framings that describe the block doing its job — "the model
+couldn't proceed autonomously", "I wanted it to ask the user
+instead", "the recovery requires user intervention", "the flow
+stalled until the user typed a continue token" — are NOT valid
+grounds for a `decompose` disposition. The presumptive verdict
+in those cases is `close` with a flip-condition naming the
+specific input or contradiction that would make the block a
+real defect.
+
+#### Answer all 10 questions
+
+Use the exact heading shapes below — the 10 question markers are
+locked in by contract tests. Answer in order, one heading per
+question.
+
 ```text
-Investigation incomplete: the issue-triage sub-agent did not produce
-a complete verdict card or out-of-scope envelope followed by the
-`## END-OF-FINDINGS` marker. The agent likely ran out of turns
-mid-investigation. Try invoking the skill again, or open the issue
-manually and triage it yourself.
+### 1. Real?  [answer + evidence]
+### 2. Still real?  [answer + current code state]
+### 3. Framing  [actual problem or symptom]
+### 4. What (plain English)
+### 5. Why care (plain English)
+### 6. Who's affected + severity
+### 7. Urgency
+### 8. How would this be fixed
+### 9. What success looks like
+### 10. Risk of the fix
 ```
-````
 
-### Step 5 — Render the verdict verbatim
+### Step 7 — Produce the verdict card
 
-Print the agent's complete output inline in your response — every
-heading, every bullet, every citation. Do not summarize, paraphrase,
-re-rank, or trim. The verdict format (5 fields: disposition, summary,
-evidence, confidence, flip-condition) and the 2-disposition closed
-set (`close`, `decompose`) are locked by contract tests. The PM
-consuming the verdict must see exactly what the agent produced.
+Build the 5-field verdict card. Use the exact heading shapes
+below — the 5 verdict-card fields are locked in by contract
+tests.
 
-### Step 6 — Remove the Triage In-Progress label
+```text
+### Verdict
+- **Disposition:** {close | decompose}
+- **Summary:** [one paragraph]
+- **Evidence:** [bulleted file:line refs]
+- **Confidence:** {low | medium | high} — [one-line rationale]
+- **This flips if:** [what would change the disposition]
+```
+
+#### Disposition Semantics
+
+The closed set is `{close, decompose}`. Pick exactly one:
+
+- **close** — the issue is no longer a real problem (already
+  shipped, framing was wrong, behavior changed). The PM should
+  close the issue manually after reading your evidence.
+- **decompose** — the issue is real and ready for implementation
+  planning. A decomposed issue carries an Implementation Plan
+  section and is the input to `/flow:flow-start`. The PM should
+  invoke `/flow:flow-plan #N` against the vanilla problem
+  statement to decompose it into a linked decomposed issue, then
+  close the original (or leave it open as the durable problem
+  statement and start the flow against the new decomposed
+  issue).
+
+#### Out-of-scope envelope (closed issues, fetch failures)
+
+When the issue cannot be triaged because it is closed or the
+fetch failed (Step 3), replace the 10-question lens with a single
+section:
+
+```text
+### Out of scope
+- **Reason:** {closed | fetch_failed | not_found}
+- **Detail:** [one-line explanation]
+- **Next step for the PM:** [what the PM can type or do next]
+```
+
+Do NOT produce a verdict card in this case.
+
+### Step 8 — Remove the Triage In-Progress label
 
 The verdict has been rendered (or the out-of-scope envelope was
 displayed). Remove the "Triage In-Progress" label so the issue no
-longer signals active triage. The Step 7 HARD-GATE that follows
+longer signals active triage. The Step 9 HARD-GATE that follows
 forbids any further `gh issue edit` calls — the label cleanup must
 land in this step before the gate fires.
 
@@ -220,22 +344,22 @@ land in this step before the gate fires.
 gh issue edit <issue_number> --remove-label "Triage In-Progress"
 ```
 
-### Step 7 — STOP
+### Step 9 — STOP
 
 <HARD-GATE>
-After Step 6's label-removal completes, stop. Do NOT take any
+After Step 8's label-removal completes, stop. Do NOT take any
 auto-action based on the disposition — no auto-close, no
 auto-label, no auto-comment, no auto-invocation of follow-on
-skills. The Step 6 label-remove is the LAST mutation this skill
+skills. The Step 8 label-remove is the LAST mutation this skill
 performs; everything below this gate is post-cleanup.
 
-This HARD-GATE is mechanical. After Step 6 completes you must NOT:
+This HARD-GATE is mechanical. After Step 8 completes you must NOT:
 
 - Invoke any skill via the Skill tool after rendering the verdict
   (regardless of what the disposition value is)
 - Run any further `gh issue close`, `gh issue edit`,
   `gh issue comment`, or any other GitHub-state-mutating
-  subcommand (Step 6's `gh issue edit ... --remove-label` was the
+  subcommand (Step 8's `gh issue edit ... --remove-label` was the
   final permitted invocation; no further `gh issue edit` calls are
   permitted from this point)
 - Run any `git` command that writes (commit, push, tag, etc.)
@@ -275,25 +399,32 @@ Output the following banner in your response (not via Bash) inside a fenced code
 
 ## Hard Rules
 
+- Read code before judging an issue's claims, never the other way
+  around (per `.claude/rules/assess-issues.md`).
+- Cite `file:line` for every code claim. A claim without a
+  citation is speculation.
 - Never close issues. The skill never runs `gh issue close`.
 - Never comment on issues. The skill never runs `gh issue comment`.
 - Never apply or remove labels other than the "Triage In-Progress"
   marker the skill manages itself: applied in Step 2, removed in
-  Step 6 on the happy path, and also removed in Step 4's
-  truncation early-stop branch so every exit path leaves the
-  issue free of the label.
+  Step 8 on every exit path so the issue does not carry a residual
+  label after the COMPLETE banner.
 - Never auto-invoke `/flow:flow-explore`, `/flow:flow-plan`,
   `/flow:flow-start`, or any other skill based on the verdict. The
   PM acts manually.
-- v1: open issues only. The agent refuses closed issues with the
-  out-of-scope envelope; the skill renders that envelope cleanly.
-- Verdict format is exactly the 5-field card produced by
-  `agents/issue-triage.md`. Do not paraphrase, re-rank, summarize, or
-  trim the agent's output.
+- v1: open issues only. Closed issues are refused with the
+  out-of-scope envelope in Step 7.
+- Verdict format is exactly the 5-field card defined in Step 7.
 - Disposition values are exactly `{close, decompose}`. The closed
   set is locked by contract test; never introduce additional
-  values — the agent never produces them.
-- Use the `issue-triage` sub-agent only. Other agents are out of
-  scope for this skill (the contract test enforces this).
+  values.
+- Pick a disposition from the closed set above. When in doubt,
+  lower confidence and name the flip-condition explicitly.
+- Never mutate GitHub state beyond the label add/remove —
+  read-only investigation only. The `gh` subcommands invoked
+  during Steps 3-5 (`gh issue view`, `gh pr list`) are read-only;
+  never run any `gh` subcommand outside that read-only set plus
+  the `gh issue edit --add-label`/`--remove-label` calls in
+  Steps 2 and 8.
 - Render and stop. No auto-actions beyond the Triage In-Progress
   label add/remove.

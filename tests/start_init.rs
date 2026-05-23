@@ -1,7 +1,9 @@
 //! Integration tests for start-init subcommand.
 //!
 //! start-init consolidates: lock acquire + prime-check + upgrade-check +
-//! prompt write + init-state + label-issues into a single command.
+//! prompt write + init-state into a single command. The Flow In-Progress
+//! label apply lives in `start_workspace` (see `tests/start_workspace.rs`);
+//! `start-init` only reads the label as a pre-lock cross-machine WIP guard.
 //! Every test drives through the compiled binary — no library seams.
 
 mod common;

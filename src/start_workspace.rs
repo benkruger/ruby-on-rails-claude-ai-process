@@ -1,10 +1,16 @@
 //! Consolidated start-workspace: worktree creation + PR creation + state
-//! backfill + lock release in a single command.
+//! backfill + Flow In-Progress label apply + lock release in a single
+//! command.
 //!
-//! Replaces the old start-setup for the workspace-creation portion of
-//! flow-start. Lock is released as the final action (even on error),
-//! closing the race condition where another flow could commit to main
-//! between lock release and worktree creation.
+//! Lock is released as the final action (even on error), closing the
+//! race condition where another flow could commit to main between
+//! lock release and worktree creation. The label apply runs only on
+//! the success path — AFTER worktree, PR, and state backfill all
+//! succeed and BEFORE the lock release — so the Flow In-Progress
+//! label means "a flow is live, worktree exists, PR exists" rather
+//! than "a flow was attempted". Failure paths skip the label apply
+//! entirely; a failed start-workspace leaves no sticky label that
+//! blocks the next retry.
 //!
 //! Worktree creation also mirrors every `.venv` and `node_modules`
 //! directory found under the project root into the new worktree as

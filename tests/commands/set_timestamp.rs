@@ -318,8 +318,7 @@ fn apply_updates_allows_code_task_increment() {
 #[test]
 fn apply_updates_allows_continue_pending_commit() {
     let mut state = json!({});
-    let updates =
-        apply_updates(&mut state, &["_continue_pending=commit".to_string()]).unwrap();
+    let updates = apply_updates(&mut state, &["_continue_pending=commit".to_string()]).unwrap();
     assert_eq!(updates.len(), 1);
     assert_eq!(state["_continue_pending"], "commit");
 }
@@ -329,10 +328,31 @@ fn apply_updates_allows_continue_pending_commit() {
 #[test]
 fn apply_updates_allows_custom_field() {
     let mut state = json!({});
-    let updates =
-        apply_updates(&mut state, &["arbitrary_field=value".to_string()]).unwrap();
+    let updates = apply_updates(&mut state, &["arbitrary_field=value".to_string()]).unwrap();
     assert_eq!(updates.len(), 1);
     assert_eq!(state["arbitrary_field"], "value");
+}
+
+/// A `--set _halt_pending.=anything` argument splits on `.` into
+/// `["_halt_pending", ""]` (len=2), so the deny check (scoped to
+/// single-segment paths) is skipped. `set_nested` then tries to
+/// navigate into `state["_halt_pending"]`; when the field holds the
+/// boolean `true` the Stop hook owns, the Bool-intermediate guard
+/// in `set_nested` rejects the navigation and the call returns Err
+/// — the active halt is preserved. This locks the property in so a
+/// future relaxation of the Bool guard cannot silently expose a
+/// halt-clobber bypass via the trailing-dot shape.
+#[test]
+fn apply_updates_trailing_dot_does_not_clobber_halt_pending_boolean() {
+    let mut state = json!({"_halt_pending": true});
+    let _ = apply_updates(&mut state, &["_halt_pending.=anything".to_string()]);
+    assert_eq!(
+        state["_halt_pending"],
+        Value::Bool(true),
+        "_halt_pending top-level boolean must survive the trailing-dot write. \
+         got: state[\"_halt_pending\"]={:?}",
+        state["_halt_pending"]
+    );
 }
 
 // --- validate_code_task tests ---

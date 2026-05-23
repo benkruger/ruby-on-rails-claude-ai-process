@@ -286,6 +286,16 @@ rejected field. The deny applies to single-segment paths only —
 nested attempts (`phases.X._halt_pending`) are a no-op for the
 Stop hook, which reads the top-level field only.
 
+The gate covers the `bin/flow set-timestamp` CLI write path only.
+Direct Edit/Write tool calls against
+`<project_root>/.flow-states/<branch>/state.json` from inside an
+active-flow worktree are not blocked by `validate-worktree-paths`
+(which only blocks misplaced worktree-internal copies under
+`.worktrees/<branch>/.flow-states/`) or `validate-claude-paths`
+(which protects `.claude/` paths, not `.flow-states/`), so a model
+with Edit/Write access remains a broader trust surface tracked
+separately from this gate.
+
 **State-field lifecycle.**
 
 - `_halt_pending: bool` — owned by `check_autonomous_stop` and

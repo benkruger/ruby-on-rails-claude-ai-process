@@ -182,6 +182,21 @@ pub fn validate_code_task(state: &Value, new_value: i64) -> Result<(), String> {
 /// Apply a list of path=value updates to the state Value.
 ///
 /// Returns the list of updates that were applied.
+///
+/// **Non-atomic across multiple `--set` args.** Updates are
+/// applied sequentially in place; an Err return from a later
+/// arg (deny check, `code_task` validation, or `set_nested`
+/// type error) propagates via `?` WITHOUT rolling back prior
+/// in-place mutations to `state`. Callers that need
+/// transactional semantics MUST snapshot `state` before
+/// invocation and restore from the snapshot on Err — this is
+/// what [`run_impl_main`] does via the `backup` / `*state =
+/// backup` pattern inside the `mutate_state` closure. A direct
+/// library caller that omits the snapshot will observe partial
+/// mutation (e.g. `state["code_task"] == 1` even when the call
+/// returns Err from a later denied arg). The current production
+/// caller chain is the only consumer; future cross-module
+/// consumers must follow the same pattern.
 pub fn apply_updates(state: &mut Value, set_args: &[String]) -> Result<Vec<Update>, String> {
     let mut updates = Vec::new();
 

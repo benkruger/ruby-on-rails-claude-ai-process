@@ -1,10 +1,16 @@
 //! Consolidated start-workspace: worktree creation + PR creation + state
-//! backfill + lock release in a single command.
+//! backfill + Flow In-Progress label apply + lock release in a single
+//! command.
 //!
-//! Replaces the old start-setup for the workspace-creation portion of
-//! flow-start. Lock is released as the final action (even on error),
-//! closing the race condition where another flow could commit to main
-//! between lock release and worktree creation.
+//! Lock is released as the final action (even on error), closing the
+//! race condition where another flow could commit to main between
+//! lock release and worktree creation. The label apply runs only on
+//! the success path — AFTER worktree, PR, and state backfill all
+//! succeed and BEFORE the lock release — so the Flow In-Progress
+//! label means "a flow is live, worktree exists, PR exists" rather
+//! than "a flow was attempted". Failure paths skip the label apply
+//! entirely; a failed start-workspace leaves no sticky label that
+//! blocks the next retry.
 //!
 //! Worktree creation also mirrors every `.venv` and `node_modules`
 //! directory found under the project root into the new worktree as
@@ -32,8 +38,9 @@ use crate::commands::start_lock::{queue_path, release};
 use crate::commands::start_step::update_step;
 use crate::flow_paths::FlowPaths;
 use crate::github::detect_repo;
+use crate::label_issues::label_issues;
 use crate::lock::mutate_state;
-use crate::utils::{derive_feature, run_cmd, SetupError};
+use crate::utils::{derive_feature, extract_issue_numbers, run_cmd, SetupError};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -482,7 +489,30 @@ fn run_impl_with_paths(args: &Args, root: &Path, cwd: &Path) -> Value {
         );
     }
 
-    // Step 4: Release lock (final action)
+    // Step 4: Apply Flow In-Progress label (best-effort).
+    //
+    // Runs AFTER worktree, PR, and state backfill all succeed and
+    // BEFORE the final lock release. Failure paths above return
+    // early without reaching this block, so a failed start-workspace
+    // leaves no sticky label that blocks the next retry. Label
+    // failures (gh auth, network) do not fail the flow — the label
+    // is a coordination signal, not a correctness gate; start_init's
+    // pre-lock guard catches cross-machine WIP from the receiving
+    // side regardless of whether the label apply here succeeded.
+    let issue_numbers = extract_issue_numbers(&prompt);
+    if !issue_numbers.is_empty() {
+        let result = label_issues(&issue_numbers, "add");
+        let _ = append_log(
+            root,
+            branch,
+            &format!(
+                "[Phase 1] start-workspace — label-issues (labeled: {:?}, failed: {:?})",
+                result.labeled, result.failed
+            ),
+        );
+    }
+
+    // Step 5: Release lock (final action)
     release_lock(&args.branch);
     let _ = append_log(
         root,

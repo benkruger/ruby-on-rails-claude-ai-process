@@ -212,7 +212,11 @@ Display the full message under the heading **Commit Message**.
 
 ### Round 5 — Commit and push
 
-Files are already staged from Round 3. No need to `git add -A` again.
+Files are already staged from Round 3. `bin/flow finalize-commit` runs
+its CI gate next and then re-stages internally before composing the
+commit, so any in-place auto-fixes that `bin/format` or `bin/lint`
+make during CI (running in their default non-`CI=1` mode) are
+captured in the same commit alongside the manually-staged content.
 
 Use the Write tool to write the commit message content to
 `<project_root>/.flow-states/<branch>/commit-msg-content.txt` — a

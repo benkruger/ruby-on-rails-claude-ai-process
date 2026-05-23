@@ -12,12 +12,22 @@
 //! feature-branch worktree that flow-start created at
 //! `<project_root>/.worktrees/<branch>/`.
 //!
-//! Two gates run before committing:
+//! Two gates and a post-CI re-stage run before committing:
 //!
 //! 1. **CI gate** — calls [`ci::run_impl`]. If CI fails, returns an error
 //!    and commits nothing. When the CI sentinel is fresh (CI already passed
 //!    for this tree state), the check noops instantly.
-//! 2. **Plan-deviation gate** — calls [`plan_deviation::run_impl`] to
+//! 2. **Post-CI re-stage** — runs `git add -A` after CI completes. Project
+//!    `bin/*` tools run in their default auto-fix mode during the commit-
+//!    time CI gate (CI=true is not set), so formatters like `ruff format`
+//!    and `prettier --write` modify tracked files in place. Re-staging
+//!    captures those modifications in the index so the commit records the
+//!    same bytes CI validated, and the plan-deviation gate inspects identical
+//!    content. Returns `step = "restage"` on `git add` failure. Files
+//!    matched by `.gitignore` are not swept (`git add -A` respects the
+//!    ignore list); un-ignored artifacts in the working tree land in the
+//!    commit just as they would with a manual `git add -A`.
+//! 3. **Plan-deviation gate** — calls [`plan_deviation::run_impl`] to
 //!    cross-reference plan-named test fixture values against the staged
 //!    diff. If an unacknowledged drift is detected, returns an error with
 //!    `step = "plan_deviation"` and a structured stderr message.
@@ -28,7 +38,7 @@
 //! Output (JSON to stdout):
 //!   Success:   {"status": "ok", "sha": "<commit-hash>", "pull_merged": <bool>}
 //!   Conflict:  {"status": "conflict", "files": ["file1.py", ...]}
-//!   Error:     {"status": "error", "step": "ci|plan_deviation|commit|pull|push", "message": "..."}
+//!   Error:     {"status": "error", "step": "ci|restage|plan_deviation|commit|pull|push", "message": "..."}
 
 use std::fs;
 
@@ -314,56 +324,90 @@ pub fn run_impl(args: &Args, root: &std::path::Path) -> Result<Value, String> {
                 &format!("[Phase {}] finalize-commit — ci (ok)", pn),
             );
 
-            // Capture the staged diff for the plan-deviation gate.
-            // The working_tree_dirty gate at the top of run_impl
-            // already proved git is alive and the cwd is a real
-            // repo, so .expect() is safe — Err and non-zero arms
-            // for `git diff --cached` are unreachable in practice
-            // per `.claude/rules/testability-means-simplicity.md`.
-            let (_, staged_diff, _) =
-                run_git_in_dir(&commit_cwd, &["diff", "--cached"], LOCAL_TIMEOUT)
+            // Re-stage every working-tree modification so the commit
+            // captures the bytes CI actually validated. Project `bin/*`
+            // tools run in their default auto-fix mode during the
+            // commit-time CI gate (CI=true is not set; see
+            // `src/ci.rs`), so formatters like `ruff format` and
+            // `prettier --write` modify tracked files in place. Without
+            // this step, the staged-diff capture below would see the
+            // pre-CI index bytes and `git commit -F` would record them
+            // — diverging from what CI tested. The working_tree_dirty
+            // gate at line 257 already proved git is alive, so
+            // `.expect()` is safe here in the same sense as the
+            // `git diff --cached` call below.
+            let (add_code, _, add_stderr) =
+                run_git_in_dir(&commit_cwd, &["add", "-A"], LOCAL_TIMEOUT)
                     .expect("git located by working_tree_dirty gate");
+            if add_code != 0 {
+                let _ = append_log(
+                    root,
+                    &args.branch,
+                    &format!("[Phase {}] finalize-commit — restage (failed)", pn),
+                );
+                json!({
+                    "status": "error",
+                    "step": "restage",
+                    "message": add_stderr.trim(),
+                })
+            } else {
+                let _ = append_log(
+                    root,
+                    &args.branch,
+                    &format!("[Phase {}] finalize-commit — restage (ok)", pn),
+                );
 
-            // Plan signature deviation gate. Blocks the commit when
-            // a plan-named test's fixture value drifts without a
-            // matching log acknowledgment. The gate is mechanical
-            // enforcement of `.claude/rules/plan-commit-atomicity.md`
-            // "Plan Signature Deviations Must Be Logged".
-            match crate::plan_deviation::run_impl(root, &args.branch, &staged_diff) {
-                Ok(()) => finalize_commit(&args.message_file, &args.branch, &commit_cwd),
-                Err(deviations) => {
-                    emit_deviation_stderr(&args.branch, &deviations);
-                    let _ = append_log(
-                        root,
-                        &args.branch,
-                        &format!(
-                            "[Phase {}] finalize-commit — plan_deviation (blocked: {} deviation{})",
-                            pn,
-                            deviations.len(),
-                            if deviations.len() == 1 { "" } else { "s" }
-                        ),
-                    );
-                    let deviation_json: Vec<Value> = deviations
-                        .iter()
-                        .map(|d| {
-                            json!({
-                                "test_name": d.test_name,
-                                "fixture_key": d.fixture_key,
-                                "plan_value": d.plan_value,
-                                "plan_line": d.plan_line,
+                // Capture the staged diff for the plan-deviation gate.
+                // The working_tree_dirty gate at the top of run_impl
+                // already proved git is alive and the cwd is a real
+                // repo, so .expect() is safe — Err and non-zero arms
+                // for `git diff --cached` are unreachable in practice
+                // per `.claude/rules/testability-means-simplicity.md`.
+                let (_, staged_diff, _) =
+                    run_git_in_dir(&commit_cwd, &["diff", "--cached"], LOCAL_TIMEOUT)
+                        .expect("git located by working_tree_dirty gate");
+
+                // Plan signature deviation gate. Blocks the commit when
+                // a plan-named test's fixture value drifts without a
+                // matching log acknowledgment. The gate is mechanical
+                // enforcement of `.claude/rules/plan-commit-atomicity.md`
+                // "Plan Signature Deviations Must Be Logged".
+                match crate::plan_deviation::run_impl(root, &args.branch, &staged_diff) {
+                    Ok(()) => finalize_commit(&args.message_file, &args.branch, &commit_cwd),
+                    Err(deviations) => {
+                        emit_deviation_stderr(&args.branch, &deviations);
+                        let _ = append_log(
+                            root,
+                            &args.branch,
+                            &format!(
+                                "[Phase {}] finalize-commit — plan_deviation (blocked: {} deviation{})",
+                                pn,
+                                deviations.len(),
+                                if deviations.len() == 1 { "" } else { "s" }
+                            ),
+                        );
+                        let deviation_json: Vec<Value> = deviations
+                            .iter()
+                            .map(|d| {
+                                json!({
+                                    "test_name": d.test_name,
+                                    "fixture_key": d.fixture_key,
+                                    "plan_value": d.plan_value,
+                                    "plan_line": d.plan_line,
+                                })
                             })
+                            .collect();
+                        json!({
+                            "status": "error",
+                            "step": "plan_deviation",
+                            "message": format!(
+                                "{} unacknowledged plan signature deviation{}",
+                                deviations.len(),
+                                if deviations.len() == 1 { "" } else { "s" }
+                            ),
+                            "deviations": deviation_json,
                         })
-                        .collect();
-                    json!({
-                        "status": "error",
-                        "step": "plan_deviation",
-                        "message": format!(
-                            "{} unacknowledged plan signature deviation{}",
-                            deviations.len(),
-                            if deviations.len() == 1 { "" } else { "s" }
-                        ),
-                        "deviations": deviation_json,
-                    })
+                    }
                 }
             }
         }

@@ -1879,3 +1879,445 @@ fn finalize_commit_passes_ci_reason() {
         stderr
     );
 }
+
+// --- run_impl: post-CI re-stage ---
+
+/// Regression test: finalize-commit must re-stage tracked files
+/// that CI modifies during its auto-fix pass (the canonical pattern
+/// in target repos: `CI=true → strict / CI unset → auto-fix in
+/// place`). Without re-staging between CI completion and the
+/// `git diff --cached` capture, `git commit -F` records the pre-CI
+/// index bytes while CI tested the post-CI working-tree bytes; the
+/// remote strict CI then fails on the unfixed content.
+///
+/// Fixture: overwrite the worktree's `bin/test` with a script that
+/// appends a newline to `README.md` on every invocation. Stage a
+/// separate `feature.rs` so `git commit` has something to land
+/// independent of the README modification. Skip the CI sentinel so
+/// CI actually runs and triggers the auto-fix.
+///
+/// Asserts `git show HEAD:README.md` returns the appended-newline
+/// bytes. Fails against current code because the commit captures
+/// the pre-CI staged bytes.
+#[test]
+fn finalize_commit_restages_after_ci_modifies_tracked_file() {
+    let (clone_dir, _bare_dir, worktree_path) =
+        setup_worktree_fixture("restage-after-ci");
+    let clone_path = clone_dir.path();
+    let wt_str = worktree_path.to_str().unwrap();
+
+    // Replace bin/test with an auto-fix script that unconditionally
+    // appends a newline to README.md. CI dispatches bin/test as
+    // part of its [format, lint, build, test] sequence, so the
+    // script fires during run_impl's CI gate. Commit and push the
+    // modified script so the worktree starts clean (the
+    // working-tree-dirty gate would otherwise block the run).
+    let bin_test = worktree_path.join("bin").join("test");
+    let auto_fix_script = r#"#!/usr/bin/env bash
+printf '\n' >> "$(dirname "$0")/../README.md"
+exit 0
+"#;
+    fs::write(&bin_test, auto_fix_script).unwrap();
+    #[cfg(unix)]
+    {
+        fs::set_permissions(&bin_test, fs::Permissions::from_mode(0o755))
+            .unwrap();
+    }
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "add", "bin/test"])
+            .output()
+            .unwrap(),
+    );
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "commit", "-m", "Configure auto-fix bin/test"])
+            .output()
+            .unwrap(),
+    );
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "push"])
+            .output()
+            .unwrap(),
+    );
+
+    // Stage a new file so `git commit` has content to land
+    // independent of the README modification. Without this, the
+    // commit's index would be empty before re-staging and `git
+    // commit -F` would refuse with "nothing to commit".
+    fs::write(worktree_path.join("feature.rs"), "fn main() {}\n").unwrap();
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "add", "feature.rs"])
+            .output()
+            .unwrap(),
+    );
+
+    // Capture README's bytes at HEAD (and in the index, since the
+    // working tree matches HEAD after the auto-fix script commit).
+    let pre_fix_output = Command::new("git")
+        .args(["-C", wt_str, "show", "HEAD:README.md"])
+        .output()
+        .unwrap();
+    git_assert_ok(&pre_fix_output);
+    let pre_fix_bytes =
+        String::from_utf8_lossy(&pre_fix_output.stdout).to_string();
+    let expected_post_fix_bytes = format!("{}\n", pre_fix_bytes);
+
+    let msg_path = worktree_path.join(".flow-commit-msg");
+    fs::write(&msg_path, "Add feature.rs (post-CI re-stage test).").unwrap();
+
+    // Do NOT write a CI sentinel — CI must actually run so bin/test
+    // fires the auto-fix and modifies README.md in the working
+    // tree.
+
+    let args = Args {
+        message_file: msg_path.to_str().unwrap().to_string(),
+        branch: "restage-after-ci".to_string(),
+    };
+    let result = run_impl(&args, clone_path).unwrap();
+    assert_eq!(result["status"], "ok", "got: {}", result);
+
+    let head_readme = Command::new("git")
+        .args(["-C", wt_str, "show", "HEAD:README.md"])
+        .output()
+        .unwrap();
+    git_assert_ok(&head_readme);
+    let committed_bytes =
+        String::from_utf8_lossy(&head_readme.stdout).to_string();
+    assert_eq!(
+        committed_bytes, expected_post_fix_bytes,
+        "commit must capture post-CI bytes (re-staged) — pre={:?}, expected_post={:?}, committed={:?}",
+        pre_fix_bytes, expected_post_fix_bytes, committed_bytes,
+    );
+}
+
+/// Invariant: projects whose `bin/*` tools never modify the working
+/// tree (the strict `--check` shape) experience zero behavior change
+/// from the post-CI re-stage. The committed file must read exactly the
+/// pre-staged bytes, and `git add -A` must not sweep extra files into
+/// the commit. Locks the non-regression contract for checker-only
+/// projects against future changes that might widen what the re-stage
+/// includes.
+#[test]
+fn finalize_commit_restage_noop_when_ci_leaves_working_tree_clean() {
+    let (clone_dir, _bare_dir, worktree_path) =
+        setup_worktree_fixture("restage-noop");
+    let clone_path = clone_dir.path();
+    let wt_str = worktree_path.to_str().unwrap();
+
+    // The fixture's default bin/test only writes a marker file
+    // (gitignored via .git/info/exclude) — no working-tree
+    // modifications to tracked files. Stage a source file with
+    // known bytes and verify those exact bytes land in the commit.
+    let staged_path = worktree_path.join("source.rs");
+    let staged_bytes = "fn main() {}\n";
+    fs::write(&staged_path, staged_bytes).unwrap();
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "add", "source.rs"])
+            .output()
+            .unwrap(),
+    );
+
+    // Use the canonical gitignored commit-msg path
+    // (`.flow-states/` is gitignored by the fixture) so the
+    // tree-listing assertion below sees only the staged source.rs.
+    // Production callers always use `FlowPaths::commit_msg()`,
+    // which resolves under `.flow-states/<branch>/`; the test
+    // fixture follows the same convention here so the no-op
+    // invariant is exercised against the path the model uses.
+    let branch_state_dir =
+        clone_path.join(".flow-states").join("restage-noop");
+    fs::create_dir_all(&branch_state_dir).unwrap();
+    let msg_path = branch_state_dir.join("commit-msg.txt");
+    fs::write(&msg_path, "Add source.rs (no-op re-stage test).").unwrap();
+
+    write_ci_sentinel_for_worktree(clone_path, "restage-noop", &worktree_path);
+
+    let args = Args {
+        message_file: msg_path.to_str().unwrap().to_string(),
+        branch: "restage-noop".to_string(),
+    };
+    let result = run_impl(&args, clone_path).unwrap();
+    assert_eq!(result["status"], "ok", "got: {}", result);
+
+    // Committed file bytes must be exactly what was staged.
+    let head_source = Command::new("git")
+        .args(["-C", wt_str, "show", "HEAD:source.rs"])
+        .output()
+        .unwrap();
+    git_assert_ok(&head_source);
+    let committed_bytes =
+        String::from_utf8_lossy(&head_source.stdout).to_string();
+    assert_eq!(
+        committed_bytes, staged_bytes,
+        "committed bytes must match staged bytes when CI does not modify",
+    );
+
+    // The new commit's tree must list only source.rs — `git add -A`
+    // must not sweep any other working-tree entries (the marker file
+    // is gitignored; verify nothing else slipped through).
+    let tree_listing = Command::new("git")
+        .args([
+            "-C",
+            wt_str,
+            "diff-tree",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            "HEAD",
+        ])
+        .output()
+        .unwrap();
+    git_assert_ok(&tree_listing);
+    let names = String::from_utf8_lossy(&tree_listing.stdout).to_string();
+    let listed: Vec<&str> = names.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(
+        listed,
+        vec!["source.rs"],
+        "commit must include only the staged source.rs; got: {:?}",
+        listed,
+    );
+}
+
+/// Stub a `git` binary on PATH that exits non-zero on every `add`
+/// invocation while forwarding every other subcommand to real git.
+/// Returns the directory to prepend to PATH.
+fn write_git_add_failing_stub(parent: &Path) -> PathBuf {
+    let stubs = parent.join("git-add-fail-stubs");
+    fs::create_dir_all(&stubs).unwrap();
+    let script = r#"#!/bin/sh
+REPO_PATH=""
+if [ "$1" = "-C" ]; then
+    REPO_PATH="$2"
+    shift 2
+fi
+SUBCMD="$1"
+shift
+if [ "$SUBCMD" = "add" ]; then
+    echo "simulated git add -A failure" >&2
+    exit 1
+fi
+exec /usr/bin/git -C "$REPO_PATH" "$SUBCMD" "$@"
+"#;
+    let git_path = stubs.join("git");
+    fs::write(&git_path, script).unwrap();
+    #[cfg(unix)]
+    {
+        fs::set_permissions(&git_path, fs::Permissions::from_mode(0o755))
+            .unwrap();
+    }
+    stubs
+}
+
+/// Coverage for the `add_code != 0` branch added by the post-CI
+/// re-stage. Skips CI via the sentinel, installs a `git` stub on
+/// PATH that fails on `add` invocations, and runs finalize-commit
+/// as a subprocess so the stub is reachable. Asserts the structured
+/// `step:"restage"` error envelope.
+#[test]
+fn finalize_commit_restage_failure_returns_step_restage() {
+    let (clone_dir, _bare_dir, worktree_path) =
+        setup_worktree_fixture("restage-fail");
+    let clone_path = clone_dir.path();
+    let wt_str = worktree_path.to_str().unwrap();
+
+    let staged_path = worktree_path.join("feature.rs");
+    fs::write(&staged_path, "fn main() {}\n").unwrap();
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "add", "feature.rs"])
+            .output()
+            .unwrap(),
+    );
+
+    let msg_path = worktree_path.join(".flow-commit-msg");
+    fs::write(&msg_path, "Add feature.rs (restage-fail test).").unwrap();
+
+    write_ci_sentinel_for_worktree(clone_path, "restage-fail", &worktree_path);
+
+    let stubs = write_git_add_failing_stub(clone_path);
+
+    let output = run_finalize_with_stub(
+        clone_path,
+        &msg_path,
+        "restage-fail",
+        &stubs,
+        &[],
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let result = last_json_line(&stdout);
+
+    assert_eq!(result["status"], "error", "got: {}", result);
+    assert_eq!(result["step"], "restage", "got: {}", result);
+    let msg = result["message"]
+        .as_str()
+        .unwrap_or_else(|| panic!("message must be a string, got: {}", result));
+    assert!(
+        !msg.is_empty(),
+        "restage error message must be non-empty, got: {:?}",
+        msg,
+    );
+}
+
+/// Locks the invariant that the pre-existing working-tree-dirty gate
+/// at the top of run_impl continues to fire before CI runs, even with
+/// the post-CI re-stage in place. A future refactor that moved the
+/// re-stage in front of the gate would silently land the working
+/// tree's unstaged edits in the commit; this test catches that.
+#[test]
+fn finalize_commit_working_tree_dirty_gate_still_fires_pre_ci() {
+    let (clone_dir, _bare_dir, worktree_path) =
+        setup_worktree_fixture("dirty-pre-ci");
+    let clone_path = clone_dir.path();
+    let wt_str = worktree_path.to_str().unwrap();
+
+    // Commit a baseline README contents so we have a stable index
+    // entry to diverge from.
+    fs::write(worktree_path.join("README.md"), "baseline\n").unwrap();
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "add", "README.md"])
+            .output()
+            .unwrap(),
+    );
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "commit", "-m", "Baseline README"])
+            .output()
+            .unwrap(),
+    );
+
+    // Modify the working tree without staging — index still has the
+    // baseline bytes, working tree has different bytes.
+    fs::write(worktree_path.join("README.md"), "unstaged user edit\n")
+        .unwrap();
+
+    let msg_path = worktree_path.join(".flow-commit-msg");
+    fs::write(&msg_path, "Baseline + dirty tree.").unwrap();
+
+    let args = Args {
+        message_file: msg_path.to_str().unwrap().to_string(),
+        branch: "dirty-pre-ci".to_string(),
+    };
+    let result = run_impl(&args, clone_path).unwrap();
+
+    assert_eq!(result["status"], "error", "got: {}", result);
+    assert_eq!(result["step"], "working_tree_dirty", "got: {}", result);
+}
+
+/// Topology test: `.gitignore` correctly bounds the `git add -A` sweep
+/// added by the post-CI re-stage. A CI tool that writes a gitignored
+/// artifact (e.g. `coverage.profraw`) must not introduce that artifact
+/// into the commit. Locks the bound between "files CI auto-fixes (must
+/// be re-staged)" and "files CI happens to drop in the working tree
+/// (must not be swept)".
+#[test]
+fn finalize_commit_restage_respects_gitignore_for_ci_artifacts() {
+    let (clone_dir, _bare_dir, worktree_path) =
+        setup_worktree_fixture("restage-gitignore");
+    let clone_path = clone_dir.path();
+    let wt_str = worktree_path.to_str().unwrap();
+
+    // Track a .gitignore that excludes a CI-artifact pattern.
+    fs::write(
+        worktree_path.join(".gitignore"),
+        ".flow-states/\ncoverage.profraw\n",
+    )
+    .unwrap();
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "add", ".gitignore"])
+            .output()
+            .unwrap(),
+    );
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "commit", "-m", "Track gitignore"])
+            .output()
+            .unwrap(),
+    );
+
+    // Replace bin/test with a script that drops a gitignored CI
+    // artifact into the worktree on every invocation.
+    let bin_test = worktree_path.join("bin").join("test");
+    let artifact_script = r#"#!/usr/bin/env bash
+printf 'coverage data' > "$(dirname "$0")/../coverage.profraw"
+exit 0
+"#;
+    fs::write(&bin_test, artifact_script).unwrap();
+    #[cfg(unix)]
+    {
+        fs::set_permissions(&bin_test, fs::Permissions::from_mode(0o755))
+            .unwrap();
+    }
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "add", "bin/test"])
+            .output()
+            .unwrap(),
+    );
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "commit", "-m", "Configure artifact-emitting bin/test"])
+            .output()
+            .unwrap(),
+    );
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "push"])
+            .output()
+            .unwrap(),
+    );
+
+    let staged_path = worktree_path.join("source.rs");
+    let staged_bytes = "fn main() {}\n";
+    fs::write(&staged_path, staged_bytes).unwrap();
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", wt_str, "add", "source.rs"])
+            .output()
+            .unwrap(),
+    );
+
+    let msg_path = worktree_path.join(".flow-commit-msg");
+    fs::write(&msg_path, "Add source.rs (gitignore-respect test).").unwrap();
+
+    // Do NOT write a CI sentinel — CI must actually run so bin/test
+    // produces the gitignored artifact.
+
+    let args = Args {
+        message_file: msg_path.to_str().unwrap().to_string(),
+        branch: "restage-gitignore".to_string(),
+    };
+    let result = run_impl(&args, clone_path).unwrap();
+    assert_eq!(result["status"], "ok", "got: {}", result);
+
+    // The staged source file must land at HEAD with the staged bytes.
+    let head_source = Command::new("git")
+        .args(["-C", wt_str, "show", "HEAD:source.rs"])
+        .output()
+        .unwrap();
+    git_assert_ok(&head_source);
+    let committed_bytes =
+        String::from_utf8_lossy(&head_source.stdout).to_string();
+    assert_eq!(
+        committed_bytes, staged_bytes,
+        "committed bytes must match staged bytes",
+    );
+
+    // HEAD's tree must NOT contain the gitignored artifact.
+    let tree_listing = Command::new("git")
+        .args(["-C", wt_str, "ls-tree", "-r", "--name-only", "HEAD"])
+        .output()
+        .unwrap();
+    git_assert_ok(&tree_listing);
+    let names = String::from_utf8_lossy(&tree_listing.stdout).to_string();
+    assert!(
+        !names.lines().any(|l| l == "coverage.profraw"),
+        "HEAD must not include gitignored CI artifact; got: {}",
+        names,
+    );
+}

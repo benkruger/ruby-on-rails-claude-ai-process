@@ -1036,7 +1036,7 @@ fn check_commit_during_flow(
             let main_root = resolve_main_root(&root);
             if let Some(msg) = match_finalize_commit_destination(branch_arg, &main_root) {
                 if !bootstrap_carveout_applies(command, transcript_path, home)
-                    && !flow_commit_trunk_carveout_applies(transcript_path, home)
+                    && !flow_commit_trunk_carveout_applies(transcript_path, home, cwd, &main_root)
                 {
                     return Some(msg);
                 }
@@ -1183,19 +1183,35 @@ fn bootstrap_carveout_applies(command: &str, transcript_path: Option<&Path>, hom
     commit_window && any_skill_in_set_since_user(path, home, BOOTSTRAP_SKILLS)
 }
 
-/// The single AND-combined condition on the trunk carve-out for
-/// Layer 10's destination-path integration-branch arm. The
-/// carve-out fires (suppresses the integration-branch block) iff
-/// `last_user_message_invokes_skill(path, "flow:flow-commit",
-/// home)` — the most recent real user turn in the persisted
-/// transcript STARTS with the namespaced
-/// `<command-name>/flow:flow-commit</command-name>` slash-command
-/// emission (or the two-line `<command-message>` shape Claude
-/// Code 2.1.140+ emits). The user-typed slash command is the
-/// unforgeable trust anchor: only a user-typed turn can satisfy
-/// `last_user_message_invokes_skill`, so the model cannot
-/// synthesize the marker and route around `/flow:flow-commit`'s
-/// surrounding choreography.
+/// Two AND-combined conditions on the trunk carve-out for Layer
+/// 10's destination-path integration-branch arm. The carve-out
+/// fires (suppresses the integration-branch block) iff BOTH hold:
+///
+/// 1. The caller's cwd is NOT inside an active-flow worktree.
+///    Resolved via `detect_branch_from_path(cwd)` +
+///    `is_flow_active(branch, main_root)`. The user typing
+///    `/flow:flow-commit` from inside a feature-branch worktree
+///    intended a commit on THAT worktree's branch — not a commit
+///    on the integration trunk. Without this check, a model on a
+///    feature-branch worktree could fire `bin/flow finalize-commit
+///    msg.txt <trunk>` and the user-typed slash command would
+///    spuriously authorize a trunk commit. The active-flow arm
+///    has its own carve-out (`check_active_flow_at`) for the
+///    legitimate feature-branch commit path keyed on
+///    `_continue_pending=commit` + assistant-Skill `flow:flow-commit`;
+///    the trunk carve-out's cwd-not-active-flow check is the
+///    structural bound that prevents the user's feature-branch
+///    intent from authorizing a trunk commit.
+/// 2. `last_user_message_invokes_skill(path, "flow:flow-commit",
+///    home)` — the most recent real user turn in the persisted
+///    transcript STARTS with the namespaced
+///    `<command-name>/flow:flow-commit</command-name>` slash-command
+///    emission (or the two-line `<command-message>` shape Claude
+///    Code 2.1.140+ emits). The user-typed slash command is the
+///    unforgeable trust anchor: only a user-typed turn can satisfy
+///    `last_user_message_invokes_skill`, so the model cannot
+///    synthesize the marker and route around `/flow:flow-commit`'s
+///    surrounding diff and message review.
 ///
 /// `transcript_path` is unwrapped once at function entry — a missing
 /// path fails the carve-out before the walker runs, so the walker
@@ -1211,8 +1227,11 @@ fn bootstrap_carveout_applies(command: &str, transcript_path: Option<&Path>, hom
 /// so an additional `is_finalize_commit_invocation` check inside
 /// this body would be unreachable defensive code. A future
 /// maintainer who wires this carve-out into a sibling arm that
-/// does NOT pre-filter the command shape must add the check at
-/// the new callsite or inside this function.
+/// does NOT pre-filter the command shape must add the
+/// `is_finalize_commit_invocation(command)` check at the new
+/// callsite — adding it inside this function would require
+/// extending the signature to accept the command string and
+/// updating every existing callsite.
 ///
 /// Scoping: this carve-out is wired only into the destination-path
 /// integration-branch arm of `check_commit_during_flow`. The
@@ -1231,12 +1250,36 @@ fn bootstrap_carveout_applies(command: &str, transcript_path: Option<&Path>, hom
 /// turn — the same documented bound the bootstrap carve-out carries
 /// per `.claude/rules/concurrency-model.md` "threat-model bound".
 /// CI still runs unconditionally inside `finalize_commit::run_impl`
-/// regardless of the carve-out, so the protective intent of Layer
-/// 10 (CI gate + reviewable choreography) is preserved.
-fn flow_commit_trunk_carveout_applies(transcript_path: Option<&Path>, home: &Path) -> bool {
+/// regardless of the carve-out. CI verifies code quality, not
+/// commit discipline — the reviewable choreography that Layer 10
+/// protects is supplied by the `/flow:flow-commit` skill itself
+/// (diff review + commit-message review + user approval), which
+/// the user's slash-command invocation triggers. The carve-out
+/// preserves the gate's protective intent because the same
+/// choreography that protects every feature-branch commit also
+/// protects the trunk commit when fired from a non-active-flow
+/// cwd.
+fn flow_commit_trunk_carveout_applies(
+    transcript_path: Option<&Path>,
+    home: &Path,
+    cwd: &Path,
+    main_root: &Path,
+) -> bool {
     let Some(path) = transcript_path else {
         return false;
     };
+    // Refuse to fire when cwd is inside an active-flow worktree —
+    // the user's `/flow:flow-commit` intent bound to THAT worktree's
+    // branch, not to the integration trunk. Without this check, a
+    // feature-branch worktree's user-typed slash command could
+    // authorize an arbitrary `bin/flow finalize-commit msg.txt
+    // <trunk>` invocation, bypassing Layer 10 by transcript-
+    // anchoring alone.
+    if let Some(branch) = detect_branch_from_path(cwd) {
+        if is_flow_active(&branch, main_root) {
+            return false;
+        }
+    }
     last_user_message_invokes_skill(path, "flow:flow-commit", home)
 }
 

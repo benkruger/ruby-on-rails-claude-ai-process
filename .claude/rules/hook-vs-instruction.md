@@ -90,17 +90,24 @@ insufficient:
   their emission. The third (trunk) carve-out — wired ONLY
   into the destination-path integration-branch arm via
   `flow_commit_trunk_carveout_applies` — passes `bin/flow
-  ... finalize-commit <msg> <trunk>` when the most recent
-  real user turn in the persisted transcript typed
-  `/flow:flow-commit` as a slash command. This is the
-  supported on-trunk maintainer path (bootstrap repair,
-  follow-up after a hot patch); the user-typed slash command
-  is the unforgeable trust anchor, and `/flow:flow-commit`
-  itself supplies the diff review and commit-message review
-  choreography once the carve-out lets the call through. The
-  cwd-path arm is NOT extended with this carve-out: raw
-  `git commit` (or `git -C <trunk> commit`) carries no
-  slash-command marker for the gate to anchor on. Both the
+  ... finalize-commit <msg> <trunk>` when BOTH (a) the
+  caller's cwd is NOT inside an active-flow worktree
+  (`detect_branch_from_path(cwd)` + `is_flow_active(branch,
+  main_root)`) AND (b) the most recent real user turn in the
+  persisted transcript typed `/flow:flow-commit` as a slash
+  command. This is the supported on-trunk maintainer path
+  (bootstrap repair, follow-up after a hot patch). The
+  cwd-not-active-flow check is the structural bound that
+  prevents a feature-branch worktree's `/flow:flow-commit`
+  from spuriously authorizing a trunk commit — the user's
+  slash-command intent stays bound to the cwd it was typed
+  from. The user-typed slash command is the unforgeable
+  trust anchor; `/flow:flow-commit` itself supplies the diff
+  review and commit-message review choreography once the
+  carve-out lets the call through. The cwd-path arm is NOT
+  extended with this carve-out: raw `git commit` (or
+  `git -C <trunk> commit`) carries no slash-command marker
+  for the gate to anchor on. Both the
   active-flow and bootstrap carve-outs apply branch-
   agnostically — `default_branch_in` resolves the actual
   integration trunk so they apply identically to `main`,

@@ -4255,19 +4255,37 @@ fn layer_10_bootstrap_carveout_fires_for_flow_release_with_intervening_non_commi
 // branch arm: when the user types `/flow:flow-commit` directly and
 // the command is `bin/flow finalize-commit <msg> <trunk>`, suppress
 // the block so a maintainer can commit on the trunk through
-// `/flow:flow-commit`. The carve-out fires iff
-// `flow_commit_trunk_carveout_applies(command, transcript_path, home)`
-// returns true — AND-combining `is_finalize_commit_invocation` with
-// `last_user_message_invokes_skill(path, "flow:flow-commit", home)`
-// and short-circuiting `false` on a missing transcript path.
+// `/flow:flow-commit`. The actual helper signature is
+// `flow_commit_trunk_carveout_applies(transcript_path, home, cwd,
+// main_root) -> bool`. It returns true iff:
+//   1. `transcript_path` is Some (else short-circuits false).
+//   2. The caller's cwd is NOT inside an active-flow worktree
+//      (resolved via `detect_branch_from_path(cwd)` +
+//      `is_flow_active(branch, main_root)`). When cwd IS inside an
+//      active-flow worktree, the user's `/flow:flow-commit` intent
+//      bound to THAT worktree's branch, not to the integration
+//      trunk — the carve-out refuses to fire to prevent the
+//      feature-branch-to-trunk bypass shape.
+//   3. `last_user_message_invokes_skill(path, "flow:flow-commit",
+//      home)` returns true — the most recent real user turn typed
+//      the namespaced slash command.
+//
+// The command-shape precondition (`is_finalize_commit_invocation`)
+// is enforced by the destination-path dispatch arm itself via
+// `extract_finalize_commit_branch_arg` BEFORE the helper is called,
+// so the helper doesn't re-check the shape. `git commit` shapes
+// never reach the helper — they route through the cwd-path arm,
+// which then fires the integration-branch block from
+// `match_branch_at`.
 //
 // The carve-out is wired only into the destination-path integration-
 // branch arm. Raw `git commit` and the cwd-path arm do NOT get the
 // carve-out: a raw git invocation carries no slash-command marker
 // for the gate to anchor on, and the active-flow arm has its own
-// independent carve-out (assistant-Skill-only). The seven cases
+// independent carve-out (assistant-Skill-only). The eight cases
 // below cover the new branch shape AND prove the carve-out does not
-// widen the bootstrap or active-flow paths.
+// widen the bootstrap or active-flow paths AND does not authorize
+// cross-worktree commits to the trunk.
 
 #[test]
 fn layer_10_trunk_carveout_allows_finalize_commit_when_user_typed_flow_commit() {
@@ -4357,13 +4375,14 @@ fn layer_10_trunk_carveout_blocks_git_commit_with_user_typed_flow_commit() {
     // Case 4: cwd is integration branch, the transcript shows a
     // user-typed `/flow:flow-commit` turn, BUT the command is `git
     // commit` rather than `bin/flow finalize-commit`. The trunk
-    // carve-out's first AND-condition (`is_finalize_commit_invocation`)
-    // fails on the git shape — raw `git commit` cannot route through
-    // the destination-path arm AND is never legitimate on the
-    // integration branch even with the user-typed marker. The cwd-path
-    // arm still fires the integration-branch block. Pins that the
-    // carve-out is finalize-commit-only by design — there is no
-    // git-prefixed escape hatch.
+    // carve-out is wired only into the destination-path arm; for a
+    // `git commit` shape `extract_finalize_commit_branch_arg`
+    // returns `None` upstream of the carve-out, so the destination-
+    // path arm never fires AND the carve-out is never consulted.
+    // The cwd-path arm then matches the integration branch via
+    // `match_branch_at` and fires the block. Pins that the carve-out
+    // is finalize-commit-only by design — there is no git-prefixed
+    // escape hatch through Layer 10.
     let (_dir, root) = setup_repo_on_branch("main");
     let claude_dir = root.join(".claude");
     std::fs::create_dir_all(&claude_dir).unwrap();
@@ -4462,6 +4481,88 @@ fn layer_10_trunk_carveout_does_not_widen_active_flow_arm() {
     );
     assert!(stderr.contains("BLOCKED"));
     assert!(stderr.contains("active flow"));
+}
+
+#[test]
+fn layer_10_trunk_carveout_blocks_when_cwd_is_active_flow_worktree() {
+    // Case 8 (Review-phase fix): the trunk carve-out's cwd-not-active-
+    // flow check refuses to fire when the caller's cwd is inside an
+    // active-flow worktree. Without this check, a user typing
+    // `/flow:flow-commit` for a feature-branch flow could (per the
+    // pre-mortem F1 bypass) authorize an unrelated `bin/flow
+    // finalize-commit msg.txt main` invocation from the same worktree.
+    //
+    // Setup: cwd is the feat worktree with an active flow; transcript
+    // shows the user typed `/flow:flow-commit`; the command targets
+    // `main` (the integration branch). Without the cwd-not-active-flow
+    // check the trunk carve-out would suppress the integration-branch
+    // block. With the check, `detect_branch_from_path(cwd)` returns
+    // `"feat"`, `is_flow_active("feat", main_root)` returns true, and
+    // the carve-out short-circuits false — the integration-branch
+    // block fires.
+    let (_dir, root, cwd) =
+        setup_active_flow_worktree_with_state("feat", r#"{"_continue_pending": "commit"}"#);
+    let jsonl = user_jsonl("<command-name>/flow:flow-commit</command-name>");
+    let transcript = crate::common::transcript_fixture(&root, "p", &jsonl);
+    let input = format!(
+        r#"{{"tool_input": {{"command": "bin/flow finalize-commit msg.txt main"}}, "transcript_path": "{}"}}"#,
+        transcript.to_string_lossy()
+    );
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(&input, Some(&cwd), Some(&root));
+    assert_eq!(
+        code, 2,
+        "trunk carve-out must NOT fire when cwd is inside an active-flow worktree (pre-mortem F1 bypass); stderr={stderr}"
+    );
+    assert!(stderr.contains("BLOCKED"));
+    assert!(
+        stderr.contains("integration branch"),
+        "block message must name the integration-branch context; got: {stderr}"
+    );
+}
+
+#[test]
+fn layer_10_trunk_carveout_allows_on_detached_head_with_user_typed_flow_commit() {
+    // Case 9 (branch coverage): cwd is on the main repo with HEAD
+    // detached, AND the transcript shows a user-typed
+    // `/flow:flow-commit` turn. `detect_branch_from_path(cwd)` returns
+    // `None` (no `.worktrees/` marker AND `git branch --show-current`
+    // returns empty under detached HEAD). The cwd-not-active-flow
+    // check's `if let Some(branch) = …` short-circuits with no body
+    // execution — the carve-out falls through to the walker and fires.
+    // This pins the branch where `detect_branch_from_path` returns
+    // `None`. Acceptable behavior: there is no detectable active-flow
+    // worktree at cwd to constrain the carve-out to, so the user's
+    // typed `/flow:flow-commit` authorization stands.
+    let (_dir, root) = setup_repo_on_branch("main");
+    let claude_dir = root.join(".claude");
+    std::fs::create_dir_all(&claude_dir).unwrap();
+    std::fs::write(claude_dir.join("settings.json"), "{}").unwrap();
+    // Detach HEAD so `git branch --show-current` returns empty and
+    // `detect_branch_from_path` returns `None` (matches t17's
+    // detach mechanism).
+    let rev = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(&root)
+        .output()
+        .expect("git rev-parse");
+    let sha = String::from_utf8_lossy(&rev.stdout).trim().to_string();
+    let _ = Command::new("git")
+        .args(["update-ref", "--no-deref", "HEAD", &sha])
+        .current_dir(&root)
+        .output()
+        .expect("detach HEAD");
+
+    let jsonl = user_jsonl("<command-name>/flow:flow-commit</command-name>");
+    let transcript = crate::common::transcript_fixture(&root, "p", &jsonl);
+    let input = format!(
+        r#"{{"tool_input": {{"command": "bin/flow finalize-commit msg.txt main"}}, "transcript_path": "{}"}}"#,
+        transcript.to_string_lossy()
+    );
+    let (code, _stdout, stderr) = run_hook_with_input_and_home(&input, Some(&root), Some(&root));
+    assert_eq!(
+        code, 0,
+        "detached HEAD + user-typed /flow:flow-commit on main must allow via the trunk carve-out; stderr={stderr}"
+    );
 }
 
 #[test]

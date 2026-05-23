@@ -114,7 +114,10 @@ This path is NOT a hook-level bypass — it is the supported
 on-trunk maintainer path, distinct from the rule-level "explicit
 user direction" exception below in that the model cannot
 synthesize the user-typed slash-command marker the carve-out
-anchors on.
+anchors on. The carve-out is structurally bounded to cwds that
+are NOT inside an active-flow worktree, so a feature-branch
+worktree's `/flow:flow-commit` invocation cannot leak to authorize
+a trunk commit.
 
 The exception above is rule-level. The hook described in
 "Mechanical Enforcement" below is stricter: Layer 10 mechanically
@@ -420,11 +423,30 @@ project supports for non-bootstrap commits (bootstrap repair,
 follow-up after a hot patch, a cleanup commit a maintainer wants
 to land on the trunk without spinning up a feature worktree).
 The trunk carve-out fires (suppresses the integration-branch
-block) iff one AND-combined condition holds, in addition to the
+block) iff TWO AND-combined conditions hold, in addition to the
 command-shape precondition the destination-path arm enforces via
 `extract_finalize_commit_branch_arg`:
 
-1. `last_user_message_invokes_skill(transcript_path,
+1. The caller's cwd is NOT inside an active-flow worktree.
+   Resolved via `detect_branch_from_path(cwd)` +
+   `is_flow_active(branch, main_root)`. The user typing
+   `/flow:flow-commit` from inside a feature-branch worktree
+   bound their intent to THAT worktree's branch — not to the
+   integration trunk. Without this check, a model on a
+   feature-branch worktree could fire `bin/flow finalize-commit
+   msg.txt <trunk>` and the user-typed slash command would
+   spuriously authorize a trunk commit (pre-mortem F1 bypass
+   shape). The active-flow arm's own carve-out
+   (`check_active_flow_at`) handles the legitimate feature-
+   branch commit path via the `_continue_pending=commit` marker
+   plus assistant-Skill `flow:flow-commit`; the trunk carve-out's
+   cwd-not-active-flow check is the structural bound that
+   prevents the user's feature-branch intent from leaking to
+   authorize a trunk commit. The bound is symmetric with the
+   bootstrap carve-out's cwd-only scope on the `-C` target
+   callsite — both serve to keep trust localized to the cwd
+   where the user-typed intent was genuinely formed.
+2. `last_user_message_invokes_skill(transcript_path,
    "flow:flow-commit", home)` returns true — the most recent
    real user turn in the persisted transcript STARTS with the
    namespaced `<command-name>/flow:flow-commit</command-name>`
@@ -457,14 +479,19 @@ particular branch name. The carve-out applies identically to
 `main`, `staging`, `master`, `develop`, and any other configured
 trunk.
 
-Trust contract: the surrounding `/flow:flow-commit` skill
-(`skills/flow-commit/SKILL.md`) supplies the diff review,
-commit-message review, and user-approval choreography
-unconditionally — the same choreography that protects every
-feature-branch commit. CI runs unconditionally inside
-`finalize_commit::run_impl` regardless of the carve-out, so the
-protective intent of Layer 10 (CI gate + reviewable
-choreography) is preserved.
+Trust contract: CI verifies code quality, not commit discipline.
+The reviewable choreography that Layer 10 protects is supplied
+by the `/flow:flow-commit` skill itself (`skills/flow-commit/SKILL.md`):
+diff review, commit-message review, user approval. The user's
+slash-command invocation triggers exactly that choreography for
+the on-trunk commit, identical to every feature-branch commit.
+CI runs unconditionally inside `finalize_commit::run_impl`
+regardless of the carve-out — that's the protective backstop for
+code quality. The skill's choreography is the protective frontstop
+for commit discipline. The carve-out preserves both because the
+same `/flow:flow-commit` skill that fires for feature-branch
+commits ALSO fires for the trunk commit when the cwd-not-active-
+flow check passes.
 
 Window bound: the carve-out's authorization window stays open
 from the user-typed `/flow:flow-commit` turn until the next real

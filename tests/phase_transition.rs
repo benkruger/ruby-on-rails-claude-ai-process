@@ -699,6 +699,55 @@ fn enter_clears_continue_pending() {
     assert!(state.get("_continue_context").is_none());
 }
 
+/// Hook-managed counter-tracking fields from the autonomous-mode
+/// stalling-pattern refusal-text swap must not bleed across phase
+/// boundaries. A back-transition or fresh phase entry is itself a
+/// re-authorization signal; the counter starts at zero in the new
+/// window.
+#[test]
+fn phase_enter_clears_last_observed_code_task() {
+    let mut state = make_state_value("flow-start", &[("flow-start", "complete")]);
+    state["_last_observed_code_task"] = json!(5);
+
+    phase_enter(&mut state, "flow-code", None);
+
+    assert!(
+        state.get("_last_observed_code_task").is_none(),
+        "_last_observed_code_task must be cleared on phase advance; state: {state:?}"
+    );
+}
+
+#[test]
+fn phase_enter_clears_consecutive_unchanged_count() {
+    let mut state = make_state_value("flow-start", &[("flow-start", "complete")]);
+    state["_consecutive_unchanged_count"] = json!(2);
+
+    phase_enter(&mut state, "flow-code", None);
+
+    assert!(
+        state.get("_consecutive_unchanged_count").is_none(),
+        "_consecutive_unchanged_count must be cleared on phase advance; state: {state:?}"
+    );
+}
+
+/// A back-transition that re-enters flow-code itself (e.g. Review →
+/// Code) must clear the counter state along with `_halt_pending` so
+/// the resumed Code window starts fresh.
+#[test]
+fn phase_enter_into_flow_code_clears_counter_state() {
+    let mut state = make_state_value(
+        "flow-code",
+        &[("flow-start", "complete"), ("flow-code", "complete")],
+    );
+    state["_last_observed_code_task"] = json!(7);
+    state["_consecutive_unchanged_count"] = json!(3);
+
+    phase_enter(&mut state, "flow-code", None);
+
+    assert!(state.get("_last_observed_code_task").is_none());
+    assert!(state.get("_consecutive_unchanged_count").is_none());
+}
+
 #[test]
 fn enter_no_error_when_auto_continue_absent() {
     let mut state = make_state_value("flow-start", &[("flow-start", "complete")]);

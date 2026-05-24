@@ -8059,3 +8059,319 @@ fn walk_for_brace_expansion(
         }
     }
 }
+
+// --- no-performative-pause rule contract ---
+
+/// `.claude/rules/no-performative-pause.md` must exist as a real file
+/// with at least one H1 heading and one H2 section. Without the file,
+/// every cross-reference from
+/// `.claude/rules/autonomous-phase-discipline.md`,
+/// `.claude/rules/work-as-partners.md`, and
+/// `.claude/rules/extract-helper-refactor.md` becomes a dangling
+/// pointer; without the structural shape (H1 + H2), the file could
+/// be truncated to an empty body and still pass a bare existence
+/// check.
+///
+/// Named regression: accidental deletion of the rule file or
+/// truncation that removes its body. Named consumer: the four
+/// cross-references above plus the CLAUDE.md pointer-index line.
+#[test]
+fn no_performative_pause_rule_exists_with_expected_shape() {
+    let path = PathBuf::from(".claude/rules/no-performative-pause.md");
+    let content = fs::read_to_string(&path)
+        .expect(".claude/rules/no-performative-pause.md must exist and be readable");
+    let has_h1 = content
+        .lines()
+        .any(|l| l.starts_with("# ") && !l.starts_with("## "));
+    let has_h2 = content.lines().any(|l| l.starts_with("## "));
+    assert!(
+        has_h1,
+        ".claude/rules/no-performative-pause.md must contain at least one `# ` H1 heading"
+    );
+    assert!(
+        has_h2,
+        ".claude/rules/no-performative-pause.md must contain at least one `## ` H2 section"
+    );
+}
+
+// --- CLAUDE.md pointer-index for no-performative-pause ---
+
+/// CLAUDE.md must contain a pointer-index entry referencing
+/// `.claude/rules/no-performative-pause.md`. CLAUDE.md is the
+/// project's discovery surface for rule files per
+/// `.claude/rules/persistence-routing.md` "What CLAUDE.md Is For";
+/// a rule without an index entry is effectively invisible to
+/// future sessions.
+///
+/// Named regression: accidental removal of the pointer line during
+/// a future CLAUDE.md edit. Named consumer: any future session
+/// discovering rules via CLAUDE.md's index. The path-substring
+/// assertion is robust to minor wording variations in the index
+/// line shape.
+#[test]
+fn claude_md_indexes_no_performative_pause_rule() {
+    let path = PathBuf::from("CLAUDE.md");
+    let content = fs::read_to_string(&path).expect("CLAUDE.md must exist and be readable");
+    assert!(
+        content.contains(".claude/rules/no-performative-pause.md"),
+        "CLAUDE.md must contain a pointer-index entry naming `.claude/rules/no-performative-pause.md`"
+    );
+}
+
+// --- corpus scanner for performative-pause phrasings ---
+
+/// The catalog of forbidden phrasings that name the
+/// performative-pause antipattern. Each phrasing is matched
+/// case-insensitively in raw line content after apostrophe
+/// normalization (U+2019 → U+0027) so smart-quote editors cannot
+/// silently bypass the catalog. The catalog is the rule's
+/// enforcement vocabulary; new phrasings added to the rule body
+/// must be added here in the same commit.
+///
+/// `"your call"` is split into two terminal-punctuation forms
+/// (`"your call."` and `"your call?"`) so the catalog catches the
+/// canonical deferral shape (a turn ending with "your call.") while
+/// not tripping on legitimate prose words like "your callback" or
+/// "your calling convention" where the substring appears mid-token.
+const PERFORMATIVE_PAUSE_PHRASINGS: &[&str] = &[
+    "i'm pausing",
+    "i am pausing",
+    "boundary reached",
+    "awaiting your direction",
+    "let me know when you want",
+    "ready when you are",
+    "your call.",
+    "your call?",
+    "performative pause",
+    "performative stop",
+];
+
+/// The sentinel comment that exempts a legitimate citation. Mirrors
+/// `.claude/rules/extract-helper-refactor.md`'s opt-out grammar.
+const PERFORMATIVE_PAUSE_SENTINEL: &str = "<!-- no-performative-pause: legitimate-citation -->";
+
+/// `.claude/rules/no-performative-pause.md` is the catalog source —
+/// it contains every forbidden phrasing by design and is skipped
+/// entirely by the scanner.
+const PERFORMATIVE_PAUSE_CATALOG_PATH: &str = ".claude/rules/no-performative-pause.md";
+
+/// Returns `true` when the sentinel comment appears on the line at
+/// `idx`, on the line directly above it, or two lines above with
+/// exactly one blank or whitespace-only line between. A sentinel
+/// match exempts every forbidden-phrasing match on the line at
+/// `idx` from the scanner's violation list — the discipline stays
+/// per-line, so a multi-line citation requires multi-line sentinels.
+/// Larger gaps than two lines do not chain.
+///
+/// See `.claude/rules/no-performative-pause.md` "Opt-Out Grammar"
+/// for the prose contract this implements.
+fn performative_pause_line_has_sentinel(lines: &[&str], idx: usize) -> bool {
+    if lines[idx].contains(PERFORMATIVE_PAUSE_SENTINEL) {
+        return true;
+    }
+    if idx >= 1 && lines[idx - 1].contains(PERFORMATIVE_PAUSE_SENTINEL) {
+        return true;
+    }
+    if idx >= 2
+        && lines[idx - 1].trim().is_empty()
+        && lines[idx - 2].contains(PERFORMATIVE_PAUSE_SENTINEL)
+    {
+        return true;
+    }
+    false
+}
+
+/// Scans `content` for any line containing any phrasing in
+/// `PERFORMATIVE_PAUSE_PHRASINGS` (case-insensitive, with U+2019
+/// right single quotation mark normalized to U+0027 ASCII apostrophe
+/// so smart-quote editors cannot bypass the apostrophe-bearing
+/// catalog entries). For each match, applies the sentinel-comment
+/// opt-out grammar before recording the violation as
+/// `<rel>:<line> — <trimmed> [matched: <phrasing>]`.
+fn scan_performative_pause_lines(content: &str, rel_path: &str, violations: &mut Vec<String>) {
+    let lines: Vec<&str> = content.lines().collect();
+    for (idx, line) in lines.iter().enumerate() {
+        let lower = line.to_lowercase().replace('\u{2019}', "'");
+        for phrasing in PERFORMATIVE_PAUSE_PHRASINGS {
+            if lower.contains(phrasing) {
+                if performative_pause_line_has_sentinel(&lines, idx) {
+                    continue;
+                }
+                violations.push(format!(
+                    "{}:{} — {} [matched: {}]",
+                    rel_path,
+                    idx + 1,
+                    line.trim(),
+                    phrasing
+                ));
+            }
+        }
+    }
+}
+
+/// Walks CLAUDE.md, every `.claude/rules/*.md` (except the catalog
+/// source), every direct-child `skills/<name>/SKILL.md`, every
+/// direct-child `.claude/skills/<name>/SKILL.md`, and every
+/// `agents/*.md`. For each file, the scanner asserts none of
+/// `PERFORMATIVE_PAUSE_PHRASINGS` appear, modulo the sentinel-
+/// comment opt-out at `performative_pause_line_has_sentinel`.
+///
+/// `agents/*.md` is in scope because agent prompts are read by
+/// Claude Code as instructions every time the agent runs — the
+/// same dynamic-instruction surface as skills/, which the rule's
+/// autonomous-mode discipline targets.
+///
+/// Named regression: a future PR or session reintroduces the
+/// performative-pause antipattern in rule or skill prose. Named
+/// consumer: `.claude/rules/no-performative-pause.md`. Viability
+/// count at scanner introduction time: 0 forbidden hits across the
+/// scanned corpus.
+#[test]
+fn corpus_free_of_performative_pause_phrasings() {
+    let mut violations: Vec<String> = Vec::new();
+    let root = common::repo_root();
+
+    // Precondition: the catalog source file must exist. The scanner
+    // depends on the rule body to enumerate the forbidden phrasings
+    // for the model; without the file, the scanner is testing a
+    // contract no source documents. The path-skip below targets this
+    // file (the rule's catalog source).
+    let catalog_path = root.join(PERFORMATIVE_PAUSE_CATALOG_PATH);
+    assert!(
+        catalog_path.exists(),
+        "performative-pause scanner precondition: `{}` must exist as the catalog source for the forbidden phrasings",
+        PERFORMATIVE_PAUSE_CATALOG_PATH
+    );
+
+    // CLAUDE.md (single file at the repo root).
+    let claude_md = root.join("CLAUDE.md");
+    if let Ok(content) = fs::read_to_string(&claude_md) {
+        scan_performative_pause_lines(&content, "CLAUDE.md", &mut violations);
+    }
+
+    // .claude/rules/*.md (direct-child .md files only). The catalog
+    // source is skipped via path-equality check below.
+    let rules_dir = root.join(".claude").join("rules");
+    let rules_entries = fs::read_dir(&rules_dir).unwrap_or_else(|e| {
+        panic!(
+            "test invariant: `.claude/rules/` must exist and be readable for the performative-pause scanner — missing subtree is a repo-structure regression (read_dir error: {})",
+            e
+        )
+    });
+    for entry in rules_entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+        let rel = format!(".claude/rules/{}", entry.file_name().to_string_lossy());
+        if rel == PERFORMATIVE_PAUSE_CATALOG_PATH {
+            continue;
+        }
+        let Ok(content) = fs::read_to_string(&path) else {
+            continue;
+        };
+        scan_performative_pause_lines(&content, &rel, &mut violations);
+    }
+
+    // skills/<name>/SKILL.md (plugin-marketplace scope, direct child).
+    let skills_dir = root.join("skills");
+    let skills_entries = fs::read_dir(&skills_dir).unwrap_or_else(|e| {
+        panic!(
+            "test invariant: `skills/` must exist and be readable for the performative-pause scanner — missing subtree is a repo-structure regression (read_dir error: {})",
+            e
+        )
+    });
+    for entry in skills_entries.flatten() {
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let skill_md = entry.path().join("SKILL.md");
+        let Ok(content) = fs::read_to_string(&skill_md) else {
+            continue;
+        };
+        let skill_name = entry.file_name().to_string_lossy().to_string();
+        let rel = format!("skills/{}/SKILL.md", skill_name);
+        scan_performative_pause_lines(&content, &rel, &mut violations);
+    }
+
+    // .claude/skills/<name>/SKILL.md (project-local maintainer scope,
+    // direct child).
+    let claude_skills_dir = root.join(".claude").join("skills");
+    if let Ok(claude_skills_entries) = fs::read_dir(&claude_skills_dir) {
+        for entry in claude_skills_entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let skill_md = entry.path().join("SKILL.md");
+            let Ok(content) = fs::read_to_string(&skill_md) else {
+                continue;
+            };
+            let skill_name = entry.file_name().to_string_lossy().to_string();
+            let rel = format!(".claude/skills/{}/SKILL.md", skill_name);
+            scan_performative_pause_lines(&content, &rel, &mut violations);
+        }
+    }
+
+    // agents/*.md (direct-child .md files only). Agent prompts are
+    // dynamic-instruction surfaces the model reads when an agent
+    // runs — equivalent in scope to skills/<name>/SKILL.md for the
+    // rule's autonomous-mode discipline.
+    let agents_dir = root.join("agents");
+    if let Ok(agents_entries) = fs::read_dir(&agents_dir) {
+        for entry in agents_entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
+            }
+            let Ok(content) = fs::read_to_string(&path) else {
+                continue;
+            };
+            let rel = format!("agents/{}", entry.file_name().to_string_lossy());
+            scan_performative_pause_lines(&content, &rel, &mut violations);
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "FLOW prose corpus must not name the performative-pause antipattern phrasings outside \
+         `.claude/rules/no-performative-pause.md` (the catalog source). Legitimate citations \
+         elsewhere may carry the sentinel comment `{}` on the same line, the line directly \
+         above, or two lines above with exactly one blank line between them. \
+         See `.claude/rules/no-performative-pause.md`. Violations:\n{}",
+        PERFORMATIVE_PAUSE_SENTINEL,
+        violations.join("\n")
+    );
+}
+
+/// Smart-quote bypass guard. The scanner normalizes U+2019 (right
+/// single quotation mark) to U+0027 (ASCII apostrophe) before
+/// comparison so the catalog entries `"i'm pausing"` and `"i am
+/// pausing"` (the latter has no apostrophe but the former does)
+/// catch their smart-quote variants. Macros like macOS smart-quote
+/// substitution and the GitHub web editor convert `'` to `'`
+/// silently; without normalization, a maintainer pasting the
+/// antipattern with smart-quotes would bypass the catalog.
+///
+/// Named regression: a future refactor removes the `.replace('\u{2019}', "'")`
+/// normalization in `scan_performative_pause_lines`. The test
+/// drives the scanner with a smart-quote input and asserts a
+/// violation is recorded.
+#[test]
+fn performative_pause_scanner_normalizes_smart_quote_apostrophe() {
+    let input = "The model said: I\u{2019}m pausing while I think.";
+    let mut violations: Vec<String> = Vec::new();
+    scan_performative_pause_lines(input, "test-fixture.md", &mut violations);
+    assert_eq!(
+        violations.len(),
+        1,
+        "scanner must flag the smart-quote variant of `i'm pausing` (U+2019) by normalizing \
+         apostrophes before comparison; got {} violations: {:?}",
+        violations.len(),
+        violations
+    );
+    assert!(
+        violations[0].contains("matched: i'm pausing"),
+        "violation must name the matched catalog entry `i'm pausing`; got: {}",
+        violations[0]
+    );
+}

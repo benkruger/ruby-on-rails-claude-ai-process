@@ -8012,14 +8012,17 @@ fn claude_md_indexes_no_performative_pause_rule() {
 
 /// The catalog of forbidden phrasings that name the
 /// performative-pause antipattern. Each phrasing is matched
-/// case-insensitively in raw line content. The catalog is the
-/// rule's enforcement vocabulary; new phrasings added to the
-/// rule body must be added here in the same commit.
+/// case-insensitively in raw line content after apostrophe
+/// normalization (U+2019 → U+0027) so smart-quote editors cannot
+/// silently bypass the catalog. The catalog is the rule's
+/// enforcement vocabulary; new phrasings added to the rule body
+/// must be added here in the same commit.
 ///
-/// `"your call"` is intentionally broad — `.claude/rules/work-as-partners.md`
-/// names it as one of the canonical deferral phrases, and the
-/// project's prose corpus contains zero non-discussion uses at
-/// scanner introduction time (viability count: 0).
+/// `"your call"` is split into two terminal-punctuation forms
+/// (`"your call."` and `"your call?"`) so the catalog catches the
+/// canonical deferral shape (a turn ending with "your call.") while
+/// not tripping on legitimate prose words like "your callback" or
+/// "your calling convention" where the substring appears mid-token.
 const PERFORMATIVE_PAUSE_PHRASINGS: &[&str] = &[
     "i'm pausing",
     "i am pausing",
@@ -8027,7 +8030,8 @@ const PERFORMATIVE_PAUSE_PHRASINGS: &[&str] = &[
     "awaiting your direction",
     "let me know when you want",
     "ready when you are",
-    "your call",
+    "your call.",
+    "your call?",
     "performative pause",
     "performative stop",
 ];
@@ -8041,22 +8045,16 @@ const PERFORMATIVE_PAUSE_SENTINEL: &str = "<!-- no-performative-pause: legitimat
 /// entirely by the scanner.
 const PERFORMATIVE_PAUSE_CATALOG_PATH: &str = ".claude/rules/no-performative-pause.md";
 
-/// `tests/skill_contracts.rs` (this file) carries the catalog
-/// constant as test input and is skipped to avoid self-flagging.
-/// `tests/` is not part of the walked scope set, so the skip is
-/// belt-and-suspenders.
-const PERFORMATIVE_PAUSE_SCANNER_PATH: &str = "tests/skill_contracts.rs";
-
-/// Returns `true` when any line in the (line_above, line, line_two_above)
-/// window contains the sentinel. The sentinel exempts a single
-/// forbidden-phrasing match per the two-surface design documented in
-/// `.claude/rules/no-performative-pause.md`:
+/// Returns `true` when the sentinel comment appears on the line at
+/// `idx`, on the line directly above it, or two lines above with
+/// exactly one blank or whitespace-only line between. A sentinel
+/// match exempts every forbidden-phrasing match on the line at
+/// `idx` from the scanner's violation list — the discipline stays
+/// per-line, so a multi-line citation requires multi-line sentinels.
+/// Larger gaps than two lines do not chain.
 ///
-/// - same line as the forbidden phrasing, OR
-/// - the line directly above, OR
-/// - two lines above with exactly one blank line between them.
-///
-/// Larger gaps do not chain.
+/// See `.claude/rules/no-performative-pause.md` "Opt-Out Grammar"
+/// for the prose contract this implements.
 fn performative_pause_line_has_sentinel(lines: &[&str], idx: usize) -> bool {
     if lines[idx].contains(PERFORMATIVE_PAUSE_SENTINEL) {
         return true;
@@ -8074,13 +8072,16 @@ fn performative_pause_line_has_sentinel(lines: &[&str], idx: usize) -> bool {
 }
 
 /// Scans `content` for any line containing any phrasing in
-/// `PERFORMATIVE_PAUSE_PHRASINGS` (case-insensitive). For each match,
-/// applies the sentinel-comment opt-out grammar before recording the
-/// violation as `<rel>:<line> — <trimmed> [matched: <phrasing>]`.
+/// `PERFORMATIVE_PAUSE_PHRASINGS` (case-insensitive, with U+2019
+/// right single quotation mark normalized to U+0027 ASCII apostrophe
+/// so smart-quote editors cannot bypass the apostrophe-bearing
+/// catalog entries). For each match, applies the sentinel-comment
+/// opt-out grammar before recording the violation as
+/// `<rel>:<line> — <trimmed> [matched: <phrasing>]`.
 fn scan_performative_pause_lines(content: &str, rel_path: &str, violations: &mut Vec<String>) {
     let lines: Vec<&str> = content.lines().collect();
     for (idx, line) in lines.iter().enumerate() {
-        let lower = line.to_lowercase();
+        let lower = line.to_lowercase().replace('\u{2019}', "'");
         for phrasing in PERFORMATIVE_PAUSE_PHRASINGS {
             if lower.contains(phrasing) {
                 if performative_pause_line_has_sentinel(&lines, idx) {
@@ -8099,11 +8100,16 @@ fn scan_performative_pause_lines(content: &str, rel_path: &str, violations: &mut
 }
 
 /// Walks CLAUDE.md, every `.claude/rules/*.md` (except the catalog
-/// source), every direct-child `skills/<name>/SKILL.md`, and every
-/// direct-child `.claude/skills/<name>/SKILL.md`. For each file, the
-/// scanner asserts none of `PERFORMATIVE_PAUSE_PHRASINGS` appear,
-/// modulo the sentinel-comment opt-out at
-/// `performative_pause_line_has_sentinel`.
+/// source), every direct-child `skills/<name>/SKILL.md`, every
+/// direct-child `.claude/skills/<name>/SKILL.md`, and every
+/// `agents/*.md`. For each file, the scanner asserts none of
+/// `PERFORMATIVE_PAUSE_PHRASINGS` appear, modulo the sentinel-
+/// comment opt-out at `performative_pause_line_has_sentinel`.
+///
+/// `agents/*.md` is in scope because agent prompts are read by
+/// Claude Code as instructions every time the agent runs — the
+/// same dynamic-instruction surface as skills/, which the rule's
+/// autonomous-mode discipline targets.
 ///
 /// Named regression: a future PR or session reintroduces the
 /// performative-pause antipattern in rule or skill prose. Named
@@ -8119,7 +8125,7 @@ fn corpus_free_of_performative_pause_phrasings() {
     // depends on the rule body to enumerate the forbidden phrasings
     // for the model; without the file, the scanner is testing a
     // contract no source documents. The path-skip below targets this
-    // file as Surface 1.
+    // file (the rule's catalog source).
     let catalog_path = root.join(PERFORMATIVE_PAUSE_CATALOG_PATH);
     assert!(
         catalog_path.exists(),
@@ -8134,7 +8140,7 @@ fn corpus_free_of_performative_pause_phrasings() {
     }
 
     // .claude/rules/*.md (direct-child .md files only). The catalog
-    // source is skipped via Surface 1 (path skip).
+    // source is skipped via path-equality check below.
     let rules_dir = root.join(".claude").join("rules");
     let rules_entries = fs::read_dir(&rules_dir).unwrap_or_else(|e| {
         panic!(
@@ -8196,10 +8202,24 @@ fn corpus_free_of_performative_pause_phrasings() {
         }
     }
 
-    // Final guard: the scanner file itself is out of scope by
-    // structure (tests/ is not walked); the constant is named for
-    // self-documentation.
-    let _ = PERFORMATIVE_PAUSE_SCANNER_PATH;
+    // agents/*.md (direct-child .md files only). Agent prompts are
+    // dynamic-instruction surfaces the model reads when an agent
+    // runs — equivalent in scope to skills/<name>/SKILL.md for the
+    // rule's autonomous-mode discipline.
+    let agents_dir = root.join("agents");
+    if let Ok(agents_entries) = fs::read_dir(&agents_dir) {
+        for entry in agents_entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
+            }
+            let Ok(content) = fs::read_to_string(&path) else {
+                continue;
+            };
+            let rel = format!("agents/{}", entry.file_name().to_string_lossy());
+            scan_performative_pause_lines(&content, &rel, &mut violations);
+        }
+    }
 
     assert!(
         violations.is_empty(),
@@ -8210,5 +8230,38 @@ fn corpus_free_of_performative_pause_phrasings() {
          See `.claude/rules/no-performative-pause.md`. Violations:\n{}",
         PERFORMATIVE_PAUSE_SENTINEL,
         violations.join("\n")
+    );
+}
+
+/// Smart-quote bypass guard. The scanner normalizes U+2019 (right
+/// single quotation mark) to U+0027 (ASCII apostrophe) before
+/// comparison so the catalog entries `"i'm pausing"` and `"i am
+/// pausing"` (the latter has no apostrophe but the former does)
+/// catch their smart-quote variants. Macros like macOS smart-quote
+/// substitution and the GitHub web editor convert `'` to `'`
+/// silently; without normalization, a maintainer pasting the
+/// antipattern with smart-quotes would bypass the catalog.
+///
+/// Named regression: a future refactor removes the `.replace('\u{2019}', "'")`
+/// normalization in `scan_performative_pause_lines`. The test
+/// drives the scanner with a smart-quote input and asserts a
+/// violation is recorded.
+#[test]
+fn performative_pause_scanner_normalizes_smart_quote_apostrophe() {
+    let input = "The model said: I\u{2019}m pausing while I think.";
+    let mut violations: Vec<String> = Vec::new();
+    scan_performative_pause_lines(input, "test-fixture.md", &mut violations);
+    assert_eq!(
+        violations.len(),
+        1,
+        "scanner must flag the smart-quote variant of `i'm pausing` (U+2019) by normalizing \
+         apostrophes before comparison; got {} violations: {:?}",
+        violations.len(),
+        violations
+    );
+    assert!(
+        violations[0].contains("matched: i'm pausing"),
+        "violation must name the matched catalog entry `i'm pausing`; got: {}",
+        violations[0]
     );
 }

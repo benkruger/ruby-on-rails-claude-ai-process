@@ -33,7 +33,7 @@ forbidden framings include:
 - Announcing a halt ("I'm pausing", "I am pausing")
 - Citing an inferred boundary ("boundary reached")
 - Routing the next action to the user ("awaiting your direction",
-  "let me know when you want", "ready when you are", "your call")
+  "let me know when you want", "ready when you are", "your call.")
 - Naming the antipattern as if doing it intentionally
   ("performative pause", "performative stop")
 
@@ -77,9 +77,12 @@ work. A Plan-phase gap is not a Code-phase exit.
 The corpus contract test
 `corpus_free_of_performative_pause_phrasings` in
 `tests/skill_contracts.rs` enforces the following catalog
-(case-insensitive match) across CLAUDE.md, `.claude/rules/*.md`
-(except this file), every `skills/<name>/SKILL.md`, and every
-direct-child `.claude/skills/<name>/SKILL.md`:
+(case-insensitive match, with U+2019 right single quotation mark
+normalized to U+0027 ASCII apostrophe so smart-quote editors
+cannot bypass the apostrophe-bearing entries) across CLAUDE.md,
+`.claude/rules/*.md` (except this file), every
+`skills/<name>/SKILL.md`, every direct-child
+`.claude/skills/<name>/SKILL.md`, and every `agents/*.md`:
 
 - `I'm pausing`
 - `I am pausing`
@@ -87,9 +90,21 @@ direct-child `.claude/skills/<name>/SKILL.md`:
 - `awaiting your direction`
 - `let me know when you want`
 - `ready when you are`
-- `your call`
+- `your call.`
+- `your call?`
 - `performative pause`
 - `performative stop`
+
+`your call` is split into the two terminal-punctuation forms above
+so the catalog catches the canonical deferral shape (a turn ending
+"...your call.") without tripping on legitimate prose words like
+`your callback` or `your calling convention` where the substring
+appears mid-token.
+
+`agents/*.md` is in scope because agent prompts are read by
+Claude Code as instructions every time the agent runs — the same
+dynamic-instruction surface as `skills/`, which the rule's
+autonomous-mode discipline targets.
 
 When the catalog needs to grow (a new phrasing surfaces as the
 same antipattern), add it to BOTH this section AND the
@@ -98,10 +113,18 @@ same antipattern), add it to BOTH this section AND the
 
 ## Opt-Out Grammar
 
-Legitimate citations of any forbidden phrasing elsewhere in the
-corpus (a Learn-phase audit log, a meta-rule discussing the
-antipattern, a doc comment explaining what the scanner enforces)
-use the sentinel comment:
+The scanner exempts legitimate citations via two mechanisms:
+
+- **Path skip.** The scanner walks every file in scope EXCEPT
+  this rule file (the catalog source). The rule body contains
+  every forbidden phrasing by design.
+- **Sentinel-comment opt-out.** Legitimate citations elsewhere
+  in the corpus (a Learn-phase audit log, a meta-rule discussing
+  the antipattern, a doc comment explaining what the scanner
+  enforces) carry the sentinel comment on a sanctioned position
+  relative to the forbidden phrasing.
+
+The sentinel comment:
 
 ```text
 <!-- no-performative-pause: legitimate-citation -->
@@ -109,24 +132,22 @@ use the sentinel comment:
 
 Placement grammar mirrors
 `.claude/rules/extract-helper-refactor.md`'s opt-out
-exactly. The sentinel exempts a single forbidden-phrasing match
-when it appears on:
+exactly. The sentinel exempts EVERY forbidden-phrasing match on
+the line at the sanctioned position — the discipline stays
+per-line, so a multi-line citation requires multi-line sentinels.
+The sanctioned positions are:
 
 - the same line as the forbidden phrasing,
 - the line directly above the forbidden phrasing, OR
 - two lines above the forbidden phrasing with exactly one
-  blank line between them.
+  empty-or-whitespace-only line between them.
 
 Larger gaps do not chain. The opt-out is per-line, not
-per-file — 50 citations need 50 sentinels. This per-line
-friction is intentional. It prevents the "ever-growing
-exemption list" failure mode named in
+per-file — 50 distinct lines of citations need 50 sentinels.
+This per-line friction is intentional. It prevents the
+"ever-growing exemption list" failure mode named in
 `.claude/rules/tests-guard-real-regressions.md` "Forbidden
 patterns".
-
-This rule file (`.claude/rules/no-performative-pause.md`) is the
-catalog source and is exempt from the scanner via path-skip
-(Surface 1). The catalog above appears here by design.
 
 ## How to Apply
 

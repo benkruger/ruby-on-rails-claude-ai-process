@@ -213,18 +213,18 @@ insufficient:
   prose discipline that flows from this semantics.
   `check_autonomous_stop` applies three rules when the current
   phase is in-progress + auto:
-    - **Rule 1** — no halt and no new user message: refuse the
-      Stop with the encouraging message `"Stop Refused:
-      Continue, you can do it. Don't give up, you got this!
-      No excuses!"`. The autonomous flow must keep going.
-      The refusal fires AFTER the turn ends — the harness
-      queues another turn carrying the refusal text. Framing
-      this turn-end as "the model cannot stop" inverts the
+    - **Rule 1** — no halt and no new user message: queue
+      another turn carrying the encouraging refusal text
+      `"Stop Refused: Continue, you can do it. Don't give up,
+      you got this! No excuses!"`. The autonomous flow must
+      keep going. The turn-end was real; the harness queues
+      the refusal text as the next turn's input. Framing this
+      turn-end as "the model cannot stop" inverts the
       semantics; see `.claude/rules/no-performative-pause.md`.
     - **Rule 2** — `_halt_pending=true` and no new user
-      message: refuse the Stop with a message naming the two
-      exits `/flow:flow-continue` (resume) and
-      `/flow:flow-abort` (close the flow). Persists across
+      message: queue another turn carrying a refusal message
+      that names the two exits `/flow:flow-continue` (resume)
+      and `/flow:flow-abort` (close the flow). Persists across
       every subsequent Stop until the user invokes
       `/flow:flow-continue`.
     - **Conversation pass-through** — a real **conversational

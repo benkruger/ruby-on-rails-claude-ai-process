@@ -166,6 +166,41 @@ insufficient:
   `validate-pretool` Agent path rejects empty or
   `general-purpose` `subagent_type` calls when a flow is
   active.
+- **Agent-prompt out-of-worktree path scan** —
+  `validate-pretool`'s Agent branch calls
+  `agent_prompt_scan::validate_agent_prompt` on the
+  `tool_input.prompt` field after the `subagent_type` check
+  passes. The helper extracts path-shape substrings via a
+  regex+boundary scan, validates them through
+  `is_safe_path_candidate`, resolves relative candidates
+  against the cwd-derived `worktree_root` (via
+  `compute_worktree_root`), lexically normalizes the result,
+  and rejects any candidate that does not start with
+  `worktree_root`. Blocks with exit 2 and a structured
+  message naming the offending path and the worktree. The
+  scan is scoped to active flows and bounded at
+  `AGENT_PROMPT_BYTE_CAP` (1 MB) per
+  `.claude/rules/external-input-path-construction.md`. See
+  `src/hooks/agent_prompt_scan.rs` and
+  `.claude/rules/cognitive-isolation.md` "Retry-prompt
+  path-scoping constraint".
+- **Autonomous-flow-strict response shape on out-of-worktree
+  paths** — `validate-worktree-paths::validate()` at the
+  existing out-of-worktree block path checks
+  `crate::flow_paths::is_autonomous_flow_active(project_root,
+  branch)` (branch derived from `worktree_root.file_name()`).
+  When the predicate returns true, the hook returns a
+  structured JSON envelope `{"status":"error","reason":
+  "out_of_worktree_in_autonomous","blocked_path":...,
+  "worktree":...,"autonomous":true}` instead of the
+  human-readable BLOCKED message; exit 2 is preserved.
+  Default (non-autonomous-flow) behavior unchanged.
+  Residual gap: paths outside `project_root` (`~/.config`,
+  `/tmp`, `.venv`) remain in Claude Code's built-in
+  permission jurisdiction at this hook layer. Closing the
+  gap entirely requires either a Claude Code feature or a
+  project `settings.json` allow-list extension. See
+  `src/hooks/agent_prompt_scan.rs`.
 - **`AskUserQuestion` during an autonomous in-progress phase**
   — `validate-ask-user` rejects with exit 2 when
   `phases.<current_phase>.status == "in_progress"` AND

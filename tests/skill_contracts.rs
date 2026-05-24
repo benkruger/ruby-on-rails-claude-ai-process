@@ -491,6 +491,46 @@ fn plan_reviewer_agent_declares_end_of_findings_marker() {
     assert_agent_output_format_declares_end_of_findings("plan-reviewer.md");
 }
 
+// --- flow-review Step 2 out-of-worktree HARD-GATE (#1704) ---
+//
+// The truncation-recovery subsection of Step 2 must carry a HARD-GATE
+// block that forbids retry prompts from naming out-of-worktree paths.
+// The block is the prose half of the path-scoping enforcement; the
+// mechanical halves are the `validate-pretool` Agent-prompt scanner
+// (src/hooks/agent_prompt_scan.rs) and the autonomous-flow-strict
+// response shape in `validate-worktree-paths`.
+//
+// Bounded slice per `.claude/rules/testing-gotchas.md` "Subsection-
+// Local Assertions in Contract Tests": split the SKILL content at
+// the truncation-recovery subsection's start marker ("Class 1 —
+// Truncation") and end marker ("Class 2 — External failure"), then
+// assert the HARD-GATE substrings live inside the bounded slice
+// rather than anywhere in the SKILL.
+#[test]
+fn flow_review_step2_truncation_recovery_carries_out_of_worktree_hard_gate() {
+    let content = common::read_skill("flow-review");
+    let tail = content
+        .split_once("**Class 1 — Truncation.**")
+        .map(|(_, t)| t)
+        .expect("flow-review must have a Class 1 truncation subsection");
+    let subsection = tail
+        .split_once("**Class 2 — External failure.**")
+        .map(|(s, _)| s)
+        .expect("Class 1 subsection must end before Class 2");
+    assert!(
+        subsection.contains("<HARD-GATE>"),
+        "Step 2 truncation-recovery must carry a HARD-GATE block (#1704)"
+    );
+    assert!(
+        subsection.contains("Retry prompts MUST NOT instruct the sub-agent to Read"),
+        "HARD-GATE must forbid out-of-worktree Read paths"
+    );
+    assert!(
+        subsection.contains("agent_prompt_scan"),
+        "HARD-GATE must reference the agent_prompt_scan module"
+    );
+}
+
 // --- documentation agent obey-vs-describe gate for CLAUDE.md findings ---
 //
 // The documentation agent's Workflow section must apply the

@@ -108,6 +108,12 @@ Behavior I obey lives in the rule files below. Reading the rule when relevant be
 
 Module-level doc comments in `src/*.rs` describe each file's purpose. Discover via Glob/Grep/Read when relevant — do not pre-load.
 
+## Key Files
+
+Permanent on-main artifacts that future-session readers should know about by name + one-line purpose. Architecture detail lives in each artifact's module doc comment.
+
+- `src/hooks/agent_prompt_scan.rs` — scans Agent tool prompts for out-of-worktree path tokens during active flows; blocks the Agent call before the sub-agent's Read would prompt the user (paired with the autonomous-flow-strict response shape in `validate-worktree-paths` for paths the hook already blocks; paths outside `project_root` remain in Claude Code's permission jurisdiction).
+
 ## Maintainer Skills (private to this repo)
 
 - `/flow-qa` — `.claude/skills/flow-qa/SKILL.md` — file a pre-decomposed QA issue against the FLOW plugin repo for end-to-end lifecycle regression testing

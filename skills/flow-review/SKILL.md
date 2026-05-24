@@ -544,6 +544,21 @@ rather than splitting infinitely. The user decides whether to
 accept partial coverage or rerun Review on a smaller
 subset of the diff.
 
+<HARD-GATE>
+Retry prompts MUST NOT instruct the sub-agent to Read file paths
+outside `<worktree_path>/`. The `validate-pretool` Agent-path
+prompt-body scanner blocks any Agent call whose `prompt` field
+embeds an out-of-worktree path; the autonomous-flow-strict
+response shape in `validate-worktree-paths` ensures Reads on
+paths the hook already blocks return structured JSON errors to
+the sub-agent instead of user prompts. If the truncated agent's
+investigation required out-of-worktree files, drop the
+requirement entirely instead of redirecting the agent toward a
+different out-of-worktree path. See
+`.claude/rules/cognitive-isolation.md` "Context Budget +
+Truncation Recovery" and `src/hooks/agent_prompt_scan.rs`.
+</HARD-GATE>
+
 **Class 2 — External failure.** When the agent has produced
 zero structured `**Finding` blocks AND no `END-OF-FINDINGS`
 marker AND the response contains a canonical external-failure

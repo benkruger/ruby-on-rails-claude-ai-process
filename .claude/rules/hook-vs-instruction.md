@@ -214,13 +214,29 @@ insufficient:
   `check_autonomous_stop` applies three rules when the current
   phase is in-progress + auto:
     - **Rule 1** — no halt and no new user message: queue
-      another turn carrying the encouraging refusal text
-      `"Stop Refused: Continue, you can do it. Don't give up,
-      you got this! No excuses!"`. The autonomous flow must
-      keep going. The turn-end was real; the harness queues
-      the refusal text as the next turn's input. Framing this
-      turn-end as "the model cannot stop" inverts the
-      semantics; see `.claude/rules/no-performative-pause.md`.
+      another turn carrying one of two refusal messages,
+      selected by the autonomous-stalling counter. Below
+      `CONSECUTIVE_UNCHANGED_THRESHOLD` consecutive Stops in
+      autonomous flow-code without a `code_task` advance, the
+      generic encouraging text fires: `"Stop Refused:
+      Continue, you can do it. Don't give up, you got this!
+      No excuses!"`. At or above the threshold, the refusal
+      swaps to `RULE_1_STOP_REFUSED_POINTED_MESSAGE` — a
+      pointed text that names the autonomous-stalling pattern
+      and demands a task-advancing tool call. The counter pair
+      `_last_observed_code_task` and
+      `_consecutive_unchanged_count` records the running
+      state and is cleared by `phase_enter()` on every phase
+      entry. Non-flow-code autonomous phases (Review, Learn,
+      Complete) get the generic encouraging text only — they
+      have no `code_task` analog. The turn-end was real; the
+      harness queues the refusal text as the next turn's
+      input. Framing this turn-end as "the model cannot stop"
+      inverts the semantics; see
+      `.claude/rules/no-performative-pause.md`. See
+      `.claude/rules/autonomous-phase-discipline.md`
+      "Forbidden Stalling Frames" for the pointed-swap
+      design.
     - **Rule 2** — `_halt_pending=true` and no new user
       message: queue another turn carrying a refusal message
       that names the two exits `/flow:flow-continue` (resume)

@@ -1147,6 +1147,79 @@ fn validate_pretool_non_general_purpose_agent_allowed_exits_zero() {
 }
 
 #[test]
+fn validate_pretool_agent_prompt_out_of_worktree_path_blocked_exits_2() {
+    // Subprocess integration test for the parent-side Agent prompt
+    // scanner wired into validate_pretool::run() per #1704 branch B.
+    let dir = tempfile::tempdir().unwrap();
+    let cwd = setup_pretool_fixture(dir.path(), "feat", &[]);
+    let input = serde_json::to_vec(&json!({
+        "tool_input": {
+            "subagent_type": "flow:reviewer",
+            "prompt": "Read /etc/hosts and summarize."
+        }
+    }))
+    .unwrap();
+    let output = run_hook_in(&cwd, "validate-pretool", &input);
+    assert_eq!(output.status.code().unwrap(), 2);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("/etc/hosts"),
+        "stderr must name offending path: {}",
+        stderr
+    );
+}
+
+#[test]
+fn validate_pretool_agent_prompt_outside_worktree_skips_scan_exits_zero() {
+    // Agent call fires from a plain tempdir (no `.worktrees/`
+    // segment). `compute_worktree_root` returns None, so the
+    // prompt-body scan is skipped. Exit 0.
+    let dir = tempfile::tempdir().unwrap();
+    let canonical = dir.path().canonicalize().unwrap();
+    // Plant a settings.json so find_settings_and_root_from returns
+    // a project root, but no `.worktrees/<branch>/` subtree.
+    let claude = canonical.join(".claude");
+    std::fs::create_dir_all(&claude).unwrap();
+    std::fs::write(
+        claude.join("settings.json"),
+        r#"{"permissions":{"allow":[],"deny":[]}}"#,
+    )
+    .unwrap();
+    let input = serde_json::to_vec(&json!({
+        "tool_input": {
+            "subagent_type": "flow:reviewer",
+            "prompt": "Read /etc/hosts and summarize."
+        }
+    }))
+    .unwrap();
+    let output = run_hook_in(&canonical, "validate-pretool", &input);
+    assert_eq!(output.status.code().unwrap(), 0);
+}
+
+#[test]
+fn validate_pretool_agent_prompt_in_worktree_path_allowed_exits_zero() {
+    // macOS tempdir canonicalization: the hook subprocess's
+    // `current_dir()` resolves `/var/folders/...` symlinks to
+    // `/private/var/...`, so the worktree path embedded in the
+    // prompt must use the canonical form to match the hook's
+    // computed worktree_root. See `.claude/rules/testing-gotchas.md`
+    // "macOS Subprocess Path Canonicalization".
+    let dir = tempfile::tempdir().unwrap();
+    let canonical = dir.path().canonicalize().unwrap();
+    let cwd = setup_pretool_fixture(&canonical, "feat", &[]);
+    let worktree = cwd.to_string_lossy();
+    let input = serde_json::to_vec(&json!({
+        "tool_input": {
+            "subagent_type": "flow:reviewer",
+            "prompt": format!("Read {}/src/lib.rs for context.", worktree)
+        }
+    }))
+    .unwrap();
+    let output = run_hook_in(&cwd, "validate-pretool", &input);
+    assert_eq!(output.status.code().unwrap(), 0);
+}
+
+#[test]
 fn validate_pretool_compound_command_blocked_exits_2() {
     let dir = tempfile::tempdir().unwrap();
     let cwd = setup_pretool_fixture(dir.path(), "feat", &["Bash(echo *)"]);

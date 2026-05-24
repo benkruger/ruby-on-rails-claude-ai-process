@@ -37,7 +37,18 @@
 
 use crate::hooks::transcript_walker::normalize_gate_input;
 use regex::Regex;
+use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
+
+/// Maximum bytes of the Agent tool's `prompt` field this module
+/// inspects. 1 MB comfortably covers every prompt the parent model
+/// produces in practice (typical Review-phase agent prompts run
+/// 5-30 KB, the largest observed compose review findings plus a
+/// full diff at ~200 KB). The cap exists per
+/// `.claude/rules/external-input-path-construction.md` so a
+/// corrupted or maliciously-large `tool_input.prompt` cannot OOM
+/// the hook.
+pub const AGENT_PROMPT_BYTE_CAP: usize = 1_048_576;
 
 /// Compiled regex matching path-shape substrings.
 ///
@@ -97,6 +108,110 @@ pub fn is_safe_path_candidate(s: &str) -> bool {
         return false;
     }
     true
+}
+
+/// Lexically normalize a path by resolving `..` components against
+/// the input itself. No filesystem access — `Path::canonicalize`
+/// is deliberately NOT used per the Constructor Invariant Audit
+/// (it would touch the disk and could surface a permission prompt
+/// on a dangling symlink target).
+///
+/// `Path::components()` automatically normalizes `Component::CurDir`
+/// out of non-leading positions, and production callers pass only
+/// absolute paths (worktree_root from `compute_worktree_root`, or
+/// `worktree.join(...)` joined results, or absolute candidate
+/// paths). The match therefore only needs to handle `ParentDir`
+/// and the catch-all normal/root components.
+fn normalize_path_lexical(p: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for comp in p.components() {
+        match comp {
+            Component::ParentDir => {
+                if !out.pop() {
+                    out.push("..");
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Validate the `prompt` field of an Agent tool call.
+///
+/// Returns `(allowed, message)`. Message is empty on allow.
+///
+/// Skipped silently when:
+/// - `flow_active` is false (outside a FLOW worktree)
+/// - `prompt` is `None` or empty
+///
+/// Otherwise extracts path candidates, runs the safety validator
+/// on each, resolves relative candidates against `worktree_root`,
+/// lexically normalizes the result, and rejects any candidate
+/// whose normalized form does not start with `worktree_root`. The
+/// `prompt` is sliced at `AGENT_PROMPT_BYTE_CAP` along a UTF-8
+/// char boundary BEFORE the regex sweep so unbounded input cannot
+/// produce unbounded I/O.
+pub fn validate_agent_prompt(
+    prompt: Option<&str>,
+    worktree_root: &Path,
+    flow_active: bool,
+) -> (bool, String) {
+    if !flow_active {
+        return (true, String::new());
+    }
+    let prompt = match prompt {
+        Some(p) if !p.is_empty() => p,
+        _ => return (true, String::new()),
+    };
+
+    let sliced = if prompt.len() <= AGENT_PROMPT_BYTE_CAP {
+        prompt
+    } else {
+        let mut end = AGENT_PROMPT_BYTE_CAP;
+        while end > 0 && !prompt.is_char_boundary(end) {
+            end -= 1;
+        }
+        &prompt[..end]
+    };
+
+    let candidates = extract_path_candidates(sliced);
+    let worktree_norm = normalize_path_lexical(worktree_root);
+    for candidate in candidates {
+        if !is_safe_path_candidate(&candidate) {
+            return (
+                false,
+                format!(
+                    "BLOCKED: Agent prompt contains malformed path token `{}`. \
+                     Remove traversal segments and NUL bytes from the prompt.",
+                    candidate
+                ),
+            );
+        }
+        let candidate_path = Path::new(&candidate);
+        let resolved = if candidate_path.is_absolute() {
+            candidate_path.to_path_buf()
+        } else {
+            worktree_root.join(&candidate)
+        };
+        let resolved_norm = normalize_path_lexical(&resolved);
+        if !resolved_norm.starts_with(&worktree_norm) {
+            return (
+                false,
+                format!(
+                    "BLOCKED: Agent prompt references path `{}` outside the worktree `{}`. \
+                     Out-of-worktree paths surface Claude Code permission prompts in \
+                     autonomous flows; drop the requirement from the prompt instead of \
+                     redirecting the agent toward a different out-of-worktree path. See \
+                     .claude/rules/cognitive-isolation.md \"Context Budget + Truncation \
+                     Recovery\".",
+                    candidate,
+                    worktree_root.display()
+                ),
+            );
+        }
+    }
+    (true, String::new())
 }
 
 pub fn extract_path_candidates(prompt: &str) -> Vec<String> {

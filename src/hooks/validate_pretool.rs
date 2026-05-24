@@ -1958,11 +1958,33 @@ pub fn run() {
     }
     if command.is_empty() {
         // No command means this is an Agent tool call, not Bash.
+        // Layer ordering: the cheap `subagent_type` check runs first
+        // (rejects `general-purpose` calls before any prompt
+        // tokenization), then the expensive prompt-body scan runs on
+        // the Agent's prompt field per issue #1704. The prompt scan
+        // is scoped to active flows and bounded at
+        // AGENT_PROMPT_BYTE_CAP.
         let subagent_type = tool_input.get("subagent_type").and_then(|v| v.as_str());
         let (allowed, message) = validate_agent(subagent_type, flow_active);
         if !allowed {
             eprintln!("{}", message);
             std::process::exit(2);
+        }
+        let prompt_field = tool_input.get("prompt").and_then(|v| v.as_str());
+        let worktree_root = cwd.as_deref().and_then(|c| {
+            crate::flow_paths::compute_worktree_root(&c.to_string_lossy()).map(PathBuf::from)
+        });
+        if let Some(root) = worktree_root {
+            let (prompt_allowed, prompt_message) =
+                crate::hooks::agent_prompt_scan::validate_agent_prompt(
+                    prompt_field,
+                    &root,
+                    flow_active,
+                );
+            if !prompt_allowed {
+                eprintln!("{}", prompt_message);
+                std::process::exit(2);
+            }
         }
         std::process::exit(0);
     }

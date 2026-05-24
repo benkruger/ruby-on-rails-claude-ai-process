@@ -1,5 +1,69 @@
 # Release Notes
 
+## v2.5.0 — On-trunk commit carve-out, bare-prompt planning, flowjson as single source
+
+### New features
+
+- **On-trunk `/flow-commit` carve-out** — Layer 10's commit gate now
+  recognizes a user-typed `/flow:flow-commit` on the integration
+  branch (when cwd is NOT inside an active-flow worktree) and lets
+  `bin/flow finalize-commit` through. The skill's own diff review,
+  commit-message review, and user approval supply the choreography;
+  CI runs unconditionally inside `finalize-commit`. The supported
+  on-trunk maintainer path for bootstrap repair and hot-patch
+  follow-ups (#1693).
+- **Bare-prompt mode for `/flow-plan`** — `/flow:flow-plan <topic>`
+  now synthesizes `## What` / `## Why` / `## Acceptance Criteria`
+  from the planning conversation and files a new decomposed issue
+  in one pass. Issue-input mode (`#N`) and bare-prompt mode share
+  the same Tech-Lead-default planning loop, `decompose:decompose`
+  pass, and Plan Review audit (#1676).
+- **Plan Review audit loop** — drafted plans are now audited by the
+  cognitively isolated `flow:plan-reviewer` against `.claude/rules/`
+  with a capped re-decompose loop (max 3 attempts). The reviewer
+  advises — it never blocks filing — and surfaces final violations
+  as a non-blocking advisory warning (#1677, #1687).
+- **CLAUDE.md size budget** — `/flow-hygiene` now reads the optional
+  `claude_md_budget` field in `.flow.json` (defaults: 12000 chars /
+  400 lines) and emits a `[SIZE_BUDGET]` finding when CLAUDE.md
+  grows past the configured threshold (#1682).
+- **`.flow.json` is the single source of truth for skill autonomy**
+  — every skill resolves its mode from its `skills.<skill>` config
+  via `resolve-skill-mode`. There are no `--auto`/`--manual`
+  invocation flags. `.flow.json` settings are seeded into the state
+  file at flow-start so worktrees stay self-contained (#1691).
+- **Inlined `/flow:flow-triage-issue`** — the triage Process is
+  inlined directly in the skill; no sub-agent dispatch (#1699).
+
+### Fixes
+
+- **`finalize-commit` re-stage** — `git add -u` now runs after CI to
+  capture in-place modifications CI made to already-tracked files
+  (formatter/linter auto-fixes), so the commit records the post-CI
+  bytes that CI tested (#1701).
+- **start-init no longer leaves stale flow state** when a flow-start
+  fails before reaching workspace creation (#1697).
+- **Autonomous-mode self-imposed pauses suppressed** — the model
+  can no longer invent its own checkpoints during a `continue: auto`
+  phase (#1696).
+- **`/flow:flow-complete` merge ordering** — Complete no longer
+  squash-merges PRs before its CI gate runs (#1689).
+
+### Improvements
+
+- **Documentation drift cleanup** — flow-doc-sync audit fixed 17
+  drift points across `docs/`, plugin metadata, and skill pages
+  (phase-number errors, stale version strings, `stop-continue.py`
+  → `bin/flow hook stop-continue`, `test_structural.py` →
+  `tests/structural.rs`, removed "legacy Plan/Complete" patterns,
+  TUI framing corrected to Rust/ratatui).
+- **Unified issue-planning surface** — `/flow:flow-explore` and
+  `/flow:flow-plan` share the same conversation discipline; planning
+  voices (PM / Tech Lead / CTO) route through the same persona
+  dispatch (#1694).
+- **Dependency updates** — wasm-bindgen, js-sys, and other
+  transitive crates bumped via routine `bin/dependencies` runs.
+
 ## v2.4.0 — Shared-config approvals, hello_smoke hardening
 
 ### New features

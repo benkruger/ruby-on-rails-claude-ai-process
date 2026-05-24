@@ -110,7 +110,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ````markdown
 ```text
 ──────────────────────────────────────────────────
-  FLOW v2.4.0 — Phase 5: Complete — STARTING
+  FLOW v2.5.0 — Phase 5: Complete — STARTING
 ──────────────────────────────────────────────────
 ```
 ````
@@ -756,7 +756,7 @@ status in your response (not via Bash) inside a single fenced code block:
 ````markdown
 ```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✓ FLOW v2.4.0 — Phase 5: Complete — COMPLETE (<formatted_time>)
+  ✓ FLOW v2.5.0 — Phase 5: Complete — COMPLETE (<formatted_time>)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 <summary text from format-complete-summary>

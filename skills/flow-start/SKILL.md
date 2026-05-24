@@ -100,7 +100,7 @@ At the very start, output the following banner in your response (not via Bash) i
 ````markdown
 ```text
 ──────────────────────────────────────────────────
-  FLOW v2.4.0 — Phase 1: Start — STARTING
+  FLOW v2.5.0 — Phase 1: Start — STARTING
 ──────────────────────────────────────────────────
 ```
 ````
@@ -349,7 +349,7 @@ Output the following banner in your response (not via Bash) inside a fenced code
 ````markdown
 ```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✓ FLOW v2.4.0 — Phase 1: Start — COMPLETE (<formatted_time>)
+  ✓ FLOW v2.5.0 — Phase 1: Start — COMPLETE (<formatted_time>)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 ````

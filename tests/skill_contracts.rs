@@ -2506,6 +2506,116 @@ fn flow_release_skill_builds_and_commits_binary() {
     }
 }
 
+/// flow-release must render a Slack-formatted release announcement
+/// after the GitHub release is published, so the maintainer doesn't
+/// hand-draft one from the release notes. The Step 10 prose tells
+/// the model to read tmp/release-notes-v<new_version>.md, run
+/// `git diff --name-only <last_tag>..HEAD` (no `-- <paths>` filter —
+/// validate-pretool Layer 6 blocks that shape), check the diff
+/// output against the prime-input set in prose, and render a
+/// Slack-format message inline before the Done banner.
+///
+/// Regression guarded: a flow-release edit that drops Step 10
+/// (Slack notes never get rendered), an edit that loses one of
+/// the prime-input paths from the enumeration (the /flow:flow-prime
+/// recommendation goes silently incomplete), an edit that drops
+/// the load-bearing `git diff --name-only <last_tag>..HEAD` bash
+/// command (the prime-input check has no input to consume), an
+/// edit that drops the namespaced /flow:flow-prime command (users
+/// who copy the Slack message would type a command that does not
+/// exist), an edit that drops the upgrade command, or an edit that
+/// reintroduces a Layer 6-triggering `git diff ... -- <paths>`
+/// shape in ANY range notation (the original literal check only
+/// matched the `..` asymmetric form; this version structurally
+/// scans every `git diff` line for the Layer 6 pattern).
+#[test]
+fn flow_release_skill_renders_slack_notes() {
+    let c = fs::read_to_string(
+        common::repo_root()
+            .join(".claude")
+            .join("skills")
+            .join("flow-release")
+            .join("SKILL.md"),
+    )
+    .unwrap();
+    let tail = c
+        .split_once("## Step 10 — ")
+        .map(|(_, t)| t)
+        .expect("flow-release/SKILL.md must contain the Step 10 Slack-notes heading");
+    let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
+    assert!(
+        section.contains("tmp/release-notes-v"),
+        "flow-release Step 10 must read tmp/release-notes-v<new_version>.md"
+    );
+    assert!(
+        section.contains("src/prime_check.rs")
+            && section.contains("src/prime_setup.rs")
+            && section.contains("assets/bin-stubs/"),
+        "flow-release Step 10 must enumerate the prime-input set \
+         (src/prime_check.rs, src/prime_setup.rs, assets/bin-stubs/) \
+         so the model can check the diff output for membership"
+    );
+    // The load-bearing discovery command must be present in the
+    // section — substring presence of the prime-input paths alone
+    // is not sufficient because they also appear in the prose
+    // explanations, so a refactor that strips the bash block
+    // entirely would silently break the /flow:flow-prime check.
+    assert!(
+        section.contains("git diff --name-only <last_tag>..HEAD"),
+        "flow-release Step 10 must contain the prime-input discovery \
+         bash invocation `git diff --name-only <last_tag>..HEAD` (no \
+         `-- <paths>` filter — validate-pretool Layer 6 blocks that \
+         shape; the path-filter check moves to model prose instead)"
+    );
+    // Structural scan for the Layer 6-triggering ` -- \S` pattern
+    // after any `git diff` invocation. The earlier literal check
+    // `!section.contains("git diff --name-only <last_tag>..HEAD --")`
+    // only matched the `..` asymmetric range form; a refactor to
+    // `...` symmetric range (or any other phrasing) carried the
+    // same Layer 6-blocked shape past the assertion. Scoping the
+    // scan to lines that start with `git diff` keeps the prose
+    // discussion of the `-- <paths>` shape (which uses backtick
+    // quoting) out of scope.
+    for line in section.lines() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("git diff") {
+            continue;
+        }
+        if let Some(idx) = line.find(" -- ") {
+            let after = &line[idx + 4..];
+            if let Some(c) = after.chars().next() {
+                assert!(
+                    c.is_whitespace(),
+                    "flow-release Step 10 bash invocation `{}` carries \
+                     the Layer 6-triggering ` -- <path>` shape \
+                     (validate-pretool `src/hooks/validate_pretool.rs` \
+                     Layer 6 blocks it regardless of range notation). \
+                     Use prose path-filter logic instead.",
+                    line.trim()
+                );
+            }
+        }
+    }
+    assert!(
+        section.contains("/flow:flow-prime"),
+        "flow-release Step 10 must include the conditional \
+         /flow:flow-prime recommendation (namespaced — per \
+         user-only-skills.md, the bare `/flow-prime` form does \
+         not exist) when prime-input files change"
+    );
+    assert!(
+        section.contains("claude plugin marketplace update flow-marketplace"),
+        "flow-release Step 10 must include the upgrade command in the \
+         Slack footer template"
+    );
+    let step10_pos = c.find("## Step 10 — ").unwrap();
+    let done_pos = c.find("## Done").expect("Done section must exist");
+    assert!(
+        step10_pos < done_pos,
+        "Step 10 must appear before the Done section in flow-release/SKILL.md"
+    );
+}
+
 /// flow-qa is the project-local maintainer skill that files a
 /// pre-decomposed QA issue for full-lifecycle regression testing
 /// of the FLOW plugin. The SKILL.md must declare valid frontmatter

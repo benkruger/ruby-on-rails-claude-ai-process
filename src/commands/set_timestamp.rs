@@ -122,7 +122,21 @@ pub fn set_nested(obj: &mut Value, path_parts: &[&str], value: Value) -> Result<
 /// path leaves the legitimate writer untouched. See
 /// `.claude/rules/autonomous-phase-discipline.md` "Mechanical
 /// halt-pause contract".
-const MODEL_DENIED_FIELDS: &[&str] = &["_halt_pending"];
+///
+/// `_last_observed_code_task` and `_consecutive_unchanged_count`
+/// are the hook-managed counter-tracking fields the Stop hook uses
+/// to detect autonomous-mode stalling. The only legitimate way to
+/// reset `_consecutive_unchanged_count` is for the model to advance
+/// `code_task` via the existing monotonic-+1 validator. Allowing
+/// CLI writes would let the model reset the counter directly,
+/// silently bypassing the pointed refusal text that catches the
+/// stalling loop. See `.claude/rules/autonomous-phase-discipline.md`
+/// "Forbidden Stalling Frames".
+const MODEL_DENIED_FIELDS: &[&str] = &[
+    "_halt_pending",
+    "_last_observed_code_task",
+    "_consecutive_unchanged_count",
+];
 
 /// Strip NULs, trim, and ASCII-lowercase the input so case,
 /// whitespace, and embedded-NUL bypass shapes are folded before
@@ -141,8 +155,9 @@ fn validate_model_denied_field(field: &str) -> Result<(), String> {
     if MODEL_DENIED_FIELDS.contains(&normalized.as_str()) {
         return Err(format!(
             "Field '{}' cannot be written via set-timestamp — it is owned by FLOW \
-             hooks. See .claude/rules/autonomous-phase-discipline.md \
-             'Mechanical halt-pause contract'.",
+             hooks. See .claude/rules/autonomous-phase-discipline.md — \
+             'Mechanical halt-pause contract' for _halt_pending, \
+             'Forbidden Stalling Frames' for the counter-tracking fields.",
             field
         ));
     }

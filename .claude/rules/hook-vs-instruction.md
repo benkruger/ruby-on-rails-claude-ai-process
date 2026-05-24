@@ -238,16 +238,44 @@ insufficient:
   the transcript), `check_continue` (forces continuation when
   `_continue_pending=<skill>` is set, supporting multi-child-
   skill chains), and `check_autonomous_stop` (the unified
-  autonomous-mode gate). `check_autonomous_stop` applies three
-  rules when the current phase is in-progress + auto:
-    - **Rule 1** — no halt and no new user message: refuse the
-      Stop with the encouraging message `"Stop Refused:
+  autonomous-mode gate). The hook refuses the autonomous
+  flow's end AFTER the turn-end happens — every turn ends
+  when the model stops emitting tool calls, and the refusal
+  text becomes the next turn's input via hook feedback. "Stop
+  refused" never means "the model cannot end the turn"; it
+  means "the autonomous flow's end is refused, queue another
+  turn." See `.claude/rules/no-performative-pause.md` for the
+  prose discipline that flows from this semantics.
+  `check_autonomous_stop` applies three rules when the current
+  phase is in-progress + auto:
+    - **Rule 1** — no halt and no new user message: queue
+      another turn carrying one of two refusal messages,
+      selected by the autonomous-stalling counter. Below
+      `CONSECUTIVE_UNCHANGED_THRESHOLD` consecutive Stops in
+      autonomous flow-code without a `code_task` advance, the
+      generic encouraging text fires: `"Stop Refused:
       Continue, you can do it. Don't give up, you got this!
-      No excuses!"`. The autonomous flow must keep going.
+      No excuses!"`. At or above the threshold, the refusal
+      swaps to `RULE_1_STOP_REFUSED_POINTED_MESSAGE` — a
+      pointed text that names the autonomous-stalling pattern
+      and demands a task-advancing tool call. The counter pair
+      `_last_observed_code_task` and
+      `_consecutive_unchanged_count` records the running
+      state and is cleared by `phase_enter()` on every phase
+      entry. Non-flow-code autonomous phases (Review, Learn,
+      Complete) get the generic encouraging text only — they
+      have no `code_task` analog. The turn-end was real; the
+      harness queues the refusal text as the next turn's
+      input. Framing this turn-end as "the model cannot stop"
+      inverts the semantics; see
+      `.claude/rules/no-performative-pause.md`. See
+      `.claude/rules/autonomous-phase-discipline.md`
+      "Forbidden Stalling Frames" for the pointed-swap
+      design.
     - **Rule 2** — `_halt_pending=true` and no new user
-      message: refuse the Stop with a message naming the two
-      exits `/flow:flow-continue` (resume) and
-      `/flow:flow-abort` (close the flow). Persists across
+      message: queue another turn carrying a refusal message
+      that names the two exits `/flow:flow-continue` (resume)
+      and `/flow:flow-abort` (close the flow). Persists across
       every subsequent Stop until the user invokes
       `/flow:flow-continue`.
     - **Conversation pass-through** — a real **conversational

@@ -76,10 +76,18 @@ pub fn phase_enter(state: &mut Value, phase: &str, reason: Option<&str>) -> Valu
         .unwrap()
         .push(transition);
 
-    // Clear auto-continue, halt-pending, and stale continuation flags
-    // from the previous phase. `_halt_pending` from the just-completed
-    // phase must NOT bleed forward into the new phase — entering a
-    // new autonomous phase is itself a fresh authorization signal.
+    // Clear auto-continue, halt-pending, stale continuation flags, and
+    // hook-managed counter-tracking fields from the previous phase.
+    // `_halt_pending` from the just-completed phase must NOT bleed
+    // forward into the new phase — entering a new autonomous phase is
+    // itself a fresh authorization signal. Similarly,
+    // `_last_observed_code_task` and `_consecutive_unchanged_count`
+    // (the autonomous-mode stalling-pattern counter pair) must reset
+    // on every phase entry — a back-transition into flow-code starts
+    // a fresh stalling-detection window per
+    // `.claude/rules/autonomous-phase-discipline.md` "Forbidden
+    // Stalling Frames".
+    //
     // State is guaranteed to be an object here — earlier
     // `state["phases"][phase]` IndexMut accesses would have panicked
     // on any non-object input. `.expect` covers the truly-unreachable
@@ -91,6 +99,8 @@ pub fn phase_enter(state: &mut Value, phase: &str, reason: Option<&str>) -> Valu
     obj.remove("_halt_pending");
     obj.remove("_continue_pending");
     obj.remove("_continue_context");
+    obj.remove("_last_observed_code_task");
+    obj.remove("_consecutive_unchanged_count");
 
     let first_visit = visit_count == 1;
 

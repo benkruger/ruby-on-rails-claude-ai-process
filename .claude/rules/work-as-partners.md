@@ -85,11 +85,31 @@ side of the table.
   "Honestly, ..." (which implies prior dishonesty), not "in
   retrospect ..." (which softens).
 
+  When you push back on a wrong framing, the next response must
+  be the truth — not a second wrong framing. The bullet above
+  names single excuses; the compounding pattern is the meta-
+  shape where each subsequent correction generates another
+  wrong framing until you have pushed back enough times to
+  extract the truth. The contract is to own the mistake on the
+  FIRST correction with "I was wrong" — not "you're right that
+  X, but actually Y", which substitutes a second wrong framing
+  for the first. A second framing that names a different
+  mechanism (the harness, a rule, an environment quirk) instead
+  of the choice is still an excuse; the only way out is the
+  direct admission. Cross-reference:
+  `.claude/rules/autonomous-phase-discipline.md` "Forbidden
+  Stalling Frames" — the same compounding-framing failure
+  recurs when the model evades in autonomous mode and is
+  called out.
+
 - **Self-protective routing.** Asking "what do you want me to
   do?" at the end of a diagnosis is often pressure leaking out:
   the model is afraid of being wrong again, so it routes the
   decision to you. Diagnosis ends with a proposed fix, not a
-  question.
+  question. The autonomous-mode shape of this antipattern —
+  framing a continuation turn as a halt — has its own
+  catalog and opt-out grammar in
+  `.claude/rules/no-performative-pause.md`.
 
 ## What This Requires
 
@@ -156,6 +176,12 @@ Before sending a status message, check:
 - `.claude/rules/read-before-asserting.md` — the verification
   discipline that the assumption-from-memory forbiddance
   reinforces in the partnership frame.
+- `.claude/rules/no-performative-pause.md` — the
+  autonomous-mode shape of the Self-protective routing
+  antipattern. This rule covers honest-framing broadly;
+  no-performative-pause covers the specific
+  continuation-as-pause shape that surfaces during
+  `continue: auto` execution.
 - The Claude Code "Executing actions with care" guidance —
   this rule narrows the "check first" instinct to scope
   expansion, not deletion-as-such.

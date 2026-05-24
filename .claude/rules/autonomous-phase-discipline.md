@@ -27,6 +27,13 @@ During any phase with `continue: auto`:
   (`stop_continue::check_autonomous_stop`) refuses a turn-end during
   an in-progress autonomous phase, so a model that "stops with
   text" gets blocked into continuing.
+- Never produce output that frames the turn as a halt when the
+  same turn ends with a tool call that re-fires the loop. Each
+  turn-end IS a stop; the Stop hook then asks the harness to
+  queue another turn with refusal feedback. Framing a
+  continuation as a halt is the performative-pause antipattern —
+  see `.claude/rules/no-performative-pause.md` for the catalog of
+  forbidden phrasings and the opt-out grammar.
 
 If Claude feels the urge to pause because of context pressure, a
 long-running task, or uncertainty about scope: commit the in-flight
@@ -130,6 +137,9 @@ Cross-references:
 - `.claude/rules/no-placeholder-anchors.md` — the rule that
   forbids placeholder-file-then-redirect anchoring as an
   unsanctioned operation, regardless of destination.
+- `.claude/rules/no-performative-pause.md` — the catalog and
+  opt-out grammar for the dishonest-framing antipattern named
+  by the new bullet in "The Rule" above.
 
 ## Enforcement
 
@@ -179,6 +189,16 @@ below — that together close the text-only-stop hole that
 tool calls, but the Stop hook fires on the Stop event itself, so a
 model that ends the turn with prose alone is still refused.
 
+The hook does NOT prevent the turn from ending. The turn ends;
+the hook then asks the harness to queue another turn with the
+refusal message as hook feedback. "Stop refused" means "the
+autonomous flow's end is refused" — it does NOT mean "the model
+cannot end the turn." A model framing its turn-end as "I am
+unable to stop" is misreading the hook semantics; the model
+ended every turn it has ever ended. The forbidden framing is
+positioning a re-fire as a halt — see
+`.claude/rules/no-performative-pause.md`.
+
 ## The Two-Exit Halt Model
 
 The autonomous-mode block above protects against model-initiated
@@ -220,6 +240,11 @@ set:
   `"Stop Refused: Continue, you can do it. Don't give up, you
   got this! No excuses!"`. The autonomous flow must keep going —
   `continue: auto` already authorized continuous execution.
+  The refusal fires AFTER the turn ends: the model's turn-end
+  was real, and the harness queues another turn carrying the
+  refusal text as the next turn's input. Framing this as "the
+  model cannot stop" inverts the semantics — see
+  `.claude/rules/no-performative-pause.md`.
 - **Rule 2 — halt pending, no new user message.** Refuse the
   Stop with a message naming the two exits: `/flow:flow-continue`
   to resume, `/flow:flow-abort` to close the flow. The block
@@ -247,6 +272,23 @@ set:
   `/flow:flow-continue` watermark live in
   `.claude/rules/transcript-shape.md` "Real User Turns:
   Imperative vs Conversational Shapes".
+
+**Rule 1 — pointed-text swap.** When the current phase is
+flow-code AND the model has produced
+`CONSECUTIVE_UNCHANGED_THRESHOLD` consecutive Stops without
+advancing the `code_task` counter, the Rule 1 refusal swaps
+from the encouraging message to
+`RULE_1_STOP_REFUSED_POINTED_MESSAGE`. The pointed text names
+the autonomous-stalling pattern (see "Forbidden Stalling Frames"
+below) and demands a task-advancing tool call. The counter pair
+`_last_observed_code_task` and `_consecutive_unchanged_count`
+records the running state; both fields are in
+`MODEL_DENIED_FIELDS` (`src/commands/set_timestamp.rs`) so the
+CLI write path cannot counterfeit a reset, and `phase_enter()`
+clears the pair on every phase entry so a back-transition starts
+a fresh window. The Edit/Write tool surface against the state
+file is a broader trust boundary inherited from `_halt_pending`
+— see the state-field lifecycle note below.
 
 **Who clears `_halt_pending`.** The flag is cleared by exactly
 two writers:
@@ -307,6 +349,18 @@ separately from this gate.
   clear of `_halt_pending`. The cascade's multi-child-skill
   resume path reads `_continue_pending` once the halt is
   cleared, so trampling it would break the resume contract.
+- `_last_observed_code_task: integer` and
+  `_consecutive_unchanged_count: integer` — owned by
+  `check_autonomous_stop`'s Rule 1 branch and cleared by
+  `phase_enter()` on every phase entry. Both fields are in
+  `MODEL_DENIED_FIELDS` so the CLI `bin/flow set-timestamp` path
+  cannot reset them. The only legitimate reset paths are: (a)
+  advance `code_task` via the monotonic-+1 validator, or (b)
+  enter a new phase via `phase_enter()`. The Edit/Write tool
+  surface against the state file is NOT blocked by
+  `MODEL_DENIED_FIELDS` — it inherits the same trust boundary
+  documented under "Who writes `_halt_pending=true`" above. See
+  "Forbidden Stalling Frames" below.
 
 **Synthetic-turn discrimination.** The walker filters out
 synthetic user turns (tool_result wrappers, hook-injected
@@ -328,6 +382,65 @@ true.
 file, unparseable JSON, missing or invalid transcript path,
 walker `None`, missing `current_phase`. The Stop hook must never
 panic; a hook crash terminates the user's session.
+
+### Forbidden Stalling Frames
+
+`check_autonomous_stop`'s Rule 1 refusal swaps from the generic
+encouraging text to a pointed message after the model produces
+`CONSECUTIVE_UNCHANGED_THRESHOLD` consecutive Stops in autonomous
+flow-code without advancing the `code_task` counter. The pointed
+text exists to catch three specific frames the model uses to talk
+itself into a halt mid-autonomous. Each one is forbidden.
+
+- **"A rule authorizes me to halt."** No rule in this project
+  grants a halt. Only `_halt_pending=true` (set by
+  `check_autonomous_stop` in response to a real conversational-
+  prose user turn) or a system-initiated permission prompt
+  produces a halt. Reading any project rule —
+  `extract-helper-refactor.md`, `tombstone-tests.md`, or any
+  other — as halt-authorization is a misread. Rules describe
+  behavior the model follows during work; they don't authorize
+  stops. When the work the rule names belongs to a different
+  phase (e.g., a Plan-phase scoping discipline cited during
+  Code), the right response is to do the Code-phase work the
+  rule indirectly addresses, not to halt for Plan.
+
+- **"This task looks bigger than the previous one, so it must
+  be harder."** Larger file line counts, larger test-file
+  counts, and other size signals are not halt triggers. The
+  only way to know whether a task is harder than its
+  predecessor is to attempt it. The same execution pattern
+  that succeeded on the smaller task succeeds on the larger
+  one more often than not.
+
+- **"Writing about the work substitutes for doing it."** In
+  autonomous mode, deliberation-shaped text without tool calls
+  that advance the next plan task is a turn-end with no work —
+  indistinguishable from a real halt to the absent user.
+  Producing analysis paragraphs in place of Read/Grep/Edit/Write
+  calls that progress the plan is the failure mode the Stop
+  hook's pointed refusal text catches.
+
+The mechanical backstop is the counter pair documented under
+"Mechanical halt-pause contract" above:
+`_last_observed_code_task` and `_consecutive_unchanged_count`
+track consecutive Stops without `code_task` advance. The CLI
+`bin/flow set-timestamp` write path cannot reset them — both
+fields are in `MODEL_DENIED_FIELDS` (see
+`src/commands/set_timestamp.rs`). The Edit/Write tool surface
+against the state file inherits the same trust boundary
+documented for `_halt_pending` above ("Who writes
+`_halt_pending=true`"); the v1 threat model accepts that
+boundary because a model that has Edit/Write access to the
+state file is already outside the sanctioned action surface.
+The pointed-text swap raises the cost of routine stalling by
+the CLI path, not the cost of an adversarial state-file edit.
+
+Cross-reference: `work-as-partners.md` "Excuses framed as
+explanations" — when the user calls out a stall, naming the
+mechanism (a rule, the hook, the harness) is not the truth. The
+truth is "I chose to end the turn without working." Own that on
+the first correction.
 
 ### Defense in depth — halt gates on Skill and Bash
 

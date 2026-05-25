@@ -293,6 +293,97 @@ fn sanitize_canonical_suffix(suffix: &str) -> String {
         .join("/")
 }
 
+/// Approved `/tmp/` file extensions for the out-of-project surface,
+/// matched ASCII-case-insensitively.
+///
+/// This list MUST equal the `/tmp` extensions in
+/// `crate::prime_check::UNIVERSAL_ALLOW` so the out-of-project gate
+/// only ever blocks a `/tmp` path that Claude Code's native
+/// permission system would itself have prompted on. The drift
+/// contract test
+/// `tests/hooks/validate_worktree_paths.rs::approved_tmp_extensions_match_universal_allow`
+/// pins the two sets equal — adding a `/tmp` extension to
+/// `UNIVERSAL_ALLOW` without adding it here re-opens a native prompt
+/// the gate is meant to suppress.
+pub const APPROVED_TMP_EXTENSIONS: &[&str] = &["txt", "diff", "patch", "md", "json", "jsonl"];
+
+/// Decide whether an out-of-project `file_path` falls in the small
+/// approved surface that Claude Code's native permission system already
+/// allows without a prompt. Returns `true` for exactly two classes:
+///
+/// 1. **Auto-memory dir** — a path rooted at
+///    `<home>/.claude/projects/<id>/memory/<file>`. Home-anchored
+///    (tight): the `<home>` prefix matches case-sensitively and must
+///    be followed by a segment boundary, while the
+///    `.claude/projects/<id>/memory/` structure matches
+///    ASCII-case-insensitively (macOS APFS is case-insensitive).
+///    Matches the `UNIVERSAL_ALLOW Read(~/.claude/projects/*/memory/*)`
+///    entry. A crafted path such as `/tmp/.claude/projects/x/memory/y`
+///    cannot masquerade as memory because it is not rooted at `<home>`.
+/// 2. **`/tmp/` scratch** — a path whose ASCII-lowercased form begins
+///    with `/tmp/` and whose extension (ASCII-lowercased) is in
+///    `APPROVED_TMP_EXTENSIONS`. Extensionless and unapproved-extension
+///    `/tmp` paths return `false`.
+///
+/// Everything else out-of-project (plugin cache, arbitrary paths)
+/// returns `false` so the caller fail-closes the gate — the deliberate
+/// asymmetry from the loose out-of-worktree block, because an
+/// over-broad allow re-opens the native prompt this gate exists to
+/// suppress.
+///
+/// `home` is the env-var-derived `$HOME`. An empty or non-absolute
+/// `home` early-returns `false` per
+/// `.claude/rules/external-input-path-construction.md` item #5 — an
+/// unset or relative `HOME` would otherwise build a cwd-relative
+/// memory prefix that resolves against the worktree root, letting an
+/// in-worktree `.claude/projects/<id>/memory/...` masquerade as the
+/// approved surface. A `file_path` containing a NUL byte also
+/// fail-closes (a NUL truncates the path in syscalls).
+///
+/// Pure string operations only — no `Path` construction or filesystem
+/// reads on `file_path` (untrusted model output) per the same rule.
+pub fn is_approved_out_of_project_path(file_path: &str, home: &str) -> bool {
+    if home.is_empty() || !home.starts_with('/') {
+        return false;
+    }
+    if file_path.contains('\0') {
+        return false;
+    }
+
+    // Class 1: home-anchored auto-memory directory. The `<home>` prefix
+    // is case-sensitive (a different-cased home on a case-sensitive FS
+    // is a different location native would not allow); the structural
+    // segments are case-insensitive.
+    if let Some(rest) = file_path.strip_prefix(home) {
+        if let Some(rest) = rest.strip_prefix('/') {
+            let comps: Vec<&str> = rest.split('/').collect();
+            if comps.len() >= 5
+                && comps[0].eq_ignore_ascii_case(".claude")
+                && comps[1].eq_ignore_ascii_case("projects")
+                && !comps[2].is_empty()
+                && comps[3].eq_ignore_ascii_case("memory")
+                && !comps[4].is_empty()
+            {
+                return true;
+            }
+        }
+    }
+
+    // Class 2: /tmp/ scratch with an approved extension. Prefix and
+    // extension are matched ASCII-case-insensitively.
+    let lower = file_path.to_ascii_lowercase();
+    if let Some(rest) = lower.strip_prefix("/tmp/") {
+        if let Some(dot) = rest.rfind('.') {
+            let ext = &rest[dot + 1..];
+            if !ext.is_empty() && APPROVED_TMP_EXTENSIONS.contains(&ext) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 /// Validate that `file_path` targets the worktree, not the main repo.
 ///
 /// Returns `(allowed, message)`.

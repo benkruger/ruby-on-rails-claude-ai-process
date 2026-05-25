@@ -5,7 +5,8 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 use flow_rs::hooks::validate_worktree_paths::{
-    detect_misplaced_flow_states, get_file_path, is_shared_config, validate, validate_shared_config,
+    detect_misplaced_flow_states, get_file_path, is_approved_out_of_project_path, is_shared_config,
+    validate, validate_shared_config, APPROVED_TMP_EXTENSIONS,
 };
 use serde_json::json;
 
@@ -286,6 +287,252 @@ fn autonomous_strict_still_allows_paths_outside_project_root_documents_residual_
         allowed,
         "paths outside project_root remain allowed at this layer; got msg={}",
         msg
+    );
+}
+
+// --- is_approved_out_of_project_path tests ---
+
+// Class 1: home-anchored auto-memory directory.
+
+#[test]
+fn approved_oop_memory_path_under_valid_home_is_allowed() {
+    assert!(is_approved_out_of_project_path(
+        "/Users/ben/.claude/projects/abc123/memory/MEMORY.md",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_memory_path_case_variant_is_allowed() {
+    // macOS APFS is case-insensitive — the .claude/projects/.../memory
+    // structure matches regardless of case so a case-variant path
+    // resolves to the same inode native already allows.
+    assert!(is_approved_out_of_project_path(
+        "/Users/ben/.CLAUDE/Projects/abc123/Memory/notes.md",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_memory_path_under_empty_home_is_blocked() {
+    // Env-var validator: an empty $HOME fails closed before any memory
+    // prefix is built.
+    assert!(!is_approved_out_of_project_path(
+        "/Users/ben/.claude/projects/abc123/memory/MEMORY.md",
+        ""
+    ));
+}
+
+#[test]
+fn approved_oop_memory_path_under_relative_home_is_blocked() {
+    // A relative $HOME (no leading slash) fails closed — otherwise it
+    // would resolve cwd-relative against the worktree root.
+    assert!(!is_approved_out_of_project_path(
+        "relative/dir/.claude/projects/abc123/memory/MEMORY.md",
+        "relative/dir"
+    ));
+}
+
+#[test]
+fn approved_oop_memory_shaped_path_not_under_home_is_blocked() {
+    // A /tmp path shaped like the memory dir but NOT rooted at <home>
+    // must not be allowed (tight allow — home-anchored).
+    assert!(!is_approved_out_of_project_path(
+        "/tmp/.claude/projects/x/memory/y",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_memory_prefix_substring_of_longer_home_is_blocked() {
+    // home="/Users/ben" must not match "/Users/benjamin/..." via a
+    // bare string prefix — the segment boundary after home is required.
+    assert!(!is_approved_out_of_project_path(
+        "/Users/benjamin/.claude/projects/abc/memory/MEMORY.md",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_memory_empty_id_segment_is_blocked() {
+    assert!(!is_approved_out_of_project_path(
+        "/Users/ben/.claude/projects//memory/MEMORY.md",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_memory_no_file_after_memory_is_blocked() {
+    // A directory-only memory path (trailing slash, no file) is not an
+    // approved file target.
+    assert!(!is_approved_out_of_project_path(
+        "/Users/ben/.claude/projects/abc/memory/",
+        "/Users/ben"
+    ));
+}
+
+// Class 2: /tmp/ scratch with an approved extension (one assertion per
+// extension to satisfy per-branch coverage of the extension set).
+
+#[test]
+fn approved_oop_tmp_txt_is_allowed() {
+    assert!(is_approved_out_of_project_path(
+        "/tmp/scratch.txt",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_tmp_diff_is_allowed() {
+    assert!(is_approved_out_of_project_path(
+        "/tmp/scratch.diff",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_tmp_patch_is_allowed() {
+    assert!(is_approved_out_of_project_path(
+        "/tmp/scratch.patch",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_tmp_md_is_allowed() {
+    assert!(is_approved_out_of_project_path(
+        "/tmp/scratch.md",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_tmp_json_is_allowed() {
+    assert!(is_approved_out_of_project_path(
+        "/tmp/scratch.json",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_tmp_jsonl_is_allowed() {
+    assert!(is_approved_out_of_project_path(
+        "/tmp/scratch.jsonl",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_tmp_case_variant_is_allowed() {
+    // /TMP/X.MD resolves to the same inode as /tmp/x.md on a
+    // case-insensitive filesystem.
+    assert!(is_approved_out_of_project_path("/TMP/X.MD", "/Users/ben"));
+}
+
+#[test]
+fn approved_oop_tmp_unapproved_extension_is_blocked() {
+    assert!(!is_approved_out_of_project_path(
+        "/tmp/scratch.csv",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_tmp_no_extension_is_blocked() {
+    assert!(!is_approved_out_of_project_path(
+        "/tmp/scratch",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_tmp_directory_only_is_blocked() {
+    // The bare "/tmp/" prefix with no file segment has no extension.
+    assert!(!is_approved_out_of_project_path("/tmp/", "/Users/ben"));
+}
+
+#[test]
+fn approved_oop_tmp_doubled_slash_is_allowed() {
+    // /tmp//x.md normalizes to /tmp/x.md at the FS layer; allowing it
+    // matches the native same-inode resolution.
+    assert!(is_approved_out_of_project_path(
+        "/tmp//scratch.md",
+        "/Users/ben"
+    ));
+}
+
+// Everything else out-of-project is fail-closed.
+
+#[test]
+fn approved_oop_plugin_cache_is_blocked() {
+    // The plugin cache is deliberately NOT in the approved surface —
+    // an active flow has no reason to reach plugin source.
+    assert!(!is_approved_out_of_project_path(
+        "/Users/ben/.claude/plugins/cache/flow/0.28.5/skills/flow-code/SKILL.md",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_arbitrary_path_is_blocked() {
+    assert!(!is_approved_out_of_project_path(
+        "/Users/x/other/file.rs",
+        "/Users/ben"
+    ));
+}
+
+#[test]
+fn approved_oop_nul_byte_path_is_blocked() {
+    // Embedded NUL fails closed — a NUL truncates the path in syscalls.
+    assert!(!is_approved_out_of_project_path(
+        "/tmp/x\0.md",
+        "/Users/ben"
+    ));
+}
+
+// --- APPROVED_TMP_EXTENSIONS drift contract ---
+
+/// Named regression: a `/tmp` extension added to `UNIVERSAL_ALLOW`
+/// (the native-permission allow-list in `src/prime_check.rs`) but NOT
+/// to `APPROVED_TMP_EXTENSIONS` would re-open a native permission
+/// prompt for that extension during an active flow — exactly the hang
+/// the out-of-project gate exists to prevent. The named consumer is
+/// `is_approved_out_of_project_path`, whose `/tmp` class is only safe
+/// while its extension set equals the native allow-list's.
+///
+/// The two sources cannot share a single `const` (UNIVERSAL_ALLOW
+/// entries are full permission strings like `Read(//tmp/*.md)`), so
+/// this test extracts the `/tmp` extensions from UNIVERSAL_ALLOW at
+/// test time and asserts set-equality with APPROVED_TMP_EXTENSIONS.
+#[test]
+fn approved_tmp_extensions_match_universal_allow() {
+    use flow_rs::prime_check::UNIVERSAL_ALLOW;
+    use std::collections::BTreeSet;
+
+    let marker = "//tmp/*.";
+    let mut from_allow: BTreeSet<String> = BTreeSet::new();
+    for entry in UNIVERSAL_ALLOW {
+        if let Some(idx) = entry.find(marker) {
+            let after = &entry[idx + marker.len()..];
+            if let Some(close) = after.find(')') {
+                let ext = &after[..close];
+                if !ext.is_empty() {
+                    from_allow.insert(ext.to_ascii_lowercase());
+                }
+            }
+        }
+    }
+
+    let from_const: BTreeSet<String> = APPROVED_TMP_EXTENSIONS
+        .iter()
+        .map(|e| e.to_ascii_lowercase())
+        .collect();
+
+    assert_eq!(
+        from_allow, from_const,
+        "APPROVED_TMP_EXTENSIONS must equal the /tmp extensions in \
+         UNIVERSAL_ALLOW (src/prime_check.rs). Drift re-opens a native \
+         permission prompt for the missing extension during an active flow."
     );
 }
 

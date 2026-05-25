@@ -112,7 +112,7 @@ Module-level doc comments in `src/*.rs` describe each file's purpose. Discover v
 
 Permanent on-main artifacts that future-session readers should know about by name + one-line purpose. Architecture detail lives in each artifact's module doc comment.
 
-- `src/hooks/agent_prompt_scan.rs` — scans Agent tool prompts for out-of-worktree path tokens during active flows; blocks the Agent call before the sub-agent's Read would prompt the user (paired with the autonomous-flow-strict response shape in `validate-worktree-paths` for paths the hook already blocks; paths outside `project_root` remain in Claude Code's permission jurisdiction).
+- `src/hooks/agent_prompt_scan.rs` — scans Agent tool prompts for out-of-worktree path tokens during active flows and blocks the Agent call before a sub-agent Read would surface a permission prompt.
 
 ## Maintainer Skills (private to this repo)
 

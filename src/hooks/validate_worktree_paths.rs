@@ -1,20 +1,33 @@
 //! PreToolUse hook that validates file tool calls in FLOW worktrees.
 //!
-//! Two enforcement layers:
+//! Three enforcement layers:
 //! 1. **Worktree path redirection** — blocks file tool calls that target the
 //!    main repo when the working directory is inside a FLOW worktree, directing
 //!    the caller to use the worktree copy instead.
-//! 2. **Shared config protection** — blocks Edit/Write calls on shared
+//! 2. **Out-of-project fail-closed gate** — when the CWD is inside a worktree
+//!    (the flow-active proxy), a path outside `project_root` is allowed ONLY
+//!    if it falls in the small approved surface
+//!    (`is_approved_out_of_project_path`: `/tmp` scratch + auto-memory dir, a
+//!    deliberate subset of `UNIVERSAL_ALLOW`'s out-of-project entries). Every
+//!    other out-of-project path is blocked (exit 2, no prompt) so an
+//!    unattended autonomous flow never hangs on Claude Code's native
+//!    permission prompt for an out-of-project path.
+//! 3. **Shared config protection** — blocks Edit/Write calls on shared
 //!    configuration files (`.gitignore`, `Cargo.toml`, `.github/`, etc.) when
 //!    the CWD is inside a `.worktrees/` directory (the flow-active proxy).
 //!    Only Edit and Write tool names trigger the block — Read/Glob/Grep are
 //!    allowed so codebase exploration is not impacted. The block message
 //!    directs the caller to confirm with the user before proceeding.
 //!
+//! Block surfaces 1 and 2 emit a structured `..._in_autonomous` JSON envelope
+//! (`out_of_worktree_in_autonomous` / `out_of_bounds_in_autonomous`) when the
+//! active flow is autonomous, and a human-readable `BLOCKED:` prose message
+//! otherwise.
+//!
 //! Fires on Edit, Write, Read, Glob, and Grep tool calls.
 //!
 //! Exit 0 — allow (path is fine or not in a worktree)
-//! Exit 2 — block (path targets main repo, or shared config Edit/Write)
+//! Exit 2 — block (path targets main repo, out-of-project, or shared config Edit/Write)
 
 use std::path::Path;
 
@@ -293,6 +306,139 @@ fn sanitize_canonical_suffix(suffix: &str) -> String {
         .join("/")
 }
 
+/// Approved `/tmp/` file extensions for the out-of-project surface,
+/// matched ASCII-case-insensitively.
+///
+/// This list MUST equal the `/tmp` extensions in
+/// `crate::prime_check::UNIVERSAL_ALLOW` so the out-of-project gate
+/// only ever blocks a `/tmp` path that Claude Code's native
+/// permission system would itself have prompted on. The drift
+/// contract test
+/// `tests/hooks/validate_worktree_paths.rs::approved_tmp_extensions_match_universal_allow`
+/// pins the two sets equal — adding a `/tmp` extension to
+/// `UNIVERSAL_ALLOW` without adding it here re-opens a native prompt
+/// the gate is meant to suppress.
+pub const APPROVED_TMP_EXTENSIONS: &[&str] = &["txt", "diff", "patch", "md", "json", "jsonl"];
+
+/// Decide whether an out-of-project `file_path` falls in the small
+/// approved surface an active flow legitimately reaches. Returns
+/// `true` for exactly two classes:
+///
+/// 1. **`/tmp/` scratch** — a path whose collapsed, ASCII-lowercased
+///    form begins with `/tmp/` and whose extension (ASCII-lowercased)
+///    is in `APPROVED_TMP_EXTENSIONS`. This class is home-independent
+///    and is checked BEFORE the home guard so an unset or relative
+///    `$HOME` (CI/cron/launchd) does not suppress it. Extensionless
+///    and unapproved-extension `/tmp` paths return `false`. Matches
+///    the `/tmp` Read+Write entries in `UNIVERSAL_ALLOW`.
+/// 2. **Auto-memory dir** — a path rooted at
+///    `<home>/.claude/projects/<id>/memory/<file...>`. Home-anchored
+///    (tight): the `<home>` prefix matches case-sensitively and must
+///    be followed by a segment boundary, while the
+///    `.claude/projects/<id>/memory/` structure matches
+///    ASCII-case-insensitively (macOS APFS is case-insensitive). Any
+///    empty, `.`, or `..` segment fails closed so a memory-rooted
+///    path cannot escape via traversal. Matches the
+///    `Read(~/.claude/projects/*/memory/*)` entry in `UNIVERSAL_ALLOW`.
+///    A crafted path such as `/tmp/.claude/projects/x/memory/y` cannot
+///    masquerade as memory because it is not rooted at `<home>`.
+///
+/// The surface is a DELIBERATE SUBSET of `UNIVERSAL_ALLOW`'s
+/// out-of-project entries — the two path shapes a flow actually needs
+/// (its scratch files and its own memory). Everything else
+/// out-of-project (plugin cache, user rule files, arbitrary source
+/// paths) returns `false` so the caller fail-closes the gate.
+/// Over-blocking an out-of-project path is the safe direction: the
+/// model receives a recoverable exit-2 block instead of hanging on a
+/// native prompt. Over-allowing is the dangerous direction (it
+/// re-opens the prompt), so the surface stays narrow.
+///
+/// The check is path-shaped (tool-agnostic): it gates on the path, not
+/// the tool. The `UNIVERSAL_ALLOW` memory entry is Read-only, so an
+/// Edit/Write to the memory dir is outside what the native system
+/// grants silently; the gate does not specially gate that case — such
+/// a write is left to the native permission system to resolve.
+///
+/// `home` is the env-var-derived `$HOME`. An empty or non-absolute
+/// `home` fails the memory class closed (the `/tmp` class is reached
+/// first and is home-independent) per
+/// `.claude/rules/external-input-path-construction.md` item #5 — a
+/// relative `HOME` would otherwise build a cwd-relative memory prefix
+/// that resolves against the worktree root, letting an in-worktree
+/// `.claude/projects/<id>/memory/...` masquerade as the approved
+/// surface. A trailing-slash `home` names the same directory and is
+/// normalized before the prefix comparison. A `file_path` containing
+/// a NUL byte fails closed (a NUL truncates the path in syscalls).
+///
+/// Pure string operations only — no `Path` construction or filesystem
+/// reads on `file_path` (untrusted model output) per the same rule.
+pub fn is_approved_out_of_project_path(file_path: &str, home: &str) -> bool {
+    // A NUL byte truncates the path in syscalls; fail closed before any
+    // matching runs.
+    if file_path.contains('\0') {
+        return false;
+    }
+
+    // Doubled slashes resolve to the same path at the FS layer, so
+    // normalize once up front and match every class against the
+    // collapsed form. This keeps the two approved classes consistent —
+    // a doubled-slash memory path is treated the same as the
+    // single-slash form, the way the /tmp class already accepts
+    // `/tmp//x.md`.
+    let normalized = collapse_double_slashes(file_path);
+
+    // Class 1: /tmp/ scratch with an approved extension. Home-independent,
+    // so it is checked BEFORE the home guard below — an unset or relative
+    // $HOME must not suppress an approved /tmp path the native permission
+    // system grants regardless of $HOME. Prefix and extension are matched
+    // ASCII-case-insensitively.
+    let lower = normalized.to_ascii_lowercase();
+    if let Some(rest) = lower.strip_prefix("/tmp/") {
+        if let Some(dot) = rest.rfind('.') {
+            let ext = &rest[dot + 1..];
+            if !ext.is_empty() && APPROVED_TMP_EXTENSIONS.contains(&ext) {
+                return true;
+            }
+        }
+    }
+
+    // The remaining class is home-anchored, so it needs a valid absolute
+    // $HOME. Empty/relative fails closed (a relative $HOME would resolve
+    // cwd-relative against the worktree root). A trailing-slash $HOME
+    // names the same directory, so strip it before the prefix comparison
+    // rather than failing the segment-boundary check.
+    if home.is_empty() || !home.starts_with('/') {
+        return false;
+    }
+    let home = home.strip_suffix('/').unwrap_or(home);
+
+    // Class 2: home-anchored auto-memory directory. The `<home>` prefix
+    // is case-sensitive (a different-cased home on a case-sensitive FS
+    // is a different location native would not allow); the structural
+    // segments are case-insensitive. Any empty, `.`, or `..` segment
+    // fails closed so a memory-rooted path cannot escape via traversal.
+    if let Some(rest) = normalized.strip_prefix(home) {
+        if let Some(rest) = rest.strip_prefix('/') {
+            let comps: Vec<&str> = rest.split('/').collect();
+            if comps
+                .iter()
+                .any(|c| c.is_empty() || *c == "." || *c == "..")
+            {
+                return false;
+            }
+            if comps.len() >= 5
+                && comps[0].eq_ignore_ascii_case(".claude")
+                && comps[1].eq_ignore_ascii_case("projects")
+                && comps[3].eq_ignore_ascii_case("memory")
+            {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 /// Validate that `file_path` targets the worktree, not the main repo.
 ///
 /// Returns `(allowed, message)`.
@@ -304,7 +450,29 @@ fn sanitize_canonical_suffix(suffix: &str) -> String {
 /// false match) and the empty-branch edge case (cwd ending exactly in
 /// `.worktrees/` returns `None` — treat as "not in a worktree" and
 /// allow). See `compute_worktree_paths` doc for the full branch table.
-pub fn validate(file_path: &str, cwd: &str) -> (bool, String) {
+///
+/// Two block surfaces produce an `..._in_autonomous` JSON envelope when
+/// the active flow is configured for autonomous execution, and a
+/// human-readable `BLOCKED:` prose message otherwise:
+///
+/// - **Out-of-project** (`file_path` not under `project_root`) —
+///   fail-closed during an active flow. The path is allowed only if it
+///   falls in the small approved surface
+///   (`is_approved_out_of_project_path`: auto-memory dir + `/tmp`
+///   scratch); otherwise it is blocked so an unattended autonomous
+///   flow never hangs on a native permission prompt for an
+///   out-of-project path. Autonomous envelope `reason` is
+///   `out_of_bounds_in_autonomous`. `home` is the env-var-derived
+///   `$HOME`, resolved in `run_impl_main`; an empty/relative `home`
+///   makes the approved-memory class fail closed.
+/// - **Out-of-worktree** (`file_path` under `project_root` but outside
+///   the worktree) — the existing main-repo redirect. Autonomous
+///   envelope `reason` is `out_of_worktree_in_autonomous`.
+///
+/// `validate_claude_paths.rs` is deliberately NOT extended for either
+/// surface per the plan's Mirror-Pattern Audit — its fail-closed
+/// posture and protected-path scope differ from this hook.
+pub fn validate(file_path: &str, cwd: &str, home: &str) -> (bool, String) {
     if file_path.is_empty() {
         return (true, String::new());
     }
@@ -314,10 +482,44 @@ pub fn validate(file_path: &str, cwd: &str) -> (bool, String) {
         None => return (true, String::new()), // not in a worktree
     };
 
-    // Paths outside the project are always fine (~/.claude, /tmp, etc.)
+    // Out-of-project paths are fail-closed during an active flow (cwd
+    // inside a worktree is the only context this branch is reached). An
+    // unconditional allow here would defer to Claude Code's native
+    // permission system, which prompts — and an unattended autonomous
+    // flow hangs on the prompt forever. Allow only the small approved
+    // surface the native system already permits without a prompt
+    // (auto-memory dir + /tmp scratch); block everything else. The
+    // autonomous flow gets a structured envelope it can classify; a
+    // manual flow gets the human-readable BLOCKED prose.
     let prefix = format!("{}/", project_root);
     if !file_path.starts_with(&prefix) {
-        return (true, String::new());
+        if is_approved_out_of_project_path(file_path, home) {
+            return (true, String::new());
+        }
+        let branch = Path::new(worktree_root)
+            .file_name()
+            .and_then(|n| n.to_str());
+        if crate::flow_paths::is_autonomous_flow_active(Path::new(project_root), branch) {
+            let envelope = serde_json::json!({
+                "status": "error",
+                "reason": "out_of_bounds_in_autonomous",
+                "blocked_path": file_path,
+                "worktree": worktree_root,
+                "autonomous": true,
+            });
+            return (false, envelope.to_string());
+        }
+        return (
+            false,
+            format!(
+                "BLOCKED: {} is outside the active flow's project root {}. \
+                 An active flow's surface is the worktree plus \
+                 .flow-states/ and the approved memory + /tmp scratch \
+                 surface; out-of-project paths are otherwise refused so \
+                 the flow never hangs on a native permission prompt.",
+                file_path, project_root
+            ),
+        );
     }
 
     // Reject worktree-internal `.flow-states/` writes BEFORE the
@@ -367,16 +569,12 @@ pub fn validate(file_path: &str, cwd: &str) -> (bool, String) {
     // this hook use a `BLOCKED:` prose prefix). Default
     // (non-autonomous-flow) behavior unchanged.
     //
-    // Residual gap: this branch fires ONLY when the path is inside
-    // `project_root` but outside the worktree (the existing block
-    // path). Paths outside `project_root` (~/.config, /tmp, etc.)
-    // are allowed by validate() earlier and stay outside this
-    // hook's jurisdiction — see the `paths outside the project are
-    // always fine` branch above and the residual-gap negative test.
+    // This branch fires when the path is inside `project_root` but
+    // outside the worktree. Paths outside `project_root` entirely are
+    // handled by the fail-closed out-of-project gate above (allowed
+    // only for the approved memory + /tmp surface), so both surfaces
+    // are now covered during an active flow.
     //
-    // `validate_claude_paths.rs` is deliberately NOT extended here
-    // per the plan's Mirror-Pattern Audit — its fail-closed
-    // posture and protected-path scope differ from this hook.
     // `worktree_root` is the canonical `<main_root>/.worktrees/<branch>/`
     // path resolved upstream by `compute_worktree_root`. The basename
     // (`file_name`) of that path is the branch — derived structurally
@@ -433,7 +631,12 @@ fn run_impl_main(hook_input: Option<Value>, cwd: Option<String>) -> (i32, Option
         None => return (0, None),
     };
 
-    let (allowed, message) = validate(&file_path, &cwd);
+    // Env-var-derived $HOME for the out-of-project approved-memory
+    // class. An unset HOME yields an empty string, which
+    // `is_approved_out_of_project_path` treats as fail-closed.
+    let home = std::env::var("HOME").unwrap_or_default();
+
+    let (allowed, message) = validate(&file_path, &cwd, &home);
     if !allowed {
         return (2, Some(message));
     }

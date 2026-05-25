@@ -63,6 +63,48 @@ environment — must explicitly neutralize these surfaces:
      `*.profraw` pattern plus `bin/test`'s `default_*.profraw`
      sweep)
 
+## Working Directory Isolation
+
+Environment neutralization (above) controls what the child reads
+from the environment. The child's **working directory** is a
+second leak surface: a spawned FLOW binary resolves the active
+branch — and therefore the `.flow-states/<branch>/state.json` it
+reads — from its cwd. A subprocess test that does NOT set
+`.current_dir(...)` inherits the test runner's cwd (the real
+worktree), so the child resolves the REAL flow's branch and reads
+its live state file. When an in-flight field such as
+`_halt_pending` is set on that real state, a hook under test reads
+it and changes its decision (a halt gate blocks an
+otherwise-allowed call, for example), producing a failure that
+depends on the surrounding flow's state rather than on the test's
+fixture.
+
+This is the spawned-binary sibling of
+`.claude/rules/testing-gotchas.md` "Host Environment Leaks": that
+rule covers an in-process call to `current_branch()` /
+`project_root()`; this covers a spawned binary that runs the same
+resolution from its inherited cwd.
+
+### The Rule
+
+Every test that spawns a FLOW binary whose code path reads the
+state file — hook validators especially (`validate-skill`,
+`validate-ask-user`, `validate-pretool`, `validate-worktree-paths`,
+`stop_*`) — MUST set `.current_dir(fixture_root)` to a directory
+that does NOT resolve to an active flow: either a plain tempdir
+(no `.flow-states/` entry for the resolved branch) or a fixture
+worktree with a state file the test controls. Inheriting the
+runner's cwd is forbidden — it couples the test's outcome to
+whatever flow happens to be active when CI runs.
+
+### How to Apply
+
+When writing or reviewing a subprocess test that spawns a FLOW
+binary, confirm `.current_dir(...)` points at a fixture. The
+symptom of the missing call is a test that passes in isolation
+and on a fresh flow but fails mid-flow when an in-flight state
+field is set; the fix is to add `.current_dir(fixture_root)`.
+
 ## Canonical Helper Pattern
 
 Every test file that spawns the binary should define a
@@ -102,7 +144,7 @@ reaches, and neutralize exactly those:
 | `bin/flow issue`, `close-issue`, `close-issues`, `link-blocked-by`, `auto-close-parent`, `label-issues` | `gh` CLI → GitHub API | `GH_TOKEN=invalid`, `HOME=<tempdir>` |
 | `bin/flow notify-slack` | Slack webhook POST | `env_remove("SLACK_WEBHOOK_URL")`, `env_remove("SLACK_BOT_TOKEN")` |
 | `bin/flow ci`, `build`, `test`, `lint`, `format` | recursion guard | `env_remove("FLOW_CI_RUNNING")` |
-| `bin/flow hook <name>` | state file reads, stdin | `HOME=<tempdir>` if the hook might read ~/.config |
+| `bin/flow hook <name>` | state file reads, stdin | `HOME=<tempdir>` if the hook might read ~/.config; `.current_dir(fixture)` so the hook resolves a fixture branch/state, not the real worktree (see "Working Directory Isolation") |
 
 ## Plan-Phase Trigger
 

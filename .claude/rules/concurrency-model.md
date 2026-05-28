@@ -174,20 +174,25 @@ sits — a sibling tempdir, a monorepo subdirectory of the
 integration trunk, or another feature-branch worktree all see
 the gate fire on the correct destination.
 
-Both `finalize_commit::run_impl` and
-`match_finalize_commit_destination` reach the route-to-root
-decision through the shared
-`crate::flow_paths::finalize_commit_destination` helper, so the
-hook and the binary agree on the commit destination by
-construction rather than by a maintained convention. That helper
-normalizes the branch via `normalize_gate_input` per
-`.claude/rules/security-gates.md` "Normalize Before Comparing",
-so case- or whitespace-variant branch args (`MAIN`, `  main  `)
-still match the integration-branch check. On the
-`default_branch_in` error path the helper routes to the
+`match_finalize_commit_destination` reaches the route-to-root
+decision through the `crate::flow_paths::finalize_commit_destination`
+helper — a pure `branch == integration` comparison. The binary
+(`finalize_commit::run_impl`) resolves its commit cwd separately,
+from git's actual checkout location via
+`crate::git::resolve_worktree_for_branch`; the two are different code
+paths yet agree on the route-to-root case by construction: a trunk
+commit (`branch == integration`) is, per git, checked out at the
+project root, so the binary commits there exactly where the hook
+gates it, and a feature branch is never the integration branch, so
+committing where git has it checked out can never be a disguised
+trunk commit. `finalize_commit_destination` normalizes the branch
+via `normalize_gate_input` per `.claude/rules/security-gates.md`
+"Normalize Before Comparing", so case- or whitespace-variant branch
+args (`MAIN`, `  main  `) still match the integration-branch check.
+On the `default_branch_in` error path the helper routes to the
 per-branch worktree (never the project root) and
-`match_finalize_commit_destination` returns no-block, so neither
-side treats an undetectable-integration commit as a trunk
+`match_finalize_commit_destination` returns no-block, so the hook
+never treats an undetectable-integration commit as a trunk
 destination.
 
 For every other shape — `git commit`, `git -C <path> commit`,

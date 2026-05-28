@@ -27,13 +27,15 @@
 //!   match the rightmost occurrence so a project path containing
 //!   `.worktrees/` as a non-marker component does not produce a false
 //!   match.
-//! - `finalize_commit_destination` — decides whether a
-//!   finalize-commit git operation runs at the project root (an
-//!   integration-branch / bootstrap commit) or in the per-branch
-//!   worktree (everything else). Called by both
-//!   `src/finalize_commit.rs::run_impl` and the Layer 10 commit
-//!   gate so the binary's commit cwd and the hook's block decision
-//!   agree by construction on the route-to-root case.
+//! - `finalize_commit_destination` — the Layer 10 commit gate's pure
+//!   `branch == integration` predicate: returns the project root for
+//!   an integration-branch / bootstrap commit and the per-branch
+//!   worktree for everything else. This is the hook's block decision
+//!   only — it is not the finalize-commit binary's physical router,
+//!   which resolves the commit cwd from git's actual checkout location
+//!   via `crate::git::resolve_worktree_for_branch`. The two agree on
+//!   the route-to-root case because a trunk commit is, per git,
+//!   checked out at the project root.
 //!
 //! `FlowPaths` also exposes `flow_states_dir()` for callers that
 //! already hold a branch-scoped instance and incidentally need the
@@ -491,8 +493,9 @@ pub fn compute_worktree_root(cwd: &str) -> Option<&str> {
     compute_worktree_paths(cwd).map(|(_, worktree_root)| worktree_root)
 }
 
-/// Decide which directory a finalize-commit git operation runs in
-/// for `branch`, given the project `root`.
+/// The Layer 10 commit gate's block predicate: would a finalize-commit
+/// on `branch` land on the integration trunk (the project `root`), or
+/// on a per-branch worktree?
 ///
 /// The integration branch (the trunk the bootstrap skills —
 /// flow-start, flow-prime, flow-release — commit on) is checked out
@@ -500,6 +503,13 @@ pub fn compute_worktree_root(cwd: &str) -> Option<&str> {
 /// its per-branch `<root>/.worktrees/<branch>/` worktree. This
 /// helper returns the project root for an integration-branch commit
 /// and the per-branch worktree for everything else.
+///
+/// This answers a question for the hook only — it is NOT the
+/// finalize-commit binary's physical router. `finalize_commit::run_impl`
+/// resolves its commit cwd from git's actual checkout location via
+/// `crate::git::resolve_worktree_for_branch`. This predicate exists so
+/// `match_finalize_commit_destination` can decide whether a commit on
+/// `branch` would target the trunk and therefore needs gating.
 ///
 /// The ONLY route-to-root case is: `crate::git::default_branch_in(root)`
 /// is `Ok(integration)` AND `branch` normalizes equal to
@@ -511,46 +521,35 @@ pub fn compute_worktree_root(cwd: &str) -> Option<&str> {
 /// clone, non-git dir) — routes to the per-branch worktree. The
 /// `Err` case deliberately does NOT route to the project root: when
 /// git cannot detect the integration branch there is no basis to
-/// treat the commit as an integration-branch destination, so the
-/// pre-existing per-branch worktree routing is preserved (a
-/// non-existent worktree then trips finalize-commit's
-/// working-tree-dirty gate, which is the safe refusal, not a commit
-/// onto the trunk).
+/// treat the commit as an integration-branch destination.
 ///
-/// Hook/binary agreement (the "cannot drift" invariant) holds for a
-/// precise reason, not because both processes resolve the same root:
+/// Hook/binary agreement (the "cannot drift" invariant) holds even
+/// though only the hook calls this helper:
 ///
-/// - **Ok arm.** Both `src/finalize_commit.rs::run_impl` and
-///   `src/hooks/validate_pretool.rs::match_finalize_commit_destination`
-///   reach the route-to-root decision through this same pure
-///   branch-vs-integration string comparison, which is independent
-///   of how each process resolved `root`. They agree by
-///   construction.
-/// - **Err arm.** The hook returns `None` (no block) on
-///   `default_branch_in` error *before* it calls this helper
-///   (`match_finalize_commit_destination`'s
-///   `default_branch_in(main_root).ok()?`). This helper never
-///   returns the project root on the `Err` path. Neither side
-///   treats an `Err`-state commit as an integration-branch
-///   destination, so the root-sensitive `worktree.is_dir()` probe
-///   the prior implementation used — and the hook/binary divergence
-///   it produced — is gone.
+/// - **Trunk commit.** When `branch == integration`, git has the
+///   trunk checked out at the project root, so
+///   `resolve_worktree_for_branch` routes the binary's commit to the
+///   root — exactly the destination this predicate flags for the
+///   hook's block decision.
+/// - **Feature commit.** A feature branch is never the integration
+///   branch, so this predicate never flags it as a trunk destination;
+///   the binary commits wherever git has the feature branch checked
+///   out (the repo root or a worktree), which can never be a disguised
+///   trunk commit.
 ///
 /// `FlowPaths::is_valid_branch` is checked first as the
 /// path-construction boundary required by
 /// `.claude/rules/branch-path-safety.md`: an empty / `.` / `..` /
 /// `/`- or `\0`-bearing branch must never be joined onto
-/// `.worktrees/`. Both production callers already validate upstream
-/// (`FlowPaths::try_new` in the binary,
-/// `extract_finalize_commit_branch_arg` via `is_valid_branch` in the
-/// hook), so an invalid branch is unreachable in production; the
-/// guard returns the project root (a non-escaping path the helper
-/// already returns for the integration case) rather than
-/// constructing a traversal-shaped worktree path.
+/// `.worktrees/`. The hook's caller validates upstream
+/// (`extract_finalize_commit_branch_arg` via `is_valid_branch`), so
+/// an invalid branch is unreachable in production; the guard returns
+/// the project root (a non-escaping path the helper already returns
+/// for the integration case) rather than constructing a
+/// traversal-shaped worktree path.
 ///
-/// Named production consumers (per
+/// Named production consumer (per
 /// `.claude/rules/docs-with-behavior.md`):
-/// `src/finalize_commit.rs::run_impl` (the commit cwd) and
 /// `src/hooks/validate_pretool.rs::match_finalize_commit_destination`
 /// (the Layer 10 integration-branch gate).
 pub fn finalize_commit_destination(root: &Path, branch: &str) -> PathBuf {

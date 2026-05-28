@@ -191,7 +191,11 @@ fn complete_merge(pr_number: i64, state_file: &str) -> Value {
             )) {
                 None => json!({"status": "merged", "pr_number": pr_number}),
                 Some(msg) => {
-                    if msg.contains("base branch policy") {
+                    // Case-fold the gh stderr before comparing per
+                    // `.claude/rules/security-gates.md` "Normalize Before
+                    // Comparing" — the message is external subprocess
+                    // output whose casing FLOW does not control.
+                    if msg.to_ascii_lowercase().contains("base branch policy") {
                         // `gh pr merge --squash` refused: a required
                         // GitHub check is failing or still pending. Carry
                         // the verbatim gh stderr as `message` and stop —

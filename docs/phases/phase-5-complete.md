@@ -162,7 +162,7 @@ The skill is safe to re-invoke (e.g., via `/loop 15s /flow:flow-complete`):
 | State file missing | Warns, infers from git, proceeds (confirms in manual mode) |
 | PR not open or merged | Hard block, does not proceed |
 
-Every operation inside `complete-finalize` (Step 6) is best-effort — if
+Every operation inside `complete-finalize` (Step 5) is best-effort — if
 one fails, continue to the next.
 
 ---
@@ -180,4 +180,4 @@ one fails, continue to the next.
 - Manual-mode merge requires a single-use confirmation marker — both merge
   surfaces consume it before the freshness check and structurally refuse the
   squash-merge without it, so a lost mode flag cannot merge unconfirmed
-- Steps 1-5 run from the worktree; Step 6 (finalize) runs from the project root
+- Steps 1-4 run from the worktree; Step 5 (finalize) runs from the project root

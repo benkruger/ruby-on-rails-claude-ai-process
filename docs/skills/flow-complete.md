@@ -88,7 +88,7 @@ file and exits cleanly.
 | State file missing | Warns, infers from git state, proceeds (confirms in manual mode) |
 | PR closed but not merged | Hard block, does not proceed |
 
-Every operation inside `complete-finalize` (Step 6) is best-effort. If
+Every operation inside `complete-finalize` (Step 5) is best-effort. If
 label removal or issue closing fails, it continues to cleanup. If the
 state file doesn't exist, it notes that and finishes.
 
@@ -104,6 +104,6 @@ state file doesn't exist, it notes that and finishes.
 - Manual-mode merge requires a single-use confirmation marker — both merge
   surfaces resolve the mode and structurally refuse the squash-merge
   without it, so a lost mode flag cannot merge unconfirmed
-- Steps 1-5 run from the worktree; Step 6 (finalize) runs from the project root
+- Steps 1-4 run from the worktree; Step 5 (finalize) runs from the project root
 - Merge is irreversible; branch and worktree deletion is handled by `complete-finalize`
 - If merge fails, stop and report — never retry with additional flags or elevated privileges

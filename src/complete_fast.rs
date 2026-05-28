@@ -288,7 +288,11 @@ fn freshness_and_merge(
                     })
                 }
                 Some(msg) => {
-                    if msg.contains("base branch policy") {
+                    // Case-fold the gh stderr before comparing per
+                    // `.claude/rules/security-gates.md` "Normalize Before
+                    // Comparing" — the message is external subprocess
+                    // output whose casing FLOW does not control.
+                    if msg.to_ascii_lowercase().contains("base branch policy") {
                         // `gh pr merge --squash` refused: a required
                         // GitHub check is failing or still pending. The
                         // verbatim gh stderr is the authority — surface

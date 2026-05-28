@@ -802,6 +802,33 @@ fn auto_path_base_branch_policy_returns_not_mergeable() {
 }
 
 #[test]
+fn auto_path_base_branch_policy_case_insensitive_returns_not_mergeable() {
+    // The not_mergeable classification case-folds the gh stderr per
+    // `.claude/rules/security-gates.md` "Normalize Before Comparing".
+    // A capitalized "Base branch policy" refusal must still classify
+    // as not_mergeable, not fall through to status:error.
+    let fx = setup("complete", "auto");
+    seed_ci_sentinel(&fx.repo, BRANCH);
+    let output = run_complete_fast(
+        &fx.repo,
+        Some(BRANCH),
+        &fx.flow_bin,
+        &fx.stubs,
+        &[
+            ("FAKE_MERGE_EXIT", "1"),
+            (
+                "FAKE_MERGE_STDERR",
+                "Base branch policy prohibits the merge",
+            ),
+        ],
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json = last_json_line(&stdout);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["path"], "not_mergeable");
+}
+
+#[test]
 fn freshness_status_up_to_date_merge_generic_failure_returns_error() {
     let fx = setup("complete", "auto");
     seed_ci_sentinel(&fx.repo, BRANCH);

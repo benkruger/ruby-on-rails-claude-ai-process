@@ -3,14 +3,16 @@
 //! Routing. Every git operation inside `run_impl` (working-tree-dirty
 //! check, CI sub-invocation, plan-deviation staged diff, the commit-
 //! pull-push sequence, and the tree-snapshot used to refresh the CI
-//! sentinel) runs against `commit_cwd`, which is derived from the
-//! explicit `<branch>` argument and the project root via
-//! `FlowPaths::worktree()`. This decouples the commit destination
-//! from the caller's process cwd: a caller invoking from a sibling
-//! tempdir, a monorepo subdirectory of the integration trunk, or
-//! another feature-branch worktree all see the commit land on the
-//! feature-branch worktree that flow-start created at
-//! `<project_root>/.worktrees/<branch>/`.
+//! sentinel) runs against `commit_cwd`, which is resolved from git's
+//! actual checkout location for the explicit `<branch>` argument via
+//! `crate::git::resolve_worktree_for_branch` (`git worktree list
+//! --porcelain`). This decouples the commit destination from the
+//! caller's process cwd AND from the branch name: a branch checked
+//! out at the project root commits at the root, a branch in a linked
+//! worktree commits in that worktree, and a branch checked out
+//! nowhere (or a git failure) returns a `resolve_cwd` error before
+//! any other git operation runs rather than committing to a guessed
+//! `<project_root>/.worktrees/<branch>/` path that may not exist.
 //!
 //! Two gates and a post-CI re-stage run before committing:
 //!
@@ -40,7 +42,8 @@
 //! Output (JSON to stdout):
 //!   Success:   {"status": "ok", "sha": "<commit-hash>", "pull_merged": <bool>}
 //!   Conflict:  {"status": "conflict", "files": ["file1.py", ...]}
-//!   Error:     {"status": "error", "step": "ci|restage|plan_deviation|commit|pull|push", "message": "..."}
+//!   Error:     {"status": "error", "step": "resolve_cwd|working_tree_dirty|ci|restage|plan_deviation|commit|pull|push", "message": "..."}
+//!              ("resolve_cwd" also carries "reason": "branch_not_checked_out" when the branch is checked out nowhere)
 
 use std::fs;
 
@@ -121,14 +124,15 @@ fn run_git_in_dir(
 /// compiled `bin/flow finalize-commit` binary for testing via real git
 /// fixtures and stubs. No closure-injection seam.
 ///
-/// `commit_cwd` is the worktree path derived from the branch argument
-/// by `run_impl` via `FlowPaths::worktree()`. Every git operation here
-/// runs against it, never against the caller's process cwd.
+/// `commit_cwd` is the checkout path `run_impl` resolved from git for
+/// the branch argument via `crate::git::resolve_worktree_for_branch`.
+/// Every git operation here runs against it, never against the
+/// caller's process cwd.
 ///
-/// All git calls `.expect()` on Ok because the working_tree_dirty gate
-/// in `run_impl` already proved git is alive by the time this function
-/// runs — its `git diff --quiet` call would have returned Err and
-/// emitted `step: "working_tree_dirty"` if git couldn't be located.
+/// All git calls `.expect()` on Ok because `resolve_worktree_for_branch`
+/// (the first git call in `run_impl`) already proved git is alive by
+/// the time this function runs — a missing git binary would have
+/// emitted `step: "resolve_cwd"` and returned before reaching here.
 /// `commit` still has a non-zero exit branch (the index produces an
 /// empty commit, the user's identity isn't configured, etc.); pull and
 /// push retain non-zero branches for legit error cases (merge conflict,
@@ -200,9 +204,9 @@ fn finalize_commit(message_file: &str, branch: &str, commit_cwd: &std::path::Pat
 /// tests). The git working directory for every operation here —
 /// working-tree-dirty check, CI sub-invocation, staged-diff capture,
 /// commit-pull-push sequence, and the sentinel tree snapshot — is
-/// `commit_cwd`, derived from `<root>` and `<args.branch>` via
-/// `FlowPaths::worktree()`. The caller's process cwd does not influence
-/// the commit destination.
+/// `commit_cwd`, resolved from git's checkout location for `<args.branch>`
+/// via `crate::git::resolve_worktree_for_branch`. The caller's process
+/// cwd does not influence the commit destination.
 ///
 /// Returns `Result<Value, String>` where `Ok` carries any JSON response
 /// including status-error payloads (CI failure, commit failure, etc.) and
@@ -227,22 +231,50 @@ pub fn run_impl(args: &Args, root: &std::path::Path) -> Result<Value, String> {
         }
     };
 
-    // Branch-derived routing destination. An integration-branch
-    // (bootstrap) commit runs at the project root, where the trunk is
-    // checked out and no `<root>/.worktrees/<integration>` directory
-    // exists; every other branch runs in its per-branch worktree.
-    // `finalize_commit_destination` owns the decision; the Layer 10
-    // hook reaches the route-to-root case through the same pure
-    // branch-vs-integration comparison, so the binary's commit
-    // destination and the hook's block decision agree by construction
-    // (see that helper's doc comment for the precise invariant — the
-    // hook's `default_branch_in().ok()?` short-circuit keeps the
-    // `Err` path off the root route on both sides). The validated
-    // branch passed through `FlowPaths::try_new` (above) cannot
-    // contain `/` or `\0`, so the joined worktree path stays inside
-    // `<root>/.worktrees/`. Every downstream git, CI, and snapshot
-    // call binds to this value rather than the caller's process cwd.
-    let commit_cwd = crate::flow_paths::finalize_commit_destination(root, &args.branch);
+    // Commit destination resolved from git's actual checkout location,
+    // not inferred from the branch name. `git worktree list --porcelain`
+    // reports where `branch` is checked out: the project root for a
+    // trunk or feature-at-root checkout, or a linked worktree path.
+    // Resolving from git — rather than assuming
+    // `<root>/.worktrees/<branch>` — handles a feature branch checked
+    // out at the repo root, where the assumed worktree path does not
+    // exist and the working-tree-dirty gate below would otherwise
+    // refuse the commit. A git failure (`Err`) or a branch checked out
+    // nowhere (`Ok(None)`) returns a structured `resolve_cwd` error
+    // before any other git operation runs — never a fail-open default
+    // path. Every downstream git, CI, and snapshot call binds to
+    // `commit_cwd` rather than the caller's process cwd.
+    //
+    // The Layer 10 commit-gate hook is unaffected by this resolution:
+    // it decides *whether* to block a trunk commit via a pure
+    // `branch == integration` comparison
+    // (`crate::flow_paths::finalize_commit_destination`), a question
+    // independent of the physical commit destination. A trunk commit
+    // is, per git, checked out at the root, so the binary commits
+    // exactly where the hook gates it; a feature branch is never the
+    // integration branch, so committing where git has it checked out
+    // can never be a disguised trunk commit.
+    let commit_cwd = match crate::git::resolve_worktree_for_branch(root, &args.branch) {
+        Ok(Some(path)) => path,
+        Ok(None) => {
+            return Ok(json!({
+                "status": "error",
+                "step": "resolve_cwd",
+                "reason": "branch_not_checked_out",
+                "message": format!(
+                    "Branch {:?} is not checked out in any worktree; cannot determine the commit destination.",
+                    &args.branch
+                ),
+            }));
+        }
+        Err(msg) => {
+            return Ok(json!({
+                "status": "error",
+                "step": "resolve_cwd",
+                "message": msg,
+            }));
+        }
+    };
 
     // Derive phase number from state file's current_phase for log prefixes.
     let pn = {
@@ -266,11 +298,16 @@ pub fn run_impl(args: &Args, root: &std::path::Path) -> Result<Value, String> {
     // non-empty so the user makes an explicit choice: `git add` to
     // commit the working-tree state or `git restore <file>` to drop
     // unstaged edits. See `.claude/rules/plan-commit-atomicity.md`.
-    let working_tree_dirty = match run_git_in_dir(&commit_cwd, &["diff", "--quiet"], LOCAL_TIMEOUT)
-    {
-        Ok((code, _, _)) => code != 0,
-        Err(_) => true,
-    };
+    //
+    // `resolve_worktree_for_branch` above already proved git is alive
+    // and `commit_cwd` is a real worktree git reported, so this
+    // `git diff --quiet` cannot fail to spawn — `.expect()` per
+    // `.claude/rules/testability-means-simplicity.md` (a missing git
+    // binary surfaces as `resolve_cwd` and returns before reaching
+    // here).
+    let (diff_code, _, _) = run_git_in_dir(&commit_cwd, &["diff", "--quiet"], LOCAL_TIMEOUT)
+        .expect("git located by resolve_worktree_for_branch");
+    let working_tree_dirty = diff_code != 0;
 
     // Enforce CI before committing. run_impl checks the sentinel first —
     // if CI already passed for this tree state, it noops instantly.

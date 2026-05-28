@@ -1,3 +1,27 @@
+//! Git subprocess wrappers. Each public function shells out to `git`
+//! and parses the result; the pure parsing helpers behind them are
+//! private and exercised through the public surface over real-git
+//! fixtures.
+//!
+//! Families:
+//!
+//! - `project_root` — locate the main repository root via
+//!   `git worktree list --porcelain` (three-layer split: run git →
+//!   `from_output` → `from_stdout`). Fails open to `"."`.
+//! - `current_branch` / `current_branch_in` — read the current branch
+//!   (`git branch --show-current`), with a `FLOW_SIMULATE_BRANCH`
+//!   override in the env-reading variant.
+//! - `default_branch_in` — resolve the integration branch from
+//!   `git symbolic-ref refs/remotes/origin/HEAD`. Returns `Err` when
+//!   git cannot name it rather than guessing a default.
+//! - `resolve_branch` / `resolve_branch_in` — pick which branch's
+//!   state file to use, honoring a `--branch` override.
+//! - `resolve_worktree_for_branch` — report where a branch is checked
+//!   out via `git worktree list --porcelain` (same three-layer split
+//!   as `project_root`), returning `Err` on git failure rather than a
+//!   fail-open default so callers can route a commit to git's actual
+//!   checkout location instead of inferring it from the branch name.
+
 use std::env;
 use std::io;
 use std::path::{Path, PathBuf};

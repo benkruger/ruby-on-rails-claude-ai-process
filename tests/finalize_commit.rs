@@ -443,6 +443,119 @@ fn happy_path_commit_pull_push_succeed() {
     assert!(!msg_path.exists());
 }
 
+// --- run_impl: git-based commit-destination resolution ---
+
+/// A feature branch checked out at the repo ROOT (not in a
+/// `.worktrees/<branch>/` worktree) must commit correctly. Resolving the
+/// destination from git's actual checkout location — rather than
+/// assuming `<root>/.worktrees/feat-at-root`, which does not exist for a
+/// root checkout — lands the commit at the repo root and proceeds past
+/// the working-tree-dirty gate to a clean commit.
+#[test]
+fn finalize_commit_routes_to_feature_branch_checked_out_at_repo_root() {
+    let (clone_dir, _bare_dir) = setup_integration_repo_with_ci();
+    let clone_path = clone_dir.path();
+    let clone_str = clone_path.to_str().unwrap();
+
+    // Check out a feature branch AT the repo root (no linked worktree).
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", clone_str, "checkout", "-b", "feat-at-root"])
+            .output()
+            .unwrap(),
+    );
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", clone_str, "push", "-u", "origin", "feat-at-root"])
+            .output()
+            .unwrap(),
+    );
+
+    fs::write(clone_path.join("feature.rs"), "fn main() {}\n").unwrap();
+    git_assert_ok(
+        &Command::new("git")
+            .args(["-C", clone_str, "add", "-A"])
+            .output()
+            .unwrap(),
+    );
+
+    let msg_path = clone_path.join(".flow-commit-msg");
+    fs::write(&msg_path, "Feature-at-root commit.").unwrap();
+
+    // The branch resolves to the repo root, so commit_cwd is the clone root.
+    write_ci_sentinel_for_worktree(clone_path, "feat-at-root", clone_path);
+
+    let args = Args {
+        message_file: msg_path.to_str().unwrap().to_string(),
+        branch: "feat-at-root".to_string(),
+    };
+    let result = run_impl(&args, clone_path).unwrap();
+    assert_eq!(result["status"], "ok", "got: {}", result);
+    assert!(!msg_path.exists());
+}
+
+/// When the branch is not checked out in any worktree, the resolver
+/// returns `Ok(None)` and run_impl emits a `resolve_cwd` error keyed
+/// `branch_not_checked_out` BEFORE the working-tree-dirty gate. The
+/// message names the branch and must NOT mention "unstaged changes",
+/// which would indicate a misroute into the working-tree-dirty gate
+/// against a nonexistent worktree path.
+#[test]
+fn finalize_commit_errors_when_branch_not_checked_out() {
+    let (clone_dir, _bare_dir) = setup_integration_repo_with_ci();
+    let clone_path = clone_dir.path();
+
+    let msg_path = clone_path.join(".flow-commit-msg");
+    fs::write(&msg_path, "Should not commit.").unwrap();
+
+    let args = Args {
+        message_file: msg_path.to_str().unwrap().to_string(),
+        branch: "never-checked-out".to_string(),
+    };
+    let result = run_impl(&args, clone_path).unwrap();
+    assert_eq!(result["status"], "error", "got: {}", result);
+    assert_eq!(result["step"], "resolve_cwd");
+    assert_eq!(result["reason"], "branch_not_checked_out");
+    let msg = result["message"].as_str().unwrap();
+    assert!(
+        msg.contains("never-checked-out"),
+        "message should name the branch: {}",
+        msg
+    );
+    assert!(
+        !msg.contains("unstaged changes"),
+        "message must not mention unstaged changes: {}",
+        msg
+    );
+}
+
+/// When git itself cannot resolve worktrees (here: `root` is not a git
+/// repository, so `git worktree list --porcelain` exits non-zero), the
+/// resolver returns `Err` and run_impl emits a `resolve_cwd` error with
+/// NO `branch_not_checked_out` reason — distinguishing a git failure
+/// from a legitimately-absent branch.
+#[test]
+fn finalize_commit_errors_when_worktree_resolution_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+
+    let msg_path = root.join(".flow-commit-msg");
+    fs::write(&msg_path, "Should not commit.").unwrap();
+
+    let args = Args {
+        message_file: msg_path.to_str().unwrap().to_string(),
+        branch: "some-branch".to_string(),
+    };
+    let result = run_impl(&args, root).unwrap();
+    assert_eq!(result["status"], "error", "got: {}", result);
+    assert_eq!(result["step"], "resolve_cwd");
+    assert!(
+        result.get("reason").is_none(),
+        "Err arm must not set a reason field: {}",
+        result
+    );
+}
+
 // --- run_impl: branch-derived routing through worktree ---
 
 /// `run_impl` derives `commit_cwd` from `<branch>` + `<root>` via
@@ -1384,26 +1497,26 @@ fn test_beta() {
 
 /// A bootstrap commit runs on the integration branch checked out at
 /// the project root, where no `<root>/.worktrees/<integration>`
-/// directory ever exists. finalize-commit must route its git
-/// operations to the project root in that shape rather than to a
-/// nonexistent worktree. The fixture is a clone on `main` with
-/// `origin/HEAD` resolving to `main` and no `.worktrees/` directory;
-/// the staged tree is clean (index == working tree). The response
-/// must NOT be `step:"working_tree_dirty"` — the working-tree-dirty
-/// gate's `git diff --quiet` would error against a nonexistent
-/// worktree cwd, so a `working_tree_dirty` result here means the
-/// commit was misrouted away from the project root. Proceeding past
-/// the dirty gate (to the CI gate / a clean commit) proves the
-/// destination resolved to the project root.
+/// directory ever exists. `resolve_worktree_for_branch` reports the
+/// integration branch as checked out at the project root, so
+/// finalize-commit routes its git operations there and the commit
+/// proceeds past the working-tree-dirty gate. The fixture is a clone
+/// on `main` with no `.worktrees/` directory and a clean staged tree
+/// (index == working tree). The response must NOT be
+/// `step:"working_tree_dirty"`: that would mean the commit was
+/// misrouted to a directory whose tree differs from the root's.
+/// Proceeding past the dirty gate (to the CI gate / a clean commit)
+/// proves the destination resolved to the project root.
 #[test]
 fn finalize_commit_routes_to_root_when_no_worktree_exists_for_integration_branch() {
     let (clone_dir, _bare_dir) = setup_integration_repo_with_ci();
     let clone_path = clone_dir.path();
     let clone_str = clone_path.to_str().unwrap();
 
-    // Resolve refs/remotes/origin/HEAD -> main so default_branch_in
-    // returns "main" and the integration-branch arm of
-    // finalize_commit_destination matches the "main" branch arg.
+    // Set refs/remotes/origin/HEAD -> main for a realistic
+    // integration-branch fixture. The commit routes to the root
+    // because git reports `main` checked out there (resolved via
+    // `git worktree list --porcelain`), not because of origin/HEAD.
     git_assert_ok(
         &Command::new("git")
             .args(["-C", clone_str, "remote", "set-head", "origin", "main"])
@@ -1445,19 +1558,14 @@ fn finalize_commit_routes_to_root_when_no_worktree_exists_for_integration_branch
 
 // --- run_impl: commit-step error paths (via git stub) ---
 
-/// Commit spawn failure: with git absent from PATH, the compiled flow-rs
-/// subprocess fails to spawn `git commit`. `run_cmd_with_timeout` returns
-/// Err, which `finalize_commit` converts to a commit-error JSON via its
-/// Err arm. CI is bypassed via a sentinel matching the "no-git" snapshot
-/// (tree_snapshot hashes all-empty git outputs to a deterministic value
-/// the test pre-computes in an empty directory).
-/// PATH is empty so git can't be spawned. The working_tree_dirty
-/// gate's `git diff --quiet` call returns Err — covers the
-/// `Err(_) => true` arm of the gate's match. Result is
-/// `step: "working_tree_dirty"`. The CI gate and finalize_commit
-/// never run because the gate short-circuits before them.
+/// With git absent from PATH, `resolve_worktree_for_branch` (the first
+/// git call in `run_impl`) cannot spawn `git worktree list --porcelain`,
+/// so it returns `Err` and `run_impl` emits a `resolve_cwd` error before
+/// the working-tree-dirty gate, the CI gate, or `finalize_commit` ever
+/// run. The message file is preserved because the error returns before
+/// `finalize_commit` (the only step that removes it).
 #[test]
-fn git_unavailable_returns_working_tree_dirty() {
+fn git_unavailable_returns_resolve_cwd_error() {
     let (clone_dir, _bare_dir) = setup_integration_repo_with_ci();
     let clone_path = clone_dir.path();
 
@@ -1475,10 +1583,9 @@ fn git_unavailable_returns_working_tree_dirty() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json = last_json_line(&stdout);
     assert_eq!(json["status"], "error", "got: {}", json);
-    assert_eq!(json["step"], "working_tree_dirty");
-    // Message file is preserved on the working_tree_dirty path —
-    // the gate fires before finalize_commit() runs and only
-    // finalize_commit() removes the message file.
+    assert_eq!(json["step"], "resolve_cwd");
+    // Message file is preserved on the resolve_cwd path — the error
+    // returns before finalize_commit(), the only step that removes it.
     assert!(msg_path.exists());
 }
 

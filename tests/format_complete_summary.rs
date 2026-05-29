@@ -241,22 +241,19 @@ fn token_cost_section_with_null_phases_value_returns_empty() {
 // the delta is zero. See the plan-named tests below for the new
 // "section omitted only when every phase is pending" semantics.
 
-/// Phase has snapshots with cost but no token delta → the row is
-/// kept (the cost arm of the AND-skip branch fires false).
+/// Phase has a zero token delta (enter and complete carry identical
+/// per-model token counts) → cost is a priced `Some(0.0)` and the
+/// row still renders, because every non-pending phase produces a row.
 #[test]
-fn token_cost_section_with_cost_but_no_token_delta_renders_row() {
+fn token_cost_section_with_zero_token_delta_renders_row() {
     let mut state = all_complete_state();
-    let mut enter = snapshot_value("S1", 0, "claude-opus-4-7");
-    let mut complete = snapshot_value("S1", 0, "claude-opus-4-7");
-    // Force cost to differ between enter and complete while
-    // keeping every token counter at zero.
-    enter["session_cost_usd"] = json!(0.0);
-    complete["session_cost_usd"] = json!(0.50);
+    let enter = snapshot_value("S1", 0, "claude-opus-4-7");
+    let complete = snapshot_value("S1", 0, "claude-opus-4-7");
     state["phases"]["flow-code"]["window_at_enter"] = enter;
     state["phases"]["flow-code"]["window_at_complete"] = complete;
     let result = format_complete_summary(&state, None);
     assert!(result.summary.contains("Token Cost"));
-    assert!(result.summary.contains("$0.500") || result.summary.contains("$0.5"));
+    assert!(result.summary.contains("$0.000"));
 }
 
 /// Phases value missing from state → token_cost_section short-
@@ -347,24 +344,28 @@ fn token_cost_section_renders_header_when_any_phase_has_run() {
     );
 }
 
-/// A phase whose snapshots have `session_cost_usd: None` produces
-/// an em-dash row instead of `$0.000`. The pre-fix code rendered
-/// `$0.000` for both "no cost" and "computed zero cost", erasing
-/// the distinction.
+/// A phase whose per-phase `by_model_delta` references only an
+/// unpriced model produces an em-dash cost row instead of `$0.000`.
+/// Rendering `$0.000` for both "not priceable" and "computed zero
+/// cost" would erase the distinction; unknown cost renders as an
+/// em-dash. Cost is token-derived (`pricing::cost_for` over the
+/// by_model_delta), so an unpriced model is the way to drive the
+/// unknown-cost branch.
 #[test]
 fn token_cost_section_renders_em_dash_for_unknown_cost() {
     let mut state = all_complete_state();
-    let mut enter = snapshot_value("S1", 1, "claude-opus-4-7");
-    let mut complete = snapshot_value("S1", 5, "claude-opus-4-7");
-    enter["session_cost_usd"] = json!(null);
-    complete["session_cost_usd"] = json!(null);
+    // Non-`claude-` model → `pricing::price_for` returns None, so
+    // the by_model_delta is unpriceable and the cost column is
+    // unknown (em-dash) even though token deltas are present.
+    let enter = snapshot_value("S1", 1, "gpt-4o-unpriced");
+    let complete = snapshot_value("S1", 5, "gpt-4o-unpriced");
     state["phases"]["flow-code"]["window_at_enter"] = enter;
     state["phases"]["flow-code"]["window_at_complete"] = complete;
     let result = format_complete_summary(&state, None);
     assert!(result.summary.contains("Token Cost"));
     assert!(
         result.summary.contains("—"),
-        "em-dash placeholder must appear when cost data is unknown"
+        "em-dash placeholder must appear when cost is not priceable"
     );
 }
 
@@ -480,27 +481,25 @@ fn token_cost_section_total_marks_partial_when_any_unknown() {
     );
 }
 
-/// End-to-end render of the frozen statusline-cost pattern from
-/// issue #1447. When a phase's enter and complete snapshots
-/// share the same `session_cost_usd` AND the same `turn_count`,
-/// the cost source file was frozen across the boundary —
-/// `pair_delta` emits `None` so this renderer prints `—` instead
-/// of the misleading `$0.000`. The phase row falls through the
-/// `None` arm at `src/format_complete_summary.rs:179`, and the
-/// `* cost partial` footnote at `src/format_complete_summary.rs:223`
-/// appears because at least one phase contributed `None` cost.
+/// End-to-end render of an unpriced-cost phase. Cost is
+/// token-derived: a phase whose by_model delta carries an unknown
+/// model family cannot be priced, so `pair_delta` emits `None` and
+/// this renderer prints `—` instead of a fabricated `$0.000`. The
+/// phase row falls through the `None` cost arm in the Token Cost
+/// section, and the `* cost partial` footnote appears because at
+/// least one phase contributed `None` cost.
 #[test]
-fn format_complete_summary_renders_dash_for_frozen_cost_pattern() {
+fn format_complete_summary_renders_dash_for_unpriced_cost() {
     let mut state = all_complete_state();
-    // Code phase: real cost data — costs differ between enter and
-    // complete, so pair_delta returns Some(cost diff).
+    // Code phase: priced opus model — pair_delta returns Some(cost).
     add_phase_snapshots(&mut state, "flow-code", 0, 5);
-    // Review phase: frozen pattern — enter and complete share the
-    // same n, so session_cost_usd and turn_count match on both
-    // sides. pair_delta returns None for cost.
-    add_phase_snapshots(&mut state, "flow-review", 7, 7);
-    // Learn phase: frozen pattern — same shape as Review.
-    add_phase_snapshots(&mut state, "flow-learn", 9, 9);
+    // Review/Learn phases: an unpriced model family. The token delta
+    // is real (non-zero) but unprice-able, so pair_delta returns
+    // None for cost and the row renders `—`.
+    for phase in ["flow-review", "flow-learn"] {
+        state["phases"][phase]["window_at_enter"] = snapshot_value("S1", 7, "gpt-4o-unpriced");
+        state["phases"][phase]["window_at_complete"] = snapshot_value("S1", 12, "gpt-4o-unpriced");
+    }
 
     let result = format_complete_summary(&state, None);
 
@@ -578,6 +577,75 @@ fn compute_cost_breakdown_full_data_returns_all_five_phase_rows() {
     );
 }
 
+/// AC#5: every rendered row's cost equals its token delta priced
+/// through the pricing table, and the total equals the summed rows —
+/// compared within a float epsilon, never with `==` (prices are
+/// stored as $/token and re-multiplied, so binary float rounding
+/// makes exact equality unreliable). Locks the cost↔token
+/// reconciliation the token-derived cost source guarantees.
+#[test]
+fn compute_cost_breakdown_each_row_cost_matches_tokens_priced() {
+    use flow_rs::pricing::cost_for;
+    use flow_rs::state::ModelTokens;
+
+    // (phase key, rendered name, enter_n, complete_n). Each phase uses
+    // the single opus model from `add_phase_snapshots`, so its delta
+    // is ((Δn)*100 input, (Δn)*50 output) per `snapshot_value`.
+    let phases = [
+        ("flow-start", "Start", 0, 5),
+        ("flow-code", "Code", 5, 15),
+        ("flow-review", "Review", 15, 20),
+        ("flow-learn", "Learn", 20, 25),
+        ("flow-complete", "Complete", 25, 30),
+    ];
+    let mut state = all_complete_state();
+    for (key, _, a, b) in phases {
+        add_phase_snapshots(&mut state, key, a, b);
+    }
+    let breakdown = compute_cost_breakdown(&state).expect("breakdown");
+
+    for (_, name, a, b) in phases {
+        let dn = b - a;
+        let expected = cost_for(
+            "claude-opus-4-7",
+            &ModelTokens {
+                input: dn * 100,
+                output: dn * 50,
+                cache_create: 0,
+                cache_read: 0,
+            },
+        )
+        .expect("opus is priced");
+        let row = breakdown
+            .rows
+            .iter()
+            .find(|r| r.phase_name == name)
+            .unwrap_or_else(|| panic!("row for {name}"));
+        let got = row.cost.expect("priced row carries Some cost");
+        assert!(
+            (got - expected).abs() < 1e-9,
+            "{name}: rendered cost {got} must equal its tokens priced ({expected})"
+        );
+    }
+
+    // The total equals the summed per-row costs (epsilon, never ==).
+    let summed: f64 = breakdown.rows.iter().filter_map(|r| r.cost).sum();
+    assert!(
+        (breakdown.total_cost.expect("total") - summed).abs() < 1e-9,
+        "total must equal the summed rows"
+    );
+    // ...and equals the by-model aggregate re-priced through the table.
+    let agg: f64 = breakdown
+        .by_model
+        .iter()
+        .filter_map(|(m, t)| cost_for(m, t))
+        .sum();
+    assert!(
+        (breakdown.total_cost.expect("total") - agg).abs() < 1e-9,
+        "total must equal the by-model aggregate priced through the table"
+    );
+}
+
 /// Phases map is `{}` → no rows accumulate → return None.
 #[test]
 fn compute_cost_breakdown_returns_none_when_phases_empty() {
@@ -602,14 +670,15 @@ fn compute_cost_breakdown_returns_none_when_all_phases_pending() {
     assert!(compute_cost_breakdown(&state).is_none());
 }
 
-/// A phase whose enter snapshot has `session_cost_usd = null` produces
-/// a row with `cost = None` and flips `total_partial`.
+/// A phase whose by_model delta carries an unpriced model family
+/// produces a row with `cost = None` and flips `total_partial` —
+/// cost is token-derived, so an unknown model is the "cost unknown"
+/// signal that marks the total approximate.
 #[test]
 fn compute_cost_breakdown_marks_partial_when_cost_missing() {
     let mut state = all_complete_state();
-    let mut enter = snapshot_value("S1", 1, "claude-opus-4-7");
-    let complete = snapshot_value("S1", 5, "claude-opus-4-7");
-    enter["session_cost_usd"] = json!(null);
+    let enter = snapshot_value("S1", 1, "gpt-4o-unpriced");
+    let complete = snapshot_value("S1", 5, "gpt-4o-unpriced");
     state["phases"]["flow-code"]["window_at_enter"] = enter;
     state["phases"]["flow-code"]["window_at_complete"] = complete;
     // Drop the other phases so flow-code is the only contributor.

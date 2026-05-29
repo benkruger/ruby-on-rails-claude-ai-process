@@ -111,9 +111,12 @@ pub struct CostBreakdown {
 /// - Each phase whose `status` is not `"pending"` produces a row,
 ///   even when its delta is unknown — silent skip on parse error or
 ///   missing `window_at_enter` was the chief cause of the
-///   never-rendered Token Cost section. Unknown cost is `None`; the
-///   row is marked `row_partial` when the phase contributed without
-///   a complete cost-pair.
+///   never-rendered Token Cost section. Cost is token-derived
+///   (`window_deltas::phase_delta` prices the per-model token delta);
+///   it is `None` when the phase has no priceable per-model usage —
+///   no enter snapshot, an empty `by_model_delta`, or an unpriced
+///   model family. A `None`-cost row is marked `row_partial` so
+///   renderers flag the approximate total.
 /// - Returns `None` when no row accumulates (every phase is
 ///   `"pending"`, the `phases` map is empty, or no phase key
 ///   appears in `PHASE_ORDER`). Renderers omit the section in

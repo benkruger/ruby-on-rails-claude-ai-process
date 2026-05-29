@@ -9,59 +9,7 @@ use std::fs;
 
 use tempfile::TempDir;
 
-use flow_rs::session_cost::{cost_file_path, read_cost_file, read_monthly_aggregate};
-
-// --- read_cost_file ---
-
-/// Task 2: `read_cost_file` returns Some when present.
-#[test]
-fn session_cost_read_cost_file_returns_some_when_present() {
-    let tmp = TempDir::new().expect("tempdir");
-    let root = tmp.path().canonicalize().expect("canonicalize");
-    let path = root.join("session-cost");
-    fs::write(&path, "1.42").expect("write cost");
-    assert_eq!(read_cost_file(&path), Some(1.42));
-}
-
-/// Task 3: `read_cost_file` returns None when absent.
-#[test]
-fn session_cost_read_cost_file_returns_none_when_absent() {
-    let tmp = TempDir::new().expect("tempdir");
-    let root = tmp.path().canonicalize().expect("canonicalize");
-    let path = root.join("missing-cost");
-    assert_eq!(read_cost_file(&path), None);
-}
-
-/// Cost file with non-numeric content → None (fail-open).
-#[test]
-fn read_cost_file_returns_none_for_non_numeric_content() {
-    let tmp = TempDir::new().expect("tempdir");
-    let root = tmp.path().canonicalize().expect("canonicalize");
-    let path = root.join("cost");
-    fs::write(&path, "not-a-number").expect("write");
-    assert_eq!(read_cost_file(&path), None);
-}
-
-/// Cost file containing infinity → None (non-finite rejected to
-/// avoid corrupting downstream cost summaries).
-#[test]
-fn read_cost_file_returns_none_for_infinity() {
-    let tmp = TempDir::new().expect("tempdir");
-    let root = tmp.path().canonicalize().expect("canonicalize");
-    let path = root.join("cost");
-    fs::write(&path, "inf").expect("write");
-    assert_eq!(read_cost_file(&path), None);
-}
-
-/// Whitespace around the float value is trimmed before parsing.
-#[test]
-fn read_cost_file_trims_whitespace() {
-    let tmp = TempDir::new().expect("tempdir");
-    let root = tmp.path().canonicalize().expect("canonicalize");
-    let path = root.join("cost");
-    fs::write(&path, "  0.75  \n").expect("write");
-    assert_eq!(read_cost_file(&path), Some(0.75));
-}
+use flow_rs::session_cost::{cost_file_path, read_monthly_aggregate};
 
 // --- cost_file_path ---
 
@@ -165,6 +113,29 @@ fn read_monthly_aggregate_skips_corrupt_entries() {
     assert!((total - 5.00).abs() < 1e-9, "expected 5.00, got {}", total);
 }
 
+/// A finite-but-negative cost file is skipped, so a single corrupt
+/// or hostile entry cannot drive the month-to-date aggregate
+/// negative and bury every legitimate session's cost. Guards the
+/// `val >= 0.0` half of the finite-and-non-negative filter.
+#[test]
+fn read_monthly_aggregate_skips_negative_entries() {
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    let now = chrono::Local::now();
+    let year_month = now.format("%Y-%m").to_string();
+    let cost_dir = root.join(".claude").join("cost").join(&year_month);
+    fs::create_dir_all(&cost_dir).expect("mkdir");
+    fs::write(cost_dir.join("sid-real"), "5.00").expect("write real");
+    fs::write(cost_dir.join("sid-evil"), "-1000000.0").expect("write evil");
+
+    let total = read_monthly_aggregate(&root);
+    assert!(
+        (total - 5.00).abs() < 1e-9,
+        "negative entry must be skipped; expected 5.00, got {}",
+        total
+    );
+}
+
 /// Subdirectory inside the cost dir (e.g. a stray `.tmp/` folder)
 /// is read attempted as a file; `fs::read_to_string` fails and the
 /// entry is skipped without aborting the loop.
@@ -184,26 +155,6 @@ fn read_monthly_aggregate_skips_directory_entries() {
 }
 
 // --- byte cap ---
-
-/// Plant a cost file far larger than `COST_FILE_BYTE_CAP` whose
-/// leading bytes parse cleanly as a float. The take-bounded read
-/// completes against the cap rather than loading the entire file
-/// into memory; with space padding after the float, the trimmed
-/// truncated content still parses to the leading value. Proves
-/// the read terminates without OOM on a multi-megabyte file.
-#[test]
-fn read_cost_file_with_oversized_file_completes_bounded() {
-    let tmp = TempDir::new().expect("tempdir");
-    let root = tmp.path().canonicalize().expect("canonicalize");
-    let path = root.join("oversized-cost");
-    // 2 MB of space padding after a leading "1.50". The take
-    // cap reads ~1024 bytes; trim removes the trailing spaces;
-    // parse succeeds on "1.50".
-    let mut content = String::from("1.50");
-    content.push_str(&" ".repeat(2 * 1024 * 1024));
-    fs::write(&path, &content).expect("write");
-    assert_eq!(read_cost_file(&path), Some(1.50));
-}
 
 /// Plant an oversized cost file under the cost dir and assert
 /// `read_monthly_aggregate` completes without OOM. The per-entry
@@ -225,20 +176,6 @@ fn read_monthly_aggregate_with_oversized_entry_completes_bounded() {
         "expected 3.25 from truncated read, got {}",
         total
     );
-}
-
-/// Plant a cost file containing invalid UTF-8 bytes —
-/// `read_to_string` returns Err on non-UTF-8 input, so the
-/// `take().read_to_string().ok()?` chain returns None without
-/// panicking.
-#[test]
-fn read_cost_file_returns_none_for_non_utf8_content() {
-    let tmp = TempDir::new().expect("tempdir");
-    let root = tmp.path().canonicalize().expect("canonicalize");
-    let path = root.join("non-utf8-cost");
-    // 0xFF is not a valid UTF-8 lead byte.
-    fs::write(&path, [0xFFu8, 0xFE, 0xFD]).expect("write");
-    assert_eq!(read_cost_file(&path), None);
 }
 
 /// Plant a dangling symlink as a cost-dir entry on Unix —

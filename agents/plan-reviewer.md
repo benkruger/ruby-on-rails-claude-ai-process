@@ -113,8 +113,10 @@ Follow these steps in order. Each step builds on the previous one.
    remediation classes:
 
    - **revise-transform-class** — the fix is orchestrator-authored
-     prose the Transform step produces, not a change to the task
-     DAG: a Consumer Enumeration Table placement per
+     prose the Transform step produces — the step where the
+     orchestrator authors the plan body (Context, Exploration,
+     Risks, Approach, Tasks) from the decompose synthesis — not a
+     change to the task DAG: a Consumer Enumeration Table placement per
      `gate-consumer-enumeration.md`, the Mirror Audit Table per
      `mirror-pattern-rule-audit.md`, a doc-surface enumeration,
      prose wording, or a forward-facing / include-bias phrasing.

@@ -64,21 +64,27 @@ enum Tick {
 }
 
 /// Read the current HEAD commit SHA via `git rev-parse HEAD` in `cwd`.
-/// Returns `None` when the git binary cannot be spawned or the command
-/// exits non-zero (cwd is not a git repository). On success the trimmed
-/// stdout is returned as-is — `git rev-parse HEAD` always prints a SHA
-/// when it exits 0.
+/// Returns `None` when the git binary cannot be spawned, the command
+/// exits non-zero (cwd is not a git repository), OR the trimmed stdout
+/// is not a non-empty all-hex SHA. The last guard fails closed against a
+/// broken or edge git that exits 0 with empty or non-hex output: an
+/// empty HEAD would otherwise let `classify`'s headSha-mismatch gate
+/// compare "" against a run with a missing or empty headSha, pass, and
+/// report a release-ready run on an unverified commit.
 fn head_sha(cwd: &Path) -> Option<String> {
     let out = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(cwd)
         .output()
         .ok()?;
-    if out.status.success() {
-        Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
-    } else {
-        None
+    if !out.status.success() {
+        return None;
     }
+    let sha = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if sha.is_empty() || !sha.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some(sha)
 }
 
 /// Classify `gh run list --json conclusion,headSha` stdout against the
@@ -152,6 +158,12 @@ fn poll(base: &str, cwd: &Path) -> Tick {
 /// sleep `min(interval, remaining)` between ticks so the final sleep
 /// never overshoots the cap.
 pub fn wait_for_release_ci(base: &str, cwd: &Path, timeout: u64, interval: u64) -> Value {
+    if base.trim().is_empty() {
+        return json!({
+            "status": "error",
+            "message": "wait-for-release-ci requires a non-empty --base"
+        });
+    }
     let start = Instant::now();
     loop {
         match poll(base, cwd) {

@@ -21,7 +21,7 @@ Four consolidated Rust commands handle the Start phase. Steps 1-3 serialize all 
 
 ### 1. Initialize (`start-init`)
 
-Acquires a queue-based lock, runs version gate and upgrade check, and creates the early state file via `init-state`. Consults the "Flow In-Progress" label on referenced issues as a pre-lock cross-machine WIP guard; the label apply happens later in Step 3 so a failed start-gate or start-workspace leaves no sticky label that would block the next retry. If the lock is already held, `start-init` blocks on it with a bounded ~8-minute internal poll (`acquire_with_wait`) and returns the lock-held status on cap-exhaustion, which the skill re-runs the single start-init line on. If version checks or init-state fail, releases the lock and stops.
+Acquires a queue-based lock, runs version gate and upgrade check, and creates the early state file via `init-state`. Consults the "Flow In-Progress" label on referenced issues as a pre-lock cross-machine WIP guard; the label apply happens later in Step 3 so a failed start-gate or start-workspace leaves no sticky label that would block the next retry. If the lock is already held, `start-init` blocks on it with a bounded ~8-minute internal poll; on cap-exhaustion it returns the lock-held status and the skill re-runs the single start-init line until the lock is released. If version checks or init-state fail, releases the lock and stops.
 
 ### 2. CI and dependency gate (`start-gate`)
 

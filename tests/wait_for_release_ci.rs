@@ -301,3 +301,103 @@ fn wait_for_release_ci_error_on_git_nonzero_exit() {
         data["message"]
     );
 }
+
+#[test]
+fn wait_for_release_ci_error_on_empty_head_sha() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    // git shim exits 0 with empty stdout — a broken/edge git. head_sha
+    // must fail closed (reject empty) rather than yield an empty HEAD
+    // that makes classify's headSha-mismatch gate compare "" against a
+    // run with a missing headSha, pass, and report a release-ready run.
+    let stub = make_stubs(
+        &root,
+        "#!/bin/bash\nexit 0\n",
+        Some(&gh_print("[{\"conclusion\":\"success\"}]")),
+    );
+
+    let output = run_wait(&root, &stub, &["--timeout", "5", "--interval", "0"]);
+
+    let data = parse_output(&output);
+    assert_eq!(
+        data["status"], "error",
+        "an empty resolved HEAD must fail closed, not report ready; got: {}",
+        data
+    );
+    assert!(
+        data["message"].as_str().unwrap_or("").contains("HEAD"),
+        "empty HEAD must report the rev-parse HEAD failure, got: {}",
+        data["message"]
+    );
+}
+
+#[test]
+fn wait_for_release_ci_error_on_non_hex_head_sha() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    // git shim exits 0 echoing a non-hex value. head_sha's all-hex guard
+    // must reject it rather than treat garbage as a valid HEAD.
+    let stub = make_stubs(
+        &root,
+        "#!/bin/bash\necho 'not-a-real-sha'\n",
+        Some(&gh_print("[{\"conclusion\":\"success\"}]")),
+    );
+
+    let output = run_wait(&root, &stub, &["--timeout", "5", "--interval", "0"]);
+
+    let data = parse_output(&output);
+    assert_eq!(
+        data["status"], "error",
+        "a non-hex resolved HEAD must fail closed; got: {}",
+        data
+    );
+    assert!(
+        data["message"].as_str().unwrap_or("").contains("HEAD"),
+        "non-hex HEAD must report the rev-parse HEAD failure, got: {}",
+        data["message"]
+    );
+}
+
+#[test]
+fn wait_for_release_ci_error_on_empty_base() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let stub = make_stubs(
+        &root,
+        &git_echo_head(),
+        Some(&gh_print(&format!(
+            "[{{\"headSha\":\"{}\",\"conclusion\":\"success\"}}]",
+            HEAD
+        ))),
+    );
+
+    // Spawn directly with an empty --base: run_wait hardcodes --base main,
+    // and clap rejects a duplicate --base. An empty branch must be
+    // rejected before any gh/git poll runs.
+    let output = Command::new(env!("CARGO_BIN_EXE_flow-rs"))
+        .arg("wait-for-release-ci")
+        .args(["--base", "", "--timeout", "5", "--interval", "0"])
+        .current_dir(&root)
+        .env("PATH", stub.to_string_lossy().to_string())
+        .env("GH_TOKEN", "invalid")
+        .env("HOME", root.to_string_lossy().to_string())
+        .env("CLAUDE_PLUGIN_ROOT", env!("CARGO_MANIFEST_DIR"))
+        .env_remove("FLOW_CI_RUNNING")
+        .output()
+        .unwrap();
+
+    let data = parse_output(&output);
+    assert_eq!(
+        data["status"], "error",
+        "an empty --base must be rejected, not polled; got: {}",
+        data
+    );
+    assert!(
+        data["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("non-empty --base"),
+        "empty --base must name the non-empty requirement, got: {}",
+        data["message"]
+    );
+}

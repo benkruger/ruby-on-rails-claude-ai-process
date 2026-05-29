@@ -4,9 +4,11 @@
 //! `agent-<id>.jsonl` sub-session files of any Task-tool sub-agents
 //! the transcript references — so token totals and `by_model` reflect
 //! sub-agent work and the token-derived cost reconciles. Does NOT
-//! read the per-session cost file under `.claude/cost/`; that surface
-//! lives in `session_cost`, and `per_flow_capture` orchestrates both
-//! into a final [`WindowSnapshot`].
+//! read any cost file; the snapshot carries token counts and the
+//! `by_model` rollup only. Per-phase and month-to-date cost are
+//! token-derived downstream — `window_deltas::pair_delta` prices the
+//! `by_model` delta via `pricing::cost_for` — so `per_flow_capture`
+//! produces the [`WindowSnapshot`] here with no cost step.
 //!
 //! The capture function is invoked by every state-mutating
 //! transition through `per_flow_capture::capture_for_active_state`,
@@ -23,8 +25,8 @@
 //!
 //! Snapshot state mutators (`write_snapshot_into_state`,
 //! `append_step_snapshot`) live here because they are the canonical
-//! sinks for the metrics-half of a `WindowSnapshot`; cost is
-//! patched in by `per_flow_capture` before either mutator runs.
+//! sinks for a `WindowSnapshot`. The snapshot carries no cost field;
+//! cost is derived at read time in `window_deltas`.
 
 use std::collections::HashSet;
 use std::fs;

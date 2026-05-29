@@ -612,9 +612,13 @@ The Token Cost section uses these conditional output markers when
 snapshot data is incomplete:
 
 - **`—` (em-dash)** in the cost column means the per-phase or
-  Total cost is unknown for the row. A phase shows `—` when its
-  start or end snapshot lacks `session_cost_usd`; the Total row
-  shows `—` when no phase contributed a complete cost pair.
+  Total cost is unknown for the row. Cost is token-derived:
+  `window_deltas::pair_delta` prices the per-phase `by_model`
+  token delta through `pricing::cost_for`. A phase shows `—` when
+  that price cannot be computed — no enter snapshot, an empty
+  per-phase `by_model` delta, or a delta that references an
+  unpriced model family; the Total row shows `—` when no phase
+  contributed a complete cost pair.
 - **`*` (asterisk suffix)** on a cost value (e.g. `$0.450*`) marks
   the row as partial: the phase ran but the snapshot data was not
   fully recoverable, so the displayed value is the best-effort

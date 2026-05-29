@@ -13,9 +13,13 @@
 //!
 //! Invoked from the SessionStart capture hook (the same hook that
 //! persists session_id/transcript_path), so it fires across every
-//! session a flow spans. A session where no FLOW hook fires writes no
-//! token-derived file and the statusline value stands — an accepted
-//! coverage boundary. The user statusline is never modified.
+//! session a flow spans. Because it fires at session START, it prices
+//! whatever the transcript holds at that instant: a session's tokens
+//! are priced on the NEXT start, and a flow's final session (which has
+//! no subsequent start) is never token-derived — that session's
+//! statusline value stands. A session where no FLOW hook fires at all
+//! likewise writes no token-derived file. Both are accepted coverage
+//! boundaries. The user statusline is never modified.
 //!
 //! When the session has no priceable per-model usage (empty
 //! transcript, unpriced model family) the subcommand writes nothing

@@ -113,6 +113,29 @@ fn read_monthly_aggregate_skips_corrupt_entries() {
     assert!((total - 5.00).abs() < 1e-9, "expected 5.00, got {}", total);
 }
 
+/// A finite-but-negative cost file is skipped, so a single corrupt
+/// or hostile entry cannot drive the month-to-date aggregate
+/// negative and bury every legitimate session's cost. Guards the
+/// `val >= 0.0` half of the finite-and-non-negative filter.
+#[test]
+fn read_monthly_aggregate_skips_negative_entries() {
+    let tmp = TempDir::new().expect("tempdir");
+    let root = tmp.path().canonicalize().expect("canonicalize");
+    let now = chrono::Local::now();
+    let year_month = now.format("%Y-%m").to_string();
+    let cost_dir = root.join(".claude").join("cost").join(&year_month);
+    fs::create_dir_all(&cost_dir).expect("mkdir");
+    fs::write(cost_dir.join("sid-real"), "5.00").expect("write real");
+    fs::write(cost_dir.join("sid-evil"), "-1000000.0").expect("write evil");
+
+    let total = read_monthly_aggregate(&root);
+    assert!(
+        (total - 5.00).abs() < 1e-9,
+        "negative entry must be skipped; expected 5.00, got {}",
+        total
+    );
+}
+
 /// Subdirectory inside the cost dir (e.g. a stray `.tmp/` folder)
 /// is read attempted as a file; `fs::read_to_string` fails and the
 /// entry is skipped without aborting the loop.

@@ -573,6 +573,75 @@ fn compute_cost_breakdown_full_data_returns_all_five_phase_rows() {
     );
 }
 
+/// AC#5: every rendered row's cost equals its token delta priced
+/// through the pricing table, and the total equals the summed rows —
+/// compared within a float epsilon, never with `==` (prices are
+/// stored as $/token and re-multiplied, so binary float rounding
+/// makes exact equality unreliable). Locks the cost↔token
+/// reconciliation the token-derived cost source guarantees.
+#[test]
+fn compute_cost_breakdown_each_row_cost_matches_tokens_priced() {
+    use flow_rs::pricing::cost_for;
+    use flow_rs::state::ModelTokens;
+
+    // (phase key, rendered name, enter_n, complete_n). Each phase uses
+    // the single opus model from `add_phase_snapshots`, so its delta
+    // is ((Δn)*100 input, (Δn)*50 output) per `snapshot_value`.
+    let phases = [
+        ("flow-start", "Start", 0, 5),
+        ("flow-code", "Code", 5, 15),
+        ("flow-review", "Review", 15, 20),
+        ("flow-learn", "Learn", 20, 25),
+        ("flow-complete", "Complete", 25, 30),
+    ];
+    let mut state = all_complete_state();
+    for (key, _, a, b) in phases {
+        add_phase_snapshots(&mut state, key, a, b);
+    }
+    let breakdown = compute_cost_breakdown(&state).expect("breakdown");
+
+    for (_, name, a, b) in phases {
+        let dn = b - a;
+        let expected = cost_for(
+            "claude-opus-4-7",
+            &ModelTokens {
+                input: dn * 100,
+                output: dn * 50,
+                cache_create: 0,
+                cache_read: 0,
+            },
+        )
+        .expect("opus is priced");
+        let row = breakdown
+            .rows
+            .iter()
+            .find(|r| r.phase_name == name)
+            .unwrap_or_else(|| panic!("row for {name}"));
+        let got = row.cost.expect("priced row carries Some cost");
+        assert!(
+            (got - expected).abs() < 1e-9,
+            "{name}: rendered cost {got} must equal its tokens priced ({expected})"
+        );
+    }
+
+    // The total equals the summed per-row costs (epsilon, never ==).
+    let summed: f64 = breakdown.rows.iter().filter_map(|r| r.cost).sum();
+    assert!(
+        (breakdown.total_cost.expect("total") - summed).abs() < 1e-9,
+        "total must equal the summed rows"
+    );
+    // ...and equals the by-model aggregate re-priced through the table.
+    let agg: f64 = breakdown
+        .by_model
+        .iter()
+        .filter_map(|(m, t)| cost_for(m, t))
+        .sum();
+    assert!(
+        (breakdown.total_cost.expect("total") - agg).abs() < 1e-9,
+        "total must equal the by-model aggregate priced through the table"
+    );
+}
+
 /// Phases map is `{}` → no rows accumulate → return None.
 #[test]
 fn compute_cost_breakdown_returns_none_when_phases_empty() {

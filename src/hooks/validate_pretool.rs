@@ -2079,14 +2079,22 @@ fn run_impl_main(hook_input: Option<Value>, cwd: Option<String>) -> (i32, Option
 
 /// Run the validate-pretool hook (entry point from CLI). Thin wrapper
 /// around `run_impl_main` that resolves the cwd and translates the
-/// decision into stderr + exit-code side effects. The cwd is read from
-/// `std::env::current_dir()`; the `.ok()` None arm (cwd inode unlinked)
-/// is covered by the stale-cwd subprocess test.
+/// decision into stderr + exit-code side effects.
+///
+/// The cwd is resolved from the hook payload's `cwd` field via
+/// `resolve_hook_cwd`, with `std::env::current_dir()` as fallback. The
+/// payload `cwd` is the session/sub-agent worktree; the hook
+/// subprocess's own `env::current_dir()` can resolve to the main repo
+/// root, where the five cwd consumers (branch detection, `main_root`,
+/// `flow_active`, the agent-prompt `worktree_root`, and the
+/// Layer 10/11 and halt gates) would all see the wrong directory —
+/// most visibly the agent-prompt scan would resolve no worktree and
+/// skip, letting an out-of-worktree path reach a sub-agent. The
+/// fallback's `.ok()` None arm (cwd inode unlinked) is covered by the
+/// stale-cwd subprocess test.
 pub fn run() {
     let hook_input = read_hook_input();
-    let cwd = std::env::current_dir()
-        .ok()
-        .map(|p| p.to_string_lossy().to_string());
+    let cwd = hook_input.as_ref().and_then(crate::hooks::resolve_hook_cwd);
     let (code, message) = run_impl_main(hook_input, cwd);
     if let Some(msg) = message {
         eprintln!("{}", msg);

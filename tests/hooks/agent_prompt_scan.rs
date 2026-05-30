@@ -271,3 +271,64 @@ fn validate_agent_prompt_blocks_absolute_with_trailing_parentdir() {
     let (allowed, _) = validate_agent_prompt(Some(prompt), Path::new(WORKTREE), true);
     assert!(!allowed);
 }
+
+// --- .flow-states/ carve-out (Task 10 Branch Enumeration Table) ---
+
+#[test]
+fn agent_prompt_allows_flow_states_diff_path() {
+    // Branch A: the reviewer launch passes the substantive-diff path
+    // (under <project_root>/.flow-states/, outside the worktree) in
+    // the agent prompt. The carve-out derives project_root from the
+    // worktree_root (/Users/alice) and allows the .flow-states/
+    // candidate so engaging the worktree gate does not hard-block
+    // Review sub-agent launches.
+    let prompt = "Read the substantive diff at \
+                  /Users/alice/.flow-states/feat/full-diff.diff and review it.";
+    let (allowed, msg) = validate_agent_prompt(Some(prompt), Path::new(WORKTREE), true);
+    assert!(allowed, "flow-states diff path must be allowed; msg={msg}");
+}
+
+#[test]
+fn agent_prompt_blocks_arbitrary_out_of_worktree_path() {
+    // Branch B: a candidate that is outside the worktree AND outside
+    // <project_root>/.flow-states/ is still blocked. The carve-out is
+    // scoped to .flow-states/ only — it does not widen to the whole
+    // project root.
+    let prompt = "Read /Users/alice/src/other.rs and report.";
+    let (allowed, _) = validate_agent_prompt(Some(prompt), Path::new(WORKTREE), true);
+    assert!(!allowed, "non-.flow-states out-of-worktree path must block");
+}
+
+#[test]
+fn agent_prompt_flow_states_derive_handles_no_worktrees_segment() {
+    // Branch C: when worktree_root lacks the /.worktrees/ anchor,
+    // compute_worktree_paths returns None, so project_root cannot be
+    // derived and the carve-out does not apply — the out-of-worktree
+    // candidate (even a .flow-states/-shaped one) is blocked rather
+    // than crashing.
+    let worktree_root = Path::new("/Users/alice/plainroot");
+    let prompt = "Read /Users/alice/elsewhere/.flow-states/x and report.";
+    let (allowed, _) = validate_agent_prompt(Some(prompt), worktree_root, true);
+    assert!(
+        !allowed,
+        "no-/.worktrees/ worktree_root yields no project_root → block"
+    );
+}
+
+#[test]
+fn agent_prompt_flow_states_derive_uses_rightmost_worktrees() {
+    // Branch D: a worktree_root whose project_root itself contains a
+    // `/.worktrees/` directory must resolve project_root at the
+    // RIGHTMOST anchor (via compute_worktree_paths' rfind). The
+    // carve-out's .flow-states/ root is therefore
+    // /home/dev/.worktrees/outer/.flow-states, not /home/dev/.flow-states.
+    // A diff path under the rightmost project_root's .flow-states/ is
+    // allowed; a leftmost derivation would have blocked it.
+    let worktree_root = Path::new("/home/dev/.worktrees/outer/.worktrees/feat");
+    let prompt = "Review /home/dev/.worktrees/outer/.flow-states/feat/full-diff.diff now.";
+    let (allowed, msg) = validate_agent_prompt(Some(prompt), worktree_root, true);
+    assert!(
+        allowed,
+        "rightmost project_root .flow-states/ must be allowed; msg={msg}"
+    );
+}

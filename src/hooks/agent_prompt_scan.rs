@@ -26,7 +26,11 @@
 //!   Composes the helpers, applies the byte cap, resolves
 //!   relative candidates against the worktree root, lexically
 //!   normalizes the result (no disk touch), and prefix-compares
-//!   against the worktree root.
+//!   against the worktree root. Candidates under
+//!   `<project_root>/.flow-states/` are carved out (allowed) so
+//!   engaging the worktree gate does not hard-block the Review
+//!   sub-agent launch, whose prompt carries the substantive-diff
+//!   path outside the worktree.
 //!
 //! The `Constructor Invariant Audit` for this module per
 //! `.claude/rules/extract-helper-refactor.md`:
@@ -150,10 +154,18 @@ fn normalize_path_lexical(p: &Path) -> PathBuf {
 /// Otherwise extracts path candidates, runs the safety validator
 /// on each, resolves relative candidates against `worktree_root`,
 /// lexically normalizes the result, and rejects any candidate
-/// whose normalized form does not start with `worktree_root`. The
-/// `prompt` is sliced at `AGENT_PROMPT_BYTE_CAP` along a UTF-8
-/// char boundary BEFORE the regex sweep so unbounded input cannot
-/// produce unbounded I/O.
+/// whose normalized form does not start with `worktree_root` —
+/// EXCEPT candidates that normalize under
+/// `<project_root>/.flow-states/`, which are allowed via the
+/// `.flow-states/` carve-out. project_root is derived by reusing
+/// `compute_worktree_paths` on `worktree_root` (no disk touch); the
+/// carve-out exists so engaging the worktree gate (the hook now
+/// resolves the worktree from the payload cwd) does not hard-block
+/// the Review sub-agent launch, whose prompt carries the
+/// substantive-diff path under `.flow-states/`. The `prompt` is
+/// sliced at `AGENT_PROMPT_BYTE_CAP` along a UTF-8 char boundary
+/// BEFORE the regex sweep so unbounded input cannot produce
+/// unbounded I/O.
 pub fn validate_agent_prompt(
     prompt: Option<&str>,
     worktree_root: &Path,
@@ -198,6 +210,28 @@ pub fn validate_agent_prompt(
         };
         let resolved_norm = normalize_path_lexical(&resolved);
         if !resolved_norm.starts_with(&worktree_norm) {
+            // `.flow-states/` carve-out: the reviewer launch passes
+            // the substantive-diff path (under
+            // `<project_root>/.flow-states/`, outside the worktree) in
+            // the agent prompt. Once the hook resolves the worktree
+            // from the payload cwd, engaging the gate would otherwise
+            // hard-block every Review sub-agent launch. Allow
+            // candidates that normalize under
+            // `<project_root>/.flow-states/`. project_root is derived
+            // by reusing `compute_worktree_paths` on the worktree_root
+            // (no disk touch); its rightmost-occurrence `rfind` means a
+            // project_root that itself contains `.worktrees/` resolves
+            // correctly. When worktree_root lacks the `/.worktrees/`
+            // anchor the derivation yields `None` and the carve-out
+            // does not apply — the candidate stays blocked.
+            let wt_str = worktree_root.to_string_lossy();
+            if let Some((project_root, _)) = crate::flow_paths::compute_worktree_paths(&wt_str) {
+                let flow_states =
+                    normalize_path_lexical(&Path::new(project_root).join(".flow-states"));
+                if resolved_norm.starts_with(&flow_states) {
+                    continue;
+                }
+            }
             return (
                 false,
                 format!(

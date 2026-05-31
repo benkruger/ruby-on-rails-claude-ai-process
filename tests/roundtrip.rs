@@ -85,7 +85,6 @@ const STATE_JSON: &str = r#"{
     "flow-complete": "auto"
   },
   "issues_filed": [],
-  "plan_file": null,
   "code_task": 2,
   "code_tasks_total": 5,
   "code_task_name": "Implement webhooks",
@@ -136,9 +135,6 @@ fn deserialize_real_state_file() {
         state.files.plan,
         Some(".flow-states/app-payment-webhooks-plan.md".into())
     );
-
-    // Legacy fields
-    assert!(state.plan_file.is_none());
 
     // Transient fields
     assert_eq!(state.auto_continue, Some("/flow:flow-code".into()));

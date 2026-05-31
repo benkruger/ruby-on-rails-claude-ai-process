@@ -427,6 +427,76 @@ fn test_write_rule_no_dag_md_variant() {
     );
 }
 
+/// Tombstone: removed in PR #1777. The legacy `plan_file` top-level
+/// state field (`src/state.rs`) is deleted — `files.plan` is the sole
+/// plan-path pointer. Must not return.
+///
+/// Byte-substring on `plan_file` scoped to `src/state.rs`. The
+/// surviving `FlowPaths::plan_file()` method lives in
+/// `src/flow_paths.rs`, not `state.rs`, so a file-scoped check on
+/// `state.rs` is unambiguous and byte-stable:
+///   1. `concat!` reassembly: a struct field name is a literal
+///      identifier — re-adding `pub plan_file` requires the literal
+///      `plan_file` token in `state.rs`.
+///   2. `format!` reassembly: struct declarations are not produced by
+///      `format!` interpolation.
+///   3. Named `constant` reference: a `const` cannot supply a struct
+///      field name; the field declaration itself trips the check.
+#[test]
+fn test_state_no_plan_file_field() {
+    let root = common::repo_root();
+    let content =
+        fs::read_to_string(root.join("src").join("state.rs")).expect("src/state.rs must exist");
+    let forbidden = "plan_file";
+    assert!(
+        !content.contains(forbidden),
+        "src/state.rs must not declare a `plan_file` field — files.plan \
+         is the sole plan-path pointer."
+    );
+}
+
+/// Tombstone: removed in PR #1777. The legacy `state.get("plan_file")`
+/// fallback reads (phase_enter, render_pr_body, tui_data,
+/// plan_deviation) are deleted — every consumer reads `files.plan`
+/// directly. Must not return.
+///
+/// Byte-substring on the literal call shape `get("plan_file")` scoped
+/// to `src/`. The surviving `response["plan_file"]` output key (an
+/// `IndexMut` assignment, not a `.get`) and the `plan_file()` method
+/// call do not match this shape. The shape is byte-stable:
+///   1. `concat!` reassembly: re-adding the fallback requires the
+///      literal `"plan_file"` argument to `get(...)`.
+///   2. `format!` reassembly: a `get(...)` call argument is a literal
+///      string, not a `format!` product.
+///   3. Named `constant` reference: a `const KEY = "plan_file"` aliased
+///      into `get(KEY)` would not match, but the legacy fallback shape
+///      this guards always passed the literal — the documented v1
+///      contract is the literal call shape.
+#[test]
+fn test_src_no_plan_file_legacy_fallback() {
+    let root = common::repo_root();
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_rs_files(&root.join("src"), &mut files);
+    let forbidden = "get(\"plan_file\")";
+    let mut violations: Vec<String> = Vec::new();
+    for file in &files {
+        let content = match fs::read_to_string(file) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        if content.contains(forbidden) {
+            let rel = file.strip_prefix(&root).unwrap_or(file);
+            violations.push(rel.display().to_string());
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "src must not read the legacy `get(\"plan_file\")` fallback — \
+         every consumer reads files.plan directly:\n{}",
+        violations.join("\n")
+    );
+}
+
 /// Tombstone: removed in PR #1567. The `bump_install_path` function and
 /// its two `run_impl` callsites are deleted from `src/bump_version.rs` —
 /// the `flow-marketplace/flow/<version>/bin/setup` install-path

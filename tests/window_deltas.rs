@@ -34,7 +34,6 @@ fn empty_state() -> FlowState {
         prompt: None,
         phases: IndexMap::new(),
         phase_transitions: vec![],
-        plan_file: None,
         skills: None,
         issues_filed: vec![],
         slack_thread_ts: None,

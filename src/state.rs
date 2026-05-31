@@ -239,10 +239,6 @@ pub struct FlowState {
     #[serde(default)]
     pub phase_transitions: Vec<PhaseTransition>,
 
-    // Legacy field — superseded by files.plan
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub plan_file: Option<String>,
-
     // Per-skill autonomy settings
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub skills: Option<IndexMap<String, SkillConfig>>,

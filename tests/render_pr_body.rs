@@ -651,7 +651,7 @@ fn with_plan_only() {
     let dir = tempfile::tempdir().unwrap();
     let plan_file = dir.path().join("plan.md");
     fs::write(&plan_file, "# My Plan\n\nDo the thing.").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
 
     let body = render_body(&state, dir.path()).unwrap();
 
@@ -672,7 +672,7 @@ fn nested_fences_preserve_subsequent_sections() {
         "# Plan\n\n```xml\n<node id='1'/>\n```\n\n```python\nprint('hello')\n```",
     )
     .unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
 
     let body = render_body(&state, dir.path()).unwrap();
 
@@ -714,7 +714,7 @@ fn full_state() {
     let log_file = branch_dir.join("log");
     fs::write(&log_file, "2026-01-01 [Phase 1] Step 1 — done").unwrap();
 
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
     state["transcript_path"] = json!("/path/to/session.jsonl");
     state["issues_filed"] = json!([{
         "label": "Tech Debt",
@@ -782,23 +782,6 @@ fn artifacts_table_from_files_block() {
 }
 
 #[test]
-fn legacy_artifacts_without_files_block() {
-    let mut state = make_test_state();
-    state.as_object_mut().unwrap().remove("files");
-    state["plan_file"] = json!("/abs/path/to/plan.md");
-    state["dag_file"] = json!("/abs/path/to/dag.md");
-    state["transcript_path"] = json!("/abs/path/to/session.jsonl");
-
-    let dir = tempfile::tempdir().unwrap();
-    let body = render_body(&state, dir.path()).unwrap();
-
-    assert!(body.contains("**Plan file**"));
-    assert!(body.contains("**DAG file**"));
-    assert!(body.contains("**Session log**"));
-    assert!(!body.contains("| File | Path |"));
-}
-
-#[test]
 fn empty_artifacts_no_files_block() {
     let mut state = make_test_state();
     state.as_object_mut().unwrap().remove("files");
@@ -813,7 +796,7 @@ fn empty_artifacts_no_files_block() {
 fn missing_plan_file() {
     let mut state = make_test_state();
     let dir = tempfile::tempdir().unwrap();
-    state["plan_file"] = json!(dir
+    state["files"]["plan"] = json!(dir
         .path()
         .join("nonexistent-plan.md")
         .to_string_lossy()
@@ -830,7 +813,7 @@ fn idempotent() {
     let dir = tempfile::tempdir().unwrap();
     let plan_file = dir.path().join("plan.md");
     fs::write(&plan_file, "Plan content").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
 
     let body1 = render_body(&state, dir.path()).unwrap();
     let body2 = render_body(&state, dir.path()).unwrap();
@@ -879,7 +862,7 @@ fn section_order() {
     let branch_log_dir = dir.path().join(".flow-states").join("test-feature");
     fs::create_dir_all(&branch_log_dir).unwrap();
     fs::write(branch_log_dir.join("log"), "log entry").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
     state["transcript_path"] = json!("/path/to/session.jsonl");
     state["issues_filed"] = json!([{
         "label": "Tech Debt",
@@ -974,7 +957,7 @@ fn render_body_token_cost_section_order_invariant() {
     let branch_log_dir = dir.path().join(".flow-states").join("test-feature");
     fs::create_dir_all(&branch_log_dir).unwrap();
     fs::write(branch_log_dir.join("log"), "log entry").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
     state["transcript_path"] = json!("/path/to/session.jsonl");
     state["issues_filed"] = json!([{
         "label": "Tech Debt",
@@ -1115,35 +1098,8 @@ fn artifacts_files_block_empty_transcript_skipped() {
     assert!(!body.contains("| Transcript |"));
 }
 
-/// Covers "dag_file is empty string" in legacy path.
-#[test]
-fn artifacts_legacy_empty_dag_file_skipped() {
-    let mut state = make_test_state();
-    state.as_object_mut().unwrap().remove("files");
-    state["plan_file"] = json!("/abs/plan.md");
-    state["dag_file"] = json!("");
-
-    let dir = tempfile::tempdir().unwrap();
-    let body = render_body(&state, dir.path()).unwrap();
-    assert!(body.contains("**Plan file**"));
-    assert!(!body.contains("**DAG file**"));
-}
-
-/// Covers "transcript_path is empty string" in legacy path.
-#[test]
-fn artifacts_legacy_empty_transcript_skipped() {
-    let mut state = make_test_state();
-    state.as_object_mut().unwrap().remove("files");
-    state["plan_file"] = json!("/abs/plan.md");
-    state["transcript_path"] = json!("");
-
-    let dir = tempfile::tempdir().unwrap();
-    let body = render_body(&state, dir.path()).unwrap();
-    assert!(!body.contains("**Session log**"));
-}
-
 /// Covers the `.map_err(|e| e.to_string())` closure on the plan-file
-/// read — pointing plan_file at a directory makes `pp.exists()`
+/// read — pointing files.plan at a directory makes `pp.exists()`
 /// return true but `read_to_string(pp)` return Err (EISDIR).
 #[test]
 fn plan_file_as_directory_propagates_error() {
@@ -1151,7 +1107,7 @@ fn plan_file_as_directory_propagates_error() {
     let dir = tempfile::tempdir().unwrap();
     let plan_as_dir = dir.path().join("plan-dir");
     fs::create_dir(&plan_as_dir).unwrap();
-    state["plan_file"] = json!(plan_as_dir.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_as_dir.to_string_lossy().to_string());
 
     let result = render_body(&state, dir.path());
     assert!(result.is_err());
@@ -1610,16 +1566,15 @@ fn render_pr_body_does_not_panic_on_slash_branch() {
 
 /// Covers `resolve_path` empty-string short-circuit (returns None
 /// instead of treating the empty string as a path). Driven via
-/// `render_body` with an empty `plan_file` value.
+/// `render_body` with an empty `files.plan` value.
 #[test]
 fn resolve_path_empty_string_treated_as_none() {
     let mut state = make_test_state();
-    state.as_object_mut().unwrap().remove("files");
-    state["plan_file"] = json!("");
+    state["files"]["plan"] = json!("");
 
     let dir = tempfile::tempdir().unwrap();
     let body = render_body(&state, dir.path()).unwrap();
-    // Empty plan_file shouldn't produce a Plan section.
+    // Empty files.plan shouldn't produce a Plan section.
     assert!(!body.contains("## Plan\n\n<details>"));
 }
 

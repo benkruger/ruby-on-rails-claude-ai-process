@@ -28,50 +28,34 @@ fn resolve_path(path_str: Option<&str>, project_dir: &Path) -> Option<PathBuf> {
     }
 }
 
-/// Build the ## Artifacts section from state fields.
+/// Build the ## Artifacts section from the structured `files` block.
 ///
-/// Prefers the structured files block (relative paths) when present.
-/// Falls back to legacy top-level plan_file/dag_file for old state files.
+/// Renders one table row per non-empty `files.*` entry (Plan, Log,
+/// State) plus a Transcript row from `transcript_path`. Returns an
+/// empty vec when there is no `files` block or no non-empty entries,
+/// so `render_body` emits a bare `## Artifacts` heading.
 fn build_artifacts(state: &serde_json::Value) -> Vec<String> {
-    if let Some(files) = state.get("files").and_then(|v| v.as_object()) {
-        let mut rows = vec!["| File | Path |".to_string(), "|------|------|".to_string()];
-        let labels = [("Plan", "plan"), ("Log", "log"), ("State", "state")];
-        for (label, key) in &labels {
-            if let Some(path) = files.get(*key).and_then(|v| v.as_str()) {
-                if !path.is_empty() {
-                    rows.push(format!("| {} | `{}` |", label, path));
-                }
-            }
-        }
-        if let Some(transcript) = state.get("transcript_path").and_then(|v| v.as_str()) {
-            if !transcript.is_empty() {
-                rows.push(format!("| Transcript | `{}` |", transcript));
-            }
-        }
-        if rows.len() > 2 {
-            return rows;
-        }
+    let Some(files) = state.get("files").and_then(|v| v.as_object()) else {
         return vec![];
-    }
-
-    // Legacy: top-level plan_file/dag_file
-    let mut items = Vec::new();
-    if let Some(plan_file) = state.get("plan_file").and_then(|v| v.as_str()) {
-        if !plan_file.is_empty() {
-            items.push(format!("- **Plan file**: `{}`", plan_file));
-        }
-    }
-    if let Some(dag_file) = state.get("dag_file").and_then(|v| v.as_str()) {
-        if !dag_file.is_empty() {
-            items.push(format!("- **DAG file**: `{}`", dag_file));
+    };
+    let mut rows = vec!["| File | Path |".to_string(), "|------|------|".to_string()];
+    let labels = [("Plan", "plan"), ("Log", "log"), ("State", "state")];
+    for (label, key) in &labels {
+        if let Some(path) = files.get(*key).and_then(|v| v.as_str()) {
+            if !path.is_empty() {
+                rows.push(format!("| {} | `{}` |", label, path));
+            }
         }
     }
     if let Some(transcript) = state.get("transcript_path").and_then(|v| v.as_str()) {
         if !transcript.is_empty() {
-            items.push(format!("- **Session log**: `{}`", transcript));
+            rows.push(format!("| Transcript | `{}` |", transcript));
         }
     }
-    items
+    if rows.len() > 2 {
+        return rows;
+    }
+    vec![]
 }
 
 /// Escape a value that flows into a GitHub Markdown table cell.
@@ -242,12 +226,9 @@ pub fn render_body(state: &serde_json::Value, project_dir: &Path) -> Result<Stri
     }
     section_names.push("Artifacts".to_string());
 
-    // Resolve the plan path from the files block with legacy fallback
+    // Resolve the plan path from the files block.
     let files = state.get("files");
-    let plan_path_str = files
-        .and_then(|f| f.get("plan"))
-        .and_then(|v| v.as_str())
-        .or_else(|| state.get("plan_file").and_then(|v| v.as_str()));
+    let plan_path_str = files.and_then(|f| f.get("plan")).and_then(|v| v.as_str());
 
     let plan_path = resolve_path(plan_path_str, project_dir);
 

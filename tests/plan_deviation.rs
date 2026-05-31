@@ -941,25 +941,6 @@ fn run_impl_plan_path_set_but_file_missing_returns_ok() {
 }
 
 #[test]
-fn run_impl_legacy_plan_file_key_honored() {
-    // Older state files store the plan path at top-level
-    // `plan_file` instead of `files.plan`. The fallback must
-    // honor the legacy key.
-    let (_dir, root) = run_impl_fixture();
-    write_state(
-        &root,
-        RUN_IMPL_BRANCH,
-        r#"{"branch":"devtest","plan_file":".flow-states/devtest/plan.md"}"#,
-    );
-    write_plan(&root, RUN_IMPL_BRANCH, DRIFTING_PLAN);
-    let result = run_impl(&root, RUN_IMPL_BRANCH, DRIFTING_DIFF);
-    match result {
-        Err(devs) => assert_eq!(devs.len(), 1),
-        Ok(_) => panic!("legacy plan_file must still drive detection"),
-    }
-}
-
-#[test]
 fn run_impl_no_deviations_returns_ok() {
     let (_dir, root) = run_impl_fixture();
     write_state(

@@ -2665,6 +2665,144 @@ fn flow_complete_resolves_mode_outside_soft_gate() {
     );
 }
 
+/// Shared assertions for the `resume-anchor` read-side wiring in a
+/// phase skill's `## Mode Resolution` section. Per the Consumer
+/// Enumeration Table (issue #1752 plan), every `--continue-step`
+/// resume path must call `bin/flow resume-anchor` BEFORE the
+/// cwd-dependent `git worktree list` branch detection, and must define
+/// a branch for all three resolver outcomes (`ok` → cd, `no_marker` →
+/// cwd fallback, `error` → no-cd fail-closed). Called from per-skill
+/// sibling tests so a failure names the drifted skill.
+fn assert_resume_anchor_wiring(skill: &str) {
+    let c = common::read_skill(skill);
+    let tail = c
+        .split_once("## Mode Resolution")
+        .map(|(_, t)| t)
+        .unwrap_or_else(|| panic!("{} must have a `## Mode Resolution` section", skill));
+    let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
+
+    let anchor_idx = section.find("resume-anchor").unwrap_or_else(|| {
+        panic!(
+            "{} `## Mode Resolution` must invoke `bin/flow resume-anchor` on the \
+             --continue-step resume path",
+            skill
+        )
+    });
+    let branch_idx = section.find("git worktree list").unwrap_or_else(|| {
+        panic!(
+            "{} `## Mode Resolution` must contain the `git worktree list` branch \
+             detection",
+            skill
+        )
+    });
+    assert!(
+        anchor_idx < branch_idx,
+        "{}: resume-anchor must precede `git worktree list` branch detection so cwd \
+         is recovered before the cwd-dependent branch lookup runs",
+        skill
+    );
+    // Adjacency: no `### Step` heading may separate the resume-anchor
+    // call from the branch detection — both belong to the same
+    // resume-dispatch unit so a failure cannot land between them.
+    let between = &section[anchor_idx..branch_idx];
+    assert!(
+        !between.contains("### Step"),
+        "{}: no `### Step` heading may sit between resume-anchor and branch detection",
+        skill
+    );
+    // Uses the plugin-root prefix (marketplace skills run in target
+    // projects where bare `bin/flow` does not resolve).
+    assert!(
+        section.contains("${CLAUDE_PLUGIN_ROOT}/bin/flow resume-anchor"),
+        "{}: resume-anchor must use the ${{CLAUDE_PLUGIN_ROOT}} prefix",
+        skill
+    );
+    // All three resolver outcomes have a defined branch.
+    assert!(
+        section.contains("no_marker"),
+        "{}: Mode Resolution must define the no_marker fallback branch",
+        skill
+    );
+    assert!(
+        section.contains("error"),
+        "{}: Mode Resolution must define the error (fail-closed, no-cd) branch",
+        skill
+    );
+}
+
+#[test]
+fn flow_code_resume_anchor_precedes_branch_detection() {
+    // Regression: a flow-code `--continue-step` resume that reset cwd
+    // to the main-repo root would resolve the integration branch
+    // instead of the feature branch without recovering worktree_cwd
+    // first. resume-anchor must run before branch detection.
+    assert_resume_anchor_wiring("flow-code");
+}
+
+#[test]
+fn flow_review_resume_anchor_precedes_branch_detection() {
+    // Regression: same cwd-reset hazard on the flow-review resume path.
+    assert_resume_anchor_wiring("flow-review");
+}
+
+#[test]
+fn flow_learn_resume_anchor_precedes_branch_detection() {
+    // Regression: same cwd-reset hazard on the flow-learn resume path.
+    assert_resume_anchor_wiring("flow-learn");
+}
+
+/// Shared assertions for the Gap B `capture-diff` error handling in a
+/// phase skill's Step 1. `bin/flow capture-diff` returns
+/// `{status:"error", message}` when `origin/<base>` is not present
+/// locally; without handling, the skill launches its agents with a
+/// missing diff. Step 1 must surface the error, run a single
+/// `git fetch origin <base>` + retry, and HALT on a second failure.
+fn assert_capture_diff_error_handling(skill: &str) {
+    let c = common::read_skill(skill);
+    let tail = c
+        .split_once("## Step 1")
+        .map(|(_, t)| t)
+        .unwrap_or_else(|| panic!("{} must have a `## Step 1` section", skill));
+    let section = tail.split_once("\n## ").map(|(s, _)| s).unwrap_or(tail);
+
+    assert!(
+        section.contains("capture-diff"),
+        "{} Step 1 must invoke capture-diff",
+        skill
+    );
+    assert!(
+        section.contains("git fetch origin"),
+        "{} Step 1 must run `git fetch origin <base>` on a missing-revision \
+         capture-diff error",
+        skill
+    );
+    assert!(
+        section.contains("retry") && section.contains("once"),
+        "{} Step 1 must retry capture-diff exactly once after the fetch",
+        skill
+    );
+    assert!(
+        section.contains("HALT"),
+        "{} Step 1 must HALT on a second capture-diff failure rather than \
+         launch the agent with a missing diff",
+        skill
+    );
+}
+
+#[test]
+fn flow_review_step1_handles_capture_diff_error() {
+    // Regression: an unhandled capture-diff error would hand the four
+    // review agents a missing diff. Step 1 must fetch+retry once, then halt.
+    assert_capture_diff_error_handling("flow-review");
+}
+
+#[test]
+fn flow_learn_step1_handles_capture_diff_error() {
+    // Regression: an unhandled capture-diff error would hand the
+    // learn-analyst a missing diff. Step 1 must fetch+retry once, then halt.
+    assert_capture_diff_error_handling("flow-learn");
+}
+
 /// flow-complete's Step 3 `Yes, merge` answer must invoke
 /// `bin/flow confirm-merge` to write the single-use merge-approval
 /// marker — the "proceed" half of the Complete-phase merge gate.

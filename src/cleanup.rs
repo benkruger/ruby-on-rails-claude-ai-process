@@ -9,8 +9,10 @@
 //!   bin/flow cleanup <project_root> --branch <name> --worktree <path> [--pr <number>] [--pull]
 //!
 //! Output (JSON to stdout):
-//!   {"status": "ok", "steps": {"pr_close": ..., "worktree": ..., "remote_branch": ...,
-//!                              "local_branch": ..., "branch_dir": ..., "queue_entry": ...,
+//!   {"status": "ok", "steps": {"pr_close": ..., "adversarial_probe": ...,
+//!                              "worktree": ..., "remote_branch": ...,
+//!                              "local_branch": ..., "phase_anchor_marker": ...,
+//!                              "branch_dir": ..., "queue_entry": ...,
 //!                              "git_pull": ...}}
 //!
 //! Each step reports one of: "removed"/"deleted"/"closed"/"pulled",
@@ -245,6 +247,45 @@ fn delete_adversarial_probe(project_root: &Path, worktree: &str) -> String {
     }
 }
 
+/// Read the `session_id` string from the branch's state file, returning
+/// `None` when the file is absent, unparseable, or carries no
+/// `session_id` string. Used to resolve which phase-anchor marker to
+/// delete before the state file itself is removed. Reads via
+/// `fs::read_to_string` (the state file is FLOW-managed, matching the
+/// unbounded read in `phase_enter::run_impl`).
+fn read_state_session_id(state_file: &Path) -> Option<String> {
+    let content = fs::read_to_string(state_file).ok()?;
+    let parsed: Value = serde_json::from_str(&content).ok()?;
+    parsed
+        .get("session_id")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+}
+
+/// Remove the session-keyed phase-anchor marker written by
+/// `phase-enter` (`src/phase_anchor.rs`). The marker lives under
+/// `<home>/.claude/flow/`, NOT inside the worktree, so `git worktree
+/// remove` does not dispose of it — it must be removed explicitly.
+/// Idempotent: `NotFound` is tolerated as `"missing"` because cleanup
+/// may run twice (abort-then-complete, or a retry). Returns `"skipped"`
+/// when no session id resolves or the marker path cannot be built
+/// (unsafe/empty home).
+fn remove_phase_anchor_marker(home: &Path, session_id: Option<&str>) -> String {
+    let sid = match session_id {
+        Some(s) => s,
+        None => return "skipped".to_string(),
+    };
+    let path = match crate::phase_anchor::marker_path(home, sid) {
+        Some(p) => p,
+        None => return "skipped".to_string(),
+    };
+    match fs::remove_file(&path) {
+        Ok(()) => "deleted".to_string(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => "missing".to_string(),
+        Err(e) => format!("failed: {}", e),
+    }
+}
+
 /// Recursively remove `<.flow-states>/<branch>/` and everything inside
 /// it. The branch directory holds every per-branch artifact (state
 /// file, log, plan, DAG, frozen phases, CI sentinel, timings,
@@ -377,6 +418,20 @@ pub fn cleanup(
             "[Phase 5] cleanup — in progress (branch directory will be removed next)",
         );
     }
+
+    // Delete the session-keyed phase-anchor marker
+    // (`src/phase_anchor.rs`). The marker lives under
+    // `<home>/.claude/flow/`, NOT inside the worktree, so it survives
+    // `git worktree remove` and must be removed explicitly. The
+    // session id is read from the state file HERE, before the
+    // branch_dir removal below disposes of `state.json`. Best-effort:
+    // tolerates a missing marker and skips when no session id resolves.
+    let anchor_session_id = read_state_session_id(&paths.state_file());
+    let anchor_home = crate::session_metrics::home_dir_or_empty();
+    steps.insert(
+        "phase_anchor_marker".to_string(),
+        remove_phase_anchor_marker(&anchor_home, anchor_session_id.as_deref()),
+    );
 
     // Every per-branch artifact (`state.json`, `log`, `plan.md`,
     // `dag.md`, `phases.json`, `ci-passed`, `timings.md`,

@@ -563,6 +563,7 @@ fn step_key_order_matches_expected() {
             "worktree",
             "remote_branch",
             "local_branch",
+            "phase_anchor_marker",
             "branch_dir",
             "queue_entry",
         ]
@@ -587,6 +588,7 @@ fn step_key_order_with_pull() {
             "worktree",
             "remote_branch",
             "local_branch",
+            "phase_anchor_marker",
             "branch_dir",
             "queue_entry",
             "git_pull",
@@ -1285,5 +1287,198 @@ fn cleanup_adversarial_probe_failed_when_path_is_directory() {
         steps["adversarial_probe"].starts_with("failed:"),
         "directory at probe path must surface as a `failed:` outcome, got: {}",
         steps["adversarial_probe"]
+    );
+}
+
+// --- phase-anchor marker deletion ---
+//
+// These tests run cleanup through the compiled binary so HOME can be
+// set per-child (the marker lives under `<HOME>/.claude/flow/`, which a
+// library `run_impl_main` call cannot control without an env race per
+// `.claude/rules/testing-gotchas.md`). The session id is read from the
+// state file's `session_id`, so each test seeds it to the value the
+// marker filename uses.
+
+/// Overwrite the branch's state.json with a `session_id` field so
+/// cleanup resolves the marker filename. Preserves branch + worktree.
+fn seed_session_id(repo: &Path, branch: &str, wt_rel: &str, session_id: &str) {
+    let state = repo.join(".flow-states").join(branch).join("state.json");
+    fs::write(
+        &state,
+        json!({"branch": branch, "worktree": wt_rel, "session_id": session_id}).to_string(),
+    )
+    .unwrap();
+}
+
+/// Path to the phase-anchor marker under a fixture HOME.
+fn anchor_marker_path(home: &Path, session_id: &str) -> std::path::PathBuf {
+    home.join(".claude")
+        .join("flow")
+        .join(format!("phase-anchor-{}.json", session_id))
+}
+
+/// Spawn `bin/flow cleanup` with HOME set to the fixture and parse the
+/// `steps` map from stdout JSON. GH_TOKEN neutralized per
+/// `.claude/rules/subprocess-test-hygiene.md`.
+fn cleanup_subprocess_steps(
+    repo: &Path,
+    home: &Path,
+    branch: &str,
+    wt_rel: &str,
+) -> indexmap::IndexMap<String, String> {
+    let output = flow_rs_no_recursion()
+        .args([
+            "cleanup",
+            repo.to_str().unwrap(),
+            "--branch",
+            branch,
+            "--worktree",
+            wt_rel,
+        ])
+        .env("GH_TOKEN", "invalid")
+        .env("HOME", home)
+        .output()
+        .expect("spawn flow-rs cleanup");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let last = stdout.trim().lines().last().unwrap_or("");
+    let value: Value = serde_json::from_str(last).unwrap_or_else(|_| json!({"raw": stdout.trim()}));
+    steps_from(&value)
+}
+
+#[test]
+fn cleanup_deletes_phase_anchor_marker_when_present() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    let wt_rel = setup_feature(dir.path(), "test-feature");
+    let session_id = "sess-cleanup-del";
+    seed_session_id(dir.path(), "test-feature", &wt_rel, session_id);
+
+    let home = dir.path().join("home");
+    let marker = anchor_marker_path(&home, session_id);
+    fs::create_dir_all(marker.parent().unwrap()).unwrap();
+    fs::write(&marker, "{}").unwrap();
+
+    let steps = cleanup_subprocess_steps(dir.path(), &home, "test-feature", &wt_rel);
+    assert_eq!(
+        steps["phase_anchor_marker"], "deleted",
+        "marker present must be deleted; steps: {:?}",
+        steps
+    );
+    assert!(!marker.exists(), "marker file must be gone after cleanup");
+}
+
+#[test]
+fn cleanup_phase_anchor_marker_missing_when_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    let wt_rel = setup_feature(dir.path(), "test-feature");
+    seed_session_id(dir.path(), "test-feature", &wt_rel, "sess-cleanup-absent");
+
+    let home = dir.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+
+    let steps = cleanup_subprocess_steps(dir.path(), &home, "test-feature", &wt_rel);
+    assert_eq!(
+        steps["phase_anchor_marker"], "missing",
+        "session resolves but no marker file → missing (NotFound tolerated); steps: {:?}",
+        steps
+    );
+}
+
+#[test]
+fn cleanup_phase_anchor_marker_skipped_without_session_id() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    // setup_feature seeds state.json WITHOUT a session_id field.
+    let wt_rel = setup_feature(dir.path(), "test-feature");
+
+    let home = dir.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+
+    let steps = cleanup_subprocess_steps(dir.path(), &home, "test-feature", &wt_rel);
+    assert_eq!(
+        steps["phase_anchor_marker"], "skipped",
+        "no session_id in state → skipped; steps: {:?}",
+        steps
+    );
+}
+
+#[test]
+fn cleanup_phase_anchor_marker_skipped_when_home_unset() {
+    // HOME unset → home_dir_or_empty() returns empty → marker_path
+    // cannot be built (unsafe home) → skipped, even with a session id.
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    let wt_rel = setup_feature(dir.path(), "test-feature");
+    seed_session_id(dir.path(), "test-feature", &wt_rel, "sess-no-home");
+
+    let output = flow_rs_no_recursion()
+        .args([
+            "cleanup",
+            dir.path().to_str().unwrap(),
+            "--branch",
+            "test-feature",
+            "--worktree",
+            &wt_rel,
+        ])
+        .env("GH_TOKEN", "invalid")
+        .env_remove("HOME")
+        .output()
+        .expect("spawn flow-rs cleanup");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let last = stdout.trim().lines().last().unwrap_or("");
+    let value: Value = serde_json::from_str(last).unwrap_or_else(|_| json!({"raw": stdout.trim()}));
+    let steps = steps_from(&value);
+    assert_eq!(
+        steps["phase_anchor_marker"], "skipped",
+        "unset HOME → unsafe marker path → skipped; steps: {:?}",
+        steps
+    );
+}
+
+#[test]
+fn cleanup_phase_anchor_marker_skipped_on_corrupt_state() {
+    // State file exists but is not valid JSON → session id cannot be
+    // read → skipped (the parse-fail branch of read_state_session_id).
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    let wt_rel = setup_feature(dir.path(), "test-feature");
+    let state = dir
+        .path()
+        .join(".flow-states")
+        .join("test-feature")
+        .join("state.json");
+    fs::write(&state, "not valid json").unwrap();
+
+    let home = dir.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+
+    let steps = cleanup_subprocess_steps(dir.path(), &home, "test-feature", &wt_rel);
+    assert_eq!(
+        steps["phase_anchor_marker"], "skipped",
+        "corrupt state → no session id → skipped; steps: {:?}",
+        steps
+    );
+}
+
+#[test]
+fn cleanup_phase_anchor_marker_failed_when_marker_is_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    let wt_rel = setup_feature(dir.path(), "test-feature");
+    let session_id = "sess-cleanup-dir";
+    seed_session_id(dir.path(), "test-feature", &wt_rel, session_id);
+
+    // Create a DIRECTORY at the marker path so fs::remove_file fails
+    // with a non-NotFound error (EISDIR/EPERM).
+    let home = dir.path().join("home");
+    let marker = anchor_marker_path(&home, session_id);
+    fs::create_dir_all(&marker).unwrap();
+
+    let steps = cleanup_subprocess_steps(dir.path(), &home, "test-feature", &wt_rel);
+    assert!(
+        steps["phase_anchor_marker"].starts_with("failed:"),
+        "directory at marker path must surface as failed; steps: {:?}",
+        steps
     );
 }

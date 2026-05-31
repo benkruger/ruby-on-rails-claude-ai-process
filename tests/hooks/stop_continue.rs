@@ -1236,6 +1236,27 @@ fn utility_skill_marker_present_decompose_most_recent_blocks() {
 }
 
 #[test]
+fn utility_skill_marker_present_bare_decompose_most_recent_blocks() {
+    // The decompose skill resolves under two valid invocation forms —
+    // bare `decompose` and fully-qualified `decompose:decompose` — and
+    // both appear verbatim in real transcripts. The discriminator must
+    // recognize the bare form: marker present, transcript shows a bare
+    // `decompose` Skill call as the most recent since the user typed,
+    // so the predicate must refuse turn-end exactly as it does for the
+    // namespaced form.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().canonicalize().unwrap();
+    write_utility_marker(&home, UTIL_SKILL, UTIL_SESSION);
+    let transcript = transcript_with_skill_calls(&home, &["decompose"]);
+    let result = check_in_progress_utility_skill(UTIL_SESSION, transcript.to_str(), &home);
+    assert!(
+        result.should_block,
+        "marker + bare decompose most recent → block"
+    );
+    assert_eq!(result.skill.as_deref(), Some("utility-in-progress"));
+}
+
+#[test]
 fn utility_skill_marker_present_pm_after_decompose_no_block() {
     // AC#3: marker present, transcript shows `decompose:decompose`
     // followed by `flow:pm`. The planning-persona sub-agent call is

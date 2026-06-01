@@ -470,9 +470,15 @@ fn run_impl_main_blocks_user_only_skill_via_validate() {
 
 // --- subprocess integration tests ---
 
+/// Spawn `validate-skill` from an inert tempdir cwd (no git repo, no
+/// `.flow-states/` state file) so branch detection finds no active flow
+/// — the right fixture for the basic stdin/exit-code path tests. Tests
+/// that need the gate to see an active flow build their own worktree +
+/// state file and spawn through `spawn_skill_with_payload_cwd` instead.
 fn run_hook_subprocess(stdin_input: &str) -> (i32, String, String) {
     let dir = tempfile::tempdir().expect("tempdir");
-    let output = crate::common::spawn_hook("validate-skill", dir.path(), stdin_input, &[]);
+    let output =
+        crate::common::spawn_hook("validate-skill", dir.path(), stdin_input.as_bytes(), &[]);
     (
         output.status.code().unwrap_or(-1),
         String::from_utf8_lossy(&output.stdout).to_string(),
@@ -493,7 +499,7 @@ fn spawn_skill_with_payload_cwd(real_cwd: &Path, stdin_input: &str) -> (i32, Str
     let output = crate::common::spawn_hook(
         "validate-skill",
         real_cwd,
-        stdin_input,
+        stdin_input.as_bytes(),
         &[("HOME", real_cwd.to_str().unwrap())],
     );
     (
@@ -553,7 +559,7 @@ fn subprocess_validate_skill_blocks_user_only_invocation_without_user_command() 
     let output = crate::common::spawn_hook(
         "validate-skill",
         home,
-        &payload.to_string(),
+        payload.to_string().as_bytes(),
         &[("HOME", home.to_str().unwrap())],
     );
     assert_eq!(output.status.code().unwrap_or(-1), 2);
@@ -579,7 +585,7 @@ fn subprocess_validate_skill_allows_when_user_invocation_present() {
     let output = crate::common::spawn_hook(
         "validate-skill",
         home,
-        &payload.to_string(),
+        payload.to_string().as_bytes(),
         &[("HOME", home.to_str().unwrap())],
     );
     assert_eq!(output.status.code().unwrap_or(-1), 0);
@@ -600,7 +606,7 @@ fn subprocess_validate_skill_allows_when_skill_not_user_only() {
     let output = crate::common::spawn_hook(
         "validate-skill",
         home,
-        &payload.to_string(),
+        payload.to_string().as_bytes(),
         &[("HOME", home.to_str().unwrap())],
     );
     assert_eq!(output.status.code().unwrap_or(-1), 0);

@@ -452,27 +452,33 @@ pub fn parse_output(output: &Output) -> Value {
 ///   re-sets it (e.g. dispatcher's `run_hook` passes
 ///   `("FLOW_SIMULATE_BRANCH", branch)`).
 /// - `HOME` — the ambient-config home; removed so the child reads no
-///   user dotfiles. Callers that need a specific home pass it through
-///   `env` (e.g. `("HOME", fixture)` for transcript fixtures); callers
-///   that want it unset (e.g. capture-session's non-absolute-home test)
-///   pass an empty slice.
+///   user dotfiles. The removal is UNCONDITIONAL: a caller that needs
+///   a specific home re-adds it by passing `("HOME", fixture)` in
+///   `env` (e.g. for transcript fixtures), which sets HOME to that
+///   fixture value. There is no way to inherit the parent process's
+///   real HOME — that is deliberate, per the rule's Working Directory
+///   Isolation: a hook test must never resolve against the runner's
+///   real home. Omitting the key from `env` is not a request to
+///   inherit; it simply leaves the unconditional removal in place.
 ///
 /// `env` pairs are applied AFTER the three removals, so passing
 /// `("HOME", fixture)` or `("FLOW_SIMULATE_BRANCH", "feature/x")`
-/// re-sets the removed var to the fixture value (last-write-wins on
-/// `Command`). A caller needing an extra var removed instead of set
-/// expresses it as the absence of that key from `env` when the var is
-/// one of the three above, or builds its own `Command` for any other
-/// var the slice cannot express.
+/// re-adds the removed var with the fixture value (last-write-wins on
+/// `Command`). A var that must stay removed is simply left out of
+/// `env`; a var the slice cannot express (e.g. a removal of some
+/// fourth var, or a `pre_exec` closure) means the caller builds its
+/// own `Command`.
 ///
 /// # Parameters
 /// - `hook_name`: the hook subcommand (e.g. `"post-compact"`).
 /// - `cwd`: the child's working directory (a fixture git repo or
 ///   tempdir).
-/// - `stdin`: bytes written to the child's stdin, as a `&str` (every
-///   hook payload is UTF-8 JSON or deliberately-malformed UTF-8 text).
+/// - `stdin`: raw bytes written to the child's stdin. Bytes (not
+///   `&str`) so byte-origin callers pass their payload directly and a
+///   probe can feed deliberately-malformed non-UTF-8 input to exercise
+///   the production hooks' raw-stdin reads.
 /// - `env`: `(key, value)` pairs set on the child after the removals.
-pub fn spawn_hook(hook_name: &str, cwd: &Path, stdin: &str, env: &[(&str, &str)]) -> Output {
+pub fn spawn_hook(hook_name: &str, cwd: &Path, stdin: &[u8], env: &[(&str, &str)]) -> Output {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_flow-rs"));
     cmd.args(["hook", hook_name])
         .env_remove("FLOW_CI_RUNNING")
@@ -490,7 +496,7 @@ pub fn spawn_hook(hook_name: &str, cwd: &Path, stdin: &str, env: &[(&str, &str)]
         .stdin
         .as_mut()
         .expect("piped stdin")
-        .write_all(stdin.as_bytes())
+        .write_all(stdin)
         .expect("write stdin to flow-rs hook");
     child.wait_with_output().expect("wait for flow-rs hook")
 }

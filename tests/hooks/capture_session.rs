@@ -38,12 +38,7 @@ fn run_capture_session(home_env: Option<&Path>, stdin_bytes: &[u8]) -> Option<i3
         Some(h) => vec![("HOME", h)],
         None => vec![],
     };
-    let output = crate::common::spawn_hook(
-        "capture-session",
-        dir.path(),
-        std::str::from_utf8(stdin_bytes).expect("capture-session stdin is UTF-8"),
-        &env,
-    );
+    let output = crate::common::spawn_hook("capture-session", dir.path(), stdin_bytes, &env);
     output.status.code()
 }
 
@@ -138,7 +133,7 @@ fn capture_session_skips_when_home_is_relative() {
     let output = crate::common::spawn_hook(
         "capture-session",
         dir.path(),
-        r#"{"session_id":"valid-sid"}"#,
+        br#"{"session_id":"valid-sid"}"#,
         &[("HOME", "relative-home")],
     );
     assert_eq!(output.status.code(), Some(0));

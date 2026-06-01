@@ -1023,7 +1023,12 @@ fn shared_config_blocks_when_worktree_unresolvable() {
 
 fn run_hook(stdin_input: &str) -> (i32, String, String) {
     let dir = tempfile::tempdir().expect("tempdir");
-    let output = crate::common::spawn_hook("validate-worktree-paths", dir.path(), stdin_input, &[]);
+    let output = crate::common::spawn_hook(
+        "validate-worktree-paths",
+        dir.path(),
+        stdin_input.as_bytes(),
+        &[],
+    );
     (
         output.status.code().unwrap_or(-1),
         String::from_utf8_lossy(&output.stdout).to_string(),
@@ -1133,7 +1138,12 @@ fn run_subprocess_exits_2_when_editing_shared_config_in_worktree() {
         cargo_toml.display()
     );
 
-    let output = crate::common::spawn_hook("validate-worktree-paths", &worktree, &payload, &[]);
+    let output = crate::common::spawn_hook(
+        "validate-worktree-paths",
+        &worktree,
+        payload.as_bytes(),
+        &[],
+    );
     assert_eq!(
         output.status.code(),
         Some(2),
@@ -1389,7 +1399,7 @@ fn spawn_hook_with_cwd(
     let output = crate::common::spawn_hook(
         "validate-worktree-paths",
         worktree_cwd,
-        &stdin_input,
+        stdin_input.as_bytes(),
         &[("HOME", home.to_str().unwrap())],
     );
     (
@@ -1434,7 +1444,7 @@ fn spawn_with_payload_cwd(
     let output = crate::common::spawn_hook(
         "validate-worktree-paths",
         real_cwd,
-        &stdin_input,
+        stdin_input.as_bytes(),
         &[("HOME", real_cwd.to_str().unwrap())],
     );
     (

@@ -13,12 +13,7 @@ use flow_rs::hooks::stop_failure::capture_failure_data;
 use serde_json::{json, Value};
 
 fn run_stop_failure(cwd: &Path, stdin: &[u8]) -> std::process::Output {
-    crate::common::spawn_hook(
-        "stop-failure",
-        cwd,
-        std::str::from_utf8(stdin).expect("stop-failure stdin is UTF-8"),
-        &[],
-    )
+    crate::common::spawn_hook("stop-failure", cwd, stdin, &[])
 }
 
 fn init_git(dir: &Path, branch: &str) {

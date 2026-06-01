@@ -1468,7 +1468,7 @@ fn run_hook_with_bg(bg: Value) -> (i32, String, String) {
     let output = crate::common::spawn_hook(
         "validate-pretool",
         isolation.path(),
-        &serde_json::to_string(&input).unwrap(),
+        serde_json::to_string(&input).unwrap().as_bytes(),
         &[("HOME", isolation.path().to_str().unwrap())],
     );
     (

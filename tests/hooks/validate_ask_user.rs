@@ -435,7 +435,7 @@ fn test_set_blocked_preserves_other_fields() {
 // --- run() subprocess test ---
 
 fn run_hook(cwd: &Path, stdin_input: &str) -> (i32, String, String) {
-    let output = crate::common::spawn_hook("validate-ask-user", cwd, stdin_input, &[]);
+    let output = crate::common::spawn_hook("validate-ask-user", cwd, stdin_input.as_bytes(), &[]);
     (
         output.status.code().unwrap_or(-1),
         String::from_utf8_lossy(&output.stdout).to_string(),
@@ -765,7 +765,7 @@ fn validate_ask_user_carve_out_subprocess_allows_during_in_progress_auto() {
     let output = crate::common::spawn_hook(
         "validate-ask-user",
         &root,
-        &payload.to_string(),
+        payload.to_string().as_bytes(),
         &[("HOME", root.to_str().unwrap())],
     );
     // Without the carve-out the in_progress + auto block would
@@ -820,7 +820,7 @@ fn validate_ask_user_block_persists_when_no_carve_out_during_in_progress_auto() 
     let output = crate::common::spawn_hook(
         "validate-ask-user",
         &root,
-        &payload.to_string(),
+        payload.to_string().as_bytes(),
         &[("HOME", root.to_str().unwrap())],
     );
     assert_eq!(output.status.code().unwrap_or(-1), 2);
@@ -883,7 +883,7 @@ fn run_validate_ask_user(root: &Path, payload: &Value) -> (i32, String, String) 
     let output = crate::common::spawn_hook(
         "validate-ask-user",
         root,
-        &payload.to_string(),
+        payload.to_string().as_bytes(),
         &[("HOME", root.to_str().unwrap())],
     );
     (

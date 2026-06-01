@@ -504,7 +504,8 @@ fn run_impl_main_cwd_with_flow_states_directly_resolves_root() {
 // --- run() subprocess tests ---
 
 fn run_hook_subprocess(cwd: &Path, stdin_input: &str) -> (i32, String, String) {
-    let output = crate::common::spawn_hook("validate-claude-paths", cwd, stdin_input, &[]);
+    let output =
+        crate::common::spawn_hook("validate-claude-paths", cwd, stdin_input.as_bytes(), &[]);
     (
         output.status.code().unwrap_or(-1),
         String::from_utf8_lossy(&output.stdout).to_string(),

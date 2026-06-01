@@ -13,12 +13,7 @@ use flow_rs::hooks::post_compact::capture_compact_data;
 use serde_json::{json, Value};
 
 fn run_post_compact(cwd: &Path, stdin: &[u8]) -> std::process::Output {
-    crate::common::spawn_hook(
-        "post-compact",
-        cwd,
-        std::str::from_utf8(stdin).expect("post-compact stdin is UTF-8"),
-        &[],
-    )
+    crate::common::spawn_hook("post-compact", cwd, stdin, &[])
 }
 
 fn init_git(dir: &Path, branch: &str) {

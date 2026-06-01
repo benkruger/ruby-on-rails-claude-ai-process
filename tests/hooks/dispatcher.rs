@@ -62,13 +62,11 @@ fn read_state(dir: &Path, branch: &str) -> Value {
 /// - `dir` is the child's `current_dir`, scoping `project_root()`
 ///   discovery to the tempdir so the child reads and mutates only the
 ///   fixture's `.flow-states/` directory.
+/// - `spawn_hook` also unconditionally removes `FLOW_CI_RUNNING` and
+///   `HOME`; these hooks resolve from cwd and branch (not HOME), so the
+///   `HOME` removal is inert here.
 fn run_hook(hook: &str, dir: &Path, branch: &str, stdin_data: &[u8]) -> Output {
-    crate::common::spawn_hook(
-        hook,
-        dir,
-        std::str::from_utf8(stdin_data).expect("hook stdin is UTF-8"),
-        &[("FLOW_SIMULATE_BRANCH", branch)],
-    )
+    crate::common::spawn_hook(hook, dir, stdin_data, &[("FLOW_SIMULATE_BRANCH", branch)])
 }
 
 /// Initialize a git repo in `dir` with an initial commit on `branch_name`.
@@ -105,14 +103,11 @@ fn setup_git_repo_on_branch(dir: &Path, branch_name: &str) {
 ///
 /// Callers must use [`setup_git_repo_on_branch`] (not
 /// [`setup_git_and_state`]) so the fixture repo has a deterministic
-/// HEAD branch and an initial commit.
+/// HEAD branch and an initial commit. `spawn_hook` also unconditionally
+/// removes `FLOW_CI_RUNNING` and `HOME` (inert for these cwd- and
+/// branch-resolving hooks).
 fn run_hook_no_simulate(hook: &str, dir: &Path, stdin_data: &[u8]) -> Output {
-    crate::common::spawn_hook(
-        hook,
-        dir,
-        std::str::from_utf8(stdin_data).expect("hook stdin is UTF-8"),
-        &[],
-    )
+    crate::common::spawn_hook(hook, dir, stdin_data, &[])
 }
 
 // ---------------------------------------------------------------------------
@@ -804,13 +799,18 @@ fn setup_worktree_fixture(dir: &Path, branch: &str, with_state_file: bool) -> st
     worktree
 }
 
+/// Spawn `flow-rs hook <hook>` in an explicit `cwd` and return the
+/// captured `Output`. Delegates to [`crate::common::spawn_hook`] with an
+/// empty `env` slice, so no `FLOW_SIMULATE_BRANCH` is set and the hook's
+/// branch/flow detection resolves from `cwd` itself — the fixture signal
+/// these `validate-pretool`/`validate-claude-paths`/`validate-worktree-paths`
+/// tests rely on. Unlike [`run_hook`] it sets no simulated branch, and
+/// unlike [`run_hook_no_simulate`] the cwd is the fixture under test
+/// rather than a git repo on a deterministic branch. `spawn_hook`'s
+/// universal removals (`FLOW_CI_RUNNING`, `FLOW_SIMULATE_BRANCH`, `HOME`)
+/// apply.
 fn run_hook_in(cwd: &Path, hook: &str, stdin_data: &[u8]) -> Output {
-    crate::common::spawn_hook(
-        hook,
-        cwd,
-        std::str::from_utf8(stdin_data).expect("hook stdin is UTF-8"),
-        &[],
-    )
+    crate::common::spawn_hook(hook, cwd, stdin_data, &[])
 }
 
 #[test]

@@ -628,11 +628,13 @@ pub fn check_autonomous_stop(
 }
 
 /// Refuse a voluntary turn-end when a multi-step utility skill's
-/// `decompose:decompose` sub-skill has just returned in the current
-/// model turn.
+/// decompose sub-skill (bare `decompose` or namespaced
+/// `decompose:decompose`) has just returned in the current model
+/// turn.
 ///
-/// Multi-step utility skills (`flow:flow-plan`) invoke
-/// `decompose:decompose` via the Skill tool mid-pipeline. The
+/// Multi-step utility skills (`flow:flow-plan`) invoke the decompose
+/// skill (`decompose` or `decompose:decompose`) via the Skill tool
+/// mid-pipeline. The
 /// Skill tool's return is a
 /// structural surface where the model treats the handoff as a
 /// natural stopping point and returns control to the user — breaking
@@ -681,7 +683,7 @@ pub fn check_autonomous_stop(
 ///   loop because each iteration produces a new decompose call as
 ///   the most recent Skill in the transcript.
 ///
-/// Composed into `run()` AFTER `check_continue` and BEFORE
+/// Composed FIRST in `run()`, before `check_continue` and
 /// `check_autonomous_stop`.
 ///
 /// **Block message.** When the gate fires, the context is the exact
@@ -752,10 +754,11 @@ pub fn check_in_progress_utility_skill(
         return no_block();
     }
     // Marker precondition satisfied. Now check the discriminator:
-    // the most recent Skill call since the user typed must be
-    // `decompose:decompose`. Without a transcript_path, the walker
-    // cannot run and the predicate fails-open — a normal reply must
-    // not block.
+    // the most recent Skill call since the user typed must be the
+    // decompose skill — bare `decompose` or namespaced
+    // `decompose:decompose` (both recognized by `is_decompose_skill`).
+    // Without a transcript_path, the walker cannot run and the
+    // predicate fails-open — a normal reply must not block.
     let transcript_path = match transcript_path {
         Some(p) if !p.is_empty() => Path::new(p),
         _ => return no_block(),

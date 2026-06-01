@@ -367,7 +367,6 @@ fn cleanup_removes_branch_dir_with_seeded_artifacts() {
     // Seed every per-branch artifact the production layout supports
     // so the single recursive remove is exercised across the full set.
     fs::write(branch_dir.join("plan.md"), "# Plan\n").unwrap();
-    fs::write(branch_dir.join("dag.md"), "# DAG\n").unwrap();
     fs::write(
         branch_dir.join("phases.json"),
         r#"{"phases":{},"order":[]}"#,
@@ -596,6 +595,93 @@ fn step_key_order_with_pull() {
     );
 }
 
+// --- run_impl_main top-level return-arm shape ---
+//
+// Pin the top-level `Value` shape of every `run_impl_main` return arm
+// — status-first key order, exact error messages, and the success
+// arm's `[status, steps]` ordering. The JSON the `flow-complete`
+// skill parses from `cleanup` stdout depends on this exact shape, so
+// any key-order shift or message change in the output helpers trips
+// these tests. Named consumer: the `flow-complete` skill's parse of
+// `cleanup` stdout.
+
+fn top_level_keys(value: &Value) -> Vec<String> {
+    value
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(|k| k.to_string())
+        .collect()
+}
+
+#[test]
+fn run_impl_main_nonexistent_root_is_status_first_error() {
+    let args = Args {
+        project_root: "/nonexistent/path/does/not/exist".to_string(),
+        branch: Some("test-branch".to_string()),
+        worktree: Some(".worktrees/test-branch".to_string()),
+        pr: None,
+        pull: false,
+    };
+    let (value, code) = run_impl_main(&args);
+    assert_eq!(code, 1);
+    assert_eq!(value["status"], "error");
+    assert!(value["message"]
+        .as_str()
+        .unwrap()
+        .contains("Project root not found"));
+    assert_eq!(top_level_keys(&value), vec!["status", "message"]);
+}
+
+#[test]
+fn run_impl_main_missing_branch_is_status_first_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let args = Args {
+        project_root: dir.path().to_string_lossy().to_string(),
+        branch: None,
+        worktree: Some(".worktrees/x".to_string()),
+        pr: None,
+        pull: false,
+    };
+    let (value, code) = run_impl_main(&args);
+    assert_eq!(code, 1);
+    assert_eq!(value["status"], "error");
+    assert_eq!(value["message"], "--branch (with --worktree) is required");
+    assert_eq!(top_level_keys(&value), vec!["status", "message"]);
+}
+
+#[test]
+fn run_impl_main_missing_worktree_is_status_first_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let args = Args {
+        project_root: dir.path().to_string_lossy().to_string(),
+        branch: Some("test-branch".to_string()),
+        worktree: None,
+        pr: None,
+        pull: false,
+    };
+    let (value, code) = run_impl_main(&args);
+    assert_eq!(code, 1);
+    assert_eq!(value["status"], "error");
+    assert_eq!(
+        value["message"],
+        "--worktree is required when --branch is set"
+    );
+    assert_eq!(top_level_keys(&value), vec!["status", "message"]);
+}
+
+#[test]
+fn run_impl_main_success_is_status_then_steps() {
+    let dir = tempfile::tempdir().unwrap();
+    setup_git_repo(dir.path());
+    let wt_rel = setup_feature(dir.path(), "test-feature");
+
+    let (value, code) = run_impl_main(&args_for(dir.path(), "test-feature", &wt_rel, None, false));
+    assert_eq!(code, 0);
+    assert_eq!(value["status"], "ok");
+    assert_eq!(top_level_keys(&value), vec!["status", "steps"]);
+}
+
 // --- queue_entry step ---
 
 #[test]
@@ -700,7 +786,6 @@ fn cleanup_invalid_branch_skips_branch_dir() {
     for legacy_key in [
         "state_file",
         "plan_file",
-        "dag_file",
         "log_file",
         "frozen_phases",
         "ci_sentinel",

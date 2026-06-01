@@ -317,6 +317,47 @@ fn complete_navigates_to_project_root() {
     );
 }
 
+// --- plan-path resolution: <project_root>/<files.plan path> ---
+//
+// The `.flow-states/` tree lives at the project root, not inside the
+// worktree. A skill that reads `files.plan` as a raw relative path
+// resolves it under the worktree, where `validate-worktree-paths`
+// blocks the read. Each skill that reads the plan file must prefix the
+// state-stored relative path with `<project_root>/`. These are per-file
+// siblings (per `.claude/rules/tests-guard-real-regressions.md`
+// "Multi-file contract tests"): each names the one skill whose
+// drift it guards.
+
+#[test]
+fn review_reads_plan_at_project_root() {
+    let c = common::read_skill("flow-review");
+    assert!(
+        c.contains("<project_root>/<files.plan path>"),
+        "flow-review must read the plan at `<project_root>/<files.plan path>` — \
+         a raw relative read resolves under the worktree and is blocked"
+    );
+}
+
+#[test]
+fn code_reads_plan_at_project_root() {
+    let c = common::read_skill("flow-code");
+    assert!(
+        c.contains("<project_root>/<files.plan path>"),
+        "flow-code must read the plan at `<project_root>/<files.plan path>` — \
+         a raw relative read resolves under the worktree and is blocked"
+    );
+}
+
+#[test]
+fn learn_reads_plan_at_project_root() {
+    let c = common::read_skill("flow-learn");
+    assert!(
+        c.contains("<project_root>/<files.plan path>"),
+        "flow-learn must read the plan at `<project_root>/<files.plan path>` — \
+         a raw relative read resolves under the worktree and is blocked"
+    );
+}
+
 fn assert_agent_exists(filename: &str, required_keys: &[&str]) {
     let fm = read_agent_frontmatter(filename);
     let map = fm.as_mapping().unwrap();
@@ -5757,12 +5798,12 @@ fn phase_1_hard_gate_requires_rerun_with_arguments() {
 //
 // Code path that produces the regression:
 //   - Write side: a SKILL.md instructs the model to Write to one of the
-//     persistent monitored paths (plan/DAG file, commit-msg, issue-body,
+//     persistent monitored paths (plan file, commit-msg, issue-body,
 //     orchestrate queue) without first routing through the
 //     `bin/flow write-rule` subcommand, whose `fs::write` call bypasses
 //     the preflight.
-//   - Edit side: a SKILL.md instructs the model to Edit a named plan or
-//     DAG file without a preceding explicit Read-tool instruction on
+//   - Edit side: a SKILL.md instructs the model to Edit a named plan
+//     file without a preceding explicit Read-tool instruction on
 //     the same file in the same `### Step` block.
 //
 // Consumers:
@@ -5785,7 +5826,6 @@ fn phase_1_hard_gate_requires_rerun_with_arguments() {
 /// also not monitored — they are the Write-tool input, not a persistent
 /// target.
 const WRITE_MONITORED_PATHS: &[&str] = &[
-    ".flow-states/<branch>-dag.md",
     ".flow-states/<branch>-plan.md",
     ".flow-states/<branch>-commit-msg.txt",
     ".flow-issue-body",
@@ -5933,10 +5973,7 @@ fn file_tool_preflight_write_paths_route_through_write_rule() {
 /// before editing") fires when the model has not naturally Read the
 /// file in the current turn — for example, re-entering the plan-check
 /// fix loop after a `--continue-step` resume.
-const EDIT_MONITORED_PATHS: &[&str] = &[
-    ".flow-states/<branch>-plan.md",
-    ".flow-states/<branch>-dag.md",
-];
+const EDIT_MONITORED_PATHS: &[&str] = &[".flow-states/<branch>-plan.md"];
 
 /// Non-blank lines backward from an Edit-tool instruction to look for
 /// a paired Read-tool instruction on the same path. Twelve lines covers
@@ -6027,7 +6064,7 @@ fn file_tool_preflight_edit_paths_preceded_by_read() {
 
     assert!(
         violations.is_empty(),
-        "SKILL.md Edit-tool instructions on named plan/DAG files must be preceded by an explicit Read-tool instruction to satisfy Claude Code's Edit preflight. See `.claude/rules/file-tool-preflights.md`:\n{}",
+        "SKILL.md Edit-tool instructions on named plan files must be preceded by an explicit Read-tool instruction to satisfy Claude Code's Edit preflight. See `.claude/rules/file-tool-preflights.md`:\n{}",
         violations.join("\n")
     );
 }

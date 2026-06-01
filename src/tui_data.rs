@@ -623,12 +623,6 @@ pub fn flow_summary(state: &Value, now: Option<DateTime<FixedOffset>>) -> FlowSu
         .and_then(|f| f.get("plan"))
         .and_then(|p| p.as_str())
         .filter(|s| !s.is_empty())
-        .or_else(|| {
-            state
-                .get("plan_file")
-                .and_then(|p| p.as_str())
-                .filter(|s| !s.is_empty())
-        })
         .map(|s| s.to_string());
 
     let timeline = phase_timeline(state, Some(now));

@@ -858,6 +858,142 @@ fn plan_from_issue_tasks_total_requires_digit_after_task_prefix() {
     assert_eq!(data["tasks_total"], 1);
 }
 
+// --- files.plan population ---
+
+/// After `write_plan` succeeds, `run_impl_main` records the relative
+/// plan path in the state file's `files.plan` so downstream consumers
+/// (phase-enter, render_pr_body, tui_data, plan_deviation) read the
+/// pointer without recomputing it. The test seeds an existing
+/// `.flow-states/<branch>/state.json` (run_impl_main does not create
+/// it — the real flow's init-state Step 3 already did), runs the
+/// subprocess through a fake gh returning a sentinel-delimited body,
+/// and asserts the concrete relative path lands in files.plan.
+#[test]
+fn plan_from_issue_populates_files_plan() {
+    // Plan fixture: key "expected" carries value
+    // ".flow-states/<branch>/plan.md" (the branch-templated relative
+    // path the run writes into files.plan).
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let branch = "feat-files-plan";
+    // Seed an existing state file — run_impl_main mutates it, never
+    // creates it.
+    let state_dir = repo.join(".flow-states").join(branch);
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(state_dir.join("state.json"), "{\"files\":{}}").unwrap();
+
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\nContent.\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(&repo, &["--issue", "30", "--branch", branch], &stub_dir);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+
+    let state_content = fs::read_to_string(state_dir.join("state.json")).unwrap();
+    let state: serde_json::Value = serde_json::from_str(&state_content).unwrap();
+    let expected = format!(".flow-states/{}/plan.md", branch);
+    assert_eq!(state["files"]["plan"].as_str().unwrap(), expected);
+}
+
+/// Regression (Review adversarial + reviewer): a hand-edited or
+/// corrupted state file whose `files` field is a non-object value (a
+/// string here; a JSON array hits the identical reset branch) must NOT
+/// panic the best-effort `files.plan` write. The per-level object guard
+/// in run_impl_main resets a wrong-type `files` to an empty object
+/// before the nested `IndexMut` assignment, so the run still exits 0
+/// (no serde_json IndexMut-on-non-object panic) with files.plan
+/// populated. Covers the `if !state["files"].is_object()` reset branch.
+#[test]
+fn plan_from_issue_nonobject_files_does_not_panic_and_sets_files_plan() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let branch = "feat-files-string";
+    let state_dir = repo.join(".flow-states").join(branch);
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(state_dir.join("state.json"), "{\"files\":\"corrupted\"}").unwrap();
+
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\nContent.\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(&repo, &["--issue", "31", "--branch", branch], &stub_dir);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "subprocess must exit 0 (no panic) even when files is a non-object string; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+
+    let state_content = fs::read_to_string(state_dir.join("state.json")).unwrap();
+    let state: serde_json::Value = serde_json::from_str(&state_content).unwrap();
+    let expected = format!(".flow-states/{}/plan.md", branch);
+    assert_eq!(state["files"]["plan"].as_str().unwrap(), expected);
+}
+
+/// Regression (Review adversarial + reviewer): a state file whose ROOT
+/// is a non-object value (a JSON array here) must NOT panic the
+/// best-effort `files.plan` write. The root guard
+/// (`if !(state.is_object() || state.is_null())`) skips the write
+/// entirely, so the run still exits 0 and the array root is left
+/// untouched. Covers the root-guard early-return branch.
+#[test]
+fn plan_from_issue_nonobject_root_skips_files_plan_without_panic() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = create_git_repo_with_remote(dir.path());
+    let branch = "feat-array-root";
+    let state_dir = repo.join(".flow-states").join(branch);
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(state_dir.join("state.json"), "[1,2,3]").unwrap();
+
+    let body = "<!-- FLOW-PLAN-BEGIN -->\\n## Plan\\nContent.\\n<!-- FLOW-PLAN-END -->";
+    let stub_dir = create_gh_stub(
+        &repo,
+        &format!(
+            "#!/bin/bash\necho '{{\"body\":\"{}\",\"state\":\"OPEN\"}}'\nexit 0\n",
+            body
+        ),
+    );
+
+    let output = run_plan_from_issue(&repo, &["--issue", "32", "--branch", branch], &stub_dir);
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "subprocess must exit 0 (no panic) even when the state root is an array; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let data = parse_output(&output);
+    assert_eq!(data["status"], "ok");
+
+    // The root guard skipped the write; the array root is preserved
+    // and carries no `files` key.
+    let state_content = fs::read_to_string(state_dir.join("state.json")).unwrap();
+    let state: serde_json::Value = serde_json::from_str(&state_content).unwrap();
+    assert!(state.is_array());
+    assert!(state.get("files").is_none());
+}
+
 #[test]
 fn plan_from_issue_rejects_oversized_gh_stdout_before_parse() {
     // Tenant 4 (Correctness): Review pre-mortem flagged that an

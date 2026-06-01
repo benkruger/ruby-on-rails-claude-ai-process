@@ -218,6 +218,10 @@ pub struct Args {
 /// "Exit code convention for business errors". Exit code `1` is
 /// reserved for infrastructure failures that escape the JSON
 /// contract.
+///
+/// On success it also records the relative plan path in the state
+/// file's `files.plan` field as a best-effort side effect — the
+/// success envelope is unchanged.
 pub fn run_impl_main(args: &Args, root: &Path) -> (serde_json::Value, i32) {
     let body = match fetch_issue_body(args.issue) {
         Ok(b) => b,
@@ -307,6 +311,39 @@ pub fn run_impl_main(args: &Args, root: &Path) -> (serde_json::Value, i32) {
             );
         }
     };
+
+    // Record the relative plan path in `files.plan` so downstream
+    // consumers (phase-enter, render_pr_body, tui_data, plan_deviation)
+    // read the pointer instead of recomputing it. Best-effort: the
+    // write runs at flow-start Step 5, after init-state Step 3 created
+    // state.json with `files` as a JSON object, so the state file is
+    // present. `let _` silences the unused-Result warning, mirroring
+    // `init_state::seed_session_id_from_capture`'s best-effort posture.
+    // `write_plan` already validated the branch through
+    // `FlowPaths::try_new` (an invalid branch returned the
+    // `invalid_branch` envelope above), so this reconstruction cannot
+    // fail — the `.expect` documents that upstream sanitizer.
+    let state_path = FlowPaths::try_new(root, &args.branch)
+        .expect("branch validated upstream by write_plan's FlowPaths::try_new")
+        .state_file();
+    let relative = format!(".flow-states/{}/plan.md", args.branch);
+    let _ = crate::lock::mutate_state(&state_path, &mut |state| {
+        // Per-level object guards before the nested `IndexMut`
+        // assignment (`.claude/rules/rust-patterns.md` "State Mutation
+        // Object Guards"). A hand-edited or corrupted state file can
+        // hold a non-object root or a non-object `files` value; raw
+        // `state["files"]["plan"] = ...` would panic with serde_json's
+        // `IndexMut`-on-non-object. The root guard skips the write
+        // entirely for a wrong-type root; the `files` guard auto-heals
+        // a wrong-type `files` to an empty object before the assignment.
+        if !(state.is_object() || state.is_null()) {
+            return;
+        }
+        if !state["files"].is_object() {
+            state["files"] = serde_json::json!({});
+        }
+        state["files"]["plan"] = serde_json::json!(relative);
+    });
 
     (
         serde_json::json!({

@@ -78,7 +78,6 @@ fn create_state(
         "feature": "Test Feature",
         "files": {
             "plan": ".flow-states/test-plan.md",
-            "dag": null,
             "log": format!(".flow-states/{}.log", branch),
             "state": format!(".flow-states/{}.json", branch)
         },
@@ -667,30 +666,29 @@ fn phase_enter_state_path_is_directory_errors() {
     );
 }
 
-/// Covers the `or_else(|| state.get("plan_file")...)` fallback closure
-/// on line 221 of `run_impl`. State has no `files.plan` entry but
-/// does have a top-level `plan_file` (legacy schema shape). The
-/// response's `plan_file` field comes from the fallback.
+/// Covers the `.filter(|s| !s.is_empty())` empty-string branch of the
+/// plan resolution in `run_impl`. State has a `files.plan` entry that
+/// is the empty string, so the filter drops it and the response omits
+/// the `plan_file` field.
 #[test]
-fn phase_enter_legacy_plan_file_fallback_covered() {
+fn phase_enter_empty_files_plan_yields_no_plan_file() {
     let dir = tempfile::tempdir().unwrap();
-    let branch = "legacy-plan";
+    let branch = "empty-plan";
     let _repo = create_git_repo(dir.path(), branch);
     let repo = &_repo;
     let state_dir = flow_states_dir(repo);
     let branch_dir = state_dir.join(branch);
     fs::create_dir_all(&branch_dir).unwrap();
-    // Legacy state: no `files.plan`, has top-level `plan_file`.
+    // files.plan is present but empty — the filter drops it.
     let state = json!({
         "branch": branch,
         "repo": "test/repo",
         "pr_number": 42,
         "pr_url": "https://github.com/test/repo/pull/42",
-        "feature": "Legacy Feature",
+        "feature": "Empty Plan Feature",
         "slack_thread_ts": "1.2",
         "current_phase": "flow-start",
-        "plan_file": ".flow-states/legacy-plan.md",
-        "files": {"plan": null, "log": format!(".flow-states/{}.log", branch)},
+        "files": {"plan": "", "log": format!(".flow-states/{}.log", branch)},
         "phases": {
             "flow-start": {"status": "complete"},
         },
@@ -711,9 +709,9 @@ fn phase_enter_legacy_plan_file_fallback_covered() {
         String::from_utf8_lossy(&output.stderr),
         String::from_utf8_lossy(&output.stdout)
     );
-    assert_eq!(
-        data["plan_file"], ".flow-states/legacy-plan.md",
-        "plan_file must come from the legacy top-level field"
+    assert!(
+        data.get("plan_file").is_none(),
+        "an empty files.plan must not produce a plan_file response field"
     );
 }
 
@@ -1059,8 +1057,8 @@ fn phase_enter_response_omits_absent_optional_fields() {
     let branch_dir = state_dir.join(branch);
     fs::create_dir_all(&branch_dir).unwrap();
     // Minimal state: no pr_number, no pr_url, no feature, no
-    // slack_thread_ts, no files.plan, no top-level plan_file. All
-    // five optional response fields are absent.
+    // slack_thread_ts, no files.plan. All five optional response
+    // fields are absent.
     let state = json!({
         "branch": branch,
         "current_phase": "flow-start",

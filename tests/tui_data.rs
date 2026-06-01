@@ -47,7 +47,6 @@ fn make_state(current_phase: &str, phase_statuses: &[(&str, &str)]) -> Value {
         "current_phase": current_phase,
         "files": {
             "plan": null,
-            "dag": null,
             "log": "",
             "state": "",
         },
@@ -1094,15 +1093,13 @@ fn test_flow_summary_plan_path_from_files() {
 }
 
 #[test]
-fn test_flow_summary_plan_path_fallback_plan_file() {
+fn test_flow_summary_empty_files_plan_yields_none() {
+    // files.plan present but empty — the `.filter(|s| !s.is_empty())`
+    // branch drops it, so plan_path resolves to None.
     let mut state = make_state("flow-start", &[]);
-    state["files"]["plan"] = json!(null);
-    state["plan_file"] = json!(".flow-states/test-feature-plan.md");
+    state["files"]["plan"] = json!("");
     let summary = flow_summary(&state, Some(pacific("2026-01-01T00:00:00-08:00")));
-    assert_eq!(
-        summary.plan_path.as_deref(),
-        Some(".flow-states/test-feature-plan.md")
-    );
+    assert_eq!(summary.plan_path.as_deref(), None);
 }
 
 #[test]

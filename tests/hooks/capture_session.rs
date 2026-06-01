@@ -483,3 +483,277 @@ fn run_persists_transcript_path_when_jsonl_does_not_exist() {
         parsed["transcript_path"]
     );
 }
+
+// --- refresh_active_flow_session ---
+//
+// When the Claude Code session rotates mid-flow (startup|resume|clear|
+// compact), the SessionStart hook receives the new session_id and
+// transcript_path. Without refreshing the active flow's state file,
+// `record-agent-return` keeps reading the flow-start session's
+// transcript and reports `phase_marker_not_found` for every Review and
+// Learn agent. `capture_session::run` therefore refreshes the active
+// flow's `session_id` AND `transcript_path` from the same payload,
+// keyed by branch-from-cwd, fail-open. These tests drive the hook
+// through the compiled binary and assert the state file update.
+
+/// Build a refresh fixture: a main-root tempdir with a worktree at
+/// `.worktrees/<branch>/` (carrying a `.git` marker file so
+/// `detect_branch_from_path` resolves the branch from the path alone,
+/// not a git subprocess) and a state file at
+/// `.flow-states/<branch>/state.json` carrying `state_json`. The
+/// tempdir is canonicalized so the child binary's cwd-derived paths
+/// match the test's constructed paths on macOS (per
+/// `.claude/rules/testing-gotchas.md` "macOS Subprocess Path
+/// Canonicalization"). Returns `(TempDir, main_root, worktree_cwd,
+/// state_path)`; the `TempDir` keeps the directory alive for the test
+/// body's lifetime.
+fn setup_refresh_fixture(
+    branch: &str,
+    state_json: &str,
+) -> (tempfile::TempDir, PathBuf, PathBuf, PathBuf) {
+    let dir = tempfile::tempdir().unwrap();
+    let main_root = dir.path().canonicalize().unwrap();
+    let worktree = main_root.join(".worktrees").join(branch);
+    fs::create_dir_all(&worktree).unwrap();
+    fs::write(worktree.join(".git"), "gitdir: /dev/null\n").unwrap();
+    let state_dir = main_root.join(".flow-states").join(branch);
+    fs::create_dir_all(&state_dir).unwrap();
+    let state_path = state_dir.join("state.json");
+    fs::write(&state_path, state_json).unwrap();
+    (dir, main_root, worktree, state_path)
+}
+
+/// Construct a transcript path under `<home>/.claude/projects/<proj>/`
+/// so it passes the structural validator. Creates the projects
+/// directory; the JSONL file itself need not exist (SessionStart
+/// delivers the path before Claude Code creates the file).
+fn make_transcript_path(home: &Path, proj: &str, name: &str) -> PathBuf {
+    let dir = home.join(".claude").join("projects").join(proj);
+    fs::create_dir_all(&dir).unwrap();
+    dir.join(name)
+}
+
+fn read_state(state_path: &Path) -> serde_json::Value {
+    serde_json::from_str(&fs::read_to_string(state_path).unwrap()).unwrap()
+}
+
+#[test]
+fn refresh_updates_session_id_and_transcript_path_when_flow_active() {
+    let (_dir, main_root, worktree, state_path) = setup_refresh_fixture(
+        "feat",
+        r#"{"session_id":"old-sid","transcript_path":"/old/path.jsonl"}"#,
+    );
+    let new_transcript = make_transcript_path(&main_root, "proj", "new-session.jsonl");
+    let stdin = format!(
+        r#"{{"session_id":"new-sid","transcript_path":"{}","cwd":"{}"}}"#,
+        new_transcript.display(),
+        worktree.display()
+    );
+    let output = crate::common::spawn_hook(
+        "capture-session",
+        &worktree,
+        stdin.as_bytes(),
+        &[("HOME", main_root.to_str().unwrap())],
+    );
+    assert_eq!(output.status.code(), Some(0));
+
+    let state = read_state(&state_path);
+    assert_eq!(state["session_id"], "new-sid");
+    assert_eq!(
+        state["transcript_path"].as_str(),
+        Some(new_transcript.to_string_lossy().as_ref()),
+        "active flow's transcript_path must be refreshed; got {}",
+        state["transcript_path"]
+    );
+}
+
+#[test]
+fn refresh_writes_null_transcript_path_when_payload_transcript_invalid() {
+    // An invalid transcript_path (outside ~/.claude/projects/) is
+    // dropped to None by run()'s structural validator; the refresh
+    // overwrites BOTH fields together so transcript_path becomes null
+    // rather than retaining the stale value.
+    let (_dir, main_root, worktree, state_path) = setup_refresh_fixture(
+        "feat",
+        r#"{"session_id":"old-sid","transcript_path":"/old/path.jsonl"}"#,
+    );
+    let stdin = format!(
+        r#"{{"session_id":"new-sid","transcript_path":"/etc/passwd","cwd":"{}"}}"#,
+        worktree.display()
+    );
+    let output = crate::common::spawn_hook(
+        "capture-session",
+        &worktree,
+        stdin.as_bytes(),
+        &[("HOME", main_root.to_str().unwrap())],
+    );
+    assert_eq!(output.status.code(), Some(0));
+
+    let state = read_state(&state_path);
+    assert_eq!(state["session_id"], "new-sid");
+    assert!(
+        state["transcript_path"].is_null(),
+        "invalid transcript_path must be written as null; got {}",
+        state["transcript_path"]
+    );
+}
+
+#[test]
+fn refresh_no_op_when_cwd_missing() {
+    // Payload omits `cwd`; the spawn cwd (main_root) is not inside a
+    // worktree, so branch detection yields None and the refresh is a
+    // no-op. The stale state is preserved.
+    let (_dir, main_root, _worktree, state_path) = setup_refresh_fixture(
+        "feat",
+        r#"{"session_id":"old-sid","transcript_path":"/old/path.jsonl"}"#,
+    );
+    let stdin = r#"{"session_id":"new-sid"}"#;
+    let output = crate::common::spawn_hook(
+        "capture-session",
+        &main_root,
+        stdin.as_bytes(),
+        &[("HOME", main_root.to_str().unwrap())],
+    );
+    assert_eq!(output.status.code(), Some(0));
+
+    let state = read_state(&state_path);
+    assert_eq!(
+        state["session_id"], "old-sid",
+        "no cwd → branch undetectable → state must be unchanged"
+    );
+}
+
+#[test]
+fn refresh_no_op_when_branch_has_slash() {
+    // A `.git` marker nested two levels deep under .worktrees/ makes
+    // detect_branch_from_path resolve a slash-containing branch
+    // (`a/b`), which FlowPaths::try_new rejects, so is_flow_active is
+    // false and the refresh is a no-op.
+    let dir = tempfile::tempdir().unwrap();
+    let main_root = dir.path().canonicalize().unwrap();
+    let nested = main_root.join(".worktrees").join("a").join("b");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join(".git"), "gitdir: /dev/null\n").unwrap();
+    // A state file at the slash-branch path is unreachable via
+    // FlowPaths; create one anyway to prove it is never touched.
+    let state_dir = main_root.join(".flow-states").join("a").join("b");
+    fs::create_dir_all(&state_dir).unwrap();
+    let state_path = state_dir.join("state.json");
+    fs::write(&state_path, r#"{"session_id":"old-sid"}"#).unwrap();
+
+    let stdin = format!(r#"{{"session_id":"new-sid","cwd":"{}"}}"#, nested.display());
+    let output = crate::common::spawn_hook(
+        "capture-session",
+        &nested,
+        stdin.as_bytes(),
+        &[("HOME", main_root.to_str().unwrap())],
+    );
+    assert_eq!(output.status.code(), Some(0));
+
+    let state = read_state(&state_path);
+    assert_eq!(
+        state["session_id"], "old-sid",
+        "slash branch → no active flow → state must be unchanged"
+    );
+}
+
+#[test]
+fn refresh_no_op_when_no_active_flow() {
+    // A worktree exists but no state file → is_flow_active is false →
+    // the refresh is a no-op and no state file is created.
+    let dir = tempfile::tempdir().unwrap();
+    let main_root = dir.path().canonicalize().unwrap();
+    let worktree = main_root.join(".worktrees").join("feat");
+    fs::create_dir_all(&worktree).unwrap();
+    fs::write(worktree.join(".git"), "gitdir: /dev/null\n").unwrap();
+    let state_path = main_root
+        .join(".flow-states")
+        .join("feat")
+        .join("state.json");
+
+    let stdin = format!(
+        r#"{{"session_id":"new-sid","cwd":"{}"}}"#,
+        worktree.display()
+    );
+    let output = crate::common::spawn_hook(
+        "capture-session",
+        &worktree,
+        stdin.as_bytes(),
+        &[("HOME", main_root.to_str().unwrap())],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    assert!(
+        !state_path.exists(),
+        "no active flow → refresh must not create a state file"
+    );
+}
+
+#[test]
+fn refresh_no_op_when_state_file_is_array() {
+    // A wrong-root-type state file (JSON array) hits the object guard
+    // inside the mutate_state closure: the closure returns without
+    // mutating, so the array is written back unchanged. Defends
+    // against a corrupted or hand-edited state file panicking the
+    // hook on string-key IndexMut.
+    let (_dir, main_root, worktree, state_path) = setup_refresh_fixture("feat", "[]");
+    let stdin = format!(
+        r#"{{"session_id":"new-sid","cwd":"{}"}}"#,
+        worktree.display()
+    );
+    let output = crate::common::spawn_hook(
+        "capture-session",
+        &worktree,
+        stdin.as_bytes(),
+        &[("HOME", main_root.to_str().unwrap())],
+    );
+    assert_eq!(output.status.code(), Some(0));
+
+    let state = read_state(&state_path);
+    assert!(
+        state.is_array() && state.as_array().unwrap().is_empty(),
+        "array-root state must be preserved unchanged; got {}",
+        state
+    );
+}
+
+#[test]
+fn refresh_only_touches_cwd_branch() {
+    // Two active flows under the same main root; the cwd points at
+    // branch A's worktree. Only A's state is refreshed; B's stays
+    // stale, proving the refresh is scoped to the cwd's branch.
+    let (_dir, main_root, worktree_a, state_a) = setup_refresh_fixture(
+        "feat-a",
+        r#"{"session_id":"old-a","transcript_path":"/old/a.jsonl"}"#,
+    );
+    // Add a second flow under the same main root.
+    let worktree_b = main_root.join(".worktrees").join("feat-b");
+    fs::create_dir_all(&worktree_b).unwrap();
+    fs::write(worktree_b.join(".git"), "gitdir: /dev/null\n").unwrap();
+    let state_b_dir = main_root.join(".flow-states").join("feat-b");
+    fs::create_dir_all(&state_b_dir).unwrap();
+    let state_b = state_b_dir.join("state.json");
+    fs::write(
+        &state_b,
+        r#"{"session_id":"old-b","transcript_path":"/old/b.jsonl"}"#,
+    )
+    .unwrap();
+
+    let stdin = format!(
+        r#"{{"session_id":"new-a","cwd":"{}"}}"#,
+        worktree_a.display()
+    );
+    let output = crate::common::spawn_hook(
+        "capture-session",
+        &worktree_a,
+        stdin.as_bytes(),
+        &[("HOME", main_root.to_str().unwrap())],
+    );
+    assert_eq!(output.status.code(), Some(0));
+
+    assert_eq!(read_state(&state_a)["session_id"], "new-a");
+    assert_eq!(
+        read_state(&state_b)["session_id"],
+        "old-b",
+        "sibling flow's state must be untouched"
+    );
+}

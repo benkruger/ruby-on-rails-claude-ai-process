@@ -10,7 +10,6 @@ const STATE_JSON: &str = r#"{
   "current_phase": "flow-code",
   "files": {
     "plan": ".flow-states/app-payment-webhooks-plan.md",
-    "dag": ".flow-states/app-payment-webhooks-dag.md",
     "log": ".flow-states/app-payment-webhooks.log",
     "state": ".flow-states/app-payment-webhooks.json"
   },
@@ -86,8 +85,6 @@ const STATE_JSON: &str = r#"{
     "flow-complete": "auto"
   },
   "issues_filed": [],
-  "plan_file": null,
-  "dag_file": ".flow-states/app-payment-webhooks-dag.md",
   "code_task": 2,
   "code_tasks_total": 5,
   "code_task_name": "Implement webhooks",
@@ -139,13 +136,6 @@ fn deserialize_real_state_file() {
         Some(".flow-states/app-payment-webhooks-plan.md".into())
     );
 
-    // Legacy fields
-    assert!(state.plan_file.is_none());
-    assert_eq!(
-        state.dag_file,
-        Some(".flow-states/app-payment-webhooks-dag.md".into())
-    );
-
     // Transient fields
     assert_eq!(state.auto_continue, Some("/flow:flow-code".into()));
     assert_eq!(state.code_task, Some(2));
@@ -170,7 +160,6 @@ fn minimal_state_deserializes() {
       "current_phase": "flow-start",
       "files": {
         "plan": null,
-        "dag": null,
         "log": ".flow-states/test.log",
         "state": ".flow-states/test.json"
       },

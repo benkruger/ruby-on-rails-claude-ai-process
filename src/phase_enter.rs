@@ -172,13 +172,12 @@ pub fn run_impl(args: &Args) -> Result<Value, String> {
         .and_then(|v| v.as_str())
         .map(String::from);
 
-    // Plan file: check files.plan first, fall back to plan_file
+    // Plan file: read from files.plan.
     let plan_file = state
         .get("files")
         .and_then(|f| f.get("plan"))
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
-        .or_else(|| state.get("plan_file").and_then(|v| v.as_str()))
         .map(String::from);
 
     // Phase enter via mutate_state

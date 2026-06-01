@@ -341,6 +341,162 @@ fn test_state_no_session_cost_usd_field() {
     );
 }
 
+/// Tombstone: removed in PR #1777. The `dag` field of `StateFiles`
+/// (`src/state.rs`) is deleted — the DAG now lives inside the plan in
+/// the GitHub issue body, so no subcommand writes a `dag.md` artifact
+/// or a `files.dag` pointer. Must not return.
+///
+/// Scoped structurally to the `StateFiles` struct body because the bare
+/// substring `dag` is high-collision across the file. The struct-field
+/// shape is byte-stable within that scope:
+///   1. `concat!` reassembly: a struct field name is a literal
+///      identifier (`dag:`), not a runtime-assembled string — re-adding
+///      the field requires the literal `dag` token inside the struct.
+///   2. `format!` reassembly: struct declarations are not produced by
+///      `format!` interpolation.
+///   3. Named `constant` reference: a `const` cannot supply a struct
+///      field name; the field declaration itself trips the scoped check.
+#[test]
+fn test_state_no_files_dag_field() {
+    let root = common::repo_root();
+    let content =
+        fs::read_to_string(root.join("src").join("state.rs")).expect("src/state.rs must exist");
+    let tail = content
+        .split_once("pub struct StateFiles {")
+        .map(|(_, t)| t)
+        .expect("StateFiles struct must exist");
+    let body = tail
+        .split_once('}')
+        .map(|(b, _)| b)
+        .expect("StateFiles struct must close");
+    let forbidden = "dag";
+    assert!(
+        !body.contains(forbidden),
+        "StateFiles in src/state.rs must not declare a `dag` field — the \
+         DAG-on-disk lane was retired; the DAG lives in the issue-body plan."
+    );
+}
+
+/// Tombstone: removed in PR #1777. The `FlowPaths::dag_file()` method
+/// (`src/flow_paths.rs`) is deleted alongside the `files.dag` state
+/// field — no caller computes a `dag.md` path. Must not return.
+///
+/// Byte-substring on `fn dag_file` scoped to `src/flow_paths.rs`. The
+/// shape is byte-stable:
+///   1. `concat!` reassembly: a Rust method name cannot be assembled by
+///      `concat!` — re-adding the method requires the literal
+///      `fn dag_file` in source.
+///   2. `format!` reassembly: method declarations are not produced by
+///      `format!` interpolation.
+///   3. Named `constant` reference: a `const` cannot declare a method;
+///      the `fn dag_file` declaration itself trips the check.
+#[test]
+fn test_flow_paths_no_dag_file_method() {
+    let root = common::repo_root();
+    let content = fs::read_to_string(root.join("src").join("flow_paths.rs"))
+        .expect("src/flow_paths.rs must exist");
+    assert!(
+        !content.contains("fn dag_file"),
+        "src/flow_paths.rs must not declare `fn dag_file` — the dag.md \
+         path helper was removed with the DAG-on-disk lane."
+    );
+}
+
+/// Tombstone: removed in PR #1777. The `ManagedArtifact::DagMd` variant
+/// and its `classify_path`/`canonical_path` arms (`src/write_rule.rs`)
+/// are deleted — `dag.md` is no longer a write-rule-managed artifact.
+/// Must not return.
+///
+/// Byte-substring on `DagMd` scoped to `src/write_rule.rs`. The
+/// PascalCase enum-variant identifier is byte-stable:
+///   1. `concat!` reassembly: a variant name cannot be assembled by
+///      `concat!` — re-adding it requires the literal `DagMd` token.
+///   2. `format!` reassembly: enum declarations and match arms are not
+///      produced by `format!` interpolation.
+///   3. Named `constant` reference: a `const` cannot supply an enum
+///      variant; the variant declaration itself trips the check.
+#[test]
+fn test_write_rule_no_dag_md_variant() {
+    let root = common::repo_root();
+    let content = fs::read_to_string(root.join("src").join("write_rule.rs"))
+        .expect("src/write_rule.rs must exist");
+    assert!(
+        !content.contains("DagMd"),
+        "src/write_rule.rs must not contain `DagMd` — dag.md is no longer \
+         a write-rule-managed artifact."
+    );
+}
+
+/// Tombstone: removed in PR #1777. The legacy `plan_file` top-level
+/// state field (`src/state.rs`) is deleted — `files.plan` is the sole
+/// plan-path pointer. Must not return.
+///
+/// Byte-substring on `plan_file` scoped to `src/state.rs`. The
+/// surviving `FlowPaths::plan_file()` method lives in
+/// `src/flow_paths.rs`, not `state.rs`, so a file-scoped check on
+/// `state.rs` is unambiguous and byte-stable:
+///   1. `concat!` reassembly: a struct field name is a literal
+///      identifier — re-adding `pub plan_file` requires the literal
+///      `plan_file` token in `state.rs`.
+///   2. `format!` reassembly: struct declarations are not produced by
+///      `format!` interpolation.
+///   3. Named `constant` reference: a `const` cannot supply a struct
+///      field name; the field declaration itself trips the check.
+#[test]
+fn test_state_no_plan_file_field() {
+    let root = common::repo_root();
+    let content =
+        fs::read_to_string(root.join("src").join("state.rs")).expect("src/state.rs must exist");
+    let forbidden = "plan_file";
+    assert!(
+        !content.contains(forbidden),
+        "src/state.rs must not declare a `plan_file` field — files.plan \
+         is the sole plan-path pointer."
+    );
+}
+
+/// Tombstone: removed in PR #1777. The legacy `state.get("plan_file")`
+/// fallback reads (phase_enter, render_pr_body, tui_data,
+/// plan_deviation) are deleted — every consumer reads `files.plan`
+/// directly. Must not return.
+///
+/// Byte-substring on the literal call shape `get("plan_file")` scoped
+/// to `src/`. The surviving `response["plan_file"]` output key (an
+/// `IndexMut` assignment, not a `.get`) and the `plan_file()` method
+/// call do not match this shape. The shape is byte-stable:
+///   1. `concat!` reassembly: re-adding the fallback requires the
+///      literal `"plan_file"` argument to `get(...)`.
+///   2. `format!` reassembly: a `get(...)` call argument is a literal
+///      string, not a `format!` product.
+///   3. Named `constant` reference: a `const KEY = "plan_file"` aliased
+///      into `get(KEY)` would not match, but the legacy fallback shape
+///      this guards always passed the literal — the documented v1
+///      contract is the literal call shape.
+#[test]
+fn test_src_no_plan_file_legacy_fallback() {
+    let root = common::repo_root();
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_rs_files(&root.join("src"), &mut files);
+    let forbidden = "get(\"plan_file\")";
+    let mut violations: Vec<String> = Vec::new();
+    for file in &files {
+        let content = match fs::read_to_string(file) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        if content.contains(forbidden) {
+            let rel = file.strip_prefix(&root).unwrap_or(file);
+            violations.push(rel.display().to_string());
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "src must not read the legacy `get(\"plan_file\")` fallback — \
+         every consumer reads files.plan directly:\n{}",
+        violations.join("\n")
+    );
+}
+
 /// Tombstone: removed in PR #1567. The `bump_install_path` function and
 /// its two `run_impl` callsites are deleted from `src/bump_version.rs` —
 /// the `flow-marketplace/flow/<version>/bin/setup` install-path
@@ -1184,6 +1340,94 @@ fn test_commit_no_title_only_or_full_format() {
         !c.contains("commit_format"),
         "flow-commit SKILL must not contain `commit_format` — the \
          configuration axis was removed."
+    );
+}
+
+// --- fs2 dependency removal (PR #1779) ---
+//
+// The `fs2` crate is deprecated and unmaintained. Its
+// `FileExt::lock_exclusive()` calls on `&File` across src/lock.rs,
+// src/commands/log.rs, and tests/concurrency.rs migrated to the
+// standard library's `File::lock()` (stabilized Rust 1.89);
+// tests/concurrency.rs additionally migrated its explicit
+// `FileExt::unlock()` calls to `File::unlock()`, while src/lock.rs and
+// src/commands/log.rs release the lock implicitly on file drop. `fs2 =
+// "0.4"` was removed from Cargo.toml. This tombstone catches a merge
+// conflict or accidental edit that re-introduces the dependency or any
+// `use fs2` / `fs2::` reference in source.
+
+/// Tombstone: removed in PR #1779. The `fs2` dependency and every
+/// `use fs2` / `fs2::` reference are gone — file locking uses the
+/// standard library's `File::lock()` / `File::unlock()`. Must not
+/// return to `Cargo.toml`, `src/`, or `tests/`.
+///
+/// Assertion kind: literal byte-substring across `Cargo.toml` and
+/// every `.rs` file under `src/` and `tests/` (self-excluding this
+/// file, which carries the literal as search input). Stability
+/// argument per `.claude/rules/tombstone-tests.md` "Literal
+/// tombstones — stability checklist":
+///   1. `concat!` reassembly: a `Cargo.toml` dependency line is TOML
+///      key=value text, not Rust source, so `concat!` cannot assemble
+///      it. A `use fs2::FileExt;` import is a Rust `use` item whose
+///      path segment must appear verbatim — `concat!` yields a string
+///      value, never a path token in a `use` declaration.
+///   2. `format!` reassembly: neither a TOML manifest line nor a Rust
+///      `use` path is produced by `format!` interpolation.
+///   3. Named constant reference: a `const` aliasing `"fs2"` cannot
+///      stand in for the crate name in a `use` path or a Cargo
+///      dependency key — both require the literal token in source.
+///   4. `.arg()` split: not applicable — the target is a manifest key
+///      and a `use`-path segment, not a CLI argument chain.
+///
+/// File-resurrection pair: not applicable — no source file is
+/// deleted; the change is callsite migration plus a manifest-line
+/// removal.
+#[test]
+fn test_deps_no_fs2() {
+    let root = common::repo_root();
+    let scanner_path = root
+        .join("tests")
+        .join("tombstones.rs")
+        .canonicalize()
+        .expect("scanner path must canonicalize");
+
+    let cargo_toml = fs::read_to_string(root.join("Cargo.toml")).expect("Cargo.toml must exist");
+    assert!(
+        !cargo_toml.contains("fs2"),
+        "Cargo.toml must not contain `fs2` — the deprecated crate was \
+         removed; file locking uses std `File::lock()` / `File::unlock()`."
+    );
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_rs_files(&root.join("src"), &mut files);
+    collect_rs_files(&root.join("tests"), &mut files);
+
+    let mut violations: Vec<String> = Vec::new();
+    for file in &files {
+        // Self-exclude this scanner file — it carries `fs2` as search input.
+        if file
+            .canonicalize()
+            .map(|p| p == scanner_path)
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        let content = match fs::read_to_string(file) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let rel = file.strip_prefix(&root).unwrap_or(file);
+        for (idx, line) in content.lines().enumerate() {
+            if line.contains("use fs2") || line.contains("fs2::") {
+                violations.push(format!("{}:{}", rel.display(), idx + 1));
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "fs2 references must not appear under src/ or tests/ — \
+         file locking uses std `File::lock()` / `File::unlock()`:\n  {}",
+        violations.join("\n  ")
     );
 }
 

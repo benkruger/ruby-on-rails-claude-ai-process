@@ -608,7 +608,6 @@ fn minimal_state() {
     assert!(body.contains("## Phase Timings"));
     assert!(body.contains("## State File"));
     assert!(!body.contains("## Plan\n"));
-    assert!(!body.contains("## DAG Analysis"));
     assert!(!body.contains("## Session Log"));
     assert!(!body.contains("## Issues Filed"));
 }
@@ -652,67 +651,36 @@ fn with_plan_only() {
     let dir = tempfile::tempdir().unwrap();
     let plan_file = dir.path().join("plan.md");
     fs::write(&plan_file, "# My Plan\n\nDo the thing.").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
 
     let body = render_body(&state, dir.path()).unwrap();
 
     assert!(body.contains("## Plan"));
     assert!(body.contains("Do the thing."));
-    assert!(!body.contains("## DAG Analysis"));
-}
-
-#[test]
-fn with_plan_and_dag() {
-    let mut state = make_test_state();
-    let dir = tempfile::tempdir().unwrap();
-    let plan_file = dir.path().join("plan.md");
-    fs::write(&plan_file, "# Plan content").unwrap();
-    let dag_file = dir.path().join("dag.md");
-    fs::write(&dag_file, "# DAG content").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
-    state["dag_file"] = json!(dag_file.to_string_lossy().to_string());
-
-    let body = render_body(&state, dir.path()).unwrap();
-
-    assert!(body.contains("## Plan"));
-    assert!(body.contains("## DAG Analysis"));
-    assert!(body.contains("Plan content"));
-    assert!(body.contains("DAG content"));
-}
-
-#[test]
-fn dag_always_text_format() {
-    let mut state = make_test_state();
-    let dir = tempfile::tempdir().unwrap();
-    let dag_file = dir.path().join("dag.md");
-    fs::write(&dag_file, r#"<dag goal="test"><node id="1"/></dag>"#).unwrap();
-    state["dag_file"] = json!(dag_file.to_string_lossy().to_string());
-
-    let body = render_body(&state, dir.path()).unwrap();
-
-    assert!(body.contains("```text"));
-    assert!(!body.contains("```xml"));
-    assert!(body.contains(r#"<dag goal="test">"#));
 }
 
 #[test]
 fn nested_fences_preserve_subsequent_sections() {
+    // A details-block body that itself contains fenced code must not
+    // let its nested fences bleed into the sections render_body emits
+    // after it. Driven through the surviving Plan section.
     let mut state = make_test_state();
     let dir = tempfile::tempdir().unwrap();
-    let dag_file = dir.path().join("dag.md");
+    let plan_file = dir.path().join("plan.md");
     fs::write(
-        &dag_file,
-        "# DAG Analysis\n\n```xml\n<dag goal='test'><node id='1'/></dag>\n```\n\n```python\nprint('hello')\n```",
-    ).unwrap();
-    state["dag_file"] = json!(dag_file.to_string_lossy().to_string());
+        &plan_file,
+        "# Plan\n\n```xml\n<node id='1'/>\n```\n\n```python\nprint('hello')\n```",
+    )
+    .unwrap();
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
 
     let body = render_body(&state, dir.path()).unwrap();
 
     assert!(body.contains("## Phase Timings"));
     assert!(body.contains("## State File"));
-    let dag_start = body.find("## DAG Analysis").unwrap();
-    let dag_section = &body[dag_start..];
-    assert!(dag_section.contains("````"));
+    let plan_start = body.find("## Plan").unwrap();
+    let plan_section = &body[plan_start..];
+    assert!(plan_section.contains("````"));
 }
 
 #[test]
@@ -741,15 +709,12 @@ fn full_state() {
 
     let plan_file = dir.path().join("plan.md");
     fs::write(&plan_file, "Plan content").unwrap();
-    let dag_file = dir.path().join("dag.md");
-    fs::write(&dag_file, "DAG content").unwrap();
     let branch_dir = dir.path().join(".flow-states").join("test-feature");
     fs::create_dir_all(&branch_dir).unwrap();
     let log_file = branch_dir.join("log");
     fs::write(&log_file, "2026-01-01 [Phase 1] Step 1 — done").unwrap();
 
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
-    state["dag_file"] = json!(dag_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
     state["transcript_path"] = json!("/path/to/session.jsonl");
     state["issues_filed"] = json!([{
         "label": "Tech Debt",
@@ -763,7 +728,6 @@ fn full_state() {
     assert!(body.contains("## What"));
     assert!(body.contains("## Artifacts"));
     assert!(body.contains("## Plan"));
-    assert!(body.contains("## DAG Analysis"));
     assert!(body.contains("## Phase Timings"));
     assert!(body.contains("## State File"));
     assert!(body.contains("## Session Log"));
@@ -804,52 +768,17 @@ fn plan_from_files_block() {
 }
 
 #[test]
-fn dag_from_files_block() {
-    let mut state = make_test_state();
-    let dir = tempfile::tempdir().unwrap();
-    let branch_dir = dir.path().join(".flow-states").join("test-feature");
-    fs::create_dir_all(&branch_dir).unwrap();
-    let dag_file = branch_dir.join("dag.md");
-    fs::write(&dag_file, "# DAG from files block").unwrap();
-    state["files"]["dag"] = json!(".flow-states/test-feature/dag.md");
-
-    let body = render_body(&state, dir.path()).unwrap();
-
-    assert!(body.contains("## DAG Analysis"));
-    assert!(body.contains("DAG from files block"));
-}
-
-#[test]
 fn artifacts_table_from_files_block() {
     let mut state = make_test_state();
     state["files"]["plan"] = json!(".flow-states/test-feature/plan.md");
-    state["files"]["dag"] = json!(".flow-states/test-feature/dag.md");
 
     let dir = tempfile::tempdir().unwrap();
     let body = render_body(&state, dir.path()).unwrap();
 
     assert!(body.contains("| File | Path |"));
     assert!(body.contains(".flow-states/test-feature/plan.md"));
-    assert!(body.contains(".flow-states/test-feature/dag.md"));
     assert!(body.contains(".flow-states/test-feature/log"));
     assert!(body.contains(".flow-states/test-feature/state.json"));
-}
-
-#[test]
-fn legacy_artifacts_without_files_block() {
-    let mut state = make_test_state();
-    state.as_object_mut().unwrap().remove("files");
-    state["plan_file"] = json!("/abs/path/to/plan.md");
-    state["dag_file"] = json!("/abs/path/to/dag.md");
-    state["transcript_path"] = json!("/abs/path/to/session.jsonl");
-
-    let dir = tempfile::tempdir().unwrap();
-    let body = render_body(&state, dir.path()).unwrap();
-
-    assert!(body.contains("**Plan file**"));
-    assert!(body.contains("**DAG file**"));
-    assert!(body.contains("**Session log**"));
-    assert!(!body.contains("| File | Path |"));
 }
 
 #[test]
@@ -867,7 +796,7 @@ fn empty_artifacts_no_files_block() {
 fn missing_plan_file() {
     let mut state = make_test_state();
     let dir = tempfile::tempdir().unwrap();
-    state["plan_file"] = json!(dir
+    state["files"]["plan"] = json!(dir
         .path()
         .join("nonexistent-plan.md")
         .to_string_lossy()
@@ -879,26 +808,12 @@ fn missing_plan_file() {
 }
 
 #[test]
-fn missing_dag_file() {
-    let mut state = make_test_state();
-    let dir = tempfile::tempdir().unwrap();
-    state["dag_file"] = json!(dir
-        .path()
-        .join("nonexistent-dag.md")
-        .to_string_lossy()
-        .to_string());
-
-    let body = render_body(&state, dir.path()).unwrap();
-    assert!(!body.contains("## DAG Analysis"));
-}
-
-#[test]
 fn idempotent() {
     let mut state = make_test_state();
     let dir = tempfile::tempdir().unwrap();
     let plan_file = dir.path().join("plan.md");
     fs::write(&plan_file, "Plan content").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
 
     let body1 = render_body(&state, dir.path()).unwrap();
     let body2 = render_body(&state, dir.path()).unwrap();
@@ -944,13 +859,10 @@ fn section_order() {
 
     let plan_file = dir.path().join("plan.md");
     fs::write(&plan_file, "Plan").unwrap();
-    let dag_file = dir.path().join("dag.md");
-    fs::write(&dag_file, "DAG").unwrap();
     let branch_log_dir = dir.path().join(".flow-states").join("test-feature");
     fs::create_dir_all(&branch_log_dir).unwrap();
     fs::write(branch_log_dir.join("log"), "log entry").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
-    state["dag_file"] = json!(dag_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
     state["transcript_path"] = json!("/path/to/session.jsonl");
     state["issues_filed"] = json!([{
         "label": "Tech Debt",
@@ -965,7 +877,6 @@ fn section_order() {
         "## What",
         "## Artifacts",
         "## Plan",
-        "## DAG Analysis",
         "## Phase Timings",
         "## State File",
         "## Session Log",
@@ -1032,9 +943,9 @@ fn render_body_omits_token_cost_section_when_no_data() {
     );
 }
 
-/// All eight optional sections rendered together: their `## `
+/// All seven optional sections rendered together: their `## `
 /// heading positions must follow the canonical order
-/// What < Artifacts < Plan < DAG Analysis < Phase Timings <
+/// What < Artifacts < Plan < Phase Timings <
 /// Token Cost < State File < Session Log < Issues Filed.
 #[test]
 fn render_body_token_cost_section_order_invariant() {
@@ -1043,13 +954,10 @@ fn render_body_token_cost_section_order_invariant() {
 
     let plan_file = dir.path().join("plan.md");
     fs::write(&plan_file, "Plan").unwrap();
-    let dag_file = dir.path().join("dag.md");
-    fs::write(&dag_file, "DAG").unwrap();
     let branch_log_dir = dir.path().join(".flow-states").join("test-feature");
     fs::create_dir_all(&branch_log_dir).unwrap();
     fs::write(branch_log_dir.join("log"), "log entry").unwrap();
-    state["plan_file"] = json!(plan_file.to_string_lossy().to_string());
-    state["dag_file"] = json!(dag_file.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_file.to_string_lossy().to_string());
     state["transcript_path"] = json!("/path/to/session.jsonl");
     state["issues_filed"] = json!([{
         "label": "Tech Debt",
@@ -1064,7 +972,6 @@ fn render_body_token_cost_section_order_invariant() {
         "## What",
         "## Artifacts",
         "## Plan",
-        "## DAG Analysis",
         "## Phase Timings",
         "## Token Cost",
         "## State File",
@@ -1191,35 +1098,8 @@ fn artifacts_files_block_empty_transcript_skipped() {
     assert!(!body.contains("| Transcript |"));
 }
 
-/// Covers "dag_file is empty string" in legacy path.
-#[test]
-fn artifacts_legacy_empty_dag_file_skipped() {
-    let mut state = make_test_state();
-    state.as_object_mut().unwrap().remove("files");
-    state["plan_file"] = json!("/abs/plan.md");
-    state["dag_file"] = json!("");
-
-    let dir = tempfile::tempdir().unwrap();
-    let body = render_body(&state, dir.path()).unwrap();
-    assert!(body.contains("**Plan file**"));
-    assert!(!body.contains("**DAG file**"));
-}
-
-/// Covers "transcript_path is empty string" in legacy path.
-#[test]
-fn artifacts_legacy_empty_transcript_skipped() {
-    let mut state = make_test_state();
-    state.as_object_mut().unwrap().remove("files");
-    state["plan_file"] = json!("/abs/plan.md");
-    state["transcript_path"] = json!("");
-
-    let dir = tempfile::tempdir().unwrap();
-    let body = render_body(&state, dir.path()).unwrap();
-    assert!(!body.contains("**Session log**"));
-}
-
 /// Covers the `.map_err(|e| e.to_string())` closure on the plan-file
-/// read — pointing plan_file at a directory makes `pp.exists()`
+/// read — pointing files.plan at a directory makes `pp.exists()`
 /// return true but `read_to_string(pp)` return Err (EISDIR).
 #[test]
 fn plan_file_as_directory_propagates_error() {
@@ -1227,20 +1107,7 @@ fn plan_file_as_directory_propagates_error() {
     let dir = tempfile::tempdir().unwrap();
     let plan_as_dir = dir.path().join("plan-dir");
     fs::create_dir(&plan_as_dir).unwrap();
-    state["plan_file"] = json!(plan_as_dir.to_string_lossy().to_string());
-
-    let result = render_body(&state, dir.path());
-    assert!(result.is_err());
-}
-
-/// Same as above but for the DAG file read.
-#[test]
-fn dag_file_as_directory_propagates_error() {
-    let mut state = make_test_state();
-    let dir = tempfile::tempdir().unwrap();
-    let dag_as_dir = dir.path().join("dag-dir");
-    fs::create_dir(&dag_as_dir).unwrap();
-    state["dag_file"] = json!(dag_as_dir.to_string_lossy().to_string());
+    state["files"]["plan"] = json!(plan_as_dir.to_string_lossy().to_string());
 
     let result = render_body(&state, dir.path());
     assert!(result.is_err());
@@ -1699,16 +1566,15 @@ fn render_pr_body_does_not_panic_on_slash_branch() {
 
 /// Covers `resolve_path` empty-string short-circuit (returns None
 /// instead of treating the empty string as a path). Driven via
-/// `render_body` with an empty `plan_file` value.
+/// `render_body` with an empty `files.plan` value.
 #[test]
 fn resolve_path_empty_string_treated_as_none() {
     let mut state = make_test_state();
-    state.as_object_mut().unwrap().remove("files");
-    state["plan_file"] = json!("");
+    state["files"]["plan"] = json!("");
 
     let dir = tempfile::tempdir().unwrap();
     let body = render_body(&state, dir.path()).unwrap();
-    // Empty plan_file shouldn't produce a Plan section.
+    // Empty files.plan shouldn't produce a Plan section.
     assert!(!body.contains("## Plan\n\n<details>"));
 }
 

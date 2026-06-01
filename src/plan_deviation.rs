@@ -458,13 +458,11 @@ pub fn run_impl(root: &Path, branch: &str, staged_diff: &str) -> Result<(), Vec<
         return Ok(());
     }
 
-    // Plan path — check nested `files.plan` first, fall back
-    // to legacy top-level `plan_file` for older state files.
+    // Plan path — read the nested `files.plan` pointer.
     let plan_rel = state
         .get("files")
         .and_then(|f| f.get("plan"))
         .and_then(|p| p.as_str())
-        .or_else(|| state.get("plan_file").and_then(|p| p.as_str()))
         .filter(|s| !s.is_empty());
     let Some(plan_rel) = plan_rel else {
         return Ok(());

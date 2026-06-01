@@ -91,7 +91,7 @@ fn mutate_state_under_contention() {
     // subprocess. The production mutate_state acquires the same exclusive
     // advisory lock via File::lock(). A regression where
     // mutate_state acquires the lock after reading would not be caught here —
-    // that invariant is enforced by the mutate_state unit tests in src/utils.rs.
+    // that invariant is enforced by the mutate_state unit tests in tests/lock.rs.
     let tmp = tempfile::tempdir().expect("Failed to create tempdir");
     let state_path = tmp.path().join("shared.json");
     fs::write(&state_path, r#"{"count": 0}"#).expect("Failed to write initial state");

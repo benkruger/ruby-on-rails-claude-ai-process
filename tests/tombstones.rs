@@ -1190,13 +1190,15 @@ fn test_commit_no_title_only_or_full_format() {
 // --- fs2 dependency removal (PR #1779) ---
 //
 // The `fs2` crate is deprecated and unmaintained. Its
-// `FileExt::lock_exclusive()` / `FileExt::unlock()` usage on `&File`
-// across src/lock.rs, src/commands/log.rs, and tests/concurrency.rs
-// migrated to the standard library's `File::lock()` / `File::unlock()`
-// (stabilized Rust 1.89), and `fs2 = "0.4"` was removed from
-// Cargo.toml. This tombstone catches a merge conflict or accidental
-// edit that re-introduces the dependency or any `use fs2` / `fs2::`
-// reference in source.
+// `FileExt::lock_exclusive()` calls on `&File` across src/lock.rs,
+// src/commands/log.rs, and tests/concurrency.rs migrated to the
+// standard library's `File::lock()` (stabilized Rust 1.89);
+// tests/concurrency.rs additionally migrated its explicit
+// `FileExt::unlock()` calls to `File::unlock()`, while src/lock.rs and
+// src/commands/log.rs release the lock implicitly on file drop. `fs2 =
+// "0.4"` was removed from Cargo.toml. This tombstone catches a merge
+// conflict or accidental edit that re-introduces the dependency or any
+// `use fs2` / `fs2::` reference in source.
 
 /// Tombstone: removed in PR #1779. The `fs2` dependency and every
 /// `use fs2` / `fs2::` reference are gone — file locking uses the

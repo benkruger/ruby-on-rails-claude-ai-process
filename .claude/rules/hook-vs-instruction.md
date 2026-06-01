@@ -242,8 +242,9 @@ insufficient:
 - **Autonomous Stop refusal** — `stop_continue::run` composes
   three predicates in order: `check_in_progress_utility_skill`
   (refuses turn-end when a multi-step utility skill marker
-  exists and `decompose:decompose` is the most recent Skill in
-  the transcript), `check_continue` (forces continuation when
+  exists and the decompose skill (bare `decompose` or
+  namespaced `decompose:decompose`) is the most recent Skill
+  in the transcript), `check_continue` (forces continuation when
   `_continue_pending=<skill>` is set, supporting multi-child-
   skill chains), and `check_autonomous_stop` (the unified
   autonomous-mode gate). The hook refuses the autonomous
@@ -327,8 +328,9 @@ insufficient:
   exists and names a skill in
   `crate::commands::utility_marker::MULTI_STEP_UTILITY_SKILLS`,
   AND (b) `crate::hooks::transcript_walker::most_recent_skill_since_user`
-  returns `Some("decompose:decompose")` for the hook's
-  `transcript_path`. The walker is the discriminator that
+  returns the decompose skill (bare `decompose` or namespaced
+  `decompose:decompose`, recognized by `is_decompose_skill`) for the
+  hook's `transcript_path`. The walker is the discriminator that
   distinguishes "decompose just returned mid-pipeline" (block) from
   "model just sent a normal conversational reply" (no block) — so
   discussion-mode replies during these utility skills end the turn

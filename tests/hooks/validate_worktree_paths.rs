@@ -5,8 +5,9 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 use flow_rs::hooks::validate_worktree_paths::{
-    detect_misplaced_flow_states, get_file_path, is_approved_out_of_project_path, is_shared_config,
-    validate, validate_shared_config, APPROVED_TMP_EXTENSIONS,
+    build_rewrite_envelope, detect_misplaced_flow_states, get_file_path,
+    is_approved_out_of_project_path, is_shared_config, misplaced_flow_states_rewrite, validate,
+    validate_shared_config, APPROVED_TMP_EXTENSIONS,
 };
 use serde_json::json;
 
@@ -1323,6 +1324,139 @@ fn detect_misplaced_collapses_doubled_slashes_inside_suffix() {
     );
 }
 
+// --- build_rewrite_envelope tests ---
+
+#[test]
+fn build_rewrite_envelope_write_input_replaces_file_path_preserves_content() {
+    let tool_input = json!({
+        "file_path": "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md",
+        "content": "X"
+    });
+    let canonical = "/Users/ben/code/flow/.flow-states/plan.md";
+    let env =
+        build_rewrite_envelope(&tool_input, canonical).expect("object input yields an envelope");
+    let hso = &env["hookSpecificOutput"];
+    assert_eq!(hso["hookEventName"], "PreToolUse");
+    assert_eq!(hso["permissionDecision"], "allow");
+    assert_eq!(hso["updatedInput"]["file_path"], canonical);
+    assert_eq!(hso["updatedInput"]["content"], "X");
+}
+
+#[test]
+fn build_rewrite_envelope_edit_input_preserves_all_fields() {
+    let tool_input = json!({
+        "file_path": "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md",
+        "old_string": "a",
+        "new_string": "b",
+        "replace_all": true
+    });
+    let canonical = "/Users/ben/code/flow/.flow-states/plan.md";
+    let env =
+        build_rewrite_envelope(&tool_input, canonical).expect("object input yields an envelope");
+    let updated = &env["hookSpecificOutput"]["updatedInput"];
+    assert_eq!(updated["file_path"], canonical);
+    assert_eq!(updated["old_string"], "a");
+    assert_eq!(updated["new_string"], "b");
+    assert_eq!(updated["replace_all"], true);
+}
+
+#[test]
+fn build_rewrite_envelope_non_object_input_returns_none() {
+    let tool_input = json!("not an object");
+    assert!(
+        build_rewrite_envelope(&tool_input, "/Users/ben/code/flow/.flow-states/plan.md").is_none()
+    );
+}
+
+// --- misplaced_flow_states_rewrite gating tests ---
+
+#[test]
+fn misplaced_rewrite_write_misplaced_path_yields_envelope() {
+    let cwd = "/Users/ben/code/flow/.worktrees/feat";
+    let file_path = "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md";
+    let tool_input = json!({"file_path": file_path, "content": "X"});
+    let env = misplaced_flow_states_rewrite(file_path, cwd, "Write", &tool_input)
+        .expect("Write on a misplaced path yields a rewrite envelope");
+    assert_eq!(
+        env["hookSpecificOutput"]["updatedInput"]["file_path"],
+        "/Users/ben/code/flow/.flow-states/plan.md"
+    );
+}
+
+#[test]
+fn misplaced_rewrite_edit_misplaced_path_yields_envelope() {
+    let cwd = "/Users/ben/code/flow/.worktrees/feat";
+    let file_path = "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md";
+    let tool_input = json!({"file_path": file_path, "old_string": "a", "new_string": "b"});
+    let env = misplaced_flow_states_rewrite(file_path, cwd, "Edit", &tool_input)
+        .expect("Edit on a misplaced path yields a rewrite envelope");
+    assert_eq!(
+        env["hookSpecificOutput"]["updatedInput"]["file_path"],
+        "/Users/ben/code/flow/.flow-states/plan.md"
+    );
+}
+
+#[test]
+fn misplaced_rewrite_read_misplaced_path_returns_none() {
+    let cwd = "/Users/ben/code/flow/.worktrees/feat";
+    let file_path = "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md";
+    let tool_input = json!({"file_path": file_path});
+    assert!(misplaced_flow_states_rewrite(file_path, cwd, "Read", &tool_input).is_none());
+}
+
+#[test]
+fn misplaced_rewrite_glob_misplaced_path_returns_none() {
+    let cwd = "/Users/ben/code/flow/.worktrees/feat";
+    let file_path = "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md";
+    let tool_input = json!({"path": file_path});
+    assert!(misplaced_flow_states_rewrite(file_path, cwd, "Glob", &tool_input).is_none());
+}
+
+#[test]
+fn misplaced_rewrite_grep_misplaced_path_returns_none() {
+    let cwd = "/Users/ben/code/flow/.worktrees/feat";
+    let file_path = "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md";
+    let tool_input = json!({"path": file_path});
+    assert!(misplaced_flow_states_rewrite(file_path, cwd, "Grep", &tool_input).is_none());
+}
+
+#[test]
+fn misplaced_rewrite_write_non_misplaced_path_returns_none() {
+    // A canonical path inside the worktree proper is not misplaced.
+    let cwd = "/Users/ben/code/flow/.worktrees/feat";
+    let file_path = "/Users/ben/code/flow/.worktrees/feat/src/main.rs";
+    let tool_input = json!({"file_path": file_path, "content": "X"});
+    assert!(misplaced_flow_states_rewrite(file_path, cwd, "Write", &tool_input).is_none());
+}
+
+#[test]
+fn misplaced_rewrite_empty_file_path_returns_none() {
+    let cwd = "/Users/ben/code/flow/.worktrees/feat";
+    let tool_input = json!({"content": "X"});
+    assert!(misplaced_flow_states_rewrite("", cwd, "Write", &tool_input).is_none());
+}
+
+#[test]
+fn misplaced_rewrite_cwd_not_in_worktree_returns_none() {
+    // compute_worktree_paths returns None when cwd is not inside a
+    // worktree, so no project_root is resolvable and no rewrite fires.
+    let cwd = "/Users/ben/code/flow";
+    let file_path = "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md";
+    let tool_input = json!({"file_path": file_path, "content": "X"});
+    assert!(misplaced_flow_states_rewrite(file_path, cwd, "Write", &tool_input).is_none());
+}
+
+#[test]
+fn misplaced_rewrite_non_object_tool_input_returns_none() {
+    // A misplaced path with a non-object tool_input cannot produce a
+    // field-preserving envelope, so the helper falls through to None
+    // and the caller blocks instead.
+    let cwd = "/Users/ben/code/flow/.worktrees/feat";
+    let file_path = "/Users/ben/code/flow/.worktrees/feat/.flow-states/plan.md";
+    let tool_input = json!("not an object");
+    assert!(misplaced_flow_states_rewrite(file_path, cwd, "Write", &tool_input).is_none());
+}
+
 // --- validate() .flow-states/ canonicalization tests ---
 
 #[test]
@@ -1505,25 +1639,89 @@ fn validate_subprocess_memory_read_allowed_via_resolved_home() {
 }
 
 #[test]
-fn validate_subprocess_rejects_worktree_flow_states_write() {
+fn validate_subprocess_rewrites_worktree_flow_states_write() {
+    // A Write to a misplaced worktree-internal .flow-states/ path is
+    // now silently auto-corrected: exit 0 with a stdout rewrite
+    // envelope pointing file_path at the canonical main-repo location,
+    // not a BLOCKED stderr message.
     let tmp = tempfile::tempdir().expect("tempdir");
     let (root, worktree_cwd) = worktree_fixture(&tmp);
     let target = worktree_cwd.join(".flow-states/plan.md");
     let canonical = root.join(".flow-states/plan.md");
-    let (code, _, stderr) = spawn_hook_with_cwd(
+    let (code, stdout, stderr) = spawn_hook_with_cwd(
         &worktree_cwd,
         &root,
         "Write",
         "file_path",
         target.to_str().unwrap(),
     );
-    assert_eq!(code, 2, "stderr: {}", stderr);
-    assert!(stderr.contains("BLOCKED"), "stderr: {}", stderr);
-    assert!(stderr.contains(".flow-states/"), "stderr: {}", stderr);
+    assert_eq!(code, 0, "stderr: {}", stderr);
     assert!(
-        stderr.contains(canonical.to_str().unwrap()),
-        "stderr: {}",
-        stderr
+        stdout.contains("\"permissionDecision\":\"allow\""),
+        "stdout: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains("\"hookEventName\":\"PreToolUse\""),
+        "stdout: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains(canonical.to_str().unwrap()),
+        "stdout: {}",
+        stdout
+    );
+}
+
+#[test]
+fn validate_subprocess_rewrites_worktree_flow_states_edit() {
+    // Edit mirrors Write: the misplaced .flow-states/ path is rewritten
+    // to the canonical location (exit 0 + stdout envelope) rather than
+    // blocked.
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let (root, worktree_cwd) = worktree_fixture(&tmp);
+    let target = worktree_cwd.join(".flow-states/plan.md");
+    let canonical = root.join(".flow-states/plan.md");
+    let (code, stdout, stderr) = spawn_hook_with_cwd(
+        &worktree_cwd,
+        &root,
+        "Edit",
+        "file_path",
+        target.to_str().unwrap(),
+    );
+    assert_eq!(code, 0, "stderr: {}", stderr);
+    assert!(
+        stdout.contains("\"permissionDecision\":\"allow\""),
+        "stdout: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains(canonical.to_str().unwrap()),
+        "stdout: {}",
+        stdout
+    );
+}
+
+#[test]
+fn validate_subprocess_allow_arm_emits_no_stdout() {
+    // The WorktreeAction::Allow arm exits 0 with no stdout — an
+    // in-worktree non-flow-states Write is allowed silently, distinct
+    // from the Rewrite arm which emits a stdout envelope.
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let (root, worktree_cwd) = worktree_fixture(&tmp);
+    let target = worktree_cwd.join("src/main.rs");
+    let (code, stdout, stderr) = spawn_hook_with_cwd(
+        &worktree_cwd,
+        &root,
+        "Write",
+        "file_path",
+        target.to_str().unwrap(),
+    );
+    assert_eq!(code, 0, "stderr: {}", stderr);
+    assert!(
+        stdout.is_empty(),
+        "Allow arm must emit no stdout; got: {}",
+        stdout
     );
 }
 
@@ -1537,28 +1735,6 @@ fn validate_subprocess_rejects_worktree_flow_states_read() {
         &worktree_cwd,
         &root,
         "Read",
-        "file_path",
-        target.to_str().unwrap(),
-    );
-    assert_eq!(code, 2, "stderr: {}", stderr);
-    assert!(stderr.contains("BLOCKED"), "stderr: {}", stderr);
-    assert!(
-        stderr.contains(canonical.to_str().unwrap()),
-        "stderr: {}",
-        stderr
-    );
-}
-
-#[test]
-fn validate_subprocess_rejects_worktree_flow_states_edit() {
-    let tmp = tempfile::tempdir().expect("tempdir");
-    let (root, worktree_cwd) = worktree_fixture(&tmp);
-    let target = worktree_cwd.join(".flow-states/plan.md");
-    let canonical = root.join(".flow-states/plan.md");
-    let (code, _, stderr) = spawn_hook_with_cwd(
-        &worktree_cwd,
-        &root,
-        "Edit",
         "file_path",
         target.to_str().unwrap(),
     );

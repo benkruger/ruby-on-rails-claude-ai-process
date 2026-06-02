@@ -77,14 +77,28 @@ The `validate-worktree-paths` PreToolUse hook
 location at the tool-call layer. The
 `detect_misplaced_flow_states(file_path, project_root)` helper detects
 the misplacement via pure string operations and returns the canonical
-destination. When the helper matches, `validate()` returns
-`(false, message)` with a `BLOCKED` message naming the canonical path
-the caller should use instead.
+destination. The handling then splits by tool:
 
-The check fires on every Edit, Write, Read, Glob, and Grep tool call
-the hook is registered for. Both `file_path` (Edit/Write/Read) and
-`path` (Glob/Grep) input shapes resolve through `get_file_path`
-before the helper runs.
+- **Write and Edit** are silently auto-corrected. `run_impl_main`
+  calls `misplaced_flow_states_rewrite` before the block gates, and
+  when it matches, `run()` emits a `hookSpecificOutput` rewrite
+  envelope on stdout (`permissionDecision: allow`, with an
+  `updatedInput` whose `file_path` is repointed at the canonical
+  destination and every other field preserved) and exits 0. Claude
+  Code reissues the call against the canonical path; the model never
+  sees a block.
+- **Read, Glob, and Grep** still block: `validate()` returns
+  `(false, message)` with a `BLOCKED` message naming the canonical
+  path, because there is no `content`/`file_path` pairing that could
+  be safely redirected without returning data the model did not ask
+  for.
+
+The detection logic runs for every Edit, Write, Read, Glob, and Grep
+tool call the hook is registered for — for Write/Edit it runs inside
+`misplaced_flow_states_rewrite` ahead of the block gates, and for
+Read/Glob/Grep it runs inside `validate()`. Both `file_path`
+(Edit/Write/Read) and `path` (Glob/Grep) input shapes resolve through
+`get_file_path` before that detection runs.
 
 ## Managed-Artifact Canonicalization Gate (CLI Layer)
 

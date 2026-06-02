@@ -1115,9 +1115,12 @@ fn helper_continues_when_tool_result_content_is_number() {
 // AskUserQuestion to ask the user how to proceed — but in an
 // in-progress autonomous Review phase, validate-ask-user blocks it.
 // This walker detects the recent phase-finalize skip handoff so the
-// carve-out can release the prompt. Detection signal: the literal
-// reason substring `agents_skipped` or `required_agent_not_returned`
-// inside a `tool_result` block in the most recent user-role turn.
+// carve-out can release the prompt. Detection signal: the JSON
+// reason key-value form `"reason":"agents_skipped"` or
+// `"reason":"required_agent_not_returned"` inside a `tool_result`
+// block in the most recent user-role turn. The key-value anchor (not
+// a bare `agents_skipped` substring) excludes `add-skipped-agent`'s
+// `agents_skipped_count` success envelope.
 // Unlike the shared-config block, phase-finalize returns exit 0 for
 // these business errors, so the tool_result's `is_error` is false —
 // the walker scans every tool_result regardless of `is_error`.
@@ -1167,6 +1170,25 @@ fn recent_phase_finalize_agent_skip_returns_false_when_no_reason() {
     let jsonl = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"finalize\"}}\n\
 {\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Bash\",\"id\":\"toolu_03\",\"input\":{\"command\":\"bin/flow phase-finalize\"}}]}}\n\
 {\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_03\",\"content\":\"{\\\"status\\\":\\\"ok\\\",\\\"formatted_time\\\":\\\"<1m\\\"}\",\"is_error\":false}]}}\n";
+    let path = crate::common::transcript_fixture(home, "p", jsonl);
+    assert!(!recent_phase_finalize_agent_skip(&path, home));
+}
+
+#[test]
+fn recent_phase_finalize_agent_skip_returns_false_for_add_skipped_agent_count_envelope() {
+    // `bin/flow add-skipped-agent` runs during Review and emits a
+    // SUCCESS envelope `{"status":"ok","agents_skipped_count":N,...}`.
+    // Its `agents_skipped_count` field contains `agents_skipped` as a
+    // substring, but the envelope is NOT a phase-finalize handoff.
+    // Anchoring the match on the `"reason":` key-value form excludes
+    // it so the carve-out does not spuriously release the
+    // autonomous-phase AskUserQuestion block. Regression guard for the
+    // gate-integrity bug the adversarial probe surfaced.
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let jsonl = "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"record the skip\"}}\n\
+{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Bash\",\"id\":\"toolu_cnt\",\"input\":{\"command\":\"bin/flow add-skipped-agent --phase flow-review --agent reviewer --reason api_error\"}}]}}\n\
+{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_cnt\",\"content\":\"{\\\"status\\\":\\\"ok\\\",\\\"agents_skipped_count\\\":1,\\\"phase\\\":\\\"flow-review\\\"}\",\"is_error\":false}]}}\n";
     let path = crate::common::transcript_fixture(home, "p", jsonl);
     assert!(!recent_phase_finalize_agent_skip(&path, home));
 }

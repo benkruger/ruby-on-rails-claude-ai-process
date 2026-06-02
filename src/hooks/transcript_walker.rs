@@ -1547,21 +1547,27 @@ pub fn recent_phase_finalize_agent_skip(transcript_path: &Path, home: &Path) -> 
     false
 }
 
-/// Scan every `tool_result` block in `turn` whose `is_error` is
-/// truthy and return `true` as soon as `pred` accepts that block's
-/// text. Returns `false` for string-content user turns (the user
-/// typed a message — not a tool_result wrapper), missing or
-/// non-array content, and array content where no error block's
-/// text satisfies `pred`.
+/// Scan `tool_result` blocks in `turn` and return `true` as soon as
+/// `pred` accepts a block's text. When `require_error` is true, only
+/// blocks whose `is_error` is truthy are examined (the shared-config
+/// carve-out keys on `validate_worktree_paths`'s error tool_result);
+/// when false, every tool_result block is examined regardless of the
+/// flag (phase-finalize returns its agent-skip handoff as a business
+/// error with exit 0, so its tool_result's `is_error` is false).
+/// Returns `false` for string-content user turns (the user typed a
+/// message — not a tool_result wrapper), missing or non-array
+/// content, and array content where no qualifying block's text
+/// satisfies `pred`.
 ///
 /// `tool_result.content` is either a plain string or an array of
 /// content blocks (each typically a `text` block); both wire
 /// formats are flattened per block so `pred` sees the same text
 /// either way. Per-block short-circuit (no cross-block
 /// accumulation) keeps the branch surface minimal. Shared by
-/// `user_turn_carries_shared_config_block` and the
-/// `user_approved_shared_config_edit` block-corroboration check so
-/// the extraction logic lives in one place.
+/// `user_turn_carries_shared_config_block` (require_error = true),
+/// the `user_approved_shared_config_edit` block-corroboration check
+/// (require_error = true), and `user_turn_carries_phase_finalize_skip`
+/// (require_error = false) so the extraction logic lives in one place.
 fn any_tool_result_text<F: FnMut(&str) -> bool>(
     turn: &Value,
     require_error: bool,
@@ -1631,20 +1637,28 @@ fn user_turn_carries_shared_config_block(turn: &Value) -> bool {
 
 /// Returns `true` when the user-role turn carries a tool_result
 /// block whose content names a phase-finalize agent-skip handoff —
-/// the literal reason substring `agents_skipped` or
-/// `required_agent_not_returned`. Scans every tool_result regardless
-/// of `is_error` (phase-finalize returns these business errors with
-/// exit 0, so the Bash tool_result's `is_error` is false). Returns
-/// `false` for string-content user turns, missing or non-array
-/// content, and array content where no block matches.
+/// the JSON reason key-value form `"reason":"agents_skipped"` or
+/// `"reason":"required_agent_not_returned"`. Scans every tool_result
+/// regardless of `is_error` (phase-finalize returns these business
+/// errors with exit 0, so the Bash tool_result's `is_error` is
+/// false). Returns `false` for string-content user turns, missing or
+/// non-array content, and array content where no block matches.
 ///
-/// The two reason values are emitted only by FLOW's own
-/// `phase-finalize` JSON (`src/phase_finalize.rs`), a trusted
-/// producer, so a literal substring match without normalization is
-/// the correct posture (cf. the shared-config sibling).
+/// The match anchors on the `"reason":` key-value pair rather than
+/// the bare token `agents_skipped`, because `bin/flow
+/// add-skipped-agent` — a command the model runs during Review —
+/// emits a success envelope `{"status":"ok","agents_skipped_count":N}`
+/// whose `agents_skipped_count` field contains `agents_skipped` as a
+/// substring. Anchoring on `"reason":"<value>"` excludes that success
+/// envelope so the carve-out fires only for a genuine phase-finalize
+/// handoff. The reason values inside the `"reason":` slot are emitted
+/// only by FLOW's own `phase-finalize` JSON (`src/phase_finalize.rs`),
+/// a trusted producer serializing compact JSON, so the exact
+/// `"reason":"<value>"` form is stable.
 fn user_turn_carries_phase_finalize_skip(turn: &Value) -> bool {
     any_tool_result_text(turn, false, |t| {
-        t.contains("agents_skipped") || t.contains("required_agent_not_returned")
+        t.contains("\"reason\":\"agents_skipped\"")
+            || t.contains("\"reason\":\"required_agent_not_returned\"")
     })
 }
 
